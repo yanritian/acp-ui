@@ -236,11 +236,30 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     const session = sessions.value.get(sessionId)
     if (!session) return
 
-    // Sync messages from output
-    session.messages = output.messages
-    session.toolCalls.clear()
+    // Merge messages by ID: append new ones, update existing ones
+    // Skip user messages — they're already added by sendPrompt before calling the runner
+    for (const msg of output.messages) {
+      if (msg.role === 'user') continue
+
+      const existing = session.messages.find(m => m.id === msg.id)
+      if (existing) {
+        if (msg.content !== existing.content) {
+          existing.content = msg.content
+        }
+        if (msg.thought && msg.thought !== existing.thought) {
+          existing.thought = msg.thought
+        }
+      } else {
+        session.messages.push(msg)
+      }
+    }
+
+    // Merge toolCalls
     for (const tc of output.toolCalls) {
-      session.toolCalls.set(tc.toolCallId, tc)
+      const existing = session.toolCalls.get(tc.toolCallId)
+      if (!existing) {
+        session.toolCalls.set(tc.toolCallId, tc)
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+/// <reference types="vitest" />
 import vue from "@vitejs/plugin-vue";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -19,6 +20,13 @@ export default defineConfig(async ({ mode }) => {
 
   return {
     plugins: [vue()],
+
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['src/test/setup.ts'],
+      globals: true,
+      exclude: ['**/tests/e2e/**', '**/node_modules/**', '**/dist/**'],
+    },
 
     define: {
       // Exposed to the frontend as `import.meta.env.VITE_APP_VERSION`. The

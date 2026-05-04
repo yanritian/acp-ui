@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { canPickFolder, pickFolder, loadKvStore, type KVStore } from './lib/host';
 import { useConfigStore } from './stores/config';
 import { useSessionStore } from './stores/session';
+import { useMultiSessionStore } from './stores/multi-session';
 import { initTelemetry } from './lib/telemetry';
 import AgentSelector from './components/AgentSelector.vue';
 import SessionList from './components/SessionList.vue';
@@ -12,10 +13,23 @@ import SettingsView from './components/SettingsView.vue';
 import AuthMethodDialog from './components/AuthMethodDialog.vue';
 import TrafficMonitor from './components/TrafficMonitor.vue';
 import StartupProgress from './components/StartupProgress.vue';
+import MultiAgentChat from './components/MultiAgentChat.vue';
+import AgentStatusPanel from './components/AgentStatusPanel.vue';
+import RealtimeMonitor from './components/RealtimeMonitor.vue';
+import HistoryView from './components/HistoryView.vue';
+import WorkflowView from './components/WorkflowView.vue';
+import GatewaySettings from './components/GatewaySettings.vue';
+import TeamOrchestrationView from './components/TeamOrchestrationView.vue';
+import BotSettings from './components/BotSettings.vue';
+import MultiSessionChat from './components/MultiSessionChat.vue';
+import MemoryView from './components/MemoryView.vue';
+import { FEATURES } from './lib/feature-registry'
+import './assets/modern.css'
 import type { SavedSession } from './lib/types';
 
 const configStore = useConfigStore();
 const sessionStore = useSessionStore();
+const multiSession = useMultiSessionStore();
 
 const selectedAgent = ref('');
 const selectedCwd = ref('');
@@ -27,6 +41,8 @@ const showSidebar = ref(true);
 const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
+// View types
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory'>('chat');
 
 // Reactive flag tracking whether the viewport is narrow enough to show the
 // sidebar as a slide-in drawer (mobile / very narrow desktop windows). Used
@@ -122,6 +138,7 @@ onMounted(async () => {
   await configStore.loadConfig();
   await configStore.setupHotReload();
   await sessionStore.initStore();
+  await multiSession.initStore();
   
   const savedCwd = await prefsStore.get<string>('lastCwd');
   if (savedCwd) {
@@ -357,10 +374,27 @@ function clearError() {
         
         <!-- Session List -->
         <div class="section">
-          <SessionList 
+          <SessionList
             @resume="handleResumeSession"
             @delete="handleDeleteSession"
           />
+        </div>
+
+        <!-- View Navigation -->
+        <div class="section view-nav">
+          <h3 class="nav-title">功能导航</h3>
+          <nav class="nav-buttons">
+            <button
+              v-for="feature in FEATURES"
+              :key="feature.id"
+              :class="['nav-btn', { active: currentView === feature.id }]"
+              @click="currentView = feature.id"
+              :title="feature.description"
+            >
+              <span class="nav-icon">{{ feature.icon }}</span>
+              <span class="nav-text">{{ feature.label }}</span>
+            </button>
+          </nav>
         </div>
       </div>
     </aside>
@@ -418,16 +452,52 @@ function clearError() {
           <button class="error-close" @click="clearError" title="Dismiss">×</button>
         </div>
         
-        <!-- Chat View when connected -->
-        <ChatView v-if="isConnected" />
+        <!-- Chat View when connected (single agent) -->
+        <ChatView v-if="isConnected && currentView === 'chat'" />
+
+        <!-- Multi-Agent Chat View -->
+        <MultiAgentChat v-else-if="currentView === 'multi-agent'" />
+
+        <!-- Multi-Session View (总会话) -->
+        <MultiSessionChat v-else-if="currentView === 'multi-session'" />
+
+        <!-- Agent Status Panel -->
+        <AgentStatusPanel v-else-if="currentView === 'status'" />
+
+        <!-- Realtime Monitor -->
+        <RealtimeMonitor v-else-if="currentView === 'monitor'" />
+
+        <!-- History View -->
+        <HistoryView v-else-if="currentView === 'history'" />
+
+        <!-- Workflow View -->
+        <WorkflowView v-else-if="currentView === 'workflow'" />
+
+        <!-- Team Orchestration View (实时可视化编排) -->
+        <TeamOrchestrationView v-else-if="currentView === 'orchestration'" />
+
+        <!-- Bot Settings View -->
+        <BotSettings v-else-if="currentView === 'bot'" />
+
+        <!-- Gateway Settings View -->
+        <GatewaySettings v-else-if="currentView === 'gateway'" />
+
+        <!-- Memory View -->
+        <MemoryView v-else-if="currentView === 'memory'" />
         
-        <!-- Welcome screen when not connected -->
-        <div v-else class="welcome-screen">
+        <!-- Welcome screen when not connected in chat view -->
+        <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">
           <h2>Welcome to ACP UI</h2>
           <p>Select an agent and create a new session to get started.</p>
           <p v-if="!hasAgents" class="hint">
             Configure agents in your config file to begin.
           </p>
+        </div>
+
+        <!-- Default state for other views -->
+        <div v-else class="welcome-screen">
+          <h2>Agent Teams Platform</h2>
+          <p>请先连接代理以使用此功能</p>
         </div>
       </main>
       
@@ -538,13 +608,16 @@ html, body, #app {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.05), rgba(99, 102, 241, 0.05));
 }
 
 .sidebar-header h1 {
-  font-size: 1.25rem;
+  font-size: 20px;
+  font-weight: 600;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -671,6 +744,72 @@ html, body, #app {
 
 .cwd-input:disabled {
   opacity: 0.5;
+}
+
+.view-nav {
+  padding-top: 12px;
+}
+
+.nav-title {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.nav-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.nav-text {
+  flex: 1;
+}
+
+.nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-btn.active {
+  background: linear-gradient(135deg, var(--bg-primary), var(--bg-primary-hover));
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+}
+
+.nav-btn.highlight {
+  border: 1px solid var(--bg-primary);
+}
+
+.nav-btn.highlight:hover {
+  background: rgba(0, 102, 204, 0.1);
+}
+
+.nav-btn.highlight.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
 }
 
 .disconnect-btn {
@@ -833,6 +972,21 @@ html, body, #app {
   margin-top: 1rem;
   font-size: 0.875rem;
   color: var(--text-muted);
+}
+
+/* ---------- Multi-Session View ---------- */
+
+.multi-session-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.session-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* ---------- Mobile / narrow-viewport layout ---------- */

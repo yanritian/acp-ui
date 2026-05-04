@@ -2,6 +2,7 @@ mod agent;
 mod bot;
 mod config;
 mod database;
+mod gateway_config;
 mod teams;
 mod websocket;
 
@@ -815,73 +816,66 @@ pub struct TunnelConfig {
 }
 
 #[tauri::command]
-fn get_gateway_config() -> Result<GatewayConfig, String> {
-    // TODO: Load from config file
-    Ok(GatewayConfig {
-        feishu: None,
-        telegram: None,
-        discord: None,
-        app: Some(AppConfig {
-            websocket_port: 1420,
-            auth_mode: "qrcode".to_string(),
-            enabled: true,
-        }),
-        tunnel: Some(TunnelConfig {
-            enabled: false,
-            provider: "ngrok".to_string(),
-            ngrok_token: None,
-            ngrok_region: Some("ap".to_string()),
-            custom_url: None,
-            status: "stopped".to_string(),
-            public_url: None,
-        }),
-    })
+fn get_gateway_config(state: State<AppState>) -> Result<GatewayConfig, String> {
+    let db = state.database.lock().map_err(|e| e.to_string())?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let config = gateway_config::load_gateway_config(db)?;
+    Ok(gateway_config::mask_config(&config))
 }
 
 #[tauri::command]
-fn save_gateway_config(config: GatewayConfig) -> Result<(), String> {
-    // TODO: Save to config file
-    println!("Gateway config saved: {:?}", config);
+fn save_gateway_config(config: GatewayConfig, state: State<AppState>) -> Result<(), String> {
+    let db = state.database.lock().map_err(|e| e.to_string())?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    gateway_config::save_gateway_config(db, &config)?;
     Ok(())
 }
 
 #[tauri::command]
 fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<AppState>) -> Result<(), String> {
-    println!("Starting gateway with config: {:?}", config);
+    println!("Starting gateway with config");
 
-    // 1. 启动WebSocket服务器（如果app.enabled）
+    // Persist config to database
+    let db = state.database.lock().map_err(|e| e.to_string())?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    gateway_config::save_gateway_config(db, &config)?;
+
+    // Generate auth token for app gateway
     if let Some(app_config) = &config.app {
         if app_config.enabled {
-            // WebSocket服务器已在start_ws_server中启动
-            println!("App gateway enabled, WebSocket port: {}", app_config.websocket_port);
+            let token = Uuid::new_v4().to_string();
+            // Store token in ws_server so the WebSocket server can use it
+            let ws = state.ws_server.lock().unwrap();
+            if let Some(server) = ws.as_ref() {
+                server.set_auth_token(Some(token.clone()));
+                println!("Gateway auth token generated: {}", &token[..8]);
+            }
         }
     }
 
-    // 2. 启动飞书Bot（如果feishu.enabled）- TODO: 需要实现飞书SDK
+    // 2. Feishu Bot (placeholder)
     if let Some(feishu) = &config.feishu {
         if feishu.enabled {
             println!("Feishu Bot enabled, App ID: {}", feishu.app_id);
-            // TODO: 初始化飞书Bot客户端
         }
     }
 
-    // 3. 启动Telegram Bot（如果telegram.enabled）- TODO: 需要实现Telegram SDK
+    // 3. Telegram Bot (placeholder)
     if let Some(telegram) = &config.telegram {
         if telegram.enabled {
             println!("Telegram Bot enabled");
-            // TODO: 初始化Telegram Bot客户端
         }
     }
 
-    // 4. 启动Discord Bot（如果discord.enabled）- TODO: 需要实现Discord SDK
+    // 4. Discord Bot (placeholder)
     if let Some(discord) = &config.discord {
         if discord.enabled {
             println!("Discord Bot enabled, Guild: {:?}", discord.guild_id);
-            // TODO: 初始化Discord Bot客户端
         }
     }
 
-    // Emit gateway started event
     let _ = app_handle.emit("gateway-started", config);
 
     Ok(())

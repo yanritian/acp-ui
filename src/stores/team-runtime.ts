@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { AgentTeamsService } from '../lib/team-service/agent-teams-service'
 import type { TeamRunRequest, TeamRunResult } from '../lib/team-service/types'
 import type { RuntimeOutput, RuntimeTask, RuntimeEvent, RuntimeSession } from '../lib/agent-runtime/types'
+import { useMemoryStore } from './memory'
 
 export const useTeamRuntimeStore = defineStore('teamRuntime', () => {
   const agents = ref<Map<string, RuntimeSession>>(new Map())
@@ -41,7 +42,35 @@ export const useTeamRuntimeStore = defineStore('teamRuntime', () => {
     error.value = null
 
     try {
-      const result = await service.runTeamTask(request)
+      // Inject relevant memories before running (if scope is not 'none')
+      let memories: string[] | undefined
+      if (request.memoryScope && request.memoryScope !== 'none') {
+        try {
+          const memoryStore = useMemoryStore()
+          const relevantMemories = await memoryStore.loadRelevantMemories({
+            prompt: request.prompt,
+            agentName: request.agents[0]?.agentName,
+            sessionId: undefined,
+            limit: 5,
+          })
+          memories = relevantMemories.map(m => m.content)
+          if (memories.length > 0) {
+            addEvent({
+              type: 'task-started',
+              message: `Injected ${memories.length} memories into task`,
+            })
+          }
+        } catch {
+          // Memory injection is optional — don't fail the task
+        }
+      }
+
+      // Augment the request with memories
+      const augmentedRequest = memories?.length
+        ? { ...request, memories }
+        : request
+
+      const result = await service.runTeamTask(augmentedRequest)
 
       // Update stores
       tasks.value.set(result.task.id, result.task)

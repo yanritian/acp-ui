@@ -23,12 +23,17 @@ pub fn load_gateway_config(db: &DatabaseManager) -> Result<GatewayConfig, String
     }
 }
 
-/// Save gateway config to database
+/// Save gateway config to database (merges with existing config to avoid data loss)
 pub fn save_gateway_config(db: &DatabaseManager, config: &GatewayConfig) -> Result<(), String> {
+    // Load existing config first for merging
+    let existing = load_gateway_config(db).ok();
+
+    let merged = merge_config(existing.as_ref(), config);
+
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
     let json =
-        serde_json::to_string(config).map_err(|e| format!("Failed to serialize config: {}", e))?;
+        serde_json::to_string(&merged).map_err(|e| format!("Failed to serialize config: {}", e))?;
 
     conn.execute(
         "INSERT OR REPLACE INTO gateway_config (id, config_json, updated_at) VALUES (?1, ?2, ?3)",
@@ -37,6 +42,45 @@ pub fn save_gateway_config(db: &DatabaseManager, config: &GatewayConfig) -> Resu
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+/// Deep-merge incoming config into existing config.
+/// For each section (feishu, telegram, etc.), if the incoming section has
+/// non-default values, use it; otherwise keep the existing one.
+fn merge_config(existing: Option<&GatewayConfig>, incoming: &GatewayConfig) -> GatewayConfig {
+    let mut result = incoming.clone();
+
+    if let Some(existing) = existing {
+        // Merge feishu: only override if incoming has non-empty values
+        if let (Some(inc_f), Some(_)) = (&incoming.feishu, &existing.feishu) {
+            if inc_f.app_id.is_empty() && inc_f.app_secret.is_empty() {
+                // Incoming has no meaningful data, keep existing
+                result.feishu = existing.feishu.clone();
+            }
+        } else if let Some(ex_f) = &existing.feishu {
+            result.feishu = Some(ex_f.clone());
+        }
+
+        // Merge telegram
+        if let (Some(inc_t), Some(_)) = (&incoming.telegram, &existing.telegram) {
+            if inc_t.bot_token.is_empty() {
+                result.telegram = existing.telegram.clone();
+            }
+        } else if let Some(ex_t) = &existing.telegram {
+            result.telegram = Some(ex_t.clone());
+        }
+
+        // Merge discord
+        if let (Some(inc_d), Some(_)) = (&incoming.discord, &existing.discord) {
+            if inc_d.bot_token.is_empty() {
+                result.discord = existing.discord.clone();
+            }
+        } else if let Some(ex_d) = &existing.discord {
+            result.discord = Some(ex_d.clone());
+        }
+    }
+
+    result
 }
 
 /// Return a config with sensitive fields masked (for returning to the UI)

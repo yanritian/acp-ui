@@ -188,6 +188,34 @@ export const useMemoryStore = defineStore('memory', () => {
     error.value = null
   }
 
+  /** Load memories relevant to a given prompt for injection into tasks */
+  async function loadRelevantMemories(options: {
+    prompt: string
+    agentName?: string
+    sessionId?: string
+    limit?: number
+  }): Promise<MemoryRecord[]> {
+    const limit = options.limit ?? 5
+    try {
+      if (isTauriHost()) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        // Use the first few words of the prompt as search keyword
+        const keyword = options.prompt.split(/\s+/).slice(0, 3).join(' ')
+        const records = await invoke<MemoryRecord[]>('search_memories', {
+          query: keyword,
+          agentId: options.agentName ?? null,
+          limit,
+        })
+        return records
+      } else {
+        const keyword = options.prompt.split(/\s+/).slice(0, 3).join(' ')
+        return webSearchMemories(keyword, options.agentName ?? null, limit)
+      }
+    } catch {
+      return []
+    }
+  }
+
   return {
     memories,
     searchResults,
@@ -201,5 +229,6 @@ export const useMemoryStore = defineStore('memory', () => {
     saveMemory,
     deleteMemory,
     clearError,
+    loadRelevantMemories,
   }
 })

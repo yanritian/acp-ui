@@ -965,17 +965,22 @@ fn stop_tunnel(app_handle: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn generate_app_qrcode(state: State<AppState>) -> Result<String, String> {
-    // Generate a QR code URL for app connection
     let token = Uuid::new_v4().to_string();
 
-    // Get actual local IP
+    // Sync token to ws_server so the client can actually authenticate
+    {
+        let ws = state.ws_server.lock().unwrap();
+        if let Some(server) = ws.as_ref() {
+            server.set_auth_token(Some(token.clone()));
+        }
+    }
+
     let local_ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
 
-    // Check if WebSocket server is running
     let ws = state.ws_server.lock().unwrap();
     let port = if let Some(server) = ws.as_ref() {
         if server.is_running() {
-            1420 // default
+            1420
         } else {
             1420
         }
@@ -984,7 +989,7 @@ fn generate_app_qrcode(state: State<AppState>) -> Result<String, String> {
     };
 
     let qr_url = format!("ws://{}:{}?token={}", local_ip, port, token);
-    println!("Generated QR code URL: {}", qr_url);
+    println!("Generated QR code URL (token set on ws_server)");
     Ok(qr_url)
 }
 

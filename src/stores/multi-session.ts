@@ -199,7 +199,11 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     }
 
     savedSessionsMeta.value = savedSessionsMeta.value.filter(s => s.id !== sessionId)
-    await saveMeta()
+    try {
+      await saveMeta()
+    } catch (e) {
+      console.warn('Failed to persist session metadata:', e)
+    }
   }
 
   async function sendPrompt(text: string) {
@@ -212,8 +216,9 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     session.error = null
 
     // Add user message immediately for instant feedback
+    const userMsgId = crypto.randomUUID()
     session.messages.push({
-      id: crypto.randomUUID(),
+      id: userMsgId,
       role: 'user',
       content: text,
       timestamp: Date.now(),
@@ -227,6 +232,8 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
       })
     } catch (e) {
       session.error = e instanceof Error ? e.message : String(e)
+      // Rollback: remove user message since it wasn't actually sent
+      session.messages = session.messages.filter(m => m.id !== userMsgId)
     } finally {
       session.isLoading = false
     }

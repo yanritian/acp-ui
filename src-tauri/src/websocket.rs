@@ -219,6 +219,7 @@ async fn handle_connection(
     // Auth phase
     let stored_token = auth_token.read().clone();
     let mut authenticated = false;
+    let mut unauth_count = 0u8;
 
     while let Some(msg) = ws_receiver.next().await {
         match msg {
@@ -227,6 +228,11 @@ async fn handle_connection(
                     // Auth check
                     if let Some(ref token) = stored_token {
                         if request.request_type != "auth" && !authenticated {
+                            unauth_count += 1;
+                            if unauth_count > 5 {
+                                println!("Client {} disconnected: too many unauthenticated messages", client_id);
+                                break;
+                            }
                             send_response(&connections, &client_id, &RemoteResponse {
                                 id: request.id,
                                 ok: false,

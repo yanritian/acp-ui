@@ -28,6 +28,7 @@ export interface WorkflowExecution {
   stepResults: Map<string, { status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'; output?: string; error?: string }>
   startedAt?: number
   completedAt?: number
+  runningTaskIds: string[]
 }
 
 const WEB_WORKFLOWS_KEY = 'acp-ui:workflows'
@@ -103,6 +104,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
       currentStepIndex: 0,
       stepResults: new Map(wf.steps.map(s => [s.id, { status: 'pending' as const }])),
       startedAt: Date.now(),
+      runningTaskIds: [],
     }
     executions.value.set(workflowId, exec)
 
@@ -143,6 +145,8 @@ export const useWorkflowsStore = defineStore('workflows', () => {
           agents: [{ agentName: targetAgent, cwd }],
         })
 
+        exec.runningTaskIds.push(result.task.id)
+
         if (result.status === 'failed') {
           exec.stepResults.set(step.id, { status: 'failed', error: result.error })
           exec.status = 'failed'
@@ -170,7 +174,10 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     if (!exec) return
     exec.status = 'cancelled'
     exec.completedAt = Date.now()
-    await teamRuntime.cancelTask(workflowId)
+    // Cancel all running tasks for this workflow
+    for (const taskId of exec.runningTaskIds) {
+      await teamRuntime.cancelTask(taskId).catch(() => {})
+    }
     saveToStorage()
   }
 

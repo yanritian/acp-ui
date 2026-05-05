@@ -40,38 +40,45 @@ export const useTeamRuntimeStore = defineStore('teamRuntime', () => {
     isRunning.value = true
     error.value = null
 
-    const result = await service.runTeamTask(request)
+    try {
+      const result = await service.runTeamTask(request)
 
-    // Update stores
-    tasks.value.set(result.task.id, result.task)
-    outputs.value.set(result.task.id, result.outputs)
+      // Update stores
+      tasks.value.set(result.task.id, result.task)
+      outputs.value.set(result.task.id, result.outputs)
 
-    addEvent({
-      type: result.status === 'failed' ? 'task-failed' : 'task-completed',
-      taskId: result.task.id,
-      message: `${request.title}: ${result.status}`,
-      payload: { error: result.error },
-    })
+      addEvent({
+        type: result.status === 'failed' ? 'task-failed' : 'task-completed',
+        taskId: result.task.id,
+        message: `${request.title}: ${result.status}`,
+        payload: { error: result.error },
+      })
 
-    if (result.status === 'failed') {
-      error.value = result.error ?? 'Task failed'
+      if (result.status === 'failed') {
+        error.value = result.error ?? 'Task failed'
+      }
+
+      return result
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      error.value = msg
+      addEvent({ type: 'task-failed', taskId: 'unknown', message: msg })
+      throw e
+    } finally {
+      isRunning.value = false
     }
-
-    isRunning.value = false
-    return result
   }
 
   async function cancelTask(taskId: string): Promise<void> {
     const task = tasks.value.get(taskId)
     if (!task) return
 
-    task.status = 'cancelled'
-    task.completedAt = Date.now()
+    tasks.value.set(taskId, { ...task, status: 'cancelled', completedAt: Date.now() })
 
-    await service.cancelTask(taskId)
+    await service.cancelTask(taskId).catch(() => {})
 
     addEvent({
-      type: 'task-completed',
+      type: 'task-failed',
       taskId,
       message: `Task cancelled: ${task.title}`,
     })

@@ -772,26 +772,33 @@ pub struct GatewayConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeishuConfig {
+    #[serde(default)]
     app_id: String,
+    #[serde(default)]
     app_secret: String,
     encrypt_key: Option<String>,
     verification_token: Option<String>,
+    #[serde(default)]
     enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TelegramConfig {
+    #[serde(default)]
     bot_token: String,
+    #[serde(default)]
     enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscordConfig {
+    #[serde(default)]
     bot_token: String,
     guild_id: Option<String>,
     channel_id: Option<String>,
+    #[serde(default)]
     enabled: bool,
 }
 

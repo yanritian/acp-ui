@@ -81,11 +81,12 @@ export class AgentTeamsService {
       return { task, outputs, status: 'failed', error: task.error }
     }
 
-    // Execute tasks based on routing mode
+    // Execute tasks based on routing mode — only for agents that successfully connected
+    const connectedTargets = targets.filter(t => this.runners.has(t.agentName))
     if (request.routing === 'broadcast') {
-      await this.broadcastPrompt(targets, request.prompt, outputs, errors)
-    } else {
-      await this.singlePrompt(targets[0], request.prompt, outputs, errors)
+      await this.broadcastPrompt(connectedTargets, request.prompt, outputs, errors)
+    } else if (connectedTargets.length > 0) {
+      await this.singlePrompt(connectedTargets[0], request.prompt, outputs, errors)
     }
 
     // Determine final status

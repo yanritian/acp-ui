@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 const gatewayConfig = ref({
   feishu: {
@@ -42,13 +42,19 @@ const saved = ref(false)
 const gatewayStatus = ref<'stopped' | 'running' | 'starting'>('stopped')
 const qrCodeUrl = ref('')
 const copied = ref(false)
+const eventUnlisteners: UnlistenFn[] = []
 
 // 加载配置
 async function loadConfig() {
   try {
-    const config = await invoke('get_gateway_config')
+    const config = await invoke<Record<string, unknown>>('get_gateway_config')
     if (config) {
-      gatewayConfig.value = { ...gatewayConfig.value, ...(config as any) }
+      // Deep merge: only update fields that actually exist in response
+      if (config.feishu) gatewayConfig.value.feishu = { ...gatewayConfig.value.feishu, ...config.feishu }
+      if (config.telegram) gatewayConfig.value.telegram = { ...gatewayConfig.value.telegram, ...config.telegram }
+      if (config.discord) gatewayConfig.value.discord = { ...gatewayConfig.value.discord, ...config.discord }
+      if (config.app) gatewayConfig.value.app = { ...gatewayConfig.value.app, ...config.app }
+      if (config.tunnel) gatewayConfig.value.tunnel = { ...gatewayConfig.value.tunnel, ...config.tunnel }
     }
   } catch (error) {
     console.log('No existing config, using defaults')
@@ -66,7 +72,6 @@ async function saveConfig() {
     setTimeout(() => { saved.value = false }, 2000)
   } catch (error) {
     console.error('Failed to save config:', error)
-    alert(`保存失败: ${error}`)
   } finally {
     saving.value = false
   }
@@ -152,13 +157,21 @@ async function stopGateway() {
 onMounted(async () => {
   await loadConfig()
 
-  listen('gateway-started', () => {
+  const u1 = await listen('gateway-started', () => {
     gatewayStatus.value = 'running'
   })
+  eventUnlisteners.push(u1)
 
-  listen('gateway-stopped', () => {
+  const u2 = await listen('gateway-stopped', () => {
     gatewayStatus.value = 'stopped'
   })
+  eventUnlisteners.push(u2)
+})
+
+onBeforeUnmount(() => {
+  for (const unlisten of eventUnlisteners) {
+    unlisten()
+  }
 })
 </script>
 

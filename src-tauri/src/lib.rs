@@ -857,7 +857,7 @@ fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<AppS
             let ws = state.ws_server.lock().unwrap();
             if let Some(server) = ws.as_ref() {
                 server.set_auth_token(Some(token.clone()));
-                println!("Gateway auth token generated: {}", &token[..8]);
+                println!("Gateway auth token generated");
             }
         }
     }

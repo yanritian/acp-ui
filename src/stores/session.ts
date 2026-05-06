@@ -77,6 +77,7 @@ export const useSessionStore = defineStore('session', () => {
   const startupElapsed = ref<number>(0);
   let startupTimer: ReturnType<typeof setInterval> | null = null;
   let stderrUnlisten: (() => void) | null = null;
+  let permissionWatchStop: (() => void) | null = null;
   
   // Current ACP client
   let acpClient: AcpClientBridge | null = null;
@@ -331,12 +332,11 @@ export const useSessionStore = defineStore('session', () => {
         stderrUnlisten = await onAgentStderr((stderr) => {
           if (stderr.agent_id !== agentInstance.id) return;
           startupLogs.value.push(stderr.line);
-          // Detect phase from output
           const detectedPhase = detectPhase(stderr.line);
           if (detectedPhase) {
             startupPhase.value = detectedPhase;
           }
-        }) as unknown as () => void;
+        });
 
         if (connectionAborted) {
           // Process was spawned but no bridge exists yet — kill the orphan
@@ -379,7 +379,8 @@ export const useSessionStore = defineStore('session', () => {
       };
       
       // Sync bridge's pendingPermissionRequest to store's pendingPermission
-      watch(
+      if (permissionWatchStop) permissionWatchStop();
+      permissionWatchStop = watch(
         () => acpClient?.pendingPermissionRequest.value,
         (newValue) => {
           pendingPermission.value = newValue ?? null;
@@ -586,7 +587,8 @@ export const useSessionStore = defineStore('session', () => {
       };
 
       // Sync bridge's pendingPermissionRequest to store's pendingPermission
-      watch(
+      if (permissionWatchStop) permissionWatchStop();
+      permissionWatchStop = watch(
         () => acpClient?.pendingPermissionRequest.value,
         (newValue) => {
           pendingPermission.value = newValue ?? null;
@@ -787,6 +789,11 @@ export const useSessionStore = defineStore('session', () => {
 
   // Disconnect current session
   async function disconnect(): Promise<void> {
+    if (permissionWatchStop) {
+      permissionWatchStop();
+      permissionWatchStop = null;
+    }
+
     const agentName = currentSession.value?.agentName || 'unknown';
     const sessionStart = currentSession.value?.lastUpdated || Date.now();
     const sessionDuration = Math.round((Date.now() - sessionStart) / 1000);

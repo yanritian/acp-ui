@@ -24,6 +24,7 @@ import BotSettings from './components/BotSettings.vue';
 import MultiSessionChat from './components/MultiSessionChat.vue';
 import MemoryView from './components/MemoryView.vue';
 import { FEATURES } from './lib/feature-registry'
+import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import './assets/modern.css'
 import type { SavedSession } from './lib/types';
 
@@ -139,6 +140,12 @@ onMounted(async () => {
   await configStore.setupHotReload();
   await sessionStore.initStore();
   await multiSession.initStore();
+
+  // Start self-improvement engine (analyzes patterns every 5 minutes)
+  startEvolutionEngine();
+
+  // Track initial feature usage
+  trackBehavior('app-started', { agentCount: configStore.hasAgents ? 'yes' : 'no' });
   
   const savedCwd = await prefsStore.get<string>('lastCwd');
   if (savedCwd) {
@@ -247,6 +254,11 @@ function handleAuthMethodCancel() {
 
 function toggleSidebar() {
   showSidebar.value = !showSidebar.value;
+}
+
+function navigateToFeature(featureId: string) {
+  currentView.value = featureId as typeof currentView.value
+  trackBehavior(`feature-${featureId}`, { from: currentView.value })
 }
 
 /** Close the drawer when the user taps the backdrop on a narrow viewport. */
@@ -388,7 +400,7 @@ function clearError() {
               v-for="feature in FEATURES"
               :key="feature.id"
               :class="['nav-btn', { active: currentView === feature.id }]"
-              @click="currentView = feature.id"
+              @click="navigateToFeature(feature.id)"
               :title="feature.description"
             >
               <span class="nav-icon">{{ feature.icon }}</span>

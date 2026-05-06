@@ -48,7 +48,14 @@ function saveWebWorkflows(wf: WorkflowDefinition[]): void {
 
 function saveWebExecutions(ex: WorkflowExecution[]): void {
   if (typeof localStorage === 'undefined') return
-  try { localStorage.setItem(WEB_EXECUTIONS_KEY, JSON.stringify(ex)) } catch {}
+  try {
+    // Convert Map to plain array for JSON serialization
+    const serialized = ex.map(e => ({
+      ...e,
+      stepResults: Array.from(e.stepResults.entries()),
+    }))
+    localStorage.setItem(WEB_EXECUTIONS_KEY, JSON.stringify(serialized))
+  } catch {}
 }
 
 export const useWorkflowsStore = defineStore('workflows', () => {

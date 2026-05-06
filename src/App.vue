@@ -4,6 +4,7 @@ import { canPickFolder, pickFolder, loadKvStore, type KVStore } from './lib/host
 import { useConfigStore } from './stores/config';
 import { useSessionStore } from './stores/session';
 import { useMultiSessionStore } from './stores/multi-session';
+import { useTeamRuntimeStore } from './stores/team-runtime';
 import { initTelemetry } from './lib/telemetry';
 import AgentSelector from './components/AgentSelector.vue';
 import SessionList from './components/SessionList.vue';
@@ -14,13 +15,10 @@ import AuthMethodDialog from './components/AuthMethodDialog.vue';
 import TrafficMonitor from './components/TrafficMonitor.vue';
 import StartupProgress from './components/StartupProgress.vue';
 import MultiAgentChat from './components/MultiAgentChat.vue';
-import AgentStatusPanel from './components/AgentStatusPanel.vue';
-import RealtimeMonitor from './components/RealtimeMonitor.vue';
 import HistoryView from './components/HistoryView.vue';
 import WorkflowView from './components/WorkflowView.vue';
 import GatewaySettings from './components/GatewaySettings.vue';
 import TeamOrchestrationView from './components/TeamOrchestrationView.vue';
-import BotSettings from './components/BotSettings.vue';
 import MultiSessionChat from './components/MultiSessionChat.vue';
 import MemoryView from './components/MemoryView.vue';
 import { FEATURES } from './lib/feature-registry'
@@ -31,6 +29,7 @@ import type { SavedSession } from './lib/types';
 const configStore = useConfigStore();
 const sessionStore = useSessionStore();
 const multiSession = useMultiSessionStore();
+const teamRuntime = useTeamRuntimeStore();
 
 const selectedAgent = ref('');
 const selectedCwd = ref('');
@@ -474,10 +473,49 @@ function clearError() {
         <MultiSessionChat v-else-if="currentView === 'multi-session'" />
 
         <!-- Agent Status Panel -->
-        <AgentStatusPanel v-else-if="currentView === 'status'" />
+        <div v-else-if="currentView === 'status'" class="view-container">
+          <h3>Agent 连接池</h3>
+          <div class="status-stats">
+            <div class="stat-card">
+              <span class="stat-value">{{ teamRuntime.activeTaskCount }}</span>
+              <span class="stat-label">运行中任务</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ teamRuntime.completedTaskCount }}</span>
+              <span class="stat-label">已完成任务</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ teamRuntime.taskList.length }}</span>
+              <span class="stat-label">总任务数</span>
+            </div>
+          </div>
+          <div v-if="teamRuntime.taskList.length > 0" class="task-list">
+            <div v-for="task in teamRuntime.taskList.slice(0, 10)" :key="task.id" class="task-item" :class="task.status">
+              <span class="task-name">{{ task.title }}</span>
+              <span class="task-source">{{ task.source }}</span>
+              <span class="task-status">{{ task.status }}</span>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <p>暂无任务</p>
+          </div>
+        </div>
 
         <!-- Realtime Monitor -->
-        <RealtimeMonitor v-else-if="currentView === 'monitor'" />
+        <div v-else-if="currentView === 'monitor'" class="view-container">
+          <h3>实时事件</h3>
+          <div v-if="teamRuntime.events.length > 0" class="event-list">
+            <div v-for="event in teamRuntime.events.slice(0, 50)" :key="event.id" class="event-item">
+              <span class="event-type">{{ event.type }}</span>
+              <span class="event-message">{{ event.message }}</span>
+              <span class="event-time">{{ new Date(event.timestamp).toLocaleTimeString() }}</span>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <p>暂无事件</p>
+          </div>
+          <TrafficMonitor />
+        </div>
 
         <!-- History View -->
         <HistoryView v-else-if="currentView === 'history'" />
@@ -489,7 +527,13 @@ function clearError() {
         <TeamOrchestrationView v-else-if="currentView === 'orchestration'" />
 
         <!-- Bot Settings View -->
-        <BotSettings v-else-if="currentView === 'bot'" />
+        <div v-else-if="currentView === 'bot'" class="view-container">
+          <h3>Bot 配置</h3>
+          <div class="empty-state">
+            <p>Bot 功能正在开发中</p>
+            <p class="hint">当前 BotManager 仅支持事件发射，实际执行功能将在后续版本实现</p>
+          </div>
+        </div>
 
         <!-- Gateway Settings View -->
         <GatewaySettings v-else-if="currentView === 'gateway'" />

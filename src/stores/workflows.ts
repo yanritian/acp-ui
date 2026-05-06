@@ -46,10 +46,47 @@ function saveWebWorkflows(wf: WorkflowDefinition[]): void {
   try { localStorage.setItem(WEB_WORKFLOWS_KEY, JSON.stringify(wf)) } catch {}
 }
 
+function loadWebExecutions(): Map<string, WorkflowExecution> {
+  if (typeof localStorage === 'undefined') return new Map()
+  const raw = localStorage.getItem(WEB_EXECUTIONS_KEY)
+  if (!raw) return new Map()
+  try {
+    const parsed = JSON.parse(raw) as Array<{
+      workflowId: string
+      status: WorkflowExecution['status']
+      currentStepIndex: number
+      stepResults: [string, { status: string; output?: string; error?: string }][]
+      startedAt?: number
+      completedAt?: number
+      runningTaskIds: string[]
+    }>
+    const map = new Map<string, WorkflowExecution>()
+    for (const e of parsed) {
+      map.set(e.workflowId, {
+        workflowId: e.workflowId,
+        status: e.status,
+        currentStepIndex: e.currentStepIndex,
+        stepResults: new Map<string, { status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'; output?: string; error?: string }>(
+          e.stepResults.map(([k, v]) => [k, {
+            status: v.status as 'pending' | 'running' | 'completed' | 'failed' | 'skipped',
+            output: v.output,
+            error: v.error,
+          }])
+        ),
+        startedAt: e.startedAt,
+        completedAt: e.completedAt,
+        runningTaskIds: e.runningTaskIds,
+      })
+    }
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
 function saveWebExecutions(ex: WorkflowExecution[]): void {
   if (typeof localStorage === 'undefined') return
   try {
-    // Convert Map to plain array for JSON serialization
     const serialized = ex.map(e => ({
       ...e,
       stepResults: Array.from(e.stepResults.entries()),
@@ -60,7 +97,7 @@ function saveWebExecutions(ex: WorkflowExecution[]): void {
 
 export const useWorkflowsStore = defineStore('workflows', () => {
   const workflows = ref<WorkflowDefinition[]>(loadWebWorkflows())
-  const executions = ref<Map<string, WorkflowExecution>>(new Map())
+  const executions = ref<Map<string, WorkflowExecution>>(loadWebExecutions())
   const error = ref<string | null>(null)
 
   const teamRuntime = useTeamRuntimeStore()

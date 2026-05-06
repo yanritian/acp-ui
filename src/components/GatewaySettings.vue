@@ -50,9 +50,38 @@ async function loadConfig() {
     const config = await invoke<Record<string, unknown>>('get_gateway_config')
     if (config) {
       // Deep merge: only update fields that actually exist in response
-      if (config.feishu) gatewayConfig.value.feishu = { ...gatewayConfig.value.feishu, ...config.feishu }
-      if (config.telegram) gatewayConfig.value.telegram = { ...gatewayConfig.value.telegram, ...config.telegram }
-      if (config.discord) gatewayConfig.value.discord = { ...gatewayConfig.value.discord, ...config.discord }
+      // IMPORTANT: do NOT overwrite non-empty secrets with masked values (****)
+      if (config.feishu) {
+        const incoming = config.feishu as Record<string, unknown>
+        gatewayConfig.value.feishu = {
+          ...gatewayConfig.value.feishu,
+          ...incoming,
+          // Preserve existing secrets if backend returns masked value
+          appSecret: (incoming.appSecret === '****' && gatewayConfig.value.feishu.appSecret)
+            ? gatewayConfig.value.feishu.appSecret
+            : (incoming.appSecret as string ?? gatewayConfig.value.feishu.appSecret),
+        }
+      }
+      if (config.telegram) {
+        const incoming = config.telegram as Record<string, unknown>
+        gatewayConfig.value.telegram = {
+          ...gatewayConfig.value.telegram,
+          ...incoming,
+          botToken: (incoming.botToken === '****' && gatewayConfig.value.telegram.botToken)
+            ? gatewayConfig.value.telegram.botToken
+            : (incoming.botToken as string ?? gatewayConfig.value.telegram.botToken),
+        }
+      }
+      if (config.discord) {
+        const incoming = config.discord as Record<string, unknown>
+        gatewayConfig.value.discord = {
+          ...gatewayConfig.value.discord,
+          ...incoming,
+          botToken: (incoming.botToken === '****' && gatewayConfig.value.discord.botToken)
+            ? gatewayConfig.value.discord.botToken
+            : (incoming.botToken as string ?? gatewayConfig.value.discord.botToken),
+        }
+      }
       if (config.app) gatewayConfig.value.app = { ...gatewayConfig.value.app, ...config.app }
       if (config.tunnel) gatewayConfig.value.tunnel = { ...gatewayConfig.value.tunnel, ...config.tunnel }
     }

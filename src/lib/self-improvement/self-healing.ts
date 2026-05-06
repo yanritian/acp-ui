@@ -106,6 +106,19 @@ export async function attemptHealing(
       name: 'self-heal-fallback',
       data: { errorName, fallbackAction: fallback.fallbackAction },
     })
+
+    // Record successful fallback
+    const report: HealingReport = {
+      timestamp: Date.now(),
+      errorName,
+      context,
+      actions,
+      resolved: true,
+    }
+    ensureLoaded()
+    reports.push(report)
+    persist()
+    return true
   }
 
   // Record the healing attempt (failed or partial)

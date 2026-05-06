@@ -14,6 +14,7 @@ export interface TeamRunRequest {
   routing: TeamRoutingMode
   agents: TeamAgentSelection[]
   memoryScope?: 'none' | 'global' | 'agent' | 'session'
+  memories?: string[]
 }
 
 export interface TeamRunResult {

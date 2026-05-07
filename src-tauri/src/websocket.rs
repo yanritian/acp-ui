@@ -1,3 +1,4 @@
+use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -26,7 +27,7 @@ pub struct RemoteMessage {
     pub client_id: String,
     pub message_type: String,
     pub content: serde_json::Value,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub timestamp: chrono::DateTime<Utc>,
 }
 
 /// JSON-RPC style request from client
@@ -101,7 +102,9 @@ impl WebSocketServer {
             return Err("Server already running".to_string());
         }
 
-        let addr: SocketAddr = format!("0.0.0.0:{}", self.port)
+        // Bind to localhost only for security (not all network interfaces)
+        // This prevents exposure to LAN/external networks
+        let addr: SocketAddr = format!("127.0.0.1:{}", self.port)
             .parse()
             .map_err(|e| format!("Invalid address: {}", e))?;
 

@@ -6,7 +6,9 @@ let appInsights: ApplicationInsights | null = null;
 let isEnabled = true;
 let machineId: string | null = null;
 
-const CONNECTION_STRING = 'InstrumentationKey=70b098b2-fcae-4834-867f-69554662910c;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=d2f5a78f-257e-4748-bd25-509258a27bd2';
+// Azure Application Insights connection string - loaded from environment variable
+// Set VITE_AZURE_APPINSIGHTS_CONNECTION_STRING in .env or build environment
+const CONNECTION_STRING = import.meta.env.VITE_AZURE_APPINSIGHTS_CONNECTION_STRING as string | undefined;
 
 /**
  * Initialize Application Insights telemetry
@@ -14,9 +16,13 @@ const CONNECTION_STRING = 'InstrumentationKey=70b098b2-fcae-4834-867f-6955466291
  */
 export async function initTelemetry(enabled: boolean = true) {
   isEnabled = enabled;
-  
+
   if (!enabled) {
-    console.log('Telemetry disabled by user preference');
+    return;
+  }
+
+  // Skip telemetry if connection string not configured
+  if (!CONNECTION_STRING) {
     return;
   }
 
@@ -41,15 +47,12 @@ export async function initTelemetry(enabled: boolean = true) {
     });
     
     appInsights.loadAppInsights();
-    
-    // Set the authenticated user ID to machine ID for reliable tracking
+
     if (machineId) {
       appInsights.setAuthenticatedUserContext(machineId);
     }
-    
+
     appInsights.trackPageView({ name: 'AppLaunch' });
-    
-    console.log('Telemetry initialized', machineId ? `(machine: ${machineId.slice(0, 8)}...)` : '');
   } catch (e) {
     console.warn('Failed to initialize telemetry:', e);
     appInsights = null;

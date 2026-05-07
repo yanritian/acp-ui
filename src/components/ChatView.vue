@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { useSessionStore } from '../stores/session';
 import { isMobile } from '../lib/platform';
 import ModePicker from './ModePicker.vue';
@@ -131,7 +132,8 @@ function toggleThought(messageId: string): void {
 }
 
 function renderMarkdown(content: string): string {
-  return marked.parse(content, { async: false }) as string;
+  const rawHtml = marked.parse(content, { async: false }) as string;
+  return DOMPurify.sanitize(rawHtml);
 }
 
 function getToolIcon(kind: string): string {

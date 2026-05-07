@@ -33,6 +33,12 @@ pub struct AgentInstance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentStatus {
+    pub agent_id: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMessage {
     pub agent_id: String,
     pub message: String,
@@ -263,6 +269,51 @@ impl AgentManager {
     pub fn list_running_agents(&self) -> Vec<String> {
         self.agents.read().keys().cloned().collect()
     }
+
+    pub fn get_running_agents_info(&self) -> Vec<AgentInstance> {
+        self.agents
+            .read()
+            .iter()
+            .map(|(id, _)| AgentInstance {
+                id: id.clone(),
+                name: String::new(),
+            })
+            .collect()
+    }
+
+    pub fn get_agent_status(&self, agent_id: &str) -> Result<AgentStatus, String> {
+        let agents = self.agents.read();
+        if agents.contains_key(agent_id) {
+            Ok(AgentStatus {
+                agent_id: agent_id.to_string(),
+                status: "running".to_string(),
+            })
+        } else {
+            Ok(AgentStatus {
+                agent_id: agent_id.to_string(),
+                status: "stopped".to_string(),
+            })
+        }
+    }
+
+    pub fn pause_agent(&self, _agent_id: &str, _app_handle: &AppHandle) -> Result<(), String> {
+        // Stub: pause not yet implemented for stdio agents
+        Err("Pause not supported for stdio agents".to_string())
+    }
+
+    pub fn resume_agent(&self, _agent_id: &str, _app_handle: &AppHandle) -> Result<(), String> {
+        // Stub: resume not yet implemented for stdio agents
+        Err("Resume not supported for stdio agents".to_string())
+    }
+
+    pub fn inject_message(
+        &self,
+        agent_id: &str,
+        message: &str,
+        _app_handle: &AppHandle,
+    ) -> Result<(), String> {
+        self.send_message(agent_id, message)
+    }
 }
 
 #[cfg(not(desktop))]
@@ -292,6 +343,34 @@ impl AgentManager {
 
     pub fn list_running_agents(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    pub fn get_running_agents_info(&self) -> Vec<AgentInstance> {
+        Vec::new()
+    }
+
+    pub fn get_agent_status(&self, agent_id: &str) -> Result<AgentStatus, String> {
+        Ok(AgentStatus {
+            agent_id: agent_id.to_string(),
+            status: "stopped".to_string(),
+        })
+    }
+
+    pub fn pause_agent(&self, _agent_id: &str, _app_handle: &AppHandle) -> Result<(), String> {
+        Err("Not supported on this platform".to_string())
+    }
+
+    pub fn resume_agent(&self, _agent_id: &str, _app_handle: &AppHandle) -> Result<(), String> {
+        Err("Not supported on this platform".to_string())
+    }
+
+    pub fn inject_message(
+        &self,
+        _agent_id: &str,
+        _message: &str,
+        _app_handle: &AppHandle,
+    ) -> Result<(), String> {
+        Err("Not supported on this platform".to_string())
     }
 }
 

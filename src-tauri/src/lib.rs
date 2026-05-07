@@ -1,20 +1,16 @@
 mod agent;
-mod bot;
 mod config;
 mod database;
 mod gateway_config;
-mod teams;
 mod websocket;
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
-use bot::{BotCommand, BotContext, BotManager, BotPlatform, BotResponse, parse_command};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
 use database::DatabaseManager;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
-use teams::{TeamOrchestrator};
 use uuid::Uuid;
 use websocket::WebSocketServer;
 
@@ -23,9 +19,7 @@ pub struct AppState {
     pub config_manager: Arc<RwLock<Option<ConfigManager>>>,
     pub agent_manager: AgentManager,
     pub database: Arc<Mutex<Option<DatabaseManager>>>,
-    pub orchestrator: Arc<Mutex<Option<TeamOrchestrator>>>,
     pub ws_server: Arc<Mutex<Option<WebSocketServer>>>,
-    pub bot_manager: Arc<Mutex<Option<BotManager>>>,
 }
 
 impl AppState {
@@ -34,9 +28,7 @@ impl AppState {
             config_manager: Arc::new(RwLock::new(None)),
             agent_manager,
             database: Arc::new(Mutex::new(None)),
-            orchestrator: Arc::new(Mutex::new(None)),
             ws_server: Arc::new(Mutex::new(None)),
-            bot_manager: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -296,32 +288,10 @@ pub fn run() {
             // Initialize database manager
             match DatabaseManager::new(&app_handle) {
                 Ok(db) => {
-                    // Store database reference in state (for direct access from commands)
                     *state.database.lock().unwrap() = Some(db);
-
-                    // Initialize orchestrator
-                    let orchestrator = TeamOrchestrator::new(state.agent_manager.clone());
-                    *state.orchestrator.lock().unwrap() = Some(orchestrator.clone());
-
-                    // Initialize bot manager
-                    let bot_manager = BotManager::new(orchestrator);
-                    *state.bot_manager.lock().unwrap() = Some(bot_manager);
                 }
                 Err(e) => {
                     eprintln!("Failed to initialize database manager: {}", e);
-                }
-            }
-
-            // Set AppHandle for bot manager after initialization
-            if let Some(bot_mgr) = state.bot_manager.lock().unwrap().as_mut() {
-                bot_mgr.set_app_handle(app_handle.clone());
-
-                // Load agent configs
-                let config_manager = state.config_manager.read();
-                if let Some(cm) = config_manager.as_ref() {
-                    let config = cm.get_config();
-                    let configs: std::collections::HashMap<String, AgentConfig> = config.agents.into_iter().collect();
-                    bot_mgr.set_agent_configs(configs);
                 }
             }
 
@@ -344,7 +314,6 @@ pub fn run() {
             remove_agent,
             update_agent,
             get_machine_id,
-            create_multi_agent_task,
             get_task_history,
             get_task_statistics,
             delete_task_history,
@@ -366,15 +335,7 @@ pub fn run() {
             start_ws_server,
             stop_ws_server,
             get_connected_clients,
-            ws_server_status,
-            get_execution_plan,
-            list_running_plans,
-            pause_plan_node,
-            resume_plan_node,
-            handle_bot_command,
-            parse_bot_text,
-            send_bot_message,
-            get_bot_help
+            ws_server_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -382,40 +343,10 @@ pub fn run() {
 
 #[tauri::command]
 fn get_db_path(state: State<AppState>) -> Result<String, String> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
     db.as_ref()
         .map(|d| d.get_db_path().to_string_lossy().to_string())
         .ok_or_else(|| "Database not initialized".to_string())
-}
-
-#[tauri::command]
-fn create_multi_agent_task(
-    name: String,
-    prompt: String,
-    target_agents: Vec<String>,
-    routing: Option<String>,
-    priority: Option<String>,
-    source: Option<String>,
-) -> Result<teams::MultiAgentTask, String> {
-    let routing_strategy = routing
-        .and_then(|r| serde_json::from_str(&r).ok())
-        .unwrap_or(teams::RoutingStrategy::Broadcast);
-
-    let task_priority = priority
-        .and_then(|p| serde_json::from_str(&p).ok())
-        .unwrap_or(teams::TaskPriority::Normal);
-
-    Ok(teams::MultiAgentTask {
-        id: Uuid::new_v4().to_string(),
-        name,
-        prompt,
-        routing: routing_strategy,
-        priority: task_priority,
-        target_agents,
-        dependencies: vec![],
-        created_at: chrono::Utc::now(),
-        source: source.unwrap_or_else(|| "app".to_string()),
-    })
 }
 
 #[tauri::command]
@@ -425,7 +356,7 @@ fn get_task_history(
     limit: Option<u64>,
     state: State<AppState>,
 ) -> Result<Vec<database::TaskRecord>, String> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
     let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
 
     let status_filter = status.map(|s| {
@@ -439,7 +370,7 @@ fn get_task_history(
 
 #[tauri::command]
 fn get_task_statistics(state: State<AppState>) -> Result<database::TaskStatistics, String> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
     let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
 
     db.get_statistics()
@@ -447,7 +378,7 @@ fn get_task_statistics(state: State<AppState>) -> Result<database::TaskStatistic
 
 #[tauri::command]
 fn delete_task_history(task_id: String, state: State<AppState>) -> Result<(), String> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
     let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
 
     db.delete_task(&task_id)
@@ -455,7 +386,7 @@ fn delete_task_history(task_id: String, state: State<AppState>) -> Result<(), St
 
 #[tauri::command]
 fn search_tasks(keyword: String, limit: Option<u64>, state: State<AppState>) -> Result<Vec<database::TaskRecord>, String> {
-    let db = state.database.lock().unwrap();
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
     let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
 
     db.search_tasks(&keyword, limit)
@@ -674,90 +605,7 @@ fn delete_memory(
     Ok(())
 }
 
-// ===== Bot Commands =====
-
-#[tauri::command]
-fn handle_bot_command(
-    platform: String,
-    user_id: String,
-    chat_id: String,
-    message_id: String,
-    text: String,
-    state: State<AppState>,
-) -> Result<BotResponse, String> {
-    // Parse command
-    let command = parse_command(&text)
-        .ok_or_else(|| "Invalid command format. Use /help for available commands.".to_string())?;
-
-    // Create context
-    let context = BotContext {
-        platform: match platform.as_str() {
-            "feishu" => BotPlatform::Feishu,
-            "telegram" => BotPlatform::Telegram,
-            "discord" => BotPlatform::Discord,
-            "app" => BotPlatform::App,
-            _ => BotPlatform::App,
-        },
-        user_id,
-        chat_id,
-        message_id,
-        timestamp: chrono::Utc::now(),
-    };
-
-    // Handle command
-    let bot_manager = state.bot_manager.lock().unwrap();
-    if let Some(bot_mgr) = bot_manager.as_ref() {
-        bot_mgr.handle_command(command, context)
-    } else {
-        Err("Bot manager not initialized".to_string())
-    }
-}
-
-#[tauri::command]
-fn parse_bot_text(text: String) -> Result<Option<BotCommand>, String> {
-    Ok(parse_command(&text))
-}
-
-#[tauri::command]
-fn send_bot_message(
-    platform: String,
-    chat_id: String,
-    message: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    // Emit event for frontend to handle actual message sending
-    let _ = app_handle.emit("bot-send-message", serde_json::json!({
-        "platform": platform,
-        "chat_id": chat_id,
-        "message": message,
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-    }));
-
-    Ok(())
-}
-
-#[tauri::command]
-fn get_bot_help() -> Result<String, String> {
-    Ok(r#"
-🤖 Agent Teams Bot 帮助
-
-指令列表:
-/agent <name> <prompt> - 启动单个Agent
-/team <name> <agents> <prompt> - 启动多Agent任务
-/status - 查看运行状态
-/pause <agent_id> - 暂停Agent
-/resume <agent_id> - 继续Agent
-/cancel <agent_id> - 取消Agent
-/inject <agent_id> <message> - 注入消息
-/history [limit] - 查看历史
-/help - 显示帮助
-
-示例:
-/agent claude-code 分析当前项目结构
-/team 分析 claude-code,gemini 协同完成代码重构
-/status
-"#.to_string())
-}
+// ===== Gateway Config Commands =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1046,75 +894,4 @@ fn get_local_ip() -> Option<String> {
     let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect("8.8.8.8:80").ok()?;
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
-}
-
-// ===== Plan Commands =====
-
-#[tauri::command]
-fn get_execution_plan(task_id: String, state: State<AppState>) -> Result<Option<teams::ExecutionPlan>, String> {
-    let orchestrator = state.orchestrator.lock().unwrap();
-    if let Some(orch) = orchestrator.as_ref() {
-        Ok(orch.get_plan(&task_id))
-    } else {
-        Ok(None)
-    }
-}
-
-#[tauri::command]
-fn list_running_plans(state: State<AppState>) -> Result<Vec<teams::ExecutionPlan>, String> {
-    let orchestrator = state.orchestrator.lock().unwrap();
-    if let Some(orch) = orchestrator.as_ref() {
-        Ok(orch.list_running_plans())
-    } else {
-        Ok(vec![])
-    }
-}
-
-#[tauri::command]
-fn pause_plan_node(task_id: String, node_id: String, state: State<AppState>, app_handle: AppHandle) -> Result<(), String> {
-    let orchestrator = state.orchestrator.lock().unwrap();
-    if let Some(orch) = orchestrator.as_ref() {
-        // Find the agent_id for this node
-        let plan = orch.get_plan(&task_id);
-        let agent_id = plan
-            .and_then(|p| p.nodes.iter().find(|n| n.id == node_id).map(|n| n.agent_id.clone()));
-
-        if let Some(Some(agent_id)) = agent_id {
-            state.agent_manager.pause_agent(&agent_id, &app_handle)?;
-            // Update plan node status
-            let _ = app_handle.emit("plan-event", teams::PlanEvent::NodeStatusChanged {
-                task_id: task_id.clone(),
-                node_id: node_id.clone(),
-                status: teams::PlanNodeStatus::Paused,
-                timestamp: chrono::Utc::now(),
-            });
-        }
-        Ok(())
-    } else {
-        Err("Orchestrator not initialized".to_string())
-    }
-}
-
-#[tauri::command]
-fn resume_plan_node(task_id: String, node_id: String, state: State<AppState>, app_handle: AppHandle) -> Result<(), String> {
-    let orchestrator = state.orchestrator.lock().unwrap();
-    if let Some(orch) = orchestrator.as_ref() {
-        // Find the agent_id for this node
-        let plan = orch.get_plan(&task_id);
-        let agent_id = plan
-            .and_then(|p| p.nodes.iter().find(|n| n.id == node_id).map(|n| n.agent_id.clone()));
-
-        if let Some(Some(agent_id)) = agent_id {
-            state.agent_manager.resume_agent(&agent_id, &app_handle)?;
-            let _ = app_handle.emit("plan-event", teams::PlanEvent::NodeStatusChanged {
-                task_id: task_id.clone(),
-                node_id: node_id.clone(),
-                status: teams::PlanNodeStatus::Running,
-                timestamp: chrono::Utc::now(),
-            });
-        }
-        Ok(())
-    } else {
-        Err("Orchestrator not initialized".to_string())
-    }
 }

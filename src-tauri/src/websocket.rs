@@ -274,7 +274,7 @@ async fn handle_connection(
                         }
                     }
 
-                    // Handle command
+                    // Handle command with real data
                     handle_remote_command(&client_id, &request, &app_handle, &connections).await;
                 } else if let Ok(command) = serde_json::from_str::<RemoteCommand>(&text) {
                     handle_legacy_command(&client_id, command, &app_handle);
@@ -331,15 +331,113 @@ async fn handle_remote_command(
 ) {
     println!("Remote command from {}: {:?}", client_id, request.command);
 
+    // Get state from app_handle for real data
+    use tauri::Manager;
+    use crate::AppState;
+
+    let state = app_handle.state::<AppState>();
+
     let response = match request.command.as_str() {
-        "get_status" => RemoteResponse {
-            id: request.id.clone(),
-            ok: true,
-            data: Some(serde_json::json!({ "status": "ok" })),
-            error: None,
+        "get_status" => {
+            // Return real status snapshot
+            let config_manager = state.config_manager.read();
+            let agent_count = config_manager.as_ref()
+                .map(|cm| cm.get_config().agents.len())
+                .unwrap_or(0);
+
+            // Safely get database statistics
+            let (running_tasks, total_tasks) = {
+                let db_guard = state.database.lock().ok();
+                if let Some(guard) = db_guard {
+                    if let Some(database) = guard.as_ref() {
+                        match database.get_statistics() {
+                            Ok(stats) => (stats.running_tasks, stats.total_tasks),
+                            Err(_) => (0, 0)
+                        }
+                    } else {
+                        (0, 0)
+                    }
+                } else {
+                    (0, 0)
+                }
+            };
+
+            let ws_running = {
+                let ws_guard = state.ws_server.lock().ok();
+                ws_guard.and_then(|g| g.as_ref().map(|w| w.is_running())).unwrap_or(false)
+            };
+
+            let client_count = {
+                let ws_guard = state.ws_server.lock().ok();
+                ws_guard.and_then(|g| g.as_ref().map(|w| w.get_clients().len())).unwrap_or(0)
+            };
+
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({
+                    "agents_configured": agent_count,
+                    "running_tasks": running_tasks,
+                    "total_tasks": total_tasks,
+                    "ws_server_running": ws_running,
+                    "connected_clients": client_count
+                })),
+                error: None,
+            }
         },
-        "list_agents" | "list_plans" | "pause_agent" | "resume_agent" | "cancel_agent"
-        | "inject_message" | "pause_plan_node" | "resume_plan_node" => {
+        "list_agents" => {
+            // Return configured agents
+            let config_manager = state.config_manager.read();
+            let agents = config_manager.as_ref()
+                .map(|cm| {
+                    cm.get_config().agents.iter().map(|(name, cfg)| {
+                        serde_json::json!({
+                            "name": name,
+                            "transport": match cfg.transport {
+                                crate::config::AgentTransport::Stdio => {
+                                    serde_json::json!({
+                                        "type": "stdio",
+                                        "command": cfg.command,
+                                        "args": cfg.args
+                                    })
+                                },
+                                crate::config::AgentTransport::Websocket => {
+                                    serde_json::json!({
+                                        "type": "websocket",
+                                        "url": cfg.url
+                                    })
+                                },
+                                crate::config::AgentTransport::Http => {
+                                    serde_json::json!({
+                                        "type": "http",
+                                        "url": cfg.url
+                                    })
+                                }
+                            }
+                        })
+                    }).collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "agents": agents })),
+                error: None,
+            }
+        },
+        "list_plans" => {
+            // Plans are managed by frontend team-runtime, return empty for now
+            // Frontend should query team-runtime store directly
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "plans": [], "note": "Plans managed by frontend team-runtime" })),
+                error: None,
+            }
+        },
+        "pause_agent" | "resume_agent" | "cancel_agent" | "inject_message" => {
+            // Forward to frontend for handling (agent management is in frontend)
             let _ = app_handle.emit("remote-command", serde_json::json!({
                 "type": request.command,
                 "request_id": request.id,
@@ -349,10 +447,25 @@ async fn handle_remote_command(
             RemoteResponse {
                 id: request.id.clone(),
                 ok: true,
-                data: None,
+                data: Some(serde_json::json!({ "forwarded": true })),
                 error: None,
             }
-        }
+        },
+        "pause_plan_node" | "resume_plan_node" => {
+            // Forward to frontend for handling (plan management is in frontend)
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": request.command,
+                "request_id": request.id,
+                "client_id": client_id,
+                "payload": request.payload,
+            }));
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "forwarded": true })),
+                error: None,
+            }
+        },
         unknown => RemoteResponse {
             id: request.id.clone(),
             ok: false,

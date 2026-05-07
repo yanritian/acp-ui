@@ -541,6 +541,91 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
         [],
     ).map_err(|e| e.to_string())?;
 
+    // Gateway config table for remote control settings
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS gateway_config (
+            id TEXT PRIMARY KEY,
+            config_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Workflows table for workflow definitions
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS workflows (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            definition_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_workflows_created ON workflows(created_at)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Execution plans table for orchestration tracking
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS execution_plans (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            plan_json TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_plans_task ON execution_plans(task_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_plans_status ON execution_plans(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Runtime events table for event logging
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS runtime_events (
+            id TEXT PRIMARY KEY,
+            task_id TEXT,
+            session_id TEXT,
+            event_type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            payload_json TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_task ON runtime_events(task_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_session ON runtime_events(session_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_type ON runtime_events(event_type)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Add scope and task_id columns to memories table (migration with error tolerance)
+    // These columns may already exist if the database was created with them
+    let _ = conn.execute("ALTER TABLE memories ADD COLUMN scope TEXT DEFAULT 'global'", []);
+    let _ = conn.execute("ALTER TABLE memories ADD COLUMN task_id TEXT", []);
+
     // Enable WAL mode for better concurrent read performance
     conn.execute("PRAGMA journal_mode=WAL", []).map_err(|e| e.to_string())?;
 

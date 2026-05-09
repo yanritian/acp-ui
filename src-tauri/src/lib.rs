@@ -3,16 +3,18 @@ mod config;
 mod database;
 mod gateway_config;
 mod websocket;
+mod tunnel;
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
 use database::DatabaseManager;
+use tunnel::NgrokManager;
+use websocket::WebSocketServer;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
-use websocket::WebSocketServer;
 
 /// Application state containing all managers
 pub struct AppState {
@@ -20,6 +22,7 @@ pub struct AppState {
     pub agent_manager: AgentManager,
     pub database: Arc<Mutex<Option<DatabaseManager>>>,
     pub ws_server: Arc<Mutex<Option<WebSocketServer>>>,
+    pub tunnel_manager: Arc<Mutex<Option<NgrokManager>>>,
 }
 
 impl AppState {
@@ -29,6 +32,7 @@ impl AppState {
             agent_manager,
             database: Arc::new(Mutex::new(None)),
             ws_server: Arc::new(Mutex::new(None)),
+            tunnel_manager: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -1384,50 +1388,55 @@ async fn start_tunnel(
     provider: String,
     token: Option<String>,
     port: u16,
+    region: Option<String>,
+    state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<String, String> {
     println!("Starting tunnel with provider: {}, port: {}", provider, port);
 
-    // 目前返回模拟URL，实际需要集成ngrok/frp/cloudflare SDK
     match provider.as_str() {
         "ngrok" => {
-            // TODO: 实际启动ngrok
             // ngrok需要token，如果没有则返回错误
             if token.is_none() || token.as_ref().map(|t| t.is_empty()).unwrap_or(true) {
                 return Err("ngrok token required. Get it from https://ngrok.com".to_string());
             }
-            // 模拟返回ngrok URL
-            let public_url = format!("https://random-id.ngrok-free.app");
-            let _ = app_handle.emit("tunnel-started", serde_json::json!({
-                "provider": provider,
-                "public_url": public_url,
-            }));
-            Ok(public_url)
+
+            let ngrok_token = token.unwrap();
+            let ngrok_region = region.unwrap_or_else(|| "ap".to_string());
+
+            // Create or get NgrokManager
+            let manager = {
+                let mut tm = state.tunnel_manager.lock().unwrap();
+                if tm.is_none() {
+                    *tm = Some(NgrokManager::new());
+                }
+                tm.clone().unwrap()
+            };
+
+            // Start ngrok process
+            manager.start(&ngrok_token, port, &ngrok_region, app_handle)
         }
         "frp" => {
-            // TODO: 实际启动frp客户端
             Err("frp requires custom server configuration. Please set custom URL in config.".to_string())
         }
         "cloudflare" => {
-            // TODO: 实际启动cloudflare tunnel
-            let public_url = format!("https://random-id.trycloudflare.com");
-            let _ = app_handle.emit("tunnel-started", serde_json::json!({
-                "provider": provider,
-                "public_url": public_url,
-            }));
-            Ok(public_url)
+            // Cloudflare tunnel using cloudflared CLI
+            Err("Cloudflare tunnel requires cloudflared CLI. Run: cloudflared tunnel --url http://localhost:PORT".to_string())
         }
         _ => Err(format!("Unknown tunnel provider: {}", provider))
     }
 }
 
 #[tauri::command]
-fn stop_tunnel(app_handle: AppHandle) -> Result<(), String> {
+fn stop_tunnel(state: State<'_, AppState>, app_handle: AppHandle) -> Result<(), String> {
     println!("Stopping tunnel");
 
-    // TODO: 实际停止tunnel进程
+    let manager_guard = state.tunnel_manager.lock().unwrap();
 
-    let _ = app_handle.emit("tunnel-stopped", ());
+    if let Some(manager) = manager_guard.as_ref() {
+        manager.stop(app_handle)?;
+    }
+
     Ok(())
 }
 
@@ -1443,31 +1452,38 @@ fn generate_app_qrcode(state: State<AppState>) -> Result<String, String> {
         }
     }
 
-    let local_ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
+    // Check if tunnel is running and has a public URL
+    let tunnel_manager = state.tunnel_manager.lock().unwrap();
+    let tunnel_url = tunnel_manager.as_ref().and_then(|tm| tm.get_public_url());
 
-    let ws = state.ws_server.lock().unwrap();
-    let port = if let Some(server) = ws.as_ref() {
-        if server.is_running() {
-            1420
-        } else {
-            1420
-        }
+    // Use tunnel URL if available, otherwise use local IP
+    let ws_url = if let Some(public_url) = tunnel_url {
+        // Convert https URL to wss WebSocket URL
+        let wss_url = public_url.replace("https://", "wss://").replace("http://", "ws://");
+        format!("{}?token={}", wss_url, token)
     } else {
-        1420
+        let local_ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
+        let ws = state.ws_server.lock().unwrap();
+        let port = ws.as_ref().map(|s| s.port).unwrap_or(1420);
+        format!("ws://{}:{}?token={}", local_ip, port, token)
     };
 
-    let qr_url = format!("ws://{}:{}?token={}", local_ip, port, token);
-    println!("Generated QR code URL (token set on ws_server)");
-    Ok(qr_url)
+    println!("Generated QR code URL: {}", ws_url);
+    Ok(ws_url)
 }
 
 #[tauri::command]
-async fn start_ws_server(port: u16, state: State<'_, AppState>, app_handle: AppHandle) -> Result<String, String> {
+async fn start_ws_server(
+    port: u16,
+    bind_external: bool,
+    state: State<'_, AppState>,
+    app_handle: AppHandle
+) -> Result<String, String> {
     // Create server
     let server = websocket::WebSocketServer::new(port);
 
-    // Start the server with app_handle
-    let url = server.start(app_handle).await?;
+    // Start the server (bind_external determines if we bind to 0.0.0.0 or 127.0.0.1)
+    let url = server.start(app_handle, bind_external).await?;
 
     // Store in state after async operation completes
     {

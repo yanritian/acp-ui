@@ -73,7 +73,7 @@ struct ConnectionState {
 
 /// WebSocket server for remote connections with token authentication
 pub struct WebSocketServer {
-    port: u16,
+    pub port: u16,
     clients: Arc<RwLock<HashMap<String, RemoteClient>>>,
     connections: Arc<RwLock<HashMap<String, ConnectionState>>>,
     running: Arc<RwLock<bool>>,
@@ -97,20 +97,25 @@ impl WebSocketServer {
     }
 
     /// Start the WebSocket server
-    pub async fn start(&self, app_handle: AppHandle) -> Result<String, String> {
+    pub async fn start(&self, app_handle: AppHandle, bind_to_all_interfaces: bool) -> Result<String, String> {
         if *self.running.read() {
             return Err("Server already running".to_string());
         }
 
-        // Bind to localhost only for security (not all network interfaces)
-        // This prevents exposure to LAN/external networks
-        let addr: SocketAddr = format!("127.0.0.1:{}", self.port)
+        // Bind address: either localhost (secure) or all interfaces (for external access)
+        let bind_addr = if bind_to_all_interfaces {
+            "0.0.0.0"  // Allow LAN/external connections (requires firewall config)
+        } else {
+            "127.0.0.1"  // Local only, most secure
+        };
+
+        let addr: SocketAddr = format!("{}:{}", bind_addr, self.port)
             .parse()
             .map_err(|e| format!("Invalid address: {}", e))?;
 
         let listener = TcpListener::bind(&addr)
             .await
-            .map_err(|e| format!("Failed to bind: {}", e))?;
+            .map_err(|e| format!("Failed to bind {}: {}", bind_addr, e))?;
 
         *self.running.write() = true;
 

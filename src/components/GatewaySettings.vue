@@ -140,12 +140,17 @@ async function startTunnel() {
       provider: gatewayConfig.value.tunnel.provider,
       token: gatewayConfig.value.tunnel.ngrokToken,
       port: gatewayConfig.value.app.websocketPort,
+      region: gatewayConfig.value.tunnel.ngrokRegion,
     })
     gatewayConfig.value.tunnel.publicUrl = result as string
     gatewayConfig.value.tunnel.status = 'running'
+
+    // Auto-generate QR code with tunnel URL
+    await generateQRCode()
   } catch (error) {
     gatewayConfig.value.tunnel.status = 'stopped'
     console.error('Failed to start tunnel:', error)
+    alert(`启动隧道失败: ${error}`)
   }
 }
 
@@ -160,21 +165,41 @@ async function stopTunnel() {
   }
 }
 
-// 启动Gateway
+// 启动Gateway (启动WebSocket服务器)
 async function startGateway() {
   try {
     gatewayStatus.value = 'starting'
+
+    // Start WebSocket server (bind to all interfaces if tunnel is enabled)
+    const bindExternal = gatewayConfig.value.tunnel.enabled
+    await invoke('start_ws_server', {
+      port: gatewayConfig.value.app.websocketPort,
+      bindExternal: bindExternal,
+    })
+
+    // Start gateway config
     await invoke('start_gateway', { config: gatewayConfig.value })
+
     gatewayStatus.value = 'running'
   } catch (error) {
     gatewayStatus.value = 'stopped'
     console.error('Failed to start gateway:', error)
+    alert(`启动服务失败: ${error}`)
   }
 }
 
 // 停止Gateway
 async function stopGateway() {
   try {
+    // Stop WebSocket server
+    await invoke('stop_ws_server')
+
+    // Stop tunnel if running
+    if (gatewayConfig.value.tunnel.status === 'running') {
+      await stopTunnel()
+    }
+
+    // Stop gateway
     await invoke('stop_gateway')
     gatewayStatus.value = 'stopped'
   } catch (error) {

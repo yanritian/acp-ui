@@ -4,18 +4,70 @@ import { isTauriHost } from '../lib/platform'
 
 export interface MemoryRecord {
   id: string
+  scope: 'global' | 'agent' | 'session' | 'task'
   agentId: string | null
   sessionId: string | null
   taskId: string | null
-  scope: 'global' | 'agent' | 'session' | 'task'
+  memoryType: 'fact' | 'decision' | 'error' | 'solution' | 'pattern' | 'preference'
   content: string
   tags: string | null
   importance: number
   createdAt: string
   lastAccessed: string | null
+  accessCount: number
+  expiresAt: string | null
 }
 
 export type MemoryScope = MemoryRecord['scope']
+export type MemoryType = MemoryRecord['memoryType']
+
+export interface ErrorRecord {
+  id: string
+  category: string
+  message: string
+  context: string | null
+  stackTrace: string | null
+  agentId: string | null
+  taskId: string | null
+  status: 'open' | 'resolved' | 'ignored'
+  solutionId: string | null
+  createdAt: string
+  resolvedAt: string | null
+}
+
+export interface SolutionRecord {
+  id: string
+  errorId: string | null
+  approach: string
+  steps: string | null
+  result: string
+  success: boolean | null
+  evidence: string | null
+  createdAt: string
+}
+
+export interface EvolutionRecord {
+  id: string
+  evolutionType: 'improvement' | 'regression' | 'discovery'
+  domain: string
+  before: string | null
+  after: string | null
+  reason: string
+  evidence: string | null
+  createdAt: string
+}
+
+export interface PatternRecord {
+  id: string
+  name: string
+  description: string
+  category: string
+  examples: string | null
+  successRate: number | null
+  usageCount: number
+  createdAt: string
+  updatedAt: string
+}
 
 // Web-side in-memory storage backed by localStorage
 const WEB_MEMORIES_KEY = 'acp-ui:memories'
@@ -63,23 +115,29 @@ function webSaveMemory(
   content: string,
   tags: string | null = null,
   scope: MemoryScope = 'global',
+  memoryType: MemoryType = 'fact',
   agentId: string | null = null,
   sessionId: string | null = null,
-  taskId: string | null = null
+  taskId: string | null = null,
+  importance: number = 0.5,
+  expiresAt: string | null = null
 ): string {
   const all = loadWebMemories()
   const id = crypto.randomUUID()
   const record: MemoryRecord = {
     id,
+    scope,
     agentId,
     sessionId,
     taskId,
-    scope,
+    memoryType,
     content,
     tags,
-    importance: 0.5,
+    importance,
     createdAt: new Date().toISOString(),
     lastAccessed: null,
+    accessCount: 0,
+    expiresAt,
   }
   all.unshift(record)
   saveWebMemories(all)
@@ -157,9 +215,12 @@ export const useMemoryStore = defineStore('memory', () => {
     content: string,
     tags: string | null = null,
     scope: MemoryScope = 'global',
+    memoryType: MemoryType = 'fact',
     agentId: string | null = null,
     sessionId: string | null = null,
-    taskId: string | null = null
+    taskId: string | null = null,
+    importance: number = 0.5,
+    expiresAt: string | null = null
   ) {
     loading.value = true
     error.value = null
@@ -171,12 +232,15 @@ export const useMemoryStore = defineStore('memory', () => {
           content,
           tags,
           scope,
+          memoryType,
           agentId,
           sessionId,
           taskId,
+          importance,
+          expiresAt,
         })
       } else {
-        webSaveMemory(content, tags, scope, agentId, sessionId, taskId)
+        webSaveMemory(content, tags, scope, memoryType, agentId, sessionId, taskId, importance, expiresAt)
       }
       await loadAgentMemories(selectedAgentId.value)
     } catch (e) {

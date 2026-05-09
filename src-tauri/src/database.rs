@@ -625,6 +625,103 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
     // These columns may already exist if the database was created with them
     let _ = conn.execute("ALTER TABLE memories ADD COLUMN scope TEXT DEFAULT 'global'", []);
     let _ = conn.execute("ALTER TABLE memories ADD COLUMN task_id TEXT", []);
+    let _ = conn.execute("ALTER TABLE memories ADD COLUMN type TEXT DEFAULT 'fact'", []);
+    let _ = conn.execute("ALTER TABLE memories ADD COLUMN access_count INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE memories ADD COLUMN expires_at TEXT", []);
+
+    // Errors table for self-healing system
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS errors (
+            id TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            message TEXT NOT NULL,
+            context TEXT,
+            stack_trace TEXT,
+            agent_id TEXT,
+            task_id TEXT,
+            status TEXT DEFAULT 'open',
+            solution_id TEXT,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_errors_status ON errors(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_errors_category ON errors(category)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Solutions table for self-healing system
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS solutions (
+            id TEXT PRIMARY KEY,
+            error_id TEXT,
+            approach TEXT NOT NULL,
+            steps TEXT,
+            result TEXT NOT NULL,
+            success BOOLEAN,
+            evidence TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_solutions_error ON solutions(error_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Evolutions table for self-evolution system
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS evolutions (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            domain TEXT NOT NULL,
+            before TEXT,
+            after TEXT,
+            reason TEXT NOT NULL,
+            evidence TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_evolutions_type ON evolutions(type)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_evolutions_domain ON evolutions(domain)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Patterns table for pattern library
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS patterns (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            category TEXT NOT NULL,
+            examples TEXT,
+            success_rate REAL,
+            usage_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_patterns_category ON patterns(category)",
+        [],
+    ).map_err(|e| e.to_string())?;
 
     // Enable WAL mode for better concurrent read performance
     conn.execute("PRAGMA journal_mode=WAL", []).map_err(|e| e.to_string())?;

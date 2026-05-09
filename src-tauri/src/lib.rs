@@ -324,6 +324,18 @@ pub fn run() {
             get_agent_memories,
             get_shared_memories,
             delete_memory,
+            // Error/Solution commands (Self-Healing)
+            save_error,
+            get_errors,
+            resolve_error,
+            save_solution,
+            get_solutions,
+            // Evolution/Pattern commands (Self-Evolution)
+            save_evolution,
+            get_evolutions,
+            save_pattern,
+            get_patterns,
+            update_pattern_usage,
             get_db_path,
             get_gateway_config,
             save_gateway_config,
@@ -410,11 +422,74 @@ pub struct MemoryRecord {
     pub agent_id: Option<String>,
     pub session_id: Option<String>,
     pub task_id: Option<String>,
+    pub memory_type: String,
     pub content: String,
     pub tags: Option<String>,
     pub importance: f64,
     pub created_at: String,
     pub last_accessed: Option<String>,
+    pub access_count: i64,
+    pub expires_at: Option<String>,
+}
+
+// ===== Error/Solution Commands (Self-Healing System) =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorRecord {
+    pub id: String,
+    pub category: String,
+    pub message: String,
+    pub context: Option<String>,
+    pub stack_trace: Option<String>,
+    pub agent_id: Option<String>,
+    pub task_id: Option<String>,
+    pub status: String,
+    pub solution_id: Option<String>,
+    pub created_at: String,
+    pub resolved_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolutionRecord {
+    pub id: String,
+    pub error_id: Option<String>,
+    pub approach: String,
+    pub steps: Option<String>,
+    pub result: String,
+    pub success: Option<bool>,
+    pub evidence: Option<String>,
+    pub created_at: String,
+}
+
+// ===== Evolution/Pattern Commands (Self-Evolution System) =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvolutionRecord {
+    pub id: String,
+    pub evolution_type: String,
+    pub domain: String,
+    pub before: Option<String>,
+    pub after: Option<String>,
+    pub reason: String,
+    pub evidence: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PatternRecord {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub examples: Option<String>,
+    pub success_rate: Option<f64>,
+    pub usage_count: i64,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[tauri::command]
@@ -422,9 +497,12 @@ fn save_memory(
     content: String,
     tags: Option<String>,
     scope: Option<String>,
+    memory_type: Option<String>,
     agent_id: Option<String>,
     session_id: Option<String>,
     task_id: Option<String>,
+    importance: Option<f64>,
+    expires_at: Option<String>,
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
@@ -433,12 +511,14 @@ fn save_memory(
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let scope_val = scope.unwrap_or_else(|| "global".to_string());
+    let type_val = memory_type.unwrap_or_else(|| "fact".to_string());
+    let importance_val = importance.unwrap_or(0.5);
 
     let conn = db.conn.lock().unwrap();
     conn.execute(
-        "INSERT INTO memories (id, scope, agent_id, session_id, task_id, content, tags, importance, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        rusqlite::params![id, scope_val, agent_id, session_id, task_id, content, tags, 0.5, now],
+        "INSERT INTO memories (id, scope, agent_id, session_id, task_id, type, content, tags, importance, created_at, access_count, expires_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)",
+        rusqlite::params![id, scope_val, agent_id, session_id, task_id, type_val, content, tags, importance_val, now, expires_at],
     ).map_err(|e| e.to_string())?;
 
     Ok(id)
@@ -465,11 +545,14 @@ fn search_memories(
             agent_id: row.get(2)?,
             session_id: row.get(3)?,
             task_id: row.get(4)?,
-            content: row.get(5)?,
-            tags: row.get(6)?,
-            importance: row.get(7)?,
-            created_at: row.get(8)?,
-            last_accessed: row.get(9)?,
+            memory_type: row.get(5)?,
+            content: row.get(6)?,
+            tags: row.get(7)?,
+            importance: row.get(8)?,
+            created_at: row.get(9)?,
+            last_accessed: row.get(10)?,
+            access_count: row.get(11)?,
+            expires_at: row.get(12)?,
         })
     }
 
@@ -477,7 +560,7 @@ fn search_memories(
 
     let records: Vec<MemoryRecord> = if let Some(aid) = &agent_id {
         let sql = format!(
-            "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+            "SELECT id, scope, agent_id, session_id, task_id, type, content, tags, importance, created_at, last_accessed, access_count, expires_at
              FROM memories WHERE content LIKE ?1 AND (agent_id = ?2 OR agent_id IS NULL)
              ORDER BY importance DESC, created_at DESC {}",
             limit_clause
@@ -490,7 +573,7 @@ fn search_memories(
             .map_err(|e| e.to_string())?
     } else {
         let sql = format!(
-            "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+            "SELECT id, scope, agent_id, session_id, task_id, type, content, tags, importance, created_at, last_accessed, access_count, expires_at
              FROM memories WHERE content LIKE ?1
              ORDER BY importance DESC, created_at DESC {}",
             limit_clause
@@ -518,7 +601,7 @@ fn get_agent_memories(
     let conn = db.conn.lock().unwrap();
 
     let sql = format!(
-        "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+        "SELECT id, scope, agent_id, session_id, task_id, type, content, tags, importance, created_at, last_accessed, access_count, expires_at
          FROM memories WHERE agent_id = ?1 OR agent_id IS NULL
          ORDER BY importance DESC, created_at DESC {}",
         limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
@@ -533,11 +616,14 @@ fn get_agent_memories(
                 agent_id: row.get(2)?,
                 session_id: row.get(3)?,
                 task_id: row.get(4)?,
-                content: row.get(5)?,
-                tags: row.get(6)?,
-                importance: row.get(7)?,
-                created_at: row.get(8)?,
-                last_accessed: row.get(9)?,
+                memory_type: row.get(5)?,
+                content: row.get(6)?,
+                tags: row.get(7)?,
+                importance: row.get(8)?,
+                created_at: row.get(9)?,
+                last_accessed: row.get(10)?,
+                access_count: row.get(11)?,
+                expires_at: row.get(12)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -559,7 +645,7 @@ fn get_shared_memories(
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
     let sql = format!(
-        "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+        "SELECT id, scope, agent_id, session_id, task_id, type, content, tags, importance, created_at, last_accessed, access_count, expires_at
          FROM memories WHERE agent_id IS NULL
          ORDER BY importance DESC, created_at DESC {}",
         limit_clause
@@ -574,11 +660,14 @@ fn get_shared_memories(
                 agent_id: row.get(2)?,
                 session_id: row.get(3)?,
                 task_id: row.get(4)?,
-                content: row.get(5)?,
-                tags: row.get(6)?,
-                importance: row.get(7)?,
-                created_at: row.get(8)?,
-                last_accessed: row.get(9)?,
+                memory_type: row.get(5)?,
+                content: row.get(6)?,
+                tags: row.get(7)?,
+                importance: row.get(8)?,
+                created_at: row.get(9)?,
+                last_accessed: row.get(10)?,
+                access_count: row.get(11)?,
+                expires_at: row.get(12)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -601,6 +690,537 @@ fn delete_memory(
         "DELETE FROM memories WHERE id = ?1",
         rusqlite::params![memory_id],
     ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// ===== Error Commands (Self-Healing System) =====
+
+#[tauri::command]
+fn save_error(
+    category: String,
+    message: String,
+    context: Option<String>,
+    stack_trace: Option<String>,
+    agent_id: Option<String>,
+    task_id: Option<String>,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO errors (id, category, message, context, stack_trace, agent_id, task_id, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'open', ?8)",
+        rusqlite::params![id, category, message, context, stack_trace, agent_id, task_id, now],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(id)
+}
+
+#[tauri::command]
+fn get_errors(
+    status: Option<String>,
+    category: Option<String>,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<ErrorRecord>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let conn = db.conn.lock().unwrap();
+    let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+    let sql = match (&status, &category) {
+        (Some(s), Some(c)) => format!(
+            "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
+             FROM errors WHERE status = ?1 AND category = ?2 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (Some(s), None) => format!(
+            "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
+             FROM errors WHERE status = ?1 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (None, Some(c)) => format!(
+            "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
+             FROM errors WHERE category = ?1 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (None, None) => format!(
+            "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
+             FROM errors ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+    };
+
+    let records: Vec<ErrorRecord> = match (&status, &category) {
+        (Some(s), Some(c)) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![s, c], |row| {
+                Ok(ErrorRecord {
+                    id: row.get(0)?,
+                    category: row.get(1)?,
+                    message: row.get(2)?,
+                    context: row.get(3)?,
+                    stack_trace: row.get(4)?,
+                    agent_id: row.get(5)?,
+                    task_id: row.get(6)?,
+                    status: row.get(7)?,
+                    solution_id: row.get(8)?,
+                    created_at: row.get(9)?,
+                    resolved_at: row.get(10)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (Some(s), None) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![s], |row| {
+                Ok(ErrorRecord {
+                    id: row.get(0)?,
+                    category: row.get(1)?,
+                    message: row.get(2)?,
+                    context: row.get(3)?,
+                    stack_trace: row.get(4)?,
+                    agent_id: row.get(5)?,
+                    task_id: row.get(6)?,
+                    status: row.get(7)?,
+                    solution_id: row.get(8)?,
+                    created_at: row.get(9)?,
+                    resolved_at: row.get(10)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (None, Some(c)) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![c], |row| {
+                Ok(ErrorRecord {
+                    id: row.get(0)?,
+                    category: row.get(1)?,
+                    message: row.get(2)?,
+                    context: row.get(3)?,
+                    stack_trace: row.get(4)?,
+                    agent_id: row.get(5)?,
+                    task_id: row.get(6)?,
+                    status: row.get(7)?,
+                    solution_id: row.get(8)?,
+                    created_at: row.get(9)?,
+                    resolved_at: row.get(10)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (None, None) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map([], |row| {
+                Ok(ErrorRecord {
+                    id: row.get(0)?,
+                    category: row.get(1)?,
+                    message: row.get(2)?,
+                    context: row.get(3)?,
+                    stack_trace: row.get(4)?,
+                    agent_id: row.get(5)?,
+                    task_id: row.get(6)?,
+                    status: row.get(7)?,
+                    solution_id: row.get(8)?,
+                    created_at: row.get(9)?,
+                    resolved_at: row.get(10)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+    };
+
+    Ok(records)
+}
+
+#[tauri::command]
+fn resolve_error(
+    error_id: String,
+    solution_id: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE errors SET status = 'resolved', solution_id = ?1, resolved_at = ?2 WHERE id = ?3",
+        rusqlite::params![solution_id, now, error_id],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// ===== Solution Commands =====
+
+#[tauri::command]
+fn save_solution(
+    error_id: Option<String>,
+    approach: String,
+    steps: Option<String>,
+    result: String,
+    success: Option<bool>,
+    evidence: Option<String>,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO solutions (id, error_id, approach, steps, result, success, evidence, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![id, error_id, approach, steps, result, success, evidence, now],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(id)
+}
+
+#[tauri::command]
+fn get_solutions(
+    error_id: Option<String>,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<SolutionRecord>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let conn = db.conn.lock().unwrap();
+    let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+    let sql = if let Some(eid) = &error_id {
+        format!(
+            "SELECT id, error_id, approach, steps, result, success, evidence, created_at
+             FROM solutions WHERE error_id = ?1 ORDER BY created_at DESC {}",
+            limit_clause
+        )
+    } else {
+        format!(
+            "SELECT id, error_id, approach, steps, result, success, evidence, created_at
+             FROM solutions ORDER BY created_at DESC {}",
+            limit_clause
+        )
+    };
+
+    let records: Vec<SolutionRecord> = if let Some(eid) = &error_id {
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![eid], |row| {
+                Ok(SolutionRecord {
+                    id: row.get(0)?,
+                    error_id: row.get(1)?,
+                    approach: row.get(2)?,
+                    steps: row.get(3)?,
+                    result: row.get(4)?,
+                    success: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map([], |row| {
+                Ok(SolutionRecord {
+                    id: row.get(0)?,
+                    error_id: row.get(1)?,
+                    approach: row.get(2)?,
+                    steps: row.get(3)?,
+                    result: row.get(4)?,
+                    success: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
+
+    Ok(records)
+}
+
+// ===== Evolution Commands (Self-Evolution System) =====
+
+#[tauri::command]
+fn save_evolution(
+    evolution_type: String,
+    domain: String,
+    before: Option<String>,
+    after: Option<String>,
+    reason: String,
+    evidence: Option<String>,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO evolutions (id, type, domain, before, after, reason, evidence, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        rusqlite::params![id, evolution_type, domain, before, after, reason, evidence, now],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(id)
+}
+
+#[tauri::command]
+fn get_evolutions(
+    evolution_type: Option<String>,
+    domain: Option<String>,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<EvolutionRecord>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let conn = db.conn.lock().unwrap();
+    let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+    let sql = match (&evolution_type, &domain) {
+        (Some(t), Some(d)) => format!(
+            "SELECT id, type, domain, before, after, reason, evidence, created_at
+             FROM evolutions WHERE type = ?1 AND domain = ?2 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (Some(t), None) => format!(
+            "SELECT id, type, domain, before, after, reason, evidence, created_at
+             FROM evolutions WHERE type = ?1 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (None, Some(d)) => format!(
+            "SELECT id, type, domain, before, after, reason, evidence, created_at
+             FROM evolutions WHERE domain = ?1 ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+        (None, None) => format!(
+            "SELECT id, type, domain, before, after, reason, evidence, created_at
+             FROM evolutions ORDER BY created_at DESC {}",
+            limit_clause
+        ),
+    };
+
+    let records: Vec<EvolutionRecord> = match (&evolution_type, &domain) {
+        (Some(t), Some(d)) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![t, d], |row| {
+                Ok(EvolutionRecord {
+                    id: row.get(0)?,
+                    evolution_type: row.get(1)?,
+                    domain: row.get(2)?,
+                    before: row.get(3)?,
+                    after: row.get(4)?,
+                    reason: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (Some(t), None) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![t], |row| {
+                Ok(EvolutionRecord {
+                    id: row.get(0)?,
+                    evolution_type: row.get(1)?,
+                    domain: row.get(2)?,
+                    before: row.get(3)?,
+                    after: row.get(4)?,
+                    reason: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (None, Some(d)) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![d], |row| {
+                Ok(EvolutionRecord {
+                    id: row.get(0)?,
+                    evolution_type: row.get(1)?,
+                    domain: row.get(2)?,
+                    before: row.get(3)?,
+                    after: row.get(4)?,
+                    reason: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+        (None, None) => conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map([], |row| {
+                Ok(EvolutionRecord {
+                    id: row.get(0)?,
+                    evolution_type: row.get(1)?,
+                    domain: row.get(2)?,
+                    before: row.get(3)?,
+                    after: row.get(4)?,
+                    reason: row.get(5)?,
+                    evidence: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?,
+    };
+
+    Ok(records)
+}
+
+// ===== Pattern Commands =====
+
+#[tauri::command]
+fn save_pattern(
+    name: String,
+    description: String,
+    category: String,
+    examples: Option<String>,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO patterns (id, name, description, category, examples, usage_count, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7)",
+        rusqlite::params![id, name, description, category, examples, now, now],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(id)
+}
+
+#[tauri::command]
+fn get_patterns(
+    category: Option<String>,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<PatternRecord>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let conn = db.conn.lock().unwrap();
+    let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+    let sql = if let Some(cat) = &category {
+        format!(
+            "SELECT id, name, description, category, examples, success_rate, usage_count, created_at, updated_at
+             FROM patterns WHERE category = ?1 ORDER BY usage_count DESC {}",
+            limit_clause
+        )
+    } else {
+        format!(
+            "SELECT id, name, description, category, examples, success_rate, usage_count, created_at, updated_at
+             FROM patterns ORDER BY usage_count DESC {}",
+            limit_clause
+        )
+    };
+
+    let records: Vec<PatternRecord> = if let Some(cat) = &category {
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![cat], |row| {
+                Ok(PatternRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    category: row.get(3)?,
+                    examples: row.get(4)?,
+                    success_rate: row.get(5)?,
+                    usage_count: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map([], |row| {
+                Ok(PatternRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                    category: row.get(3)?,
+                    examples: row.get(4)?,
+                    success_rate: row.get(5)?,
+                    usage_count: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
+
+    Ok(records)
+}
+
+#[tauri::command]
+fn update_pattern_usage(
+    pattern_id: String,
+    success: bool,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let conn = db.conn.lock().unwrap();
+
+    // Increment usage count
+    conn.execute(
+        "UPDATE patterns SET usage_count = usage_count + 1, updated_at = ?1 WHERE id = ?2",
+        rusqlite::params![now, pattern_id],
+    ).map_err(|e| e.to_string())?;
+
+    // Update success rate if provided
+    if success {
+        conn.execute(
+            "UPDATE patterns SET success_rate = (success_rate * usage_count + 1.0) / (usage_count + 1) WHERE id = ?1",
+            rusqlite::params![pattern_id],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        conn.execute(
+            "UPDATE patterns SET success_rate = (success_rate * usage_count) / (usage_count + 1) WHERE id = ?1",
+            rusqlite::params![pattern_id],
+        ).map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }

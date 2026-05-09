@@ -46,7 +46,17 @@ async function handleAddMemory() {
   if (!content) return
 
   const tags = newMemoryTags.value.trim() || null
-  await memoryStore.saveMemory(content, tags, newMemoryScope.value, memoryStore.selectedAgentId)
+  await memoryStore.saveMemory(
+    content,
+    tags,
+    newMemoryScope.value,
+    'fact',  // memoryType
+    memoryStore.selectedAgentId,
+    null,    // sessionId
+    null,    // taskId
+    0.5,     // importance
+    null     // expiresAt
+  )
   newMemoryContent.value = ''
   newMemoryTags.value = ''
   newMemoryScope.value = 'global'

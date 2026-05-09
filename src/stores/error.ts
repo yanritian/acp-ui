@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { isTauriHost } from '../lib/platform'
 import type { ErrorRecord, SolutionRecord, EvolutionRecord, PatternRecord } from './memory'
 
+// Re-export types for external use
+export type { ErrorRecord, SolutionRecord, EvolutionRecord, PatternRecord } from './memory'
+
 // Web-side localStorage storage for errors/solutions/evolutions/patterns
 const WEB_ERRORS_KEY = 'acp-ui:errors'
 const WEB_SOLUTIONS_KEY = 'acp-ui:solutions'

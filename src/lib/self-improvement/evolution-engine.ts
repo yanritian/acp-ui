@@ -7,7 +7,7 @@ import { getHealingStats } from './self-healing'
 
 export interface ImprovementSuggestion {
   id: string
-  category: 'error-reduction' | 'performance' | 'ux' | 'stability'
+  category: 'error-reduction' | 'performance' | 'ux' | 'stability' | 'pattern-discovery'
   priority: 'low' | 'medium' | 'high' | 'critical'
   title: string
   description: string
@@ -91,7 +91,7 @@ function analyze(): ImprovementSuggestion[] {
   }
 
   // 4. Low: Unused features (no behavior patterns)
-  const allFeatures = ['chat', 'multi-agent', 'multi-session', 'workflow', 'orchestration', 'bot', 'gateway', 'memory', 'history', 'status', 'monitor']
+  const allFeatures = ['chat', 'multi-agent', 'multi-session', 'workflow', 'orchestration', 'bot', 'gateway', 'memory', 'history', 'status', 'monitor', 'error', 'evolution', 'pattern']
   const usedFeatures = new Set(behaviorPatterns.map(p => p.name.replace('feature-', '')))
   for (const feature of allFeatures) {
     if (!usedFeatures.has(feature)) {
@@ -106,6 +106,37 @@ function analyze(): ImprovementSuggestion[] {
         timestamp: Date.now(),
       })
     }
+  }
+
+  // 5. Pattern Discovery: Analyze recurring error patterns
+  const recurringErrors = errorPatterns.filter(p => p.count >= 3)
+  if (recurringErrors.length >= 2) {
+    const patternNames = recurringErrors.map(p => p.name).join(', ')
+    newSuggestions.push({
+      id: 'recurring-pattern',
+      category: 'pattern-discovery',
+      priority: 'medium',
+      title: '发现重复错误模式',
+      description: `检测到 ${recurringErrors.length} 个重复出现的错误模式: ${patternNames}。建议将这些记录到模式库以便快速参考。`,
+      evidence: { patterns: recurringErrors.map(p => ({ name: p.name, count: p.count })) },
+      autoApplied: false,
+      timestamp: Date.now(),
+    })
+  }
+
+  // 6. Performance Pattern: Consistent slow operations
+  const consistentlySlow = perfMetrics.filter(m => m.p50 > 500)
+  if (consistentlySlow.length >= 2) {
+    newSuggestions.push({
+      id: 'perf-pattern',
+      category: 'pattern-discovery',
+      priority: 'low',
+      title: '发现性能问题模式',
+      description: `${consistentlySlow.length} 个操作持续缓慢 (P50 > 500ms)。建议分析是否为系统性问题。`,
+      evidence: { operations: consistentlySlow.map(m => ({ name: m.name, p50: m.p50 })) },
+      autoApplied: false,
+      timestamp: Date.now(),
+    })
   }
 
   return newSuggestions

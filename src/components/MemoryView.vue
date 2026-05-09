@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useMemoryStore, type MemoryScope } from '../stores/memory'
+import { useMemoryStore, type MemoryScope, type MemoryType } from '../stores/memory'
 import { useConfigStore } from '../stores/config'
+import { analyzeMessage } from '../lib/memory-extraction'
 
 const memoryStore = useMemoryStore()
 const configStore = useConfigStore()
@@ -9,8 +10,12 @@ const configStore = useConfigStore()
 const newMemoryContent = ref('')
 const newMemoryTags = ref('')
 const newMemoryScope = ref<MemoryScope>('global')
+const newMemoryType = ref<MemoryType>('fact')
 const showAddForm = ref(false)
 const selectedScope = ref<MemoryScope | 'all'>('all')
+const selectedType = ref<MemoryType | 'all'>('all')
+const showExtractedPreview = ref(false)
+const extractedPreview = ref<{ content: string, type: MemoryType, importance: number }[]>([])
 
 const scopes: { value: MemoryScope | 'all', label: string }[] = [
   { value: 'all', label: '全部' },
@@ -20,11 +25,24 @@ const scopes: { value: MemoryScope | 'all', label: string }[] = [
   { value: 'task', label: '任务' },
 ]
 
+const types: { value: MemoryType | 'all', label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'fact', label: '事实' },
+  { value: 'decision', label: '决策' },
+  { value: 'error', label: '错误' },
+  { value: 'solution', label: '方案' },
+  { value: 'pattern', label: '模式' },
+  { value: 'preference', label: '偏好' },
+]
+
 const agentEntries = computed(() => Object.entries(configStore.config.agents))
 const records = computed(() => {
   let filtered = memoryStore.searchResults.length > 0 ? memoryStore.searchResults : memoryStore.memories
   if (selectedScope.value !== 'all') {
     filtered = filtered.filter(m => m.scope === selectedScope.value)
+  }
+  if (selectedType.value !== 'all') {
+    filtered = filtered.filter(m => m.memoryType === selectedType.value)
   }
   return filtered
 })
@@ -50,7 +68,7 @@ async function handleAddMemory() {
     content,
     tags,
     newMemoryScope.value,
-    'fact',  // memoryType
+    newMemoryType.value,
     memoryStore.selectedAgentId,
     null,    // sessionId
     null,    // taskId
@@ -60,7 +78,21 @@ async function handleAddMemory() {
   newMemoryContent.value = ''
   newMemoryTags.value = ''
   newMemoryScope.value = 'global'
+  newMemoryType.value = 'fact'
   showAddForm.value = false
+}
+
+function handlePreviewExtraction() {
+  const content = newMemoryContent.value.trim()
+  if (!content) return
+
+  const extracted = analyzeMessage(content, {})
+  extractedPreview.value = extracted.map(e => ({
+    content: e.content,
+    type: e.type,
+    importance: e.importance,
+  }))
+  showExtractedPreview.value = true
 }
 
 function formatTime(s: string): string {
@@ -84,6 +116,18 @@ function getScopeLabel(scope: MemoryScope): string {
     task: '任务'
   }
   return labels[scope]
+}
+
+function getTypeLabel(type: MemoryType): string {
+  const labels: Record<MemoryType, string> = {
+    fact: '事实',
+    decision: '决策',
+    error: '错误',
+    solution: '方案',
+    pattern: '模式',
+    preference: '偏好'
+  }
+  return labels[type]
 }
 
 onMounted(() => {
@@ -137,6 +181,19 @@ onMounted(() => {
       </button>
     </div>
 
+    <!-- Type Filter -->
+    <div class="type-filter">
+      <span class="filter-label">按类型过滤:</span>
+      <button
+        v-for="t in types"
+        :key="t.value"
+        :class="['type-btn', { active: selectedType === t.value }]"
+        @click="selectedType = t.value"
+      >
+        {{ t.label }}
+      </button>
+    </div>
+
     <!-- Add Memory Button -->
     <div class="add-section">
       <button class="btn-add" @click="showAddForm = !showAddForm">
@@ -166,7 +223,28 @@ onMounted(() => {
           <option value="task">任务</option>
         </select>
       </div>
+      <div class="type-select">
+        <label>类型:</label>
+        <select v-model="newMemoryType">
+          <option value="fact">事实</option>
+          <option value="decision">决策</option>
+          <option value="error">错误</option>
+          <option value="solution">方案</option>
+          <option value="pattern">模式</option>
+          <option value="preference">偏好</option>
+        </select>
+      </div>
+      <div v-if="showExtractedPreview && extractedPreview.length > 0" class="extraction-preview">
+        <span class="preview-label">智能分析建议:</span>
+        <div v-for="(item, idx) in extractedPreview" :key="idx" class="preview-item">
+          <span class="preview-type">{{ item.type }}</span>
+          <span class="preview-importance">重要性: {{ Math.round(item.importance * 100) }}%</span>
+        </div>
+      </div>
       <div class="form-actions">
+        <button class="btn-preview" @click="handlePreviewExtraction" :disabled="!newMemoryContent.trim()">
+          智能分析
+        </button>
         <button class="btn-submit" @click="handleAddMemory" :disabled="!newMemoryContent.trim()">
           保存
         </button>
@@ -195,6 +273,7 @@ onMounted(() => {
         class="memory-card"
       >
         <div class="memory-header">
+          <span class="memory-type" :class="memory.memoryType">{{ getTypeLabel(memory.memoryType) }}</span>
           <span class="memory-scope">{{ getScopeLabel(memory.scope) }}</span>
           <span class="memory-agent">{{ memory.agentId || '全局' }}</span>
           <span class="memory-time">{{ formatTime(memory.createdAt) }}</span>
@@ -287,6 +366,28 @@ onMounted(() => {
   border-color: #28a745;
 }
 
+.type-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.type-btn {
+  padding: 4px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.type-btn.active {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
 .add-section {
   display: flex;
   justify-content: flex-end;
@@ -336,9 +437,78 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.type-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-select label {
+  font-size: 13px;
+  color: #666;
+}
+
+.type-select select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.extraction-preview {
+  padding: 8px;
+  background: #eff6ff;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+}
+
+.preview-label {
+  font-size: 12px;
+  color: #1e40af;
+  margin-bottom: 4px;
+}
+
+.preview-item {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.preview-type {
+  padding: 2px 8px;
+  background: #4a90d9;
+  color: white;
+  border-radius: 12px;
+}
+
+.preview-importance {
+  color: #666;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-preview {
+  padding: 8px 16px;
+  border: 1px solid #6366f1;
+  border-radius: 4px;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+}
+
+.btn-preview:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-preview:hover:not(:disabled) {
+  background: #6366f1;
+  color: white;
 }
 
 .btn-submit {
@@ -423,6 +593,43 @@ onMounted(() => {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
+}
+
+.memory-type {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.memory-type.fact {
+  background: #3b82f6;
+  color: white;
+}
+
+.memory-type.decision {
+  background: #f59e0b;
+  color: white;
+}
+
+.memory-type.error {
+  background: #ef4444;
+  color: white;
+}
+
+.memory-type.solution {
+  background: #10b981;
+  color: white;
+}
+
+.memory-type.pattern {
+  background: #8b5cf6;
+  color: white;
+}
+
+.memory-type.preference {
+  background: #ec4899;
+  color: white;
 }
 
 .memory-delete {

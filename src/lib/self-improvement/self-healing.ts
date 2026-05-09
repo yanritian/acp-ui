@@ -3,9 +3,10 @@
 
 import { trackEvent, trackError } from './telemetry'
 import { shouldRetry, getRetryDelay, getFallbackStrategy } from './adaptive-strategy'
+import { autoAnalyzeError } from '../error-matching'
 
 export interface HealingAction {
-  type: 'retry' | 'fallback' | 'reset' | 'degrade'
+  type: 'retry' | 'fallback' | 'reset' | 'degrade' | 'auto-fix'
   description: string
   success: boolean
   durationMs: number
@@ -14,6 +15,8 @@ export interface HealingAction {
 export interface HealingReport {
   timestamp: number
   errorName: string
+  errorCategory: string
+  suggestedFixes: string[]
   context: Record<string, unknown>
   actions: HealingAction[]
   resolved: boolean
@@ -53,6 +56,17 @@ export async function attemptHealing(
   const startTime = Date.now()
   const actions: HealingAction[] = []
 
+  // Step 0: Auto-analyze error using intelligent matching
+  const analysis = autoAnalyzeError(errorName, context.stackTrace as string | undefined)
+  const suggestedFixes = analysis.suggestedFixes
+
+  // Log the analysis for tracking
+  trackEvent({
+    type: 'behavior',
+    name: 'error-analyzed',
+    data: { errorName, category: analysis.category, suggestedFixes, priority: analysis.priority },
+  })
+
   // Strategy 1: Retry with exponential backoff
   if (shouldRetry(errorName) && retryFn) {
     const maxRetries = 3
@@ -78,6 +92,8 @@ export async function attemptHealing(
       const report: HealingReport = {
         timestamp: Date.now(),
         errorName,
+        errorCategory: analysis.category,
+        suggestedFixes,
         context,
         actions,
         resolved: true,
@@ -111,6 +127,8 @@ export async function attemptHealing(
     const report: HealingReport = {
       timestamp: Date.now(),
       errorName,
+      errorCategory: analysis.category,
+      suggestedFixes,
       context,
       actions,
       resolved: true,
@@ -121,10 +139,22 @@ export async function attemptHealing(
     return true
   }
 
+  // Strategy 3: Auto-fix suggestions (logged but not executed)
+  if (suggestedFixes.length > 0) {
+    actions.push({
+      type: 'auto-fix',
+      description: `建议修复: ${suggestedFixes.join('; ')}`,
+      success: false,
+      durationMs: 0,
+    })
+  }
+
   // Record the healing attempt (failed or partial)
   const report: HealingReport = {
     timestamp: Date.now(),
     errorName,
+    errorCategory: analysis.category,
+    suggestedFixes,
     context,
     actions,
     resolved: false,
@@ -136,7 +166,7 @@ export async function attemptHealing(
   trackEvent({
     type: 'behavior',
     name: 'self-heal-failed',
-    data: { errorName, actions: actions.length },
+    data: { errorName, actions: actions.length, suggestedFixes },
   })
   return false
 }

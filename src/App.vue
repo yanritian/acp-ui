@@ -21,6 +21,9 @@ import GatewaySettings from './components/GatewaySettings.vue';
 import TeamOrchestrationView from './components/TeamOrchestrationView.vue';
 import MultiSessionChat from './components/MultiSessionChat.vue';
 import MemoryView from './components/MemoryView.vue';
+import ErrorView from './components/ErrorView.vue';
+import EvolutionView from './components/EvolutionView.vue';
+import PatternView from './components/PatternView.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import './assets/modern.css'
@@ -42,7 +45,7 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern'>('chat');
 
 // Reactive flag tracking whether the viewport is narrow enough to show the
 // sidebar as a slide-in drawer (mobile / very narrow desktop windows). Used
@@ -540,6 +543,15 @@ function clearError() {
 
         <!-- Memory View -->
         <MemoryView v-else-if="currentView === 'memory'" />
+
+        <!-- Error View -->
+        <ErrorView v-else-if="currentView === 'error'" />
+
+        <!-- Evolution View -->
+        <EvolutionView v-else-if="currentView === 'evolution'" />
+
+        <!-- Pattern View -->
+        <PatternView v-else-if="currentView === 'pattern'" />
         
         <!-- Welcome screen when not connected in chat view -->
         <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">

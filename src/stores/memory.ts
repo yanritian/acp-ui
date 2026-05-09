@@ -6,12 +6,16 @@ export interface MemoryRecord {
   id: string
   agentId: string | null
   sessionId: string | null
+  taskId: string | null
+  scope: 'global' | 'agent' | 'session' | 'task'
   content: string
   tags: string | null
   importance: number
   createdAt: string
   lastAccessed: string | null
 }
+
+export type MemoryScope = MemoryRecord['scope']
 
 // Web-side in-memory storage backed by localStorage
 const WEB_MEMORIES_KEY = 'acp-ui:memories'
@@ -55,13 +59,22 @@ function webSearchMemories(query: string, agentId: string | null = null, limit: 
   return filtered.slice(0, limit)
 }
 
-function webSaveMemory(content: string, tags: string | null = null, agentId: string | null = null, sessionId: string | null = null): string {
+function webSaveMemory(
+  content: string,
+  tags: string | null = null,
+  scope: MemoryScope = 'global',
+  agentId: string | null = null,
+  sessionId: string | null = null,
+  taskId: string | null = null
+): string {
   const all = loadWebMemories()
   const id = crypto.randomUUID()
   const record: MemoryRecord = {
     id,
     agentId,
     sessionId,
+    taskId,
+    scope,
     content,
     tags,
     importance: 0.5,
@@ -140,7 +153,14 @@ export const useMemoryStore = defineStore('memory', () => {
     }
   }
 
-  async function saveMemory(content: string, tags: string | null = null, agentId: string | null = null) {
+  async function saveMemory(
+    content: string,
+    tags: string | null = null,
+    scope: MemoryScope = 'global',
+    agentId: string | null = null,
+    sessionId: string | null = null,
+    taskId: string | null = null
+  ) {
     loading.value = true
     error.value = null
 
@@ -150,11 +170,13 @@ export const useMemoryStore = defineStore('memory', () => {
         await invoke<string>('save_memory', {
           content,
           tags,
+          scope,
           agentId,
-          sessionId: null,
+          sessionId,
+          taskId,
         })
       } else {
-        webSaveMemory(content, tags, agentId, null)
+        webSaveMemory(content, tags, scope, agentId, sessionId, taskId)
       }
       await loadAgentMemories(selectedAgentId.value)
     } catch (e) {

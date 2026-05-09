@@ -403,10 +403,13 @@ fn get_task_detail(task_id: String, state: State<AppState>) -> Result<Option<dat
 // ===== Memory Commands =====
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MemoryRecord {
     pub id: String,
+    pub scope: String,
     pub agent_id: Option<String>,
     pub session_id: Option<String>,
+    pub task_id: Option<String>,
     pub content: String,
     pub tags: Option<String>,
     pub importance: f64,
@@ -418,8 +421,10 @@ pub struct MemoryRecord {
 fn save_memory(
     content: String,
     tags: Option<String>,
+    scope: Option<String>,
     agent_id: Option<String>,
     session_id: Option<String>,
+    task_id: Option<String>,
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
@@ -427,12 +432,13 @@ fn save_memory(
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
+    let scope_val = scope.unwrap_or_else(|| "global".to_string());
 
     let conn = db.conn.lock().unwrap();
     conn.execute(
-        "INSERT INTO memories (id, agent_id, session_id, content, tags, importance, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        rusqlite::params![id, agent_id, session_id, content, tags, 0.5, now],
+        "INSERT INTO memories (id, scope, agent_id, session_id, task_id, content, tags, importance, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        rusqlite::params![id, scope_val, agent_id, session_id, task_id, content, tags, 0.5, now],
     ).map_err(|e| e.to_string())?;
 
     Ok(id)
@@ -451,61 +457,51 @@ fn search_memories(
     let conn = db.conn.lock().unwrap();
     let pattern = format!("%{}%", query);
 
-    let (sql, records): (String, Vec<MemoryRecord>) = match &agent_id {
-        Some(aid) => {
-            let sql = format!(
-                "SELECT id, agent_id, session_id, content, tags, importance, created_at, last_accessed
-                 FROM memories WHERE content LIKE ?1 AND (agent_id = ?2 OR agent_id IS NULL)
-                 ORDER BY importance DESC, created_at DESC {}",
-                limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-            let recs: Vec<MemoryRecord> = stmt
-                .query_map(rusqlite::params![pattern, aid], |row| {
-                    Ok(MemoryRecord {
-                        id: row.get(0)?,
-                        agent_id: row.get(1)?,
-                        session_id: row.get(2)?,
-                        content: row.get(3)?,
-                        tags: row.get(4)?,
-                        importance: row.get(5)?,
-                        created_at: row.get(6)?,
-                        last_accessed: row.get(7)?,
-                    })
-                })
-                .map_err(|e| e.to_string())?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?;
-            (sql, recs)
-        }
-        None => {
-            let sql = format!(
-                "SELECT id, agent_id, session_id, content, tags, importance, created_at, last_accessed
-                 FROM memories WHERE content LIKE ?1
-                 ORDER BY importance DESC, created_at DESC {}",
-                limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-            let recs: Vec<MemoryRecord> = stmt
-                .query_map(rusqlite::params![pattern], |row| {
-                    Ok(MemoryRecord {
-                        id: row.get(0)?,
-                        agent_id: row.get(1)?,
-                        session_id: row.get(2)?,
-                        content: row.get(3)?,
-                        tags: row.get(4)?,
-                        importance: row.get(5)?,
-                        created_at: row.get(6)?,
-                        last_accessed: row.get(7)?,
-                    })
-                })
-                .map_err(|e| e.to_string())?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?;
-            (sql, recs)
-        }
+    // Helper function to map row to MemoryRecord
+    fn map_row(row: &rusqlite::Row) -> Result<MemoryRecord, rusqlite::Error> {
+        Ok(MemoryRecord {
+            id: row.get(0)?,
+            scope: row.get(1)?,
+            agent_id: row.get(2)?,
+            session_id: row.get(3)?,
+            task_id: row.get(4)?,
+            content: row.get(5)?,
+            tags: row.get(6)?,
+            importance: row.get(7)?,
+            created_at: row.get(8)?,
+            last_accessed: row.get(9)?,
+        })
+    }
+
+    let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+    let records: Vec<MemoryRecord> = if let Some(aid) = &agent_id {
+        let sql = format!(
+            "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+             FROM memories WHERE content LIKE ?1 AND (agent_id = ?2 OR agent_id IS NULL)
+             ORDER BY importance DESC, created_at DESC {}",
+            limit_clause
+        );
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![&pattern, aid], map_row)
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        let sql = format!(
+            "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
+             FROM memories WHERE content LIKE ?1
+             ORDER BY importance DESC, created_at DESC {}",
+            limit_clause
+        );
+        conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map(rusqlite::params![&pattern], map_row)
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
     };
-    let _ = sql; // suppress unused warning
 
     Ok(records)
 }
@@ -522,7 +518,7 @@ fn get_agent_memories(
     let conn = db.conn.lock().unwrap();
 
     let sql = format!(
-        "SELECT id, agent_id, session_id, content, tags, importance, created_at, last_accessed
+        "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
          FROM memories WHERE agent_id = ?1 OR agent_id IS NULL
          ORDER BY importance DESC, created_at DESC {}",
         limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
@@ -533,13 +529,15 @@ fn get_agent_memories(
         .query_map(rusqlite::params![agent_id], |row| {
             Ok(MemoryRecord {
                 id: row.get(0)?,
-                agent_id: row.get(1)?,
-                session_id: row.get(2)?,
-                content: row.get(3)?,
-                tags: row.get(4)?,
-                importance: row.get(5)?,
-                created_at: row.get(6)?,
-                last_accessed: row.get(7)?,
+                scope: row.get(1)?,
+                agent_id: row.get(2)?,
+                session_id: row.get(3)?,
+                task_id: row.get(4)?,
+                content: row.get(5)?,
+                tags: row.get(6)?,
+                importance: row.get(7)?,
+                created_at: row.get(8)?,
+                last_accessed: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -561,7 +559,7 @@ fn get_shared_memories(
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
     let sql = format!(
-        "SELECT id, agent_id, session_id, content, tags, importance, created_at, last_accessed
+        "SELECT id, scope, agent_id, session_id, task_id, content, tags, importance, created_at, last_accessed
          FROM memories WHERE agent_id IS NULL
          ORDER BY importance DESC, created_at DESC {}",
         limit_clause
@@ -572,13 +570,15 @@ fn get_shared_memories(
         .query_map([], |row| {
             Ok(MemoryRecord {
                 id: row.get(0)?,
-                agent_id: row.get(1)?,
-                session_id: row.get(2)?,
-                content: row.get(3)?,
-                tags: row.get(4)?,
-                importance: row.get(5)?,
-                created_at: row.get(6)?,
-                last_accessed: row.get(7)?,
+                scope: row.get(1)?,
+                agent_id: row.get(2)?,
+                session_id: row.get(3)?,
+                task_id: row.get(4)?,
+                content: row.get(5)?,
+                tags: row.get(6)?,
+                importance: row.get(7)?,
+                created_at: row.get(8)?,
+                last_accessed: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?

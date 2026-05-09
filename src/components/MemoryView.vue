@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useMemoryStore } from '../stores/memory'
+import { useMemoryStore, type MemoryScope } from '../stores/memory'
 import { useConfigStore } from '../stores/config'
 
 const memoryStore = useMemoryStore()
@@ -8,10 +8,26 @@ const configStore = useConfigStore()
 
 const newMemoryContent = ref('')
 const newMemoryTags = ref('')
+const newMemoryScope = ref<MemoryScope>('global')
 const showAddForm = ref(false)
+const selectedScope = ref<MemoryScope | 'all'>('all')
+
+const scopes: { value: MemoryScope | 'all', label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'global', label: '全局' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'session', label: '会话' },
+  { value: 'task', label: '任务' },
+]
 
 const agentEntries = computed(() => Object.entries(configStore.config.agents))
-const records = computed(() => memoryStore.searchResults.length > 0 ? memoryStore.searchResults : memoryStore.memories)
+const records = computed(() => {
+  let filtered = memoryStore.searchResults.length > 0 ? memoryStore.searchResults : memoryStore.memories
+  if (selectedScope.value !== 'all') {
+    filtered = filtered.filter(m => m.scope === selectedScope.value)
+  }
+  return filtered
+})
 
 async function loadMemories(agentId: string | null) {
   await memoryStore.loadAgentMemories(agentId)
@@ -30,9 +46,10 @@ async function handleAddMemory() {
   if (!content) return
 
   const tags = newMemoryTags.value.trim() || null
-  await memoryStore.saveMemory(content, tags)
+  await memoryStore.saveMemory(content, tags, newMemoryScope.value, memoryStore.selectedAgentId)
   newMemoryContent.value = ''
   newMemoryTags.value = ''
+  newMemoryScope.value = 'global'
   showAddForm.value = false
 }
 
@@ -47,6 +64,16 @@ function getTags(tags: string | null): string[] {
   } catch {
     return tags.split(',').map(t => t.trim())
   }
+}
+
+function getScopeLabel(scope: MemoryScope): string {
+  const labels: Record<MemoryScope, string> = {
+    global: '全局',
+    agent: 'Agent',
+    session: '会话',
+    task: '任务'
+  }
+  return labels[scope]
 }
 
 onMounted(() => {
@@ -87,6 +114,19 @@ onMounted(() => {
       </button>
     </div>
 
+    <!-- Scope Filter -->
+    <div class="scope-filter">
+      <span class="filter-label">按作用域过滤:</span>
+      <button
+        v-for="s in scopes"
+        :key="s.value"
+        :class="['scope-btn', { active: selectedScope === s.value }]"
+        @click="selectedScope = s.value"
+      >
+        {{ s.label }}
+      </button>
+    </div>
+
     <!-- Add Memory Button -->
     <div class="add-section">
       <button class="btn-add" @click="showAddForm = !showAddForm">
@@ -107,6 +147,15 @@ onMounted(() => {
         class="memory-input"
         placeholder="标签 (逗号分隔, 如: 技术,架构)"
       />
+      <div class="scope-select">
+        <label>作用域:</label>
+        <select v-model="newMemoryScope">
+          <option value="global">全局</option>
+          <option value="agent">Agent</option>
+          <option value="session">会话</option>
+          <option value="task">任务</option>
+        </select>
+      </div>
       <div class="form-actions">
         <button class="btn-submit" @click="handleAddMemory" :disabled="!newMemoryContent.trim()">
           保存
@@ -136,6 +185,7 @@ onMounted(() => {
         class="memory-card"
       >
         <div class="memory-header">
+          <span class="memory-scope">{{ getScopeLabel(memory.scope) }}</span>
           <span class="memory-agent">{{ memory.agentId || '全局' }}</span>
           <span class="memory-time">{{ formatTime(memory.createdAt) }}</span>
           <button class="memory-delete" @click="memoryStore.deleteMemory(memory.id)">✕</button>
@@ -205,6 +255,28 @@ onMounted(() => {
   border-color: #4a90d9;
 }
 
+.scope-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scope-btn {
+  padding: 4px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.scope-btn.active {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
 .add-section {
   display: flex;
   justify-content: flex-end;
@@ -233,6 +305,24 @@ onMounted(() => {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-family: inherit;
+  font-size: 14px;
+}
+
+.scope-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scope-select label {
+  font-size: 13px;
+  color: #666;
+}
+
+.scope-select select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   font-size: 14px;
 }
 
@@ -314,6 +404,15 @@ onMounted(() => {
 .memory-agent {
   font-weight: 600;
   color: #4a90d9;
+}
+
+.memory-scope {
+  padding: 2px 8px;
+  background: #28a745;
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .memory-delete {

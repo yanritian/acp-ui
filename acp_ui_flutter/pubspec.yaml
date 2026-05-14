@@ -1,0 +1,47 @@
+name: acp_ui_flutter
+description: ACP-UI Flutter版本 - 多Agent协作平台
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+
+  # Navigation
+  go_router: ^13.0.0
+
+  # Network
+  web_socket_channel: ^2.4.0
+  http: ^1.2.0
+
+  # Storage
+  sqflite: ^2.3.0
+  shared_preferences: ^2.2.0
+
+  # UI Components
+  flutter_markdown: ^0.6.0
+  cupertino_icons: ^1.0.6
+
+  # Utilities
+  uuid: ^4.0.0
+  intl: ^0.18.0
+  json_annotation: ^4.8.0
+
+  # Platform
+  path_provider: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true

@@ -12,6 +12,23 @@ void main() {
 
     // Verify sidebar is present
     expect(find.text('ACP-UI'), findsOneWidget);
-    expect(find.text('Chat'), findsOneWidget);
+
+    // Chat appears in sidebar and header (at least one)
+    expect(find.text('Chat'), findsWidgets);
+  });
+
+  testWidgets('Sidebar navigation works', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: AcpUiApp(),
+      ),
+    );
+
+    // Verify navigation items exist
+    expect(find.text('Multi-Agent'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Evolution'), findsOneWidget);
+    expect(find.text('Hermes'), findsOneWidget);
   });
 }

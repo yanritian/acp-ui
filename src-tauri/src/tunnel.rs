@@ -181,60 +181,41 @@ impl NgrokManager {
     }
 
     /// Fetch tunnel info from ngrok local API
-    fn fetch_ngrok_api(&self, url: &str, port: u16) -> Result<serde_json::Value, String> {
-        // Use ureq for simple HTTP request (lighter than full tokio-based clients)
-        #[cfg(not(windows))]
-        {
-            // On Unix, use curl command as fallback (ngrok API is simple)
-            let output = Command::new("curl")
-                .arg("-s")
-                .arg(url)
-                .output()
-                .map_err(|e| format!("Failed to call ngrok API: {}", e))?;
+    fn fetch_ngrok_api(&self, url: &str, _port: u16) -> Result<serde_json::Value, String> {
+        // Use ureq for HTTP request (works on all platforms)
+        let response = ureq::get(url)
+            .timeout(std::time::Duration::from_secs(5))
+            .call()
+            .map_err(|e| format!("Failed to call ngrok API: {}", e))?;
 
-            let body = String::from_utf8_lossy(&output.stdout);
-            serde_json::from_str(&body)
-                .map_err(|e| format!("Failed to parse ngrok API response: {}", e))
-        }
+        let json: serde_json::Value = response.into_json()
+            .map_err(|e| format!("Failed to parse ngrok API response: {}", e))?;
 
-        #[cfg(windows)]
-        {
-            // On Windows, try PowerShell or direct HTTP
-            // For simplicity, we'll use a basic HTTP approach
-            // Note: This requires adding a minimal HTTP client dependency
-            // For now, we'll parse ngrok logs or use a workaround
-
-            // Alternative: Read from ngrok stdout/stderr
-            // This is a workaround until we add proper HTTP client
-
-            // Placeholder: Return mock response for Windows for now
-            // TODO: Add proper HTTP client (ureq or similar)
-            Ok(serde_json::json!({
-                "tunnels": [{
-                    "public_url": format!("https://{}.ngrok-free.app",
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs() % 100000),
-                    "proto": "https",
-                    "config": { "addr": format!("127.0.0.1:{}", port) }
-                }]
-            }))
-        }
+        Ok(json)
     }
 
     /// Extract public URL from ngrok API response
     fn extract_public_url(&self, json: &serde_json::Value, expected_port: u16) -> Option<String> {
         if let Some(tunnels) = json.get("tunnels").and_then(|t| t.as_array()) {
             for tunnel in tunnels {
-                // Check if this tunnel is for our port
+                // Check if this tunnel is for our port (exact match, not substring)
                 let addr = tunnel.get("config")
                     .and_then(|c| c.get("addr"))
                     .and_then(|a| a.as_str());
 
                 if let Some(addr_str) = addr {
-                    // addr format is usually "127.0.0.1:PORT" or just "PORT"
-                    if addr_str.contains(&expected_port.to_string()) {
+                    // Parse port from addr (format: "127.0.0.1:PORT" or "PORT")
+                    let tunnel_port = if addr_str.contains(':') {
+                        // Split on ':' and parse the last part as port
+                        addr_str.split(':').last()
+                            .and_then(|s| s.parse::<u16>().ok())
+                    } else {
+                        // Try to parse the whole string as port
+                        addr_str.parse::<u16>().ok()
+                    };
+
+                    // Exact port match (not substring)
+                    if tunnel_port == Some(expected_port) {
                         // Get public URL
                         return tunnel.get("public_url")
                             .and_then(|u| u.as_str())

@@ -47,6 +47,23 @@ pub struct AgentConfig {
     pub url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub headers: Option<std::collections::HashMap<String, String>>,
+
+    // ----- Extended fields for Phase 1 (optional) -----
+    /// Working directory restriction
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    /// MCP servers to connect
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_servers: Vec<String>,
+    /// Skills to enable
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skills: Vec<String>,
+    /// Hooks to execute
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hooks: Vec<String>,
+    /// Agent capabilities
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub capabilities: Vec<String>,
 }
 
 fn is_default_transport(t: &AgentTransport) -> bool {
@@ -68,6 +85,40 @@ impl AgentConfig {
             env,
             url: None,
             headers: None,
+            cwd: None,
+            mcp_servers: Vec::new(),
+            skills: Vec::new(),
+            hooks: Vec::new(),
+            capabilities: Vec::new(),
+        }
+    }
+
+    /// Build a complete agent config with all fields
+    pub fn full(
+        transport: AgentTransport,
+        command: Option<String>,
+        args: Option<Vec<String>>,
+        env: std::collections::HashMap<String, String>,
+        url: Option<String>,
+        headers: Option<std::collections::HashMap<String, String>>,
+        cwd: Option<String>,
+        mcp_servers: Vec<String>,
+        skills: Vec<String>,
+        hooks: Vec<String>,
+        capabilities: Vec<String>,
+    ) -> Self {
+        Self {
+            transport,
+            command,
+            args,
+            env,
+            url,
+            headers,
+            cwd,
+            mcp_servers,
+            skills,
+            hooks,
+            capabilities,
         }
     }
 }
@@ -95,7 +146,7 @@ impl Default for AgentsConfig {
             "Claude Code".to_string(),
             AgentConfig::stdio(
                 "npx".to_string(),
-                vec!["@zed-industries/claude-code-acp@latest".to_string()],
+                vec!["@agentclientprotocol/claude-agent-acp@latest".to_string()],
                 std::collections::HashMap::new(),
             ),
         );
@@ -169,6 +220,22 @@ impl Default for AgentsConfig {
             AgentConfig::stdio(
                 "npx".to_string(),
                 vec!["openclaw".to_string(), "acp".to_string()],
+                std::collections::HashMap::new(),
+            ),
+        );
+        agents.insert(
+            "Kiro CLI".to_string(),
+            AgentConfig::stdio(
+                "kiro-cli".to_string(),
+                vec!["acp".to_string()],
+                std::collections::HashMap::new(),
+            ),
+        );
+        agents.insert(
+            "Hermes Agent".to_string(),
+            AgentConfig::stdio(
+                "hermes".to_string(),
+                vec!["acp".to_string()],
                 std::collections::HashMap::new(),
             ),
         );

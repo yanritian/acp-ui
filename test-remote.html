@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACP-UI 远程控制测试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card h3 {
+      margin: 0;
+    }
+    input, select {
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .btn-primary {
+      background: #4a90d9;
+      color: white;
+    }
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+    .btn-success {
+      background: #27ae60;
+      color: white;
+    }
+    .btn-warning {
+      background: #f39c12;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .log-container {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .agent-list {
+      margin-top: 16px;
+    }
+    .agent-item {
+      padding: 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+    /* Log stream styles */
+    .log-stream-container {
+      max-height: 500px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+    .log-entry {
+      padding: 4px 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .log-entry.compile { border-left: 3px solid #6a5acd; }
+    .log-entry.debug { border-left: 3px solid #888; }
+    .log-entry.network { border-left: 3px solid #0066cc; }
+    .log-entry.error {
+      border-left: 3px solid #dc3545;
+      background: rgba(220, 53, 69, 0.05);
+    }
+    .log-entry.warning { border-left: 3px solid #ffc107; }
+    .log-entry.info { border-left: 3px solid #28a745; }
+    .log-entry.system { border-left: 3px solid #6c757d; }
+    .log-type-icon {
+      display: inline-block;
+      width: 20px;
+    }
+    .log-timestamp {
+      color: #666;
+      margin-right: 8px;
+    }
+    .log-agent {
+      color: #4a90d9;
+      margin-right: 8px;
+    }
+    .log-source {
+      display: inline-block;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-right: 8px;
+    }
+    .log-source.stdout {
+      background: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+    }
+    .log-source.stderr {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+    }
+    .log-content {
+      color: #333;
+    }
+    .log-content mark {
+      background: rgba(255, 193, 7, 0.3);
+      color: inherit;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .filter-bar input {
+      flex: 1;
+    }
+    .filter-bar select {
+      width: 120px;
+    }
+    .paused-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 8px 12px;
+      background: #ffc107;
+      color: #856404;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📱 ACP-UI 远程控制测试</h1>
+
+  <!-- 连接配置 -->
+  <div class="card">
+    <h3>连接配置</h3>
+    <p style="font-size: 14px; color: #666;">
+      填写桌面应用生成的二维码URL（包含token）
+    </p>
+    <input
+      type="text"
+      id="wsUrl"
+      placeholder="ws://localhost:1420?token=xxxx 或 wss://ngrok-url?token=xxxx"
+      style="margin-bottom: 12px;"
+    />
+    <div>
+      <button class="btn-primary" id="connectBtn" onclick="connect()">连接</button>
+      <button class="btn-danger" id="disconnectBtn" onclick="disconnect()" disabled>断开</button>
+    </div>
+    <div id="status" class="status disconnected">未连接</div>
+  </div>
+
+  <!-- 远程控制 -->
+  <div class="card">
+    <h3>远程控制</h3>
+    <button class="btn-success" onclick="getStatus()" id="getStatusBtn" disabled>获取状态</button>
+    <button class="btn-primary" onclick="listAgents()" id="listAgentsBtn" disabled>列出Agents</button>
+    <button class="btn-warning" onclick="pauseAgent()" id="pauseAgentBtn" disabled>暂停Agent</button>
+    <button class="btn-success" onclick="resumeAgent()" id="resumeAgentBtn" disabled>恢复Agent</button>
+
+    <div id="agentList" class="agent-list"></div>
+  </div>
+
+  <!-- 日志流控制 -->
+  <div class="card">
+    <div class="card-header">
+      <h3>📋 日志流</h3>
+      <div>
+        <button class="btn-success" onclick="subscribeLogs()" id="subscribeLogsBtn" disabled>订阅日志</button>
+        <button class="btn-danger" onclick="unsubscribeLogs()" id="unsubscribeLogsBtn" disabled>取消订阅</button>
+        <button class="btn-warning" onclick="togglePause()" id="pauseLogBtn" disabled>暂停</button>
+        <button class="btn-primary" onclick="clearLogs()" id="clearLogsBtn" disabled>清空</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="logSearch" placeholder="搜索日志..." oninput="filterLogs()">
+      <select id="logTypeFilter" onchange="filterLogs()">
+        <option value="all">全部类型</option>
+        <option value="compile">编译</option>
+        <option value="debug">调试</option>
+        <option value="network">网络</option>
+        <option value="error">错误</option>
+        <option value="warning">警告</option>
+        <option value="info">信息</option>
+        <option value="system">系统</option>
+      </select>
+    </div>
+
+    <div id="logStream" class="log-stream-container">
+      <div style="padding: 20px; text-align: center; color: #666;">
+        点击"订阅日志"开始接收实时日志
+      </div>
+    </div>
+  </div>
+
+  <!-- 通信日志 -->
+  <div class="card">
+    <h3>通信日志</h3>
+    <div id="log" class="log-container">等待连接...</div>
+  </div>
+
+  <div id="pausedIndicator" class="paused-indicator" style="display: none;">
+    ⏸ 已暂停
+  </div>
+
+  <script>
+    let ws = null;
+    let requestId = 1;
+    let pendingRequests = {};
+    let subscribedToLogs = false;
+    let logsPaused = false;
+    let logBuffer = [];
+    const MAX_LOGS = 500;
+
+    function log(message) {
+      const logDiv = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      logDiv.textContent += `[${time}] ${message}\n`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function updateStatus(connected) {
+      const statusDiv = document.getElementById('status');
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      const controlBtns = ['getStatusBtn', 'listAgentsBtn', 'pauseAgentBtn', 'resumeAgentBtn'];
+      const logBtns = ['subscribeLogsBtn', 'unsubscribeLogsBtn', 'pauseLogBtn', 'clearLogsBtn'];
+
+      if (connected) {
+        statusDiv.className = 'status connected';
+        statusDiv.textContent = '✓ 已连接';
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        controlBtns.forEach(id => document.getElementById(id).disabled = false);
+        logBtns.forEach(id => document.getElementById(id).disabled = false);
+      } else {
+        statusDiv.className = 'status disconnected';
+        statusDiv.textContent = '✗ 未连接';
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        controlBtns.forEach(id => document.getElementById(id).disabled = true);
+        logBtns.forEach(id => document.getElementById(id).disabled = true);
+        subscribedToLogs = false;
+      }
+    }
+
+    function connect() {
+      const url = document.getElementById('wsUrl').value.trim();
+      if (!url) {
+        alert('请填写WebSocket URL');
+        return;
+      }
+
+      log('正在连接: ' + url);
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        log('✓ 连接成功！');
+        updateStatus(true);
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        // Handle log batch
+        if (data.type === 'log_batch') {
+          handleLogBatch(data.logs);
+          return;
+        }
+
+        log('← 收到: ' + JSON.stringify(data, null, 2));
+
+        // 处理响应
+        if (data.id && pendingRequests[data.id]) {
+          pendingRequests[data.id](data);
+          delete pendingRequests[data.id];
+        }
+
+        // 处理事件
+        if (data.event) {
+          handleEvent(data);
+        }
+      };
+
+      ws.onerror = (error) => {
+        log('✗ 连接错误: ' + error);
+      };
+
+      ws.onclose = () => {
+        log('连接已关闭');
+        updateStatus(false);
+      };
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    }
+
+    function sendRequest(command, payload = {}) {
+      const id = 'req-' + requestId++;
+      const request = {
+        id: id,
+        type: 'request',
+        command: command,
+        payload: payload
+      };
+
+      log('→ 发送: ' + JSON.stringify(request, null, 2));
+      ws.send(JSON.stringify(request));
+
+      return new Promise((resolve) => {
+        pendingRequests[id] = resolve;
+      });
+    }
+
+    function getStatus() {
+      sendRequest('get_status').then(response => {
+        if (response.ok) {
+          log('系统状态: ' + JSON.stringify(response.data, null, 2));
+        } else {
+          log('错误: ' + response.error);
+        }
+      });
+    }
+
+    function listAgents() {
+      sendRequest('list_agents').then(response => {
+        if (response.ok) {
+          const agents = response.data.agents || [];
+          const agentListDiv = document.getElementById('agentList');
+          agentListDiv.innerHTML = agents.map(agent =>
+            `<div class="agent-item">${agent.name} (${agent.transport.type})</div>`
+          ).join('');
+          log('发现 ' + agents.length + ' 个Agents');
+        } else {
+          log('错误: ' + response.error);
+        }
+      });
+    }
+
+    function pauseAgent() {
+      const agentId = prompt('输入Agent名称:');
+      if (agentId) {
+        sendRequest('pause_agent', { agent_id: agentId }).then(response => {
+          log(response.ok ? 'Agent已暂停' : '错误: ' + response.error);
+        });
+      }
+    }
+
+    function resumeAgent() {
+      const agentId = prompt('输入Agent名称:');
+      if (agentId) {
+        sendRequest('resume_agent', { agent_id: agentId }).then(response => {
+          log(response.ok ? 'Agent已恢复' : '错误: ' + response.error);
+        });
+      }
+    }
+
+    // Log stream functions
+    function subscribeLogs() {
+      sendRequest('subscribe_logs', {}).then(response => {
+        if (response.ok) {
+          subscribedToLogs = true;
+          log('✓ 已订阅日志流');
+          document.getElementById('logStream').innerHTML = '';
+        } else {
+          log('✗ 订阅失败: ' + response.error);
+        }
+      });
+    }
+
+    function unsubscribeLogs() {
+      sendRequest('unsubscribe_logs', {}).then(response => {
+        if (response.ok) {
+          subscribedToLogs = false;
+          log('✓ 已取消订阅');
+        } else {
+          log('✗ 取消失败: ' + response.error);
+        }
+      });
+    }
+
+    function togglePause() {
+      logsPaused = !logsPaused;
+      const btn = document.getElementById('pauseLogBtn');
+      const indicator = document.getElementById('pausedIndicator');
+      if (logsPaused) {
+        btn.textContent = '恢复';
+        btn.className = 'btn-success';
+        indicator.style.display = 'block';
+      } else {
+        btn.textContent = '暂停';
+        btn.className = 'btn-warning';
+        indicator.style.display = 'none';
+      }
+    }
+
+    function clearLogs() {
+      logBuffer = [];
+      document.getElementById('logStream').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">已清空</div>';
+    }
+
+    function handleLogBatch(logs) {
+      if (!logsPaused) {
+        logBuffer.push(...logs);
+        // Keep buffer limited
+        if (logBuffer.length > MAX_LOGS) {
+          logBuffer = logBuffer.slice(-MAX_LOGS);
+        }
+        renderLogs();
+      }
+    }
+
+    function getTypeIcon(type) {
+      const icons = {
+        compile: '🔨',
+        debug: '🔍',
+        network: '🌐',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️',
+        system: '⚙️'
+      };
+      return icons[type] || '📄';
+    }
+
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function highlightKeyword(content, keyword) {
+      if (!keyword) return content;
+      const regex = new RegExp(`(${keyword})`, 'gi');
+      return content.replace(regex, '<mark>$1</mark>');
+    }
+
+    function renderLogs() {
+      const container = document.getElementById('logStream');
+      const keyword = document.getElementById('logSearch').value;
+      const typeFilter = document.getElementById('logTypeFilter').value;
+
+      let filteredLogs = logBuffer;
+      if (typeFilter !== 'all') {
+        filteredLogs = filteredLogs.filter(l => l.logType === typeFilter);
+      }
+      if (keyword) {
+        filteredLogs = filteredLogs.filter(l => l.content.toLowerCase().includes(keyword.toLowerCase()));
+      }
+
+      // Render only last 100 for performance
+      const visibleLogs = filteredLogs.slice(-100);
+
+      container.innerHTML = visibleLogs.map(log => `
+        <div class="log-entry ${log.logType}">
+          <span class="log-type-icon">${getTypeIcon(log.logType)}</span>
+          <span class="log-timestamp">${formatTime(log.timestamp)}</span>
+          <span class="log-agent">${log.agentId.slice(0, 8)}</span>
+          <span class="log-source ${log.source}">${log.source}</span>
+          <span class="log-content">${highlightKeyword(log.content, keyword)}</span>
+        </div>
+      `).join('');
+
+      // Auto scroll to bottom
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function filterLogs() {
+      renderLogs();
+    }
+
+    function handleEvent(data) {
+      log('事件: ' + data.event + ' - ' + JSON.stringify(data.payload, null, 2));
+    }
+  </script>
+</body>
+</html>

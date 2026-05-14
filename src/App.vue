@@ -24,6 +24,9 @@ import MemoryView from './components/MemoryView.vue';
 import ErrorView from './components/ErrorView.vue';
 import EvolutionView from './components/EvolutionView.vue';
 import PatternView from './components/PatternView.vue';
+import HermesDashboard from './components/HermesDashboard.vue';
+import TaskGraphView from './components/TaskGraphView.vue';
+import LogStreamView from './components/LogStreamView.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import './assets/modern.css'
@@ -45,7 +48,8 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph'>('chat');
+const showLogStream = ref(false);
 
 // Reactive flag tracking whether the viewport is narrow enough to show the
 // sidebar as a slide-in drawer (mobile / very narrow desktop windows). Used
@@ -303,10 +307,16 @@ function clearError() {
       <div class="sidebar-header">
         <h1>ACP UI</h1>
         <div class="header-actions">
-          <button 
-            class="settings-btn" 
+          <button
+            class="settings-btn"
+            :class="{ active: showLogStream }"
+            @click="showLogStream = !showLogStream"
+            title="Agent Log Stream"
+          >📋</button>
+          <button
+            class="settings-btn"
             :class="{ active: showTrafficMonitor }"
-            @click="showTrafficMonitor = !showTrafficMonitor" 
+            @click="showTrafficMonitor = !showTrafficMonitor"
             title="ACP Traffic Monitor"
           >📡</button>
           <button class="settings-btn" @click="showSettings = true" title="Settings">⚙</button>
@@ -552,7 +562,13 @@ function clearError() {
 
         <!-- Pattern View -->
         <PatternView v-else-if="currentView === 'pattern'" />
-        
+
+        <!-- Hermes Dashboard (Agent Progress Monitor) -->
+        <HermesDashboard v-else-if="currentView === 'hermes'" />
+
+        <!-- Task Graph View (DAG Visualization) -->
+        <TaskGraphView v-else-if="currentView === 'task-graph'" :show-agents="true" orientation="vertical" />
+
         <!-- Welcome screen when not connected in chat view -->
         <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">
           <h2>Welcome to ACP UI</h2>
@@ -593,9 +609,16 @@ function clearError() {
     />
 
     <!-- Settings -->
-    <SettingsView 
+    <SettingsView
       v-if="showSettings"
       @close="showSettings = false"
+    />
+
+    <!-- Log Stream Panel (Agent Real-time Logs) -->
+    <LogStreamView
+      v-if="showLogStream"
+      @close="showLogStream = false"
+      @resize="() => {}"
     />
   </div>
 </template>

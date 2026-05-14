@@ -1,5 +1,5 @@
 export interface FeatureEntry {
-  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern'
+  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph'
   label: string
   icon: string
   requiresAgent?: boolean
@@ -12,6 +12,8 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'multi-session', label: '总会话', icon: '📋', requiresAgent: true, description: '并行管理多个 Agent 会话' },
   { id: 'workflow', label: '工作流', icon: '⚡', requiresAgent: true, description: '保存并执行多步骤任务' },
   { id: 'orchestration', label: '编排监控', icon: '🎬', requiresAgent: false, description: '查看执行计划、节点和输出' },
+  { id: 'hermes', label: 'Hermes仪表盘', icon: '📊', requiresAgent: false, description: 'Agent任务进度实时监控' },
+  { id: 'task-graph', label: '任务图', icon: '🔗', requiresAgent: false, description: 'DAG任务依赖可视化' },
   { id: 'memory', label: '记忆', icon: '💡', requiresAgent: false, description: '管理任务上下文记忆' },
   { id: 'error', label: '错误监控', icon: '🚨', requiresAgent: false, description: '错误记录与自动修复' },
   { id: 'evolution', label: '进化记录', icon: '🧬', requiresAgent: false, description: '系统进化与改进追踪' },

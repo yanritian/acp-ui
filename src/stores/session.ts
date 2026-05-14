@@ -8,6 +8,7 @@ import type { SavedSession, ChatMessage, ToolCallInfo, PermissionRequest, Sessio
 import { getTransportKind } from '../lib/types';
 import { AcpClientBridge, createAcpClient } from '../lib/acp-bridge';
 import { onAgentStderr, spawnAgent, killAgent } from '../lib/host';
+import { isDesktop } from '../lib/platform';
 import { useConfigStore } from './config';
 import type { SessionNotification, AuthMethod } from '@agentclientprotocol/sdk';
 
@@ -395,13 +396,17 @@ export const useSessionStore = defineStore('session', () => {
 
       startupPhase.value = 'connecting';
 
+      // Only Tauri desktop has real filesystem access; mobile and web
+      // cannot fulfil readTextFile / writeTextFile RPCs.
+      const canAccessFs = isDesktop();
+
       // Initialize connection
       const initResponse = await acpClient.initialize({
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: {
-            readTextFile: true,
-            writeTextFile: true,
+            readTextFile: canAccessFs,
+            writeTextFile: canAccessFs,
           },
         },
         clientInfo: {
@@ -596,13 +601,17 @@ export const useSessionStore = defineStore('session', () => {
         { immediate: true }
       );
 
+      // Only Tauri desktop has real filesystem access; mobile and web
+      // cannot fulfil readTextFile / writeTextFile RPCs.
+      const canAccessFs = isDesktop();
+
       // Initialize connection
       const initResponse = await acpClient.initialize({
         protocolVersion: PROTOCOL_VERSION,
         clientCapabilities: {
           fs: {
-            readTextFile: true,
-            writeTextFile: true,
+            readTextFile: canAccessFs,
+            writeTextFile: canAccessFs,
           },
         },
         clientInfo: {

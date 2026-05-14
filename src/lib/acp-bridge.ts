@@ -50,9 +50,9 @@ export class AcpClientBridge implements Client {
   private transport: AcpTransport;
   /**
    * Local filesystem RPCs (`fs/read_text_file`, `fs/write_text_file`) are
-   * handled by the Tauri fs plugin on desktop. On mobile builds the plugin is
-   * not available and these handlers respond with a method-not-found error
-   * so a misbehaving remote agent can't hang waiting for a response.
+   * handled by the Tauri fs plugin on desktop. On mobile and web builds the
+   * plugin is not available and these handlers respond with a method-not-found
+   * error so a misbehaving agent can't hang waiting for a response.
    */
   private fsAvailable: boolean;
   private messageResolvers: Map<number, (response: unknown) => void> = new Map();

@@ -166,7 +166,7 @@ class PermissionChecker {
 
     // Check deny rules first
     for (final pattern in _denyPatterns) {
-      if (pattern.matches(operation) || pattern.matches(toolName) || pattern.matches(args)) {
+      if (pattern.hasMatch(operation) || pattern.hasMatch(toolName) || pattern.hasMatch(args)) {
         return PermissionResult(
           allowed: false,
           reason: 'Denied by rule',
@@ -186,7 +186,7 @@ class PermissionChecker {
 
     // Check allow rules
     for (final pattern in _allowPatterns) {
-      if (pattern.matches(operation) || pattern.matches(toolName) || pattern.matches(args)) {
+      if (pattern.hasMatch(operation) || pattern.hasMatch(toolName) || pattern.hasMatch(args)) {
         return PermissionResult(
           allowed: true,
           reason: 'Allowed by rule',

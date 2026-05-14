@@ -1,22 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' if (dart.library.html) 'dart:html';
 
 import '../../data/models/agent.dart';
-import '../transport/acp_transport.dart';
 import '../transport/websocket_transport.dart';
 import 'agent_bridge.dart';
 
 /// Agent Pool - manages multiple agent connections
 class AgentPool {
   final Map<String, AgentBridge> _bridges = {};
-  final String _baseUrl;
+  final String baseUrl;
   final int _maxAgents;
 
   AgentPool({
-    required String baseUrl,
+    required this.baseUrl,
     int maxAgents = 10,
-  })  : _baseUrl = baseUrl,
-        _maxAgents = maxAgents;
+  }) : _maxAgents = maxAgents;
 
   /// Create and register a new agent
   Future<AgentBridge> createAgent(Agent agent) async {

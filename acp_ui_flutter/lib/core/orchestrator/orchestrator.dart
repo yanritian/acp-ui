@@ -3,7 +3,6 @@ import 'dart:async';
 import '../agent/agent_pool.dart';
 import '../agent/agent_bridge.dart';
 import '../session/session_manager.dart';
-import '../../data/models/agent.dart';
 
 /// Task status enum
 enum TaskStatus {
@@ -180,12 +179,4 @@ class Orchestrator {
 
   /// Get task stream
   Stream<Task> get taskStream => _taskController.stream;
-}
-
-/// MessageRole enum for AgentMessage
-enum MessageRole {
-  user,
-  assistant,
-  system,
-  tool,
 }

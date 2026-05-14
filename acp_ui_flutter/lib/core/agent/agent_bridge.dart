@@ -4,6 +4,14 @@ import 'dart:convert';
 import '../transport/acp_transport.dart';
 import '../../data/models/agent.dart';
 
+/// Message role enum
+enum MessageRole {
+  user,
+  assistant,
+  system,
+  tool,
+}
+
 /// Agent Bridge - manages communication with a single agent
 class AgentBridge {
   final Agent agent;

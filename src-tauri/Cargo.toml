@@ -36,6 +36,10 @@ indexmap = { version = "2", features = ["serde"] }
 shell-escape = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
+regex = "1"
+ureq = { version = "2", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }  # NEW: For Feishu rich message API
+serde_yaml = "0.9"  # NEW: For proper YAML parsing (nested structures support)
 
 # `machine-uid` reads platform-specific machine identifiers and does not
 # support iOS / Android. Telemetry on mobile falls back to an anonymous id.

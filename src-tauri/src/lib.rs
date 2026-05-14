@@ -4,16 +4,27 @@ mod database;
 mod gateway_config;
 mod websocket;
 mod tunnel;
+mod log_stream;
+mod permission_checker;
+mod agent_config_parser;
+mod mcp_manager;
+mod hooks_executor;
+mod session_manager;  // NEW: Claw Code Session Management
+mod event_router;     // NEW: Claw Code Event Router (clawhip layer)
+mod feishu_rich_message;  // NEW: Feishu rich message support (images, files, cards)
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
 use database::DatabaseManager;
 use tunnel::NgrokManager;
 use websocket::WebSocketServer;
+use log_stream::{LogStreamManager, LogEntry, LogType};
+use permission_checker::{PermissionChecker, PermissionConfig, PermissionResult};
+use agent_config_parser::{AgentConfigParser, AgentConfigParsed, ParseResult};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Listener, Manager, State};
 use uuid::Uuid;
 
 /// Application state containing all managers
@@ -23,6 +34,7 @@ pub struct AppState {
     pub database: Arc<Mutex<Option<DatabaseManager>>>,
     pub ws_server: Arc<Mutex<Option<WebSocketServer>>>,
     pub tunnel_manager: Arc<Mutex<Option<NgrokManager>>>,
+    pub log_stream_manager: Arc<Mutex<Option<LogStreamManager>>>,
 }
 
 impl AppState {
@@ -33,6 +45,7 @@ impl AppState {
             database: Arc::new(Mutex::new(None)),
             ws_server: Arc::new(Mutex::new(None)),
             tunnel_manager: Arc::new(Mutex::new(None)),
+            log_stream_manager: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -213,6 +226,11 @@ fn build_agent_config(
                 env: env.unwrap_or_default(),
                 url: None,
                 headers: None,
+                cwd: None,
+                mcp_servers: Vec::new(),
+                skills: Vec::new(),
+                hooks: Vec::new(),
+                capabilities: Vec::new(),
             })
         }
         AgentTransport::Websocket | AgentTransport::Http => {
@@ -244,6 +262,11 @@ fn build_agent_config(
                 env: std::collections::HashMap::new(),
                 url: Some(url),
                 headers,
+                cwd: None,
+                mcp_servers: Vec::new(),
+                skills: Vec::new(),
+                hooks: Vec::new(),
+                capabilities: Vec::new(),
             })
         }
     }
@@ -292,7 +315,49 @@ pub fn run() {
             // Initialize database manager
             match DatabaseManager::new(&app_handle) {
                 Ok(db) => {
+                    // Clone connection before moving db
+                    let conn_clone = db.conn.clone();
                     *state.database.lock().unwrap() = Some(db);
+
+                    // Initialize LogStreamManager with database connection
+                    let mut log_manager = LogStreamManager::new(conn_clone, 1000);
+                    log_manager.set_app_handle(app.handle().clone());
+                    *state.log_stream_manager.lock().unwrap() = Some(log_manager);
+
+                    // Setup event listeners to capture agent stdout/stderr
+                    let log_mgr = state.log_stream_manager.clone();
+
+                    // Listen to agent stdout (agent-message event)
+                    let log_mgr_clone = log_mgr.clone();
+                    app.listen("agent-message", move |event| {
+                        let payload = event.payload();
+                        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(payload) {
+                            if let Some(agent_id) = msg.get("agent_id").and_then(|v| v.as_str()) {
+                                if let Some(content) = msg.get("message").and_then(|v| v.as_str()) {
+                                    let mgr = log_mgr_clone.lock().unwrap();
+                                    if let Some(manager) = mgr.as_ref() {
+                                        manager.capture_log(agent_id, content, "stdout");
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Listen to agent stderr (agent-stderr event)
+                    let log_mgr_clone2 = log_mgr.clone();
+                    app.listen("agent-stderr", move |event| {
+                        let payload = event.payload();
+                        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(payload) {
+                            if let Some(agent_id) = msg.get("agent_id").and_then(|v| v.as_str()) {
+                                if let Some(content) = msg.get("line").and_then(|v| v.as_str()) {
+                                    let mgr = log_mgr_clone2.lock().unwrap();
+                                    if let Some(manager) = mgr.as_ref() {
+                                        manager.capture_log(agent_id, content, "stderr");
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
                 Err(e) => {
                     eprintln!("Failed to initialize database manager: {}", e);
@@ -351,7 +416,28 @@ pub fn run() {
             start_ws_server,
             stop_ws_server,
             get_connected_clients,
-            ws_server_status
+            ws_server_status,
+            // LogStream commands
+            subscribe_logs,
+            unsubscribe_logs,
+            get_logs,
+            search_logs,
+            get_logs_by_agent,
+            get_logs_by_type,
+            clear_log_buffer,
+            flush_log_batch,
+            // Permission commands
+            check_permission,
+            check_bash_permission,
+            check_path_permission,
+            get_default_permissions,
+            // Agent Config Parser commands
+            parse_agent_config,
+            save_agent_config,
+            load_agent_config,
+            list_agent_configs,
+            delete_agent_config,
+            get_example_agent_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -740,17 +826,17 @@ fn get_errors(
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
     let sql = match (&status, &category) {
-        (Some(s), Some(c)) => format!(
+        (Some(_s), Some(_c)) => format!(
             "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
              FROM errors WHERE status = ?1 AND category = ?2 ORDER BY created_at DESC {}",
             limit_clause
         ),
-        (Some(s), None) => format!(
+        (Some(_s), None) => format!(
             "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
              FROM errors WHERE status = ?1 ORDER BY created_at DESC {}",
             limit_clause
         ),
-        (None, Some(c)) => format!(
+        (None, Some(_c)) => format!(
             "SELECT id, category, message, context, stack_trace, agent_id, task_id, status, solution_id, created_at, resolved_at
              FROM errors WHERE category = ?1 ORDER BY created_at DESC {}",
             limit_clause
@@ -907,7 +993,7 @@ fn get_solutions(
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
-    let sql = if let Some(eid) = &error_id {
+    let sql = if let Some(_eid) = &error_id {
         format!(
             "SELECT id, error_id, approach, steps, result, success, evidence, created_at
              FROM solutions WHERE error_id = ?1 ORDER BY created_at DESC {}",
@@ -1004,17 +1090,17 @@ fn get_evolutions(
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
     let sql = match (&evolution_type, &domain) {
-        (Some(t), Some(d)) => format!(
+        (Some(_t), Some(_d)) => format!(
             "SELECT id, type, domain, before, after, reason, evidence, created_at
              FROM evolutions WHERE type = ?1 AND domain = ?2 ORDER BY created_at DESC {}",
             limit_clause
         ),
-        (Some(t), None) => format!(
+        (Some(_t), None) => format!(
             "SELECT id, type, domain, before, after, reason, evidence, created_at
              FROM evolutions WHERE type = ?1 ORDER BY created_at DESC {}",
             limit_clause
         ),
-        (None, Some(d)) => format!(
+        (None, Some(_d)) => format!(
             "SELECT id, type, domain, before, after, reason, evidence, created_at
              FROM evolutions WHERE domain = ?1 ORDER BY created_at DESC {}",
             limit_clause
@@ -1138,7 +1224,7 @@ fn get_patterns(
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
 
-    let sql = if let Some(cat) = &category {
+    let sql = if let Some(_cat) = &category {
         format!(
             "SELECT id, name, description, category, examples, success_rate, usage_count, created_at, updated_at
              FROM patterns WHERE category = ?1 ORDER BY usage_count DESC {}",
@@ -1530,4 +1616,174 @@ fn get_local_ip() -> Option<String> {
     let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect("8.8.8.8:80").ok()?;
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
+}
+
+// ===== LogStream Commands =====
+
+#[tauri::command]
+fn subscribe_logs(agent_id: String, state: State<AppState>) -> Result<(), String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    manager.subscribe(&agent_id);
+    Ok(())
+}
+
+#[tauri::command]
+fn unsubscribe_logs(agent_id: String, state: State<AppState>) -> Result<(), String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    manager.unsubscribe(&agent_id);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_logs(
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<LogEntry>, String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+
+    let count = limit.unwrap_or(100) as usize;
+    Ok(manager.get_latest_logs(count))
+}
+
+#[tauri::command]
+fn search_logs(
+    keyword: String,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<LogEntry>, String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    Ok(manager.search_logs(&keyword, limit))
+}
+
+#[tauri::command]
+fn get_logs_by_agent(
+    agent_id: String,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<LogEntry>, String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    Ok(manager.get_logs_from_db(Some(&agent_id), None, limit))
+}
+
+#[tauri::command]
+fn get_logs_by_type(
+    log_type: String,
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<LogEntry>, String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let lt = LogType::from_str(&log_type);
+    Ok(manager.get_logs_from_db(None, Some(lt), limit))
+}
+
+#[tauri::command]
+fn clear_log_buffer(state: State<AppState>) -> Result<(), String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    manager.clear_buffer();
+    Ok(())
+}
+
+#[tauri::command]
+fn flush_log_batch(state: State<AppState>) -> Result<Vec<LogEntry>, String> {
+    let log_manager = state.log_stream_manager.lock().unwrap();
+    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    Ok(manager.flush_batch())
+}
+
+// ===== Permission Commands =====
+
+#[tauri::command]
+fn check_permission(
+    tool_name: String,
+    args: String,
+    permission_config: PermissionConfig,
+) -> Result<PermissionResult, String> {
+    let checker = PermissionChecker::new(permission_config)
+        .map_err(|e| format!("Failed to create PermissionChecker: {}", e))?;
+    Ok(checker.check_tool(&tool_name, &args))
+}
+
+#[tauri::command]
+fn check_bash_permission(
+    command: String,
+    permission_config: PermissionConfig,
+) -> Result<PermissionResult, String> {
+    let checker = PermissionChecker::new(permission_config)
+        .map_err(|e| format!("Failed to create PermissionChecker: {}", e))?;
+    Ok(checker.check_bash(&command))
+}
+
+#[tauri::command]
+fn check_path_permission(
+    path: String,
+    permission_config: PermissionConfig,
+) -> Result<PermissionResult, String> {
+    let checker = PermissionChecker::new(permission_config)
+        .map_err(|e| format!("Failed to create PermissionChecker: {}", e))?;
+    Ok(checker.check_path(&path))
+}
+
+#[tauri::command]
+fn get_default_permissions(agent_type: String) -> PermissionConfig {
+    permission_checker::get_default_permissions(&agent_type)
+}
+
+// ===== Agent Config Parser Commands =====
+
+#[tauri::command]
+fn parse_agent_config(yaml_content: String) -> ParseResult {
+    let parser = AgentConfigParser::new();
+    parser.parse_yaml(&yaml_content)
+}
+
+#[tauri::command]
+fn save_agent_config(config: AgentConfigParsed, state: State<AppState>) -> Result<String, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let conn = db.conn.lock().unwrap();
+
+    let parser = AgentConfigParser::new();
+    parser.save_to_db(&config, &conn)
+}
+
+#[tauri::command]
+fn load_agent_config(name: String, state: State<AppState>) -> Result<Option<AgentConfigParsed>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let conn = db.conn.lock().unwrap();
+
+    let parser = AgentConfigParser::new();
+    parser.load_from_db(&name, &conn)
+}
+
+#[tauri::command]
+fn list_agent_configs(state: State<AppState>) -> Result<Vec<(String, String)>, String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let conn = db.conn.lock().unwrap();
+
+    let parser = AgentConfigParser::new();
+    parser.list_configs(&conn)
+}
+
+#[tauri::command]
+fn delete_agent_config(name: String, state: State<AppState>) -> Result<(), String> {
+    let db = state.database.lock().unwrap();
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let conn = db.conn.lock().unwrap();
+
+    let parser = AgentConfigParser::new();
+    parser.delete_config(&name, &conn)
+}
+
+#[tauri::command]
+fn get_example_agent_config() -> String {
+    agent_config_parser::get_example_config()
 }

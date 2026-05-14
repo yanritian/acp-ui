@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::gateway_config::constant_time_eq;
 
@@ -63,12 +63,18 @@ pub enum RemoteCommand {
     GetAgents {},
     GetPlans {},
     GetStatus {},
+    // LogStream commands
+    SubscribeLogs { agent_id: Option<String> },
+    UnsubscribeLogs { agent_id: Option<String> },
+    GetLogs { limit: Option<u64>, log_type: Option<String> },
+    SearchLogs { keyword: String, limit: Option<u64> },
 }
 
 /// Client connection state (stored per-connection)
 struct ConnectionState {
     authenticated: bool,
     sender: tokio::sync::mpsc::UnboundedSender<Message>,
+    subscribed_to_logs: bool,  // Whether this client wants log updates
 }
 
 /// WebSocket server for remote connections with token authentication
@@ -78,6 +84,7 @@ pub struct WebSocketServer {
     connections: Arc<RwLock<HashMap<String, ConnectionState>>>,
     running: Arc<RwLock<bool>>,
     auth_token: Arc<RwLock<Option<String>>>,
+    log_push_interval_ms: u64,  // Interval for batch log push (default 100ms)
 }
 
 impl WebSocketServer {
@@ -88,6 +95,7 @@ impl WebSocketServer {
             connections: Arc::new(RwLock::new(HashMap::new())),
             running: Arc::new(RwLock::new(false)),
             auth_token: Arc::new(RwLock::new(None)),
+            log_push_interval_ms: 100,
         }
     }
 
@@ -125,6 +133,13 @@ impl WebSocketServer {
         let connections = Arc::clone(&self.connections);
         let running = Arc::clone(&self.running);
         let auth_token = Arc::clone(&self.auth_token);
+        let log_push_interval = self.log_push_interval_ms;
+        let connections_for_log = Arc::clone(&self.connections);
+        let running_for_log = Arc::clone(&self.running);
+
+        // Clone app_handle before moving into spawn
+        let app_handle_for_accept = app_handle.clone();
+        let app_handle_for_log = app_handle.clone();
 
         tokio::spawn(async move {
             while *running.read() {
@@ -132,7 +147,7 @@ impl WebSocketServer {
                     Ok((stream, addr)) => {
                         let clients_clone = Arc::clone(&clients);
                         let connections_clone = Arc::clone(&connections);
-                        let handle_clone = app_handle.clone();
+                        let handle_clone = app_handle_for_accept.clone();
                         let auth_token_clone = Arc::clone(&auth_token);
 
                         tokio::spawn(async move {
@@ -149,6 +164,43 @@ impl WebSocketServer {
                     }
                     Err(e) => {
                         eprintln!("Accept error: {}", e);
+                    }
+                }
+            }
+        });
+
+        // Spawn log batch push thread
+        tokio::spawn(async move {
+            use crate::AppState;
+            use crate::log_stream::LogEntry;
+
+            while *running_for_log.read() {
+                tokio::time::sleep(tokio::time::Duration::from_millis(log_push_interval)).await;
+
+                // Get batch from LogStreamManager
+                let state = app_handle_for_log.state::<AppState>();
+                let log_manager = state.log_stream_manager.lock().ok();
+
+                if let Some(guard) = log_manager {
+                    if let Some(manager) = guard.as_ref() {
+                        let batch: Vec<LogEntry> = manager.flush_batch();
+
+                        if !batch.is_empty() {
+                            // Push batch to all subscribed clients
+                            let batch_json = serde_json::json!({
+                                "type": "log_batch",
+                                "logs": batch
+                            });
+
+                            if let Ok(json_str) = serde_json::to_string(&batch_json) {
+                                let conns = connections_for_log.read();
+                                for (_client_id, cs) in conns.iter() {
+                                    if cs.authenticated && cs.subscribed_to_logs {
+                                        let _ = cs.sender.send(Message::Text(json_str.clone().into()));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -219,6 +271,7 @@ async fn handle_connection(
     connections.write().insert(client_id.clone(), ConnectionState {
         authenticated: false,
         sender: tx,
+        subscribed_to_logs: false,
     });
 
     let _ = app_handle.emit("client-connected", client.clone());
@@ -471,6 +524,167 @@ async fn handle_remote_command(
                 error: None,
             }
         },
+        "subscribe_logs" => {
+            // Subscribe to log stream for an agent
+            // Mark this client as subscribed for log batch push
+            if let Some(cs) = connections.write().get_mut(client_id) {
+                cs.subscribed_to_logs = true;
+            }
+
+            let log_manager = state.log_stream_manager.lock().ok();
+            if let Some(guard) = log_manager {
+                if let Some(manager) = guard.as_ref() {
+                    // Subscribe to all logs or specific agent
+                    if let Some(payload) = &request.payload {
+                        if let Some(agent_id) = payload.get("agent_id").and_then(|v| v.as_str()) {
+                            manager.subscribe(agent_id);
+                        } else {
+                            // Subscribe to all agents (use wildcard)
+                            manager.subscribe("*");
+                        }
+                    } else {
+                        manager.subscribe("*");
+                    }
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: true,
+                        data: Some(serde_json::json!({ "subscribed": true })),
+                        error: None,
+                    }
+                } else {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some("LogStreamManager not initialized".to_string()),
+                    }
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Failed to lock LogStreamManager".to_string()),
+                }
+            }
+        },
+        "unsubscribe_logs" => {
+            // Unsubscribe from log stream
+            // Mark this client as unsubscribed
+            if let Some(cs) = connections.write().get_mut(client_id) {
+                cs.subscribed_to_logs = false;
+            }
+
+            let log_manager = state.log_stream_manager.lock().ok();
+            if let Some(guard) = log_manager {
+                if let Some(manager) = guard.as_ref() {
+                    if let Some(payload) = &request.payload {
+                        if let Some(agent_id) = payload.get("agent_id").and_then(|v| v.as_str()) {
+                            manager.unsubscribe(agent_id);
+                        } else {
+                            manager.unsubscribe("*");
+                        }
+                    } else {
+                        manager.unsubscribe("*");
+                    }
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: true,
+                        data: Some(serde_json::json!({ "unsubscribed": true })),
+                        error: None,
+                    }
+                } else {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some("LogStreamManager not initialized".to_string()),
+                    }
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Failed to lock LogStreamManager".to_string()),
+                }
+            }
+        },
+        "get_logs" => {
+            // Get logs with optional filters
+            let log_manager = state.log_stream_manager.lock().ok();
+            if let Some(guard) = log_manager {
+                if let Some(manager) = guard.as_ref() {
+                    let limit = request.payload.as_ref()
+                        .and_then(|p| p.get("limit").and_then(|v| v.as_u64()));
+                    let log_type = request.payload.as_ref()
+                        .and_then(|p| p.get("log_type").and_then(|v| v.as_str()));
+
+                    let logs = if let Some(lt) = log_type {
+                        manager.get_logs_from_db(None, Some(crate::log_stream::LogType::from_str(lt)), limit)
+                    } else {
+                        manager.get_latest_logs(limit.unwrap_or(100) as usize)
+                    };
+
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: true,
+                        data: Some(serde_json::json!({ "logs": logs })),
+                        error: None,
+                    }
+                } else {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some("LogStreamManager not initialized".to_string()),
+                    }
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Failed to lock LogStreamManager".to_string()),
+                }
+            }
+        },
+        "search_logs" => {
+            // Search logs by keyword
+            let log_manager = state.log_stream_manager.lock().ok();
+            if let Some(guard) = log_manager {
+                if let Some(manager) = guard.as_ref() {
+                    let keyword = request.payload.as_ref()
+                        .and_then(|p| p.get("keyword").and_then(|v| v.as_str()))
+                        .unwrap_or("");
+                    let limit = request.payload.as_ref()
+                        .and_then(|p| p.get("limit").and_then(|v| v.as_u64()));
+
+                    let logs = manager.search_logs(keyword, limit);
+
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: true,
+                        data: Some(serde_json::json!({ "logs": logs })),
+                        error: None,
+                    }
+                } else {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some("LogStreamManager not initialized".to_string()),
+                    }
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Failed to lock LogStreamManager".to_string()),
+                }
+            }
+        },
         unknown => RemoteResponse {
             id: request.id.clone(),
             ok: false,
@@ -530,6 +744,27 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
         RemoteCommand::GetStatus {} => {
             let _ = app_handle.emit("remote-command", serde_json::json!({
                 "type": "get_status", "client_id": client_id,
+            }));
+        }
+        // LogStream commands (legacy format)
+        RemoteCommand::SubscribeLogs { agent_id } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "subscribe_logs", "agent_id": agent_id, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::UnsubscribeLogs { agent_id } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "unsubscribe_logs", "agent_id": agent_id, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::GetLogs { limit, log_type } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "get_logs", "limit": limit, "log_type": log_type, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::SearchLogs { keyword, limit } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "search_logs", "keyword": keyword, "limit": limit, "client_id": client_id,
             }));
         }
     }

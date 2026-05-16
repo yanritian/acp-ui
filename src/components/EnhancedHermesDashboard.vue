@@ -7,6 +7,9 @@ import CollaborationKanban from '@/components/collaboration/CollaborationKanban.
 import CapabilityProtocolView from '@/components/collaboration/CapabilityProtocolView.vue'
 import { orchestrator, type Event } from '@/lib/orchestrator'
 import { agentMatcher } from '@/lib/agent-matcher'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 // Store
 const collaborationStore = useCollaborationStore()
@@ -254,8 +257,8 @@ onUnmounted(() => {
     <!-- Header -->
     <header class="dashboard-header">
       <div class="header-left">
-        <h1 class="dashboard-title">Hermes Dashboard</h1>
-        <p class="dashboard-subtitle">Agent Collaboration Network Visualization</p>
+        <h1 class="dashboard-title">{{ t('collaboration.title') }}</h1>
+        <p class="dashboard-subtitle">{{ t('collaboration.subtitle') }}</p>
       </div>
 
       <div class="header-right">
@@ -264,25 +267,25 @@ onUnmounted(() => {
           <div class="stat-badge">
             <span class="stat-icon">🤖</span>
             <span class="stat-value">{{ stats.activeAgents }}/{{ stats.totalAgents }}</span>
-            <span class="stat-label">Agents</span>
+            <span class="stat-label">{{ t('collaboration.agents') }}</span>
           </div>
 
           <div class="stat-badge">
             <span class="stat-icon">⚡</span>
             <span class="stat-value">{{ stats.runningTasks }}</span>
-            <span class="stat-label">Running</span>
+            <span class="stat-label">{{ t('collaboration.running') }}</span>
           </div>
 
           <div class="stat-badge">
             <span class="stat-icon">✅</span>
             <span class="stat-value">{{ stats.completedTasks }}</span>
-            <span class="stat-label">Completed</span>
+            <span class="stat-label">{{ t('collaboration.completed') }}</span>
           </div>
 
           <div class="stat-badge">
             <span class="stat-icon">📊</span>
             <span class="stat-value">{{ stats.collaborationEfficiency }}%</span>
-            <span class="stat-label">Efficiency</span>
+            <span class="stat-label">{{ t('collaboration.efficiency') }}</span>
           </div>
         </div>
 
@@ -290,11 +293,11 @@ onUnmounted(() => {
         <div class="header-controls">
           <label class="auto-refresh-toggle">
             <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" />
-            <span>Auto Refresh</span>
+            <span>{{ t('common.autoRefresh') }}</span>
           </label>
 
           <button class="refresh-button" @click="refreshData" :disabled="collaborationStore.isLoading">
-            {{ collaborationStore.isLoading ? 'Loading...' : 'Refresh' }}
+            {{ collaborationStore.isLoading ? t('common.loading') : t('common.refresh') }}
           </button>
         </div>
       </div>
@@ -304,7 +307,7 @@ onUnmounted(() => {
     <div class="dashboard-content">
       <!-- Left sidebar - View mode selector -->
       <aside class="sidebar">
-        <div class="sidebar-header">View Mode</div>
+        <div class="sidebar-header">{{ t('collaboration.viewMode') }}</div>
 
         <div class="view-mode-buttons">
           <button
@@ -312,7 +315,7 @@ onUnmounted(() => {
             @click="handleViewChange('network')"
           >
             <span class="mode-icon">🕸️</span>
-            <span class="mode-text">Network</span>
+            <span class="mode-text">{{ t('collaboration.network') }}</span>
           </button>
 
           <button
@@ -320,7 +323,7 @@ onUnmounted(() => {
             @click="handleViewChange('timeline')"
           >
             <span class="mode-icon">⏱️</span>
-            <span class="mode-text">Timeline</span>
+            <span class="mode-text">{{ t('collaboration.timeline') }}</span>
           </button>
 
           <button
@@ -328,13 +331,13 @@ onUnmounted(() => {
             @click="handleViewChange('kanban')"
           >
             <span class="mode-icon">📋</span>
-            <span class="mode-text">Kanban</span>
+            <span class="mode-text">{{ t('collaboration.kanban') }}</span>
           </button>
         </div>
 
         <!-- Recent events -->
         <div class="sidebar-section">
-          <div class="section-header">Recent Events</div>
+          <div class="section-header">{{ t('collaboration.recentEvents') }}</div>
           <div class="events-list">
             <div
               v-for="event in collaborationStore.recentEvents.slice(0, 5)"
@@ -359,9 +362,9 @@ onUnmounted(() => {
         <!-- Empty state -->
         <div v-if="!hasData" class="empty-state">
           <div class="empty-icon">🕸️</div>
-          <div class="empty-title">No Collaboration Data</div>
+          <div class="empty-title">{{ t('collaboration.noData') }}</div>
           <div class="empty-description">
-            Start an agent collaboration task to see the network visualization
+            {{ t('collaboration.noDataHint') }}
           </div>
         </div>
 
@@ -399,7 +402,7 @@ onUnmounted(() => {
         />
 
         <button class="close-panel-button" @click="showCapabilityPanel = false">
-          ✕ Close
+          ✕ {{ t('collaboration.close') }}
         </button>
       </aside>
     </div>

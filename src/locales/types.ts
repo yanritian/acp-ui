@@ -142,6 +142,22 @@ export type MessageSchema = {
     securityAudit: string
     buildDeploy: string
   }
+  collaboration: {
+    title: string
+    subtitle: string
+    agents: string
+    running: string
+    completed: string
+    efficiency: string
+    viewMode: string
+    network: string
+    timeline: string
+    kanban: string
+    recentEvents: string
+    noData: string
+    noDataHint: string
+    close: string
+  }
   botSettings: {
     title: string
     subtitle: string

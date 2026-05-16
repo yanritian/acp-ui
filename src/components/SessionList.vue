@@ -2,6 +2,9 @@
 import { computed } from 'vue';
 import { useSessionStore } from '../stores/session';
 import type { SavedSession } from '../lib/types';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   resume: [session: SavedSession];
@@ -11,7 +14,7 @@ const emit = defineEmits<{
 const sessionStore = useSessionStore();
 
 // Only show sessions that can be resumed (agent supports loadSession)
-const sessions = computed(() => 
+const sessions = computed(() =>
   [...sessionStore.resumableSessions].sort((a, b) => b.lastUpdated - a.lastUpdated)
 );
 
@@ -25,7 +28,7 @@ function handleResume(session: SavedSession) {
 
 function handleDelete(sessionId: string, event: Event) {
   event.stopPropagation();
-  if (confirm('Delete this session?')) {
+  if (confirm(t('sessionList.deleteConfirm'))) {
     emit('delete', sessionId);
   }
 }
@@ -33,16 +36,16 @@ function handleDelete(sessionId: string, event: Event) {
 
 <template>
   <div class="session-list">
-    <h3>Saved Sessions</h3>
-    
+    <h3>{{ t('sessionList.title') }}</h3>
+
     <div v-if="sessions.length === 0" class="empty-state">
-      <p>No saved sessions yet.</p>
-      <p class="hint">Create a new session to get started.</p>
+      <p>{{ t('sessionList.noSavedSessions') }}</p>
+      <p class="hint">{{ t('sessionList.createSessionHint') }}</p>
     </div>
-    
+
     <ul v-else>
-      <li 
-        v-for="session in sessions" 
+      <li
+        v-for="session in sessions"
         :key="session.id"
         class="session-item"
         @click="handleResume(session)"
@@ -52,10 +55,10 @@ function handleDelete(sessionId: string, event: Event) {
           <span class="session-agent">{{ session.agentName }}</span>
           <span class="session-date">{{ formatDate(session.lastUpdated) }}</span>
         </div>
-        <button 
+        <button
           class="delete-btn"
           @click="(e) => handleDelete(session.id, e)"
-          title="Delete session"
+          :title="t('sessionList.deleteSession')"
         >
           ×
         </button>

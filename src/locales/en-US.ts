@@ -482,6 +482,22 @@ export const enUS: MessageSchema = {
     proficiencyIntermediate: 'Intermediate',
     proficiencyBasic: 'Basic',
   },
+  sessionList: {
+    title: 'Saved Sessions',
+    noSavedSessions: 'No saved sessions yet.',
+    createSessionHint: 'Create a new session to get started.',
+    deleteConfirm: 'Delete this session?',
+    deleteSession: 'Delete session',
+  },
+  agentSelector: {
+    label: 'Agent:',
+    selectPlaceholder: 'Select an agent...',
+    noAgentsConfigured: 'No agents configured',
+    noRemoteAgents: 'No remote agents configured.',
+    openSettingsHint: 'Open Settings (⚙) to add one.',
+    noAgentsFound: 'No agents found. Add agents to:',
+    addAgentsTo: 'Add agents to:',
+  },
   botSettings: {
     title: 'Bot Settings',
     subtitle: 'Configure remote command entry (Feishu/Telegram/Discord)',

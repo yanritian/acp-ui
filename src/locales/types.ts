@@ -481,6 +481,22 @@ export type MessageSchema = {
     proficiencyIntermediate: string
     proficiencyBasic: string
   }
+  sessionList: {
+    title: string
+    noSavedSessions: string
+    createSessionHint: string
+    deleteConfirm: string
+    deleteSession: string
+  }
+  agentSelector: {
+    label: string
+    selectPlaceholder: string
+    noAgentsConfigured: string
+    noRemoteAgents: string
+    openSettingsHint: string
+    noAgentsFound: string
+    addAgentsTo: string
+  }
   botSettings: {
     title: string
     subtitle: string

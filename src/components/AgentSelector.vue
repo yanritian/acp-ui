@@ -2,6 +2,9 @@
 import { computed, watch } from 'vue';
 import { useConfigStore } from '../stores/config';
 import { restrictedTransports } from '../lib/platform';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   select: [agentName: string];
@@ -48,28 +51,28 @@ function handleSelect(event: Event) {
 
 <template>
   <div class="agent-selector">
-    <label for="agent-select">Agent:</label>
-    <select 
-      id="agent-select" 
+    <label for="agent-select">{{ t('agentSelector.label') }}</label>
+    <select
+      id="agent-select"
       :value="selectedAgent"
       @change="handleSelect"
       :disabled="!hasAgents"
     >
       <option value="" disabled>
-        {{ hasAgents ? 'Select an agent...' : 'No agents configured' }}
+        {{ hasAgents ? t('agentSelector.selectPlaceholder') : t('agentSelector.noAgentsConfigured') }}
       </option>
       <option v-for="agent in agents" :key="agent" :value="agent">
         {{ agentLabels[agent] }}
       </option>
     </select>
-    
+
     <div v-if="!hasAgents" class="config-hint">
       <template v-if="restricted">
-        <p>No remote agents configured.</p>
-        <p class="hint-action">Open Settings (⚙) to add one.</p>
+        <p>{{ t('agentSelector.noRemoteAgents') }}</p>
+        <p class="hint-action">{{ t('agentSelector.openSettingsHint') }}</p>
       </template>
       <template v-else>
-        <p>No agents found. Add agents to:</p>
+        <p>{{ t('agentSelector.noAgentsFound') }}</p>
         <code>{{ configPath }}</code>
       </template>
     </div>

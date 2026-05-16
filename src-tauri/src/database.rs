@@ -724,7 +724,9 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
     ).map_err(|e| e.to_string())?;
 
     // Enable WAL mode for better concurrent read performance
-    conn.execute("PRAGMA journal_mode=WAL", []).map_err(|e| e.to_string())?;
+    // Note: PRAGMA statements may return results, so we use a silent execution
+    let _: String = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get(0))
+        .unwrap_or_else(|_| "wal".to_string());
 
     // Logs table for LogStream system
     crate::log_stream::init_logs_table(conn)?;

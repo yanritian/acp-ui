@@ -25,10 +25,13 @@ import ErrorView from './components/ErrorView.vue';
 import EvolutionView from './components/EvolutionView.vue';
 import PatternView from './components/PatternView.vue';
 import HermesDashboard from './components/HermesDashboard.vue';
+import EnhancedHermesDashboard from './components/EnhancedHermesDashboard.vue';
 import TaskGraphView from './components/TaskGraphView.vue';
 import LogStreamView from './components/LogStreamView.vue';
+import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
+import { taskParser, type TaskDAG } from './lib/task-parser'
 import './assets/modern.css'
 import type { SavedSession } from './lib/types';
 
@@ -48,8 +51,61 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams'>('chat');
 const showLogStream = ref(false);
+
+// Mock Task DAG for demo
+const mockTaskDag = ref<TaskDAG | null>(null);
+
+function initializeMockDag() {
+  // Create a sample DAG for visualization
+  const nodes = new Map<string, any>();
+  const edges = new Map<string, string[]>();
+
+  const steps = [
+    { id: 'step-1', name: 'Parse Request', status: 'completed', agent: 'planner-001', deps: [] },
+    { id: 'step-2', name: 'Design Architecture', status: 'running', agent: 'architect-001', deps: ['step-1'] },
+    { id: 'step-3', name: 'Write Tests', status: 'pending', agent: 'tddGuide-001', deps: ['step-2'] },
+    { id: 'step-4', name: 'Implement Code', status: 'pending', agent: 'codeReviewer-001', deps: ['step-2'] },
+    { id: 'step-5', name: 'Security Audit', status: 'pending', agent: 'securityReviewer-001', deps: ['step-3', 'step-4'] },
+    { id: 'step-6', name: 'Build & Deploy', status: 'pending', agent: 'build-001', deps: ['step-5'] },
+  ];
+
+  for (const step of steps) {
+    // Use dag.id prefix for node IDs to match edge building logic
+    const nodeId = `demo-dag-001-${step.id}`;
+    nodes.set(nodeId, {
+      id: nodeId,
+      step: {
+        id: step.id,
+        name: step.name,
+        action: 'task',
+        agentType: 'general',
+        // Dependencies use short IDs - TaskGraphView will add dag.id prefix
+        dependencies: step.deps
+      },
+      status: step.status as 'pending' | 'running' | 'completed' | 'failed' | 'blocked',
+      assignedAgent: step.agent,
+    });
+
+    // Build reverse edges: dependency -> dependent
+    for (const dep of step.deps) {
+      const depNodeId = `demo-dag-001-${dep}`;
+      if (!edges.has(depNodeId)) {
+        edges.set(depNodeId, []);
+      }
+      edges.get(depNodeId)!.push(nodeId);
+    }
+  }
+
+  mockTaskDag.value = {
+    id: 'demo-dag-001',
+    name: 'Feature Development Workflow',
+    nodes,
+    edges,
+    rootNodes: ['demo-dag-001-step-1'],
+  };
+}
 
 // Reactive flag tracking whether the viewport is narrow enough to show the
 // sidebar as a slide-in drawer (mobile / very narrow desktop windows). Used
@@ -124,6 +180,9 @@ const pendingAuthMethods = computed(() => sessionStore.pendingAuthMethods);
 const pendingAuthAgentName = computed(() => sessionStore.pendingAuthAgentName);
 
 onMounted(async () => {
+  // Initialize mock Task DAG for demo
+  initializeMockDag();
+
   // Track viewport width so the sidebar can default-collapse into a drawer
   // on phones / narrow windows. We watch a MediaQueryList rather than
   // resize for correctness across orientation changes on iOS.
@@ -566,8 +625,14 @@ function clearError() {
         <!-- Hermes Dashboard (Agent Progress Monitor) -->
         <HermesDashboard v-else-if="currentView === 'hermes'" />
 
+        <!-- Collaboration Network View (Network Visualization) -->
+        <EnhancedHermesDashboard v-else-if="currentView === 'collaboration'" />
+
+        <!-- Agent Teams Platform Dashboard (Phase 2-4: 实时进度 + 类人宠物 + 三端同步) -->
+        <AgentTeamsDashboard v-else-if="currentView === 'agent-teams'" />
+
         <!-- Task Graph View (DAG Visualization) -->
-        <TaskGraphView v-else-if="currentView === 'task-graph'" :show-agents="true" orientation="vertical" />
+        <TaskGraphView v-else-if="currentView === 'task-graph'" :dag="mockTaskDag" :show-agents="true" orientation="vertical" />
 
         <!-- Welcome screen when not connected in chat view -->
         <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">

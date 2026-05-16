@@ -45,21 +45,6 @@ const systemLoad = computed(() => {
 });
 const overloadedAgents = computed(() => agents.value.filter(a => a.status === 'overloaded').length);
 
-const taskStatusColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    pending: 'text-gray-500', running: 'text-blue-500', completed: 'text-green-500',
-    failed: 'text-red-500', blocked: 'text-orange-500',
-  };
-  return colors[status] || 'text-gray-500';
-};
-
-const agentStatusColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    idle: 'bg-green-100 text-green-800', busy: 'bg-blue-100 text-blue-800', overloaded: 'bg-red-100 text-red-800',
-  };
-  return colors[status] || 'bg-gray-100 text-gray-800';
-};
-
 const refreshData = () => {
   const registeredAgents = agentMatcher.getAllAgents();
   agents.value = registeredAgents.map(a => ({
@@ -99,6 +84,9 @@ const toggleAutoRefresh = () => {
 };
 
 onMounted(() => {
+  // Initialize mock data for demo
+  initializeMockData();
+
   orchestrator.subscribe('task_complete', handleTaskComplete);
   orchestrator.subscribe('task_failed', handleTaskFailed);
   orchestrator.subscribe('review_result', handleReviewResult);
@@ -106,6 +94,34 @@ onMounted(() => {
   refreshData();
   if (autoRefresh.value) { intervalId = setInterval(refreshData, 2000); }
 });
+
+function initializeMockData() {
+  // Register mock agents
+  const mockAgents = [
+    { agentId: 'planner-001', capabilities: ['planning'], specialization: ['orchestration'], currentLoad: 2, maxLoad: 3, performanceScore: 90 },
+    { agentId: 'architect-001', capabilities: ['architecture'], specialization: ['design'], currentLoad: 3, maxLoad: 4, performanceScore: 95 },
+    { agentId: 'tddGuide-001', capabilities: ['testing'], specialization: ['quality'], currentLoad: 1, maxLoad: 3, performanceScore: 92 },
+    { agentId: 'codeReviewer-001', capabilities: ['review'], specialization: ['qa'], currentLoad: 0, maxLoad: 2, performanceScore: 88 },
+    { agentId: 'securityReviewer-001', capabilities: ['security'], specialization: ['audit'], currentLoad: 1, maxLoad: 2, performanceScore: 95 },
+  ];
+
+  mockAgents.forEach(agent => agentMatcher.registerAgent(agent));
+
+  // Create mock tasks
+  tasks.value = [
+    { id: 'task-1', name: 'Parse Request', status: 'completed', agent: 'planner-001', progress: 100 },
+    { id: 'task-2', name: 'Design Architecture', status: 'running', agent: 'architect-001', progress: 60 },
+    { id: 'task-3', name: 'Write Tests', status: 'pending', agent: 'tddGuide-001', progress: 0 },
+    { id: 'task-4', name: 'Implement Code', status: 'pending', agent: 'codeReviewer-001', progress: 0 },
+    { id: 'task-5', name: 'Security Audit', status: 'pending', agent: 'securityReviewer-001', progress: 0 },
+  ];
+
+  // Set mock QA status
+  qaStatus.value = {
+    lastReview: { success: true, score: 95, errors: 2 },
+    lastValidation: { success: true, coverage: 85, passed: 42 },
+  };
+}
 
 onUnmounted(() => {
   orchestrator.unsubscribe('task_complete', handleTaskComplete);
@@ -117,99 +133,429 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="hermes-dashboard p-4 bg-gray-50 min-h-screen">
-    <header class="flex items-center justify-between mb-6">
+  <div class="hermes-dashboard">
+    <header class="hermes-header">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Hermes Dashboard</h1>
-        <p class="text-sm text-gray-500">Task Orchestration & Agent Management</p>
+        <h1 class="hermes-title">Hermes Dashboard</h1>
+        <p class="hermes-subtitle">Task Orchestration & Agent Management</p>
       </div>
-      <div class="flex items-center gap-4">
-        <label class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Auto Refresh</span>
-          <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" class="rounded" />
+      <div class="hermes-controls">
+        <label class="auto-refresh-label">
+          <span>Auto Refresh</span>
+          <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" />
         </label>
-        <button @click="refreshData" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Refresh</button>
+        <button @click="refreshData" class="refresh-btn">Refresh</button>
       </div>
     </header>
 
-    <div class="grid grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-lg shadow p-4">
-        <div class="text-sm text-gray-500 mb-1">Overall Progress</div>
-        <div class="text-3xl font-bold text-gray-900">{{ overallProgress }}%</div>
-        <div class="mt-2 h-2 bg-gray-200 rounded">
-          <div class="h-2 rounded bg-blue-500" :style="{ width: overallProgress + '%' }"></div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Overall Progress</div>
+        <div class="stat-value progress">{{ overallProgress }}%</div>
+        <div class="progress-bar">
+          <div class="progress-fill" :style="{ width: overallProgress + '%' }"></div>
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <div class="text-sm text-gray-500 mb-1">Running Tasks</div>
-        <div class="text-3xl font-bold text-blue-600">{{ runningTasks }}</div>
-        <div class="text-xs text-gray-400 mt-1">{{ tasks.length }} total</div>
+      <div class="stat-card">
+        <div class="stat-label">Running Tasks</div>
+        <div class="stat-value running">{{ runningTasks }}</div>
+        <div class="stat-sub">{{ tasks.length }} total</div>
       </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <div class="text-sm text-gray-500 mb-1">System Load</div>
-        <div class="text-3xl font-bold text-gray-900">{{ systemLoad }}%</div>
-        <div class="text-xs text-gray-400 mt-1">{{ overloadedAgents }} overloaded</div>
+      <div class="stat-card">
+        <div class="stat-label">System Load</div>
+        <div class="stat-value">{{ systemLoad }}%</div>
+        <div class="stat-sub">{{ overloadedAgents }} overloaded</div>
       </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <div class="text-sm text-gray-500 mb-1">QA Status</div>
-        <div class="flex items-center gap-2 mt-2">
-          <span class="px-2 py-1 rounded text-sm" :class="qaStatus.lastReview?.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+      <div class="stat-card">
+        <div class="stat-label">QA Status</div>
+        <div class="qa-badges">
+          <span class="qa-badge" :class="qaStatus.lastReview?.success ? 'pass' : (qaStatus.lastReview ? 'fail' : 'na')">
             Review: {{ qaStatus.lastReview?.success ? 'Pass' : (qaStatus.lastReview ? 'Fail' : 'N/A') }}
           </span>
-          <span class="px-2 py-1 rounded text-sm" :class="qaStatus.lastValidation?.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+          <span class="qa-badge" :class="qaStatus.lastValidation?.success ? 'pass' : (qaStatus.lastValidation ? 'fail' : 'na')">
             Test: {{ qaStatus.lastValidation?.success ? 'Pass' : (qaStatus.lastValidation ? 'Fail' : 'N/A') }}
           </span>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-6">
-      <div class="col-span-2 bg-white rounded-lg shadow">
-        <div class="p-4 border-b"><h2 class="text-lg font-semibold">Tasks</h2></div>
-        <div class="p-4">
-          <div v-if="tasks.length === 0" class="text-center text-gray-400 py-8">No active tasks.</div>
-          <div v-else class="space-y-2">
-            <div v-for="task in tasks" :key="task.id" @click="selectedTask = task.id"
-              class="p-3 border rounded cursor-pointer hover:bg-gray-50"
-              :class="selectedTask === task.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
-              <div class="flex items-center justify-between">
-                <span class="font-medium" :class="taskStatusColor(task.status)">{{ task.name }}</span>
-                <span class="px-2 py-1 rounded text-xs" :class="taskStatusColor(task.status)">{{ task.status }}</span>
+    <div class="content-grid">
+      <div class="panel">
+        <div class="panel-header">Tasks</div>
+        <div class="panel-body">
+          <div v-if="tasks.length === 0" class="empty-text">No active tasks.</div>
+          <div v-else class="task-list">
+            <div v-for="task in tasks" :key="task.id"
+              @click="selectedTask = task.id"
+              :class="['task-item', { selected: selectedTask === task.id }]">
+              <div class="task-header">
+                <span class="task-name" :class="task.status">{{ task.name }}</span>
+                <span class="task-status" :class="task.status">{{ task.status }}</span>
               </div>
-              <div class="mt-2 text-xs text-gray-400">Progress: {{ task.progress }}%</div>
+              <div class="task-progress">Progress: {{ task.progress }}%</div>
             </div>
           </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg shadow">
-        <div class="p-4 border-b"><h2 class="text-lg font-semibold">Agents</h2></div>
-        <div class="p-4">
-          <div v-if="agents.length === 0" class="text-center text-gray-400 py-8">No registered agents.</div>
-          <div v-else class="space-y-2">
-            <div v-for="agent in agents" :key="agent.id" class="p-3 border rounded border-gray-200">
-              <div class="flex items-center justify-between">
-                <span class="font-medium">{{ agent.name }}</span>
-                <span class="px-2 py-1 rounded text-xs" :class="agentStatusColor(agent.status)">{{ agent.status }}</span>
+      <div class="panel">
+        <div class="panel-header">Agents</div>
+        <div class="panel-body">
+          <div v-if="agents.length === 0" class="empty-text">No registered agents.</div>
+          <div v-else class="agent-list">
+            <div v-for="agent in agents" :key="agent.id" class="agent-item">
+              <div class="agent-header">
+                <span class="agent-name">{{ agent.name }}</span>
+                <span class="agent-status" :class="agent.status">{{ agent.status }}</span>
               </div>
-              <div class="mt-2 text-xs text-gray-500">Load: {{ agent.load }} / {{ agent.maxLoad }}</div>
+              <div class="agent-load">Load: {{ agent.load }} / {{ agent.maxLoad }}</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="selectedTask" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="selectedTask = null">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-semibold">Task Detail</h4>
-          <button @click="selectedTask = null" class="text-gray-400 hover:text-gray-600">✕</button>
+    <div v-if="selectedTask" class="task-detail-overlay" @click.self="selectedTask = null">
+      <div class="task-detail-modal">
+        <div class="modal-header">
+          <h4 class="modal-title">Task Detail</h4>
+          <button @click="selectedTask = null" class="modal-close">✕</button>
         </div>
-        <div class="text-sm"><span class="text-gray-500">ID:</span> <span class="ml-2">{{ selectedTask }}</span></div>
+        <div class="modal-body">
+          <div class="modal-row">
+            <span class="modal-label">ID:</span>
+            <span class="modal-value">{{ selectedTask }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.hermes-dashboard { font-family: system-ui, -apple-system, sans-serif; }
+.hermes-dashboard {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 50%, #F8FAFC 100%);
+  min-height: 100%;
+  padding: 16px;
+}
+
+.hermes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.hermes-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.hermes-title::before {
+  content: '📊 ';
+}
+
+.hermes-subtitle {
+  font-size: 13px;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.hermes-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748B;
+}
+
+.auto-refresh-label input {
+  accent-color: #3B82F6;
+}
+
+.refresh-btn {
+  padding: 6px 14px;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.refresh-btn:hover {
+  background: #2563EB;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #64748B;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.stat-value.progress {
+  color: #3B82F6;
+}
+
+.stat-value.running {
+  color: #22C55E;
+}
+
+.stat-sub {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 4px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #E2E8F0;
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3B82F6 0%, #22C55E 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.qa-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.qa-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.qa-badge.pass {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.qa-badge.fail {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.qa-badge.na {
+  background: #F1F5F9;
+  color: #64748B;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+.panel {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #E2E8F0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.panel-body {
+  padding: 16px;
+}
+
+.empty-text {
+  text-align: center;
+  color: #94A3B8;
+  padding: 32px;
+  font-size: 14px;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-item {
+  padding: 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.task-item:hover {
+  background: #F8FAFC;
+}
+
+.task-item.selected {
+  border-color: #3B82F6;
+  background: #EFF6FF;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.task-name.pending { color: #94A3B8; }
+.task-name.running { color: #3B82F6; }
+.task-name.completed { color: #22C55E; }
+.task-name.failed { color: #EF4444; }
+.task-name.blocked { color: #F97316; }
+
+.task-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.task-status.pending { background: #F1F5F9; color: #64748B; }
+.task-status.running { background: #DBEAFE; color: #1D4ED8; }
+.task-status.completed { background: #DCFCE7; color: #166534; }
+.task-status.failed { background: #FEE2E2; color: #991B1B; }
+.task-status.blocked { background: #FED7AA; color: #9A3412; }
+
+.task-progress {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 6px;
+}
+
+.agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-item {
+  padding: 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.agent-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E293B;
+}
+
+.agent-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.agent-status.idle { background: #DCFCE7; color: #166534; }
+.agent-status.busy { background: #DBEAFE; color: #1D4ED8; }
+.agent-status.overloaded { background: #FEE2E2; color: #991B1B; }
+
+.agent-load {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 6px;
+}
+
+.task-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.task-detail-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #94A3B8;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: #64748B;
+}
 </style>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { usePatternStore } from '../stores/error'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const patternStore = usePatternStore()
 
@@ -12,13 +15,13 @@ const newPatternCategory = ref('coding')
 const newPatternExamples = ref('')
 
 const categories = [
-  { value: 'all', label: '全部' },
-  { value: 'coding', label: '编码' },
-  { value: 'architecture', label: '架构' },
-  { value: 'testing', label: '测试' },
-  { value: 'security', label: '安全' },
-  { value: 'performance', label: '性能' },
-  { value: 'workflow', label: '流程' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'coding', label: t('pattern.categoryCoding') },
+  { value: 'architecture', label: t('pattern.categoryArchitecture') },
+  { value: 'testing', label: t('pattern.categoryTesting') },
+  { value: 'security', label: t('pattern.categorySecurity') },
+  { value: 'performance', label: t('pattern.categoryPerformance') },
+  { value: 'workflow', label: t('pattern.categoryWorkflow') },
 ]
 
 const filteredPatterns = computed(() => {
@@ -58,12 +61,12 @@ async function handleUsePattern(patternId: string, success: boolean) {
 
 function getCategoryLabel(category: string): string {
   const labels: Record<string, string> = {
-    coding: '编码',
-    architecture: '架构',
-    testing: '测试',
-    security: '安全',
-    performance: '性能',
-    workflow: '流程',
+    coding: t('pattern.categoryCoding'),
+    architecture: t('pattern.categoryArchitecture'),
+    testing: t('pattern.categoryTesting'),
+    security: t('pattern.categorySecurity'),
+    performance: t('pattern.categoryPerformance'),
+    workflow: t('pattern.categoryWorkflow'),
   }
   return labels[category] || category
 }
@@ -82,11 +85,11 @@ onMounted(() => {
   <div class="pattern-view">
     <!-- Top Patterns -->
     <div v-if="topPatterns.length > 0" class="top-patterns">
-      <h3>高频模式</h3>
+      <h3>{{ t('pattern.highFrequencyPatterns') }}</h3>
       <div class="top-list">
         <div v-for="p in topPatterns" :key="p.id" class="top-item">
           <span class="top-name">{{ p.name }}</span>
-          <span class="top-usage">{{ p.usageCount }} 次使用</span>
+          <span class="top-usage">{{ p.usageCount }} {{ t('pattern.usageCount') }}</span>
           <span class="top-rate">{{ getSuccessRate(p.successRate) }}</span>
         </div>
       </div>
@@ -95,13 +98,13 @@ onMounted(() => {
     <!-- Filters -->
     <div class="filters">
       <div class="filter-group">
-        <label>分类:</label>
+        <label>{{ t('pattern.category') }}:</label>
         <select v-model="selectedCategory">
           <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
         </select>
       </div>
       <button class="btn-add" @click="showAddForm = !showAddForm">
-        {{ showAddForm ? '取消' : '+ 新模式' }}
+        {{ showAddForm ? t('memory.cancel') : t('pattern.newPattern') }}
       </button>
     </div>
 
@@ -109,32 +112,32 @@ onMounted(() => {
     <div v-if="showAddForm" class="add-form">
       <input
         v-model="newPatternName"
-        placeholder="模式名称"
+        :placeholder="t('pattern.patternName')"
       />
       <div class="form-row">
-        <label>分类:</label>
+        <label>{{ t('pattern.category') }}:</label>
         <select v-model="newPatternCategory">
-          <option value="coding">编码</option>
-          <option value="architecture">架构</option>
-          <option value="testing">测试</option>
-          <option value="security">安全</option>
-          <option value="performance">性能</option>
-          <option value="workflow">流程</option>
+          <option value="coding">{{ t('pattern.categoryCoding') }}</option>
+          <option value="architecture">{{ t('pattern.categoryArchitecture') }}</option>
+          <option value="testing">{{ t('pattern.categoryTesting') }}</option>
+          <option value="security">{{ t('pattern.categorySecurity') }}</option>
+          <option value="performance">{{ t('pattern.categoryPerformance') }}</option>
+          <option value="workflow">{{ t('pattern.categoryWorkflow') }}</option>
         </select>
       </div>
       <textarea
         v-model="newPatternDescription"
-        placeholder="模式描述..."
+        :placeholder="t('pattern.patternDescription')"
         rows="3"
       ></textarea>
       <textarea
         v-model="newPatternExamples"
-        placeholder="示例 (可选, JSON 格式)"
+        :placeholder="t('pattern.patternExamplesOptional')"
         rows="2"
       ></textarea>
       <div class="form-actions">
         <button class="btn-submit" @click="handleAddPattern" :disabled="!newPatternName.trim() || !newPatternDescription.trim()">
-          保存
+          {{ t('memory.save') }}
         </button>
       </div>
     </div>
@@ -146,19 +149,19 @@ onMounted(() => {
     </div>
 
     <!-- Loading -->
-    <div v-if="patternStore.loading" class="loading">加载中...</div>
+    <div v-if="patternStore.loading" class="loading">{{ t('pattern.loading') }}</div>
 
     <!-- Pattern List -->
     <div class="pattern-list">
       <div v-if="filteredPatterns.length === 0 && !patternStore.loading" class="empty-state">
-        <p>暂无模式记录</p>
-        <p class="hint">添加常用模式以提高工作效率</p>
+        <p>{{ t('pattern.noPatterns') }}</p>
+        <p class="hint">{{ t('pattern.noPatternsHint') }}</p>
       </div>
 
       <div v-for="pattern in filteredPatterns" :key="pattern.id" class="pattern-card">
         <div class="pattern-header">
           <span class="pattern-category">{{ getCategoryLabel(pattern.category) }}</span>
-          <span class="pattern-usage">{{ pattern.usageCount }} 次使用</span>
+          <span class="pattern-usage">{{ pattern.usageCount }} {{ t('pattern.usageCount') }}</span>
           <span class="pattern-rate" :class="{ good: (pattern.successRate ?? 0) >= 0.7 }">
             {{ getSuccessRate(pattern.successRate) }}
           </span>
@@ -166,12 +169,12 @@ onMounted(() => {
         <div class="pattern-name">{{ pattern.name }}</div>
         <div class="pattern-description">{{ pattern.description }}</div>
         <div v-if="pattern.examples" class="pattern-examples">
-          <span class="label">示例:</span>
+          <span class="label">{{ t('pattern.example') }}:</span>
           <pre>{{ pattern.examples }}</pre>
         </div>
         <div class="pattern-actions">
-          <button class="btn-use success" @click="handleUsePattern(pattern.id, true)">成功 ✓</button>
-          <button class="btn-use fail" @click="handleUsePattern(pattern.id, false)">失败 ✗</button>
+          <button class="btn-use success" @click="handleUsePattern(pattern.id, true)">{{ t('pattern.success') }} ✓</button>
+          <button class="btn-use fail" @click="handleUsePattern(pattern.id, false)">{{ t('pattern.fail') }} ✗</button>
         </div>
       </div>
     </div>

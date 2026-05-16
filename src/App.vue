@@ -6,6 +6,7 @@ import { useSessionStore } from './stores/session';
 import { useMultiSessionStore } from './stores/multi-session';
 import { useTeamRuntimeStore } from './stores/team-runtime';
 import { initTelemetry } from './lib/telemetry';
+import { useI18n } from './locales';
 import AgentSelector from './components/AgentSelector.vue';
 import SessionList from './components/SessionList.vue';
 import ChatView from './components/ChatView.vue';
@@ -30,11 +31,23 @@ import TaskGraphView from './components/TaskGraphView.vue';
 import LogStreamView from './components/LogStreamView.vue';
 import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
 import BotSettings from './components/BotSettings.vue';
+import LanguageSelector from './components/LanguageSelector.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import { taskParser, type TaskDAG } from './lib/task-parser'
 import './assets/modern.css'
 import type { SavedSession } from './lib/types';
+
+const { t } = useI18n();
+
+// Translated features
+const translatedFeatures = computed(() =>
+  FEATURES.map(f => ({
+    ...f,
+    label: t(f.labelKey as any),
+    description: t(f.descriptionKey as any),
+  }))
+);
 
 const configStore = useConfigStore();
 const sessionStore = useSessionStore();
@@ -466,10 +479,10 @@ function clearError() {
 
         <!-- View Navigation -->
         <div class="section view-nav">
-          <h3 class="nav-title">功能导航</h3>
+          <h3 class="nav-title">{{ t('common.featureNavigation') }}</h3>
           <nav class="nav-buttons">
             <button
-              v-for="feature in FEATURES"
+              v-for="feature in translatedFeatures"
               :key="feature.id"
               :class="['nav-btn', { active: currentView === feature.id }]"
               @click="navigateToFeature(feature.id)"
@@ -479,6 +492,11 @@ function clearError() {
               <span class="nav-text">{{ feature.label }}</span>
             </button>
           </nav>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="section language-section">
+          <LanguageSelector />
         </div>
       </div>
     </aside>
@@ -805,6 +823,12 @@ html, body, #app {
 .section {
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
+}
+
+.language-section {
+  padding: 0.5rem 1rem;
+  border-bottom: none;
+  margin-top: auto;
 }
 
 .new-session-btn,

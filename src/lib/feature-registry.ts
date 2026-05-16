@@ -1,26 +1,28 @@
 export interface FeatureEntry {
-  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph'
-  label: string
+  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams'
+  labelKey: string
   icon: string
   requiresAgent?: boolean
-  description: string
+  descriptionKey: string
 }
 
 export const FEATURES: FeatureEntry[] = [
-  { id: 'chat', label: '对话', icon: '💬', requiresAgent: true, description: '单 Agent 会话' },
-  { id: 'multi-agent', label: '多Agent', icon: '🤖', requiresAgent: true, description: '广播、路由和对比多个 Agent 输出' },
-  { id: 'multi-session', label: '总会话', icon: '📋', requiresAgent: true, description: '并行管理多个 Agent 会话' },
-  { id: 'workflow', label: '工作流', icon: '⚡', requiresAgent: true, description: '保存并执行多步骤任务' },
-  { id: 'orchestration', label: '编排监控', icon: '🎬', requiresAgent: false, description: '查看执行计划、节点和输出' },
-  { id: 'hermes', label: 'Hermes仪表盘', icon: '📊', requiresAgent: false, description: 'Agent任务进度实时监控' },
-  { id: 'task-graph', label: '任务图', icon: '🔗', requiresAgent: false, description: 'DAG任务依赖可视化' },
-  { id: 'memory', label: '记忆', icon: '💡', requiresAgent: false, description: '管理任务上下文记忆' },
-  { id: 'error', label: '错误监控', icon: '🚨', requiresAgent: false, description: '错误记录与自动修复' },
-  { id: 'evolution', label: '进化记录', icon: '🧬', requiresAgent: false, description: '系统进化与改进追踪' },
-  { id: 'pattern', label: '模式库', icon: '📖', requiresAgent: false, description: '编码模式与最佳实践' },
-  { id: 'bot', label: 'Bot 配置', icon: '🤖', requiresAgent: false, description: '配置远程指令入口' },
-  { id: 'gateway', label: '远程控制', icon: '🌐', requiresAgent: false, description: 'WebSocket App 控制通道' },
-  { id: 'status', label: '状态', icon: '📊', requiresAgent: false, description: '查看 Agent 连接池' },
-  { id: 'monitor', label: '监控', icon: '📡', requiresAgent: false, description: '查看实时事件' },
-  { id: 'history', label: '历史', icon: '📚', requiresAgent: false, description: '查询任务历史' },
+  { id: 'chat', labelKey: 'navigation.chat', icon: '💬', requiresAgent: true, descriptionKey: 'navigationDescriptions.chat' },
+  { id: 'multi-agent', labelKey: 'navigation.multiAgent', icon: '🤖', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiAgent' },
+  { id: 'multi-session', labelKey: 'navigation.multiSession', icon: '📋', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiSession' },
+  { id: 'workflow', labelKey: 'navigation.workflow', icon: '⚡', requiresAgent: true, descriptionKey: 'navigationDescriptions.workflow' },
+  { id: 'orchestration', labelKey: 'navigation.orchestration', icon: '🎬', requiresAgent: false, descriptionKey: 'navigationDescriptions.orchestration' },
+  { id: 'agent-teams', labelKey: 'navigation.agentTeams', icon: '🚀', requiresAgent: false, descriptionKey: 'navigationDescriptions.agentTeams' },
+  { id: 'collaboration', labelKey: 'navigation.collaboration', icon: '🕸️', requiresAgent: false, descriptionKey: 'navigationDescriptions.collaboration' },
+  { id: 'hermes', labelKey: 'navigation.hermes', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.hermes' },
+  { id: 'task-graph', labelKey: 'navigation.taskGraph', icon: '🔗', requiresAgent: false, descriptionKey: 'navigationDescriptions.taskGraph' },
+  { id: 'memory', labelKey: 'navigation.memory', icon: '💡', requiresAgent: false, descriptionKey: 'navigationDescriptions.memory' },
+  { id: 'error', labelKey: 'navigation.errorMonitor', icon: '🚨', requiresAgent: false, descriptionKey: 'navigationDescriptions.errorMonitor' },
+  { id: 'evolution', labelKey: 'navigation.evolution', icon: '🧬', requiresAgent: false, descriptionKey: 'navigationDescriptions.evolution' },
+  { id: 'pattern', labelKey: 'navigation.pattern', icon: '📖', requiresAgent: false, descriptionKey: 'navigationDescriptions.pattern' },
+  { id: 'bot', labelKey: 'navigation.botConfig', icon: '🤖', requiresAgent: false, descriptionKey: 'navigationDescriptions.botConfig' },
+  { id: 'gateway', labelKey: 'navigation.gateway', icon: '🌐', requiresAgent: false, descriptionKey: 'navigationDescriptions.gateway' },
+  { id: 'status', labelKey: 'navigation.status', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.status' },
+  { id: 'monitor', labelKey: 'navigation.monitor', icon: '📡', requiresAgent: false, descriptionKey: 'navigationDescriptions.monitor' },
+  { id: 'history', labelKey: 'navigation.history', icon: '📚', requiresAgent: false, descriptionKey: 'navigationDescriptions.history' },
 ]

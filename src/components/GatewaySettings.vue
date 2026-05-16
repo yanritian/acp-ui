@@ -2,6 +2,9 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const gatewayConfig = ref({
   feishu: {
@@ -82,8 +85,8 @@ async function loadConfig() {
             : (incoming.botToken as string ?? gatewayConfig.value.discord.botToken),
         }
       }
-      if (config.app) gatewayConfig.value.app = { ...gatewayConfig.value.app, ...config.app }
-      if (config.tunnel) gatewayConfig.value.tunnel = { ...gatewayConfig.value.tunnel, ...config.tunnel }
+      if (config.app && typeof config.app === 'object') gatewayConfig.value.app = { ...gatewayConfig.value.app, ...config.app }
+      if (config.tunnel && typeof config.tunnel === 'object') gatewayConfig.value.tunnel = { ...gatewayConfig.value.tunnel, ...config.tunnel }
     }
   } catch (error) {
     console.log('No existing config, using defaults')
@@ -234,19 +237,19 @@ onBeforeUnmount(() => {
     <!-- Header -->
     <header class="page-header">
       <div class="header-left">
-        <h1>远程控制配置</h1>
-        <p class="subtitle">配置手机App、飞书、Telegram等远程控制方式</p>
+        <h1>{{ t('gateway.title') }}</h1>
+        <p class="subtitle">{{ t('gateway.subtitle') }}</p>
       </div>
       <div class="header-right">
         <div class="status-badge" :class="gatewayStatus">
           <span class="status-dot"></span>
-          <span>{{ gatewayStatus === 'running' ? '运行中' : gatewayStatus === 'starting' ? '启动中' : '已停止' }}</span>
+          <span>{{ gatewayStatus === 'running' ? t('gateway.statusRunning') : gatewayStatus === 'starting' ? t('gateway.statusStarting') : t('gateway.statusStopped') }}</span>
         </div>
         <button class="btn btn-primary" @click="startGateway" :disabled="gatewayStatus === 'running'">
-          启动服务
+          {{ t('gateway.startService') }}
         </button>
         <button class="btn btn-secondary" @click="stopGateway" :disabled="gatewayStatus === 'stopped'">
-          停止服务
+          {{ t('gateway.stopService') }}
         </button>
       </div>
     </header>
@@ -256,16 +259,16 @@ onBeforeUnmount(() => {
       <div class="section-header">
         <div class="section-icon">🌐</div>
         <div>
-          <h2 class="section-title">内网穿透</h2>
-          <p class="section-desc">无需公网IP，在外网也能远程控制</p>
+          <h2 class="section-title">{{ t('gateway.tunnelSection') }}</h2>
+          <p class="section-desc">{{ t('gateway.tunnelDesc') }}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="toggle-row">
           <div>
-            <span class="toggle-label">启用内网穿透</span>
-            <span class="toggle-desc">推荐使用ngrok或frp实现外网访问</span>
+            <span class="toggle-label">{{ t('gateway.enableTunnel') }}</span>
+            <span class="toggle-desc">{{ t('gateway.tunnelHint') }}</span>
           </div>
           <div class="toggle" :class="{ active: gatewayConfig.tunnel.enabled }" @click="gatewayConfig.tunnel.enabled = !gatewayConfig.tunnel.enabled">
             <span class="toggle-knob"></span>
@@ -274,41 +277,41 @@ onBeforeUnmount(() => {
 
         <div v-if="gatewayConfig.tunnel.enabled" class="config-grid">
           <div class="input-group">
-            <label class="input-label">穿透服务商</label>
+            <label class="input-label">{{ t('gateway.tunnelProvider') }}</label>
             <select class="input" v-model="gatewayConfig.tunnel.provider">
-              <option value="ngrok">ngrok (免费)</option>
-              <option value="frp">frp (需要自有服务器)</option>
-              <option value="cloudflare">Cloudflare Tunnel (免费)</option>
+              <option value="ngrok">{{ t('gateway.tunnelProviderNgrok') }}</option>
+              <option value="frp">{{ t('gateway.tunnelProviderFrp') }}</option>
+              <option value="cloudflare">{{ t('gateway.tunnelProviderCloudflare') }}</option>
             </select>
           </div>
 
           <div v-if="gatewayConfig.tunnel.provider === 'ngrok'" class="input-group">
-            <label class="input-label">ngrok Token</label>
-            <input class="input" type="password" v-model="gatewayConfig.tunnel.ngrokToken" placeholder="从ngrok.com获取" />
+            <label class="input-label">{{ t('gateway.ngrokToken') }}</label>
+            <input class="input" type="password" v-model="gatewayConfig.tunnel.ngrokToken" :placeholder="t('gateway.ngrokTokenPlaceholder')" />
             <span class="input-hint">免费注册: <a href="https://ngrok.com" target="_blank">ngrok.com</a></span>
           </div>
 
           <div v-if="gatewayConfig.tunnel.provider === 'ngrok'" class="input-group">
-            <label class="input-label">区域</label>
+            <label class="input-label">{{ t('gateway.ngrokRegion') }}</label>
             <select class="input" v-model="gatewayConfig.tunnel.ngrokRegion">
-              <option value="ap">亚太 (新加坡)</option>
-              <option value="us">美国</option>
-              <option value="eu">欧洲</option>
+              <option value="ap">{{ t('gateway.ngrokRegionAp') }}</option>
+              <option value="us">{{ t('gateway.ngrokRegionUs') }}</option>
+              <option value="eu">{{ t('gateway.ngrokRegionEu') }}</option>
             </select>
           </div>
 
           <div v-if="gatewayConfig.tunnel.provider === 'frp'" class="input-group full-width">
             <label class="input-label">frp服务器地址</label>
-            <input class="input" type="text" v-model="gatewayConfig.tunnel.customUrl" placeholder="frp.example.com:7000" />
+            <input class="input" type="text" v-model="gatewayConfig.tunnel.customUrl" :placeholder="t('gateway.frpServerPlaceholder')" />
           </div>
         </div>
 
         <!-- Tunnel Status -->
         <div v-if="gatewayConfig.tunnel.enabled" class="tunnel-status">
           <div class="tunnel-info" v-if="gatewayConfig.tunnel.publicUrl">
-            <span class="label">公网地址:</span>
+            <span class="label">{{ t('gateway.publicUrl') }}:</span>
             <code class="url">{{ gatewayConfig.tunnel.publicUrl }}</code>
-            <button class="btn btn-sm btn-ghost" @click="copyPublicUrl">复制</button>
+            <button class="btn btn-sm btn-ghost" @click="copyPublicUrl">{{ t('gateway.copy') }}</button>
           </div>
           <div class="tunnel-actions">
             <button
@@ -316,14 +319,14 @@ onBeforeUnmount(() => {
               @click="startTunnel"
               :disabled="gatewayConfig.tunnel.status === 'running'"
             >
-              {{ gatewayConfig.tunnel.status === 'starting' ? '启动中...' : '启动穿透' }}
+              {{ gatewayConfig.tunnel.status === 'starting' ? t('gateway.startingTunnel') : t('gateway.startTunnel') }}
             </button>
             <button
               class="btn btn-danger"
               @click="stopTunnel"
               :disabled="gatewayConfig.tunnel.status === 'stopped'"
             >
-              停止穿透
+              {{ t('gateway.stopTunnel') }}
             </button>
           </div>
         </div>
@@ -335,29 +338,29 @@ onBeforeUnmount(() => {
       <div class="section-header">
         <div class="section-icon">📱</div>
         <div>
-          <h2 class="section-title">App 远程连接</h2>
-          <p class="section-desc">手机App扫描二维码直接连接</p>
+          <h2 class="section-title">{{ t('gateway.appSection') }}</h2>
+          <p class="section-desc">{{ t('gateway.appDesc') }}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="config-grid">
           <div class="input-group">
-            <label class="input-label">WebSocket端口</label>
+            <label class="input-label">{{ t('gateway.websocketPort') }}</label>
             <input class="input" type="number" v-model.number="gatewayConfig.app.websocketPort" />
           </div>
           <div class="input-group">
-            <label class="input-label">认证方式</label>
+            <label class="input-label">{{ t('gateway.authMode') }}</label>
             <select class="input" v-model="gatewayConfig.app.authMode">
-              <option value="qrcode">二维码扫描</option>
-              <option value="token">Token认证</option>
+              <option value="qrcode">{{ t('gateway.authModeQrcode') }}</option>
+              <option value="token">{{ t('gateway.authModeToken') }}</option>
             </select>
           </div>
         </div>
 
         <div class="qrcode-section">
           <button class="btn btn-primary btn-lg" @click="generateQRCode">
-            生成连接二维码
+            {{ t('gateway.generateQRCode') }}
           </button>
 
           <div v-if="qrCodeUrl" class="qrcode-result">
@@ -365,17 +368,17 @@ onBeforeUnmount(() => {
               <!-- 这里可以显示真正的二维码图片 -->
               <div class="qrcode-placeholder">
                 <span class="icon">📱</span>
-                <span>扫描连接</span>
+                <span>{{ t('gateway.scanToConnect') }}</span>
               </div>
             </div>
             <div class="connection-info">
               <code class="url">{{ qrCodeUrl }}</code>
               <button class="btn btn-sm btn-ghost" @click="copyLink">
-                {{ copied ? '已复制' : '复制链接' }}
+                {{ copied ? t('gateway.copied') : t('gateway.copyLink') }}
               </button>
             </div>
             <p class="hint">
-              提示: 手机需在同一局域网，或启用内网穿透后在外网使用
+              {{ t('gateway.appHint') }}
             </p>
           </div>
         </div>
@@ -387,14 +390,14 @@ onBeforeUnmount(() => {
       <div class="section-header">
         <div class="section-icon" style="background: linear-gradient(135deg, #00d6aa, #00a88a);">💬</div>
         <div>
-          <h2 class="section-title">飞书机器人</h2>
-          <p class="section-desc">通过飞书Bot发送指令和查看执行结果</p>
+          <h2 class="section-title">{{ t('gateway.feishuSection') }}</h2>
+          <p class="section-desc">{{ t('gateway.feishuDesc') }}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="toggle-row">
-          <span class="toggle-label">启用飞书Bot</span>
+          <span class="toggle-label">{{ t('gateway.enableFeishu') }}</span>
           <div class="toggle" :class="{ active: gatewayConfig.feishu.enabled }" @click="gatewayConfig.feishu.enabled = !gatewayConfig.feishu.enabled">
             <span class="toggle-knob"></span>
           </div>
@@ -402,25 +405,25 @@ onBeforeUnmount(() => {
 
         <div v-if="gatewayConfig.feishu.enabled" class="config-grid">
           <div class="input-group">
-            <label class="input-label">App ID</label>
+            <label class="input-label">{{ t('botSettings.appId') }}</label>
             <input class="input" type="text" v-model="gatewayConfig.feishu.appId" placeholder="cli_xxxxxxxxxx" />
           </div>
           <div class="input-group">
-            <label class="input-label">App Secret</label>
+            <label class="input-label">{{ t('botSettings.appSecret') }}</label>
             <input class="input" type="password" v-model="gatewayConfig.feishu.appSecret" />
           </div>
           <div class="input-group">
-            <label class="input-label">Encrypt Key (可选)</label>
+            <label class="input-label">{{ t('botSettings.encryptKeyOptional') }}</label>
             <input class="input" type="password" v-model="gatewayConfig.feishu.encryptKey" />
           </div>
           <div class="input-group">
-            <label class="input-label">Verification Token (可选)</label>
+            <label class="input-label">{{ t('botSettings.verificationTokenOptional') }}</label>
             <input class="input" type="text" v-model="gatewayConfig.feishu.verificationToken" />
           </div>
         </div>
 
         <div class="help-box">
-          <h4>配置步骤</h4>
+          <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
             <li>访问 <a href="https://open.feishu.cn" target="_blank">飞书开放平台</a> 创建应用</li>
             <li>获取 App ID 和 App Secret</li>
@@ -436,14 +439,14 @@ onBeforeUnmount(() => {
       <div class="section-header">
         <div class="section-icon" style="background: linear-gradient(135deg, #0088cc, #0066aa);">✈️</div>
         <div>
-          <h2 class="section-title">Telegram Bot</h2>
-          <p class="section-desc">通过Telegram远程控制</p>
+          <h2 class="section-title">{{ t('gateway.telegramSection') }}</h2>
+          <p class="section-desc">{{ t('gateway.telegramDesc') }}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="toggle-row">
-          <span class="toggle-label">启用Telegram Bot</span>
+          <span class="toggle-label">{{ t('gateway.enableTelegram') }}</span>
           <div class="toggle" :class="{ active: gatewayConfig.telegram.enabled }" @click="gatewayConfig.telegram.enabled = !gatewayConfig.telegram.enabled">
             <span class="toggle-knob"></span>
           </div>
@@ -451,13 +454,13 @@ onBeforeUnmount(() => {
 
         <div v-if="gatewayConfig.telegram.enabled" class="config-grid">
           <div class="input-group full-width">
-            <label class="input-label">Bot Token</label>
+            <label class="input-label">{{ t('botSettings.botToken') }}</label>
             <input class="input" type="password" v-model="gatewayConfig.telegram.botToken" placeholder="123456789:ABCdef..." />
           </div>
         </div>
 
         <div class="help-box">
-          <h4>配置步骤</h4>
+          <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
             <li>在Telegram搜索 <code>@BotFather</code></li>
             <li>发送 <code>/newbot</code> 创建机器人</li>
@@ -472,14 +475,14 @@ onBeforeUnmount(() => {
       <div class="section-header">
         <div class="section-icon" style="background: linear-gradient(135deg, #5865f2, #4752c4);">🎮</div>
         <div>
-          <h2 class="section-title">Discord Bot</h2>
-          <p class="section-desc">通过Discord频道远程控制</p>
+          <h2 class="section-title">{{ t('gateway.discordSection') }}</h2>
+          <p class="section-desc">{{ t('gateway.discordDesc') }}</p>
         </div>
       </div>
 
       <div class="card">
         <div class="toggle-row">
-          <span class="toggle-label">启用Discord Bot</span>
+          <span class="toggle-label">{{ t('gateway.enableDiscord') }}</span>
           <div class="toggle" :class="{ active: gatewayConfig.discord.enabled }" @click="gatewayConfig.discord.enabled = !gatewayConfig.discord.enabled">
             <span class="toggle-knob"></span>
           </div>
@@ -487,21 +490,21 @@ onBeforeUnmount(() => {
 
         <div v-if="gatewayConfig.discord.enabled" class="config-grid">
           <div class="input-group full-width">
-            <label class="input-label">Bot Token</label>
+            <label class="input-label">{{ t('botSettings.botToken') }}</label>
             <input class="input" type="password" v-model="gatewayConfig.discord.botToken" />
           </div>
           <div class="input-group">
-            <label class="input-label">Guild ID (可选)</label>
-            <input class="input" type="text" v-model="gatewayConfig.discord.guildId" placeholder="服务器ID" />
+            <label class="input-label">{{ t('gateway.guildIdOptional') }}</label>
+            <input class="input" type="text" v-model="gatewayConfig.discord.guildId" :placeholder="t('gateway.guildIdPlaceholder')" />
           </div>
           <div class="input-group">
-            <label class="input-label">Channel ID (可选)</label>
-            <input class="input" type="text" v-model="gatewayConfig.discord.channelId" placeholder="频道ID" />
+            <label class="input-label">{{ t('gateway.channelIdOptional') }}</label>
+            <input class="input" type="text" v-model="gatewayConfig.discord.channelId" :placeholder="t('gateway.channelIdPlaceholder')" />
           </div>
         </div>
 
         <div class="help-box">
-          <h4>配置步骤</h4>
+          <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
             <li>访问 <a href="https://discord.com/developers/applications" target="_blank">开发者门户</a></li>
             <li>创建应用 → Bot → Add Bot</li>
@@ -514,7 +517,7 @@ onBeforeUnmount(() => {
     <!-- Save Button -->
     <div class="save-bar">
       <button class="btn btn-primary btn-lg" :disabled="saving" @click="saveConfig">
-        {{ saving ? '保存中...' : saved ? '✓ 已保存' : '保存配置' }}
+        {{ saving ? t('gateway.saving') : saved ? '✓ ' + t('gateway.saved') : t('gateway.saveConfig') }}
       </button>
     </div>
   </div>

@@ -180,6 +180,66 @@ export type MessageSchema = {
     syncProtocol: string
     lastSync: string
   }
+  gateway: {
+    title: string
+    subtitle: string
+    statusRunning: string
+    statusStarting: string
+    statusStopped: string
+    startService: string
+    stopService: string
+    tunnelSection: string
+    tunnelDesc: string
+    enableTunnel: string
+    tunnelHint: string
+    tunnelProvider: string
+    tunnelProviderNgrok: string
+    tunnelProviderFrp: string
+    tunnelProviderCloudflare: string
+    ngrokToken: string
+    ngrokTokenPlaceholder: string
+    ngrokRegion: string
+    ngrokRegionAp: string
+    ngrokRegionUs: string
+    ngrokRegionEu: string
+    frpServerPlaceholder: string
+    publicUrl: string
+    copy: string
+    copied: string
+    startTunnel: string
+    stopTunnel: string
+    startingTunnel: string
+    appSection: string
+    appDesc: string
+    websocketPort: string
+    authMode: string
+    authModeQrcode: string
+    authModeToken: string
+    generateQRCode: string
+    scanToConnect: string
+    copyLink: string
+    appHint: string
+    feishuSection: string
+    feishuDesc: string
+    enableFeishu: string
+    feishuConfigSteps: string
+    telegramSection: string
+    telegramDesc: string
+    enableTelegram: string
+    telegramConfigSteps: string
+    discordSection: string
+    discordDesc: string
+    enableDiscord: string
+    discordConfigSteps: string
+    configStepsTitle: string
+    saveConfig: string
+    saving: string
+    saved: string
+    guildIdOptional: string
+    channelIdOptional: string
+    guildIdPlaceholder: string
+    channelIdPlaceholder: string
+  }
   botSettings: {
     title: string
     subtitle: string

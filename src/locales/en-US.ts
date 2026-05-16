@@ -171,6 +171,7 @@ export const enUS: MessageSchema = {
     channelId: 'Channel ID',
     channelIdOptional: 'Channel ID (optional)',
     testConnection: 'Test Connection',
+    testConnectionDev: '{platform} connection test is under development',
     saveConfig: 'Save Configuration',
     saving: 'Saving...',
     configSaved: 'Configuration saved',

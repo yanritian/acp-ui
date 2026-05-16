@@ -171,6 +171,7 @@ export const zhCN: MessageSchema = {
     channelId: 'Channel ID',
     channelIdOptional: 'Channel ID（可选）',
     testConnection: '测试连接',
+    testConnectionDev: '{platform} 连接测试功能正在开发中',
     saveConfig: '保存配置',
     saving: '保存中...',
     configSaved: '配置已保存',

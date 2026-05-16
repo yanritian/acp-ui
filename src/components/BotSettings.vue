@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 interface BotConfig {
   feishu: {
@@ -66,10 +69,10 @@ async function saveConfig() {
     // In Tauri, would call backend to save
     // await invoke('save_bot_config', { config: config.value })
 
-    savedMessage.value = '配置已保存'
+    savedMessage.value = t('botSettings.configSaved')
     setTimeout(() => { savedMessage.value = '' }, 3000)
   } catch (e) {
-    savedMessage.value = '保存失败: ' + (e as Error).message
+    savedMessage.value = t('botSettings.saveFailed') + ': ' + (e as Error).message
   } finally {
     saving.value = false
   }
@@ -77,7 +80,7 @@ async function saveConfig() {
 
 function testConnection(platform: string) {
   // Placeholder for connection test
-  savedMessage.value = `${platform} 连接测试功能正在开发中`
+  savedMessage.value = t('botSettings.testConnectionDev', { platform })
   setTimeout(() => { savedMessage.value = '' }, 3000)
 }
 
@@ -87,8 +90,8 @@ onMounted(loadConfig)
 <template>
   <div class="bot-settings">
     <header class="settings-header">
-      <h1>🤖 Bot 配置</h1>
-      <p class="subtitle">配置远程指令入口（飞书/Telegram/Discord）</p>
+      <h1>🤖 {{ t('botSettings.title') }}</h1>
+      <p class="subtitle">{{ t('botSettings.subtitle') }}</p>
     </header>
 
     <!-- Platform tabs -->
@@ -98,42 +101,42 @@ onMounted(loadConfig)
         @click="activeTab = 'feishu'"
       >
         <span class="tab-icon">📱</span>
-        <span>飞书</span>
+        <span>{{ t('botSettings.feishu') }}</span>
       </button>
       <button
         :class="['tab-btn', { active: activeTab === 'telegram' }]"
         @click="activeTab = 'telegram'"
       >
         <span class="tab-icon">✈️</span>
-        <span>Telegram</span>
+        <span>{{ t('botSettings.telegram') }}</span>
       </button>
       <button
         :class="['tab-btn', { active: activeTab === 'discord' }]"
         @click="activeTab = 'discord'"
       >
         <span class="tab-icon">🎮</span>
-        <span>Discord</span>
+        <span>{{ t('botSettings.discord') }}</span>
       </button>
     </div>
 
     <!-- Feishu config -->
     <div v-if="activeTab === 'feishu'" class="config-panel">
       <div class="config-section">
-        <h3>飞书机器人配置</h3>
+        <h3>{{ t('botSettings.feishuConfig') }}</h3>
         <p class="help-text">
-          在飞书开放平台创建应用后，获取 App ID 和 App Secret。
-          <a href="https://open.feishu.cn/app" target="_blank">前往飞书开放平台</a>
+          {{ t('botSettings.feishuHelp') }}
+          <a href="https://open.feishu.cn/app" target="_blank">{{ t('botSettings.feishuPlatform') }}</a>
         </p>
 
         <div class="form-group">
           <label>
             <input type="checkbox" v-model="config.feishu.enabled" />
-            <span>启用飞书 Bot</span>
+            <span>{{ t('botSettings.enableFeishu') }}</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label>App ID</label>
+          <label>{{ t('botSettings.appId') }}</label>
           <input
             type="text"
             v-model="config.feishu.appId"
@@ -143,31 +146,31 @@ onMounted(loadConfig)
         </div>
 
         <div class="form-group">
-          <label>App Secret</label>
+          <label>{{ t('botSettings.appSecret') }}</label>
           <input
             type="password"
             v-model="config.feishu.appSecret"
-            placeholder="应用密钥"
+            :placeholder="t('botSettings.appSecret')"
             :disabled="!config.feishu.enabled"
           />
         </div>
 
         <div class="form-group">
-          <label>Encrypt Key（可选）</label>
+          <label>{{ t('botSettings.encryptKeyOptional') }}</label>
           <input
             type="text"
             v-model="config.feishu.encryptKey"
-            placeholder="消息加密密钥"
+            :placeholder="t('botSettings.encryptKey')"
             :disabled="!config.feishu.enabled"
           />
         </div>
 
         <div class="form-group">
-          <label>Verification Token（可选）</label>
+          <label>{{ t('botSettings.verificationTokenOptional') }}</label>
           <input
             type="text"
             v-model="config.feishu.verificationToken"
-            placeholder="事件验证令牌"
+            :placeholder="t('botSettings.verificationToken')"
             :disabled="!config.feishu.enabled"
           />
         </div>
@@ -175,10 +178,10 @@ onMounted(loadConfig)
         <div class="action-row">
           <button
             class="test-btn"
-            @click="testConnection('飞书')"
+            @click="testConnection(t('botSettings.feishu'))"
             :disabled="!config.feishu.enabled || !config.feishu.appId"
           >
-            测试连接
+            {{ t('botSettings.testConnection') }}
           </button>
         </div>
       </div>
@@ -187,21 +190,21 @@ onMounted(loadConfig)
     <!-- Telegram config -->
     <div v-if="activeTab === 'telegram'" class="config-panel">
       <div class="config-section">
-        <h3>Telegram Bot 配置</h3>
+        <h3>{{ t('botSettings.telegramConfig') }}</h3>
         <p class="help-text">
-          在 Telegram 中与 @BotFather 对话创建 Bot，获取 Bot Token。
-          <a href="https://t.me/BotFather" target="_blank">前往 BotFather</a>
+          {{ t('botSettings.telegramHelp') }}
+          <a href="https://t.me/BotFather" target="_blank">{{ t('botSettings.telegramBotFather') }}</a>
         </p>
 
         <div class="form-group">
           <label>
             <input type="checkbox" v-model="config.telegram.enabled" />
-            <span>启用 Telegram Bot</span>
+            <span>{{ t('botSettings.enableTelegram') }}</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label>Bot Token</label>
+          <label>{{ t('botSettings.botToken') }}</label>
           <input
             type="password"
             v-model="config.telegram.botToken"
@@ -213,10 +216,10 @@ onMounted(loadConfig)
         <div class="action-row">
           <button
             class="test-btn"
-            @click="testConnection('Telegram')"
+            @click="testConnection(t('botSettings.telegram'))"
             :disabled="!config.telegram.enabled || !config.telegram.botToken"
           >
-            测试连接
+            {{ t('botSettings.testConnection') }}
           </button>
         </div>
       </div>
@@ -225,35 +228,35 @@ onMounted(loadConfig)
     <!-- Discord config -->
     <div v-if="activeTab === 'discord'" class="config-panel">
       <div class="config-section">
-        <h3>Discord Bot 配置</h3>
+        <h3>{{ t('botSettings.discordConfig') }}</h3>
         <p class="help-text">
-          在 Discord Developer Portal 创建应用并获取 Bot Token。
-          <a href="https://discord.com/developers/applications" target="_blank">前往 Discord Developer Portal</a>
+          {{ t('botSettings.discordHelp') }}
+          <a href="https://discord.com/developers/applications" target="_blank">{{ t('botSettings.discordPortal') }}</a>
         </p>
 
         <div class="form-group">
           <label>
             <input type="checkbox" v-model="config.discord.enabled" />
-            <span>启用 Discord Bot</span>
+            <span>{{ t('botSettings.enableDiscord') }}</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label>Bot Token</label>
+          <label>{{ t('botSettings.botToken') }}</label>
           <input
             type="password"
             v-model="config.discord.botToken"
-            placeholder="Bot Token"
+            :placeholder="t('botSettings.botToken')"
             :disabled="!config.discord.enabled"
           />
         </div>
 
         <div class="form-group">
-          <label>Channel ID（可选）</label>
+          <label>{{ t('botSettings.channelIdOptional') }}</label>
           <input
             type="text"
             v-model="config.discord.channelId"
-            placeholder="频道 ID"
+            :placeholder="t('botSettings.channelId')"
             :disabled="!config.discord.enabled"
           />
         </div>
@@ -261,10 +264,10 @@ onMounted(loadConfig)
         <div class="action-row">
           <button
             class="test-btn"
-            @click="testConnection('Discord')"
+            @click="testConnection(t('botSettings.discord'))"
             :disabled="!config.discord.enabled || !config.discord.botToken"
           >
-            测试连接
+            {{ t('botSettings.testConnection') }}
           </button>
         </div>
       </div>
@@ -277,21 +280,21 @@ onMounted(loadConfig)
         @click="saveConfig"
         :disabled="saving"
       >
-        {{ saving ? '保存中...' : '保存配置' }}
+        {{ saving ? t('botSettings.saving') : t('botSettings.saveConfig') }}
       </button>
-      <span v-if="savedMessage" :class="['save-message', { error: savedMessage.includes('失败') }]">
+      <span v-if="savedMessage" :class="['save-message', { error: savedMessage.includes(t('botSettings.saveFailed')) }]">
         {{ savedMessage }}
       </span>
     </div>
 
     <!-- Info panel -->
     <div class="info-panel">
-      <h4>💡 使用说明</h4>
+      <h4>💡 {{ t('botSettings.usageNotes') }}</h4>
       <ul>
-        <li>配置 Bot 后，用户可以通过飞书/Telegram/Discord 发送指令</li>
-        <li>Bot 会将指令转发给 Agent 执行，并返回结果</li>
-        <li>支持文本消息、图片、文件等富媒体消息</li>
-        <li>敏感信息（密钥等）建议使用环境变量配置</li>
+        <li>{{ t('botSettings.usageNote1') }}</li>
+        <li>{{ t('botSettings.usageNote2') }}</li>
+        <li>{{ t('botSettings.usageNote3') }}</li>
+        <li>{{ t('botSettings.usageNote4') }}</li>
       </ul>
     </div>
   </div>

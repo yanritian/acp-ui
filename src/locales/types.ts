@@ -170,6 +170,7 @@ export type MessageSchema = {
     channelId: string
     channelIdOptional: string
     testConnection: string
+    testConnectionDev: string
     saveConfig: string
     saving: string
     configSaved: string

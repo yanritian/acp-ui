@@ -309,6 +309,38 @@ export type MessageSchema = {
     dependency: string
     config: string
   }
+  memory: {
+    searchPlaceholder: string
+    search: string
+    allMemories: string
+    filterByAgent: string
+    global: string
+    filterByScope: string
+    filterByType: string
+    addMemory: string
+    cancel: string
+    memoryPlaceholder: string
+    tagsPlaceholder: string
+    scope: string
+    type: string
+    scopeGlobal: string
+    scopeAgent: string
+    scopeSession: string
+    scopeTask: string
+    typeFact: string
+    typeDecision: string
+    typeError: string
+    typeSolution: string
+    typePattern: string
+    typePreference: string
+    aiAnalysis: string
+    importance: string
+    smartAnalysis: string
+    save: string
+    loading: string
+    noMemory: string
+    noMemoryHint: string
+  }
   botSettings: {
     title: string
     subtitle: string

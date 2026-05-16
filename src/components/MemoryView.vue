@@ -3,6 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useMemoryStore, type MemoryScope, type MemoryType } from '../stores/memory'
 import { useConfigStore } from '../stores/config'
 import { analyzeMessage } from '../lib/memory-extraction'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const memoryStore = useMemoryStore()
 const configStore = useConfigStore()
@@ -18,21 +21,21 @@ const showExtractedPreview = ref(false)
 const extractedPreview = ref<{ content: string, type: MemoryType, importance: number }[]>([])
 
 const scopes: { value: MemoryScope | 'all', label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'global', label: '全局' },
-  { value: 'agent', label: 'Agent' },
-  { value: 'session', label: '会话' },
-  { value: 'task', label: '任务' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'global', label: t('memory.global') },
+  { value: 'agent', label: t('memory.scopeAgent') },
+  { value: 'session', label: t('memory.scopeSession') },
+  { value: 'task', label: t('memory.scopeTask') },
 ]
 
 const types: { value: MemoryType | 'all', label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'fact', label: '事实' },
-  { value: 'decision', label: '决策' },
-  { value: 'error', label: '错误' },
-  { value: 'solution', label: '方案' },
-  { value: 'pattern', label: '模式' },
-  { value: 'preference', label: '偏好' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'fact', label: t('memory.typeFact') },
+  { value: 'decision', label: t('memory.typeDecision') },
+  { value: 'error', label: t('memory.typeError') },
+  { value: 'solution', label: t('memory.typeSolution') },
+  { value: 'pattern', label: t('memory.typePattern') },
+  { value: 'preference', label: t('memory.typePreference') },
 ]
 
 const agentEntries = computed(() => Object.entries(configStore.config.agents))
@@ -110,22 +113,22 @@ function getTags(tags: string | null): string[] {
 
 function getScopeLabel(scope: MemoryScope): string {
   const labels: Record<MemoryScope, string> = {
-    global: '全局',
-    agent: 'Agent',
-    session: '会话',
-    task: '任务'
+    global: t('memory.global'),
+    agent: t('memory.scopeAgent'),
+    session: t('memory.scopeSession'),
+    task: t('memory.scopeTask')
   }
   return labels[scope]
 }
 
 function getTypeLabel(type: MemoryType): string {
   const labels: Record<MemoryType, string> = {
-    fact: '事实',
-    decision: '决策',
-    error: '错误',
-    solution: '方案',
-    pattern: '模式',
-    preference: '偏好'
+    fact: t('memory.typeFact'),
+    decision: t('memory.typeDecision'),
+    error: t('memory.typeError'),
+    solution: t('memory.typeSolution'),
+    pattern: t('memory.typePattern'),
+    preference: t('memory.typePreference')
   }
   return labels[type]
 }
@@ -142,21 +145,21 @@ onMounted(() => {
       <input
         v-model="memoryStore.searchKeyword"
         type="text"
-        placeholder="搜索记忆..."
+        :placeholder="t('memory.searchPlaceholder')"
         @keyup.enter="handleSearch"
       />
-      <button @click="handleSearch">搜索</button>
-      <button @click="loadMemories(null)">全部记忆</button>
+      <button @click="handleSearch">{{ t('memory.search') }}</button>
+      <button @click="loadMemories(null)">{{ t('memory.allMemories') }}</button>
     </div>
 
     <!-- Agent Filter -->
     <div class="agent-filter">
-      <span class="filter-label">按 Agent 过滤:</span>
+      <span class="filter-label">{{ t('memory.filterByAgent') }}</span>
       <button
         :class="['agent-btn', { active: !memoryStore.selectedAgentId }]"
         @click="loadMemories(null)"
       >
-        全局
+        {{ t('memory.global') }}
       </button>
       <button
         v-for="[name] in agentEntries"
@@ -170,7 +173,7 @@ onMounted(() => {
 
     <!-- Scope Filter -->
     <div class="scope-filter">
-      <span class="filter-label">按作用域过滤:</span>
+      <span class="filter-label">{{ t('memory.filterByScope') }}</span>
       <button
         v-for="s in scopes"
         :key="s.value"
@@ -183,21 +186,21 @@ onMounted(() => {
 
     <!-- Type Filter -->
     <div class="type-filter">
-      <span class="filter-label">按类型过滤:</span>
+      <span class="filter-label">{{ t('memory.filterByType') }}</span>
       <button
-        v-for="t in types"
-        :key="t.value"
-        :class="['type-btn', { active: selectedType === t.value }]"
-        @click="selectedType = t.value"
+        v-for="t_item in types"
+        :key="t_item.value"
+        :class="['type-btn', { active: selectedType === t_item.value }]"
+        @click="selectedType = t_item.value"
       >
-        {{ t.label }}
+        {{ t_item.label }}
       </button>
     </div>
 
     <!-- Add Memory Button -->
     <div class="add-section">
       <button class="btn-add" @click="showAddForm = !showAddForm">
-        {{ showAddForm ? '取消' : '+ 添加记忆' }}
+        {{ showAddForm ? t('memory.cancel') : t('memory.addMemory') }}
       </button>
     </div>
 
@@ -206,47 +209,47 @@ onMounted(() => {
       <textarea
         v-model="newMemoryContent"
         class="memory-input"
-        placeholder="记忆内容..."
+        :placeholder="t('memory.memoryPlaceholder')"
         rows="3"
       ></textarea>
       <input
         v-model="newMemoryTags"
         class="memory-input"
-        placeholder="标签 (逗号分隔, 如: 技术,架构)"
+        :placeholder="t('memory.tagsPlaceholder')"
       />
       <div class="scope-select">
-        <label>作用域:</label>
+        <label>{{ t('memory.scope') }}</label>
         <select v-model="newMemoryScope">
-          <option value="global">全局</option>
-          <option value="agent">Agent</option>
-          <option value="session">会话</option>
-          <option value="task">任务</option>
+          <option value="global">{{ t('memory.scopeGlobal') }}</option>
+          <option value="agent">{{ t('memory.scopeAgent') }}</option>
+          <option value="session">{{ t('memory.scopeSession') }}</option>
+          <option value="task">{{ t('memory.scopeTask') }}</option>
         </select>
       </div>
       <div class="type-select">
-        <label>类型:</label>
+        <label>{{ t('memory.type') }}</label>
         <select v-model="newMemoryType">
-          <option value="fact">事实</option>
-          <option value="decision">决策</option>
-          <option value="error">错误</option>
-          <option value="solution">方案</option>
-          <option value="pattern">模式</option>
-          <option value="preference">偏好</option>
+          <option value="fact">{{ t('memory.typeFact') }}</option>
+          <option value="decision">{{ t('memory.typeDecision') }}</option>
+          <option value="error">{{ t('memory.typeError') }}</option>
+          <option value="solution">{{ t('memory.typeSolution') }}</option>
+          <option value="pattern">{{ t('memory.typePattern') }}</option>
+          <option value="preference">{{ t('memory.typePreference') }}</option>
         </select>
       </div>
       <div v-if="showExtractedPreview && extractedPreview.length > 0" class="extraction-preview">
-        <span class="preview-label">智能分析建议:</span>
+        <span class="preview-label">{{ t('memory.aiAnalysis') }}</span>
         <div v-for="(item, idx) in extractedPreview" :key="idx" class="preview-item">
           <span class="preview-type">{{ item.type }}</span>
-          <span class="preview-importance">重要性: {{ Math.round(item.importance * 100) }}%</span>
+          <span class="preview-importance">{{ t('memory.importance') }}: {{ Math.round(item.importance * 100) }}%</span>
         </div>
       </div>
       <div class="form-actions">
         <button class="btn-preview" @click="handlePreviewExtraction" :disabled="!newMemoryContent.trim()">
-          智能分析
+          {{ t('memory.smartAnalysis') }}
         </button>
         <button class="btn-submit" @click="handleAddMemory" :disabled="!newMemoryContent.trim()">
-          保存
+          {{ t('memory.save') }}
         </button>
       </div>
     </div>
@@ -258,13 +261,13 @@ onMounted(() => {
     </div>
 
     <!-- Loading -->
-    <div v-if="memoryStore.loading" class="loading">加载中...</div>
+    <div v-if="memoryStore.loading" class="loading">{{ t('memory.loading') }}</div>
 
     <!-- Memory List -->
     <div class="memory-list">
       <div v-if="records.length === 0 && !memoryStore.loading" class="empty-state">
-        <p>暂无记忆</p>
-        <p class="hint">添加记忆来记录重要的项目信息和决策</p>
+        <p>{{ t('memory.noMemory') }}</p>
+        <p class="hint">{{ t('memory.noMemoryHint') }}</p>
       </div>
 
       <div
@@ -275,7 +278,7 @@ onMounted(() => {
         <div class="memory-header">
           <span class="memory-type" :class="memory.memoryType">{{ getTypeLabel(memory.memoryType) }}</span>
           <span class="memory-scope">{{ getScopeLabel(memory.scope) }}</span>
-          <span class="memory-agent">{{ memory.agentId || '全局' }}</span>
+          <span class="memory-agent">{{ memory.agentId || t('memory.global') }}</span>
           <span class="memory-time">{{ formatTime(memory.createdAt) }}</span>
           <button class="memory-delete" @click="memoryStore.deleteMemory(memory.id)">✕</button>
         </div>

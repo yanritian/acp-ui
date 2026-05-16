@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { orchestrator, type Event } from '@/lib/orchestrator';
 import { agentMatcher } from '@/lib/agent-matcher';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 interface TaskDisplay {
   id: string;
@@ -136,44 +139,44 @@ onUnmounted(() => {
   <div class="hermes-dashboard">
     <header class="hermes-header">
       <div>
-        <h1 class="hermes-title">Hermes Dashboard</h1>
-        <p class="hermes-subtitle">Task Orchestration & Agent Management</p>
+        <h1 class="hermes-title">{{ t('hermes.title') }}</h1>
+        <p class="hermes-subtitle">{{ t('hermes.subtitle') }}</p>
       </div>
       <div class="hermes-controls">
         <label class="auto-refresh-label">
-          <span>Auto Refresh</span>
+          <span>{{ t('common.autoRefresh') }}</span>
           <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" />
         </label>
-        <button @click="refreshData" class="refresh-btn">Refresh</button>
+        <button @click="refreshData" class="refresh-btn">{{ t('common.refresh') }}</button>
       </div>
     </header>
 
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Overall Progress</div>
+        <div class="stat-label">{{ t('common.overallProgress') }}</div>
         <div class="stat-value progress">{{ overallProgress }}%</div>
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: overallProgress + '%' }"></div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Running Tasks</div>
+        <div class="stat-label">{{ t('common.runningTasks') }}</div>
         <div class="stat-value running">{{ runningTasks }}</div>
-        <div class="stat-sub">{{ tasks.length }} total</div>
+        <div class="stat-sub">{{ tasks.length }} {{ t('common.totalTasks') }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">System Load</div>
+        <div class="stat-label">{{ t('common.systemLoad') }}</div>
         <div class="stat-value">{{ systemLoad }}%</div>
-        <div class="stat-sub">{{ overloadedAgents }} overloaded</div>
+        <div class="stat-sub">{{ overloadedAgents }} {{ t('common.overloaded') }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">QA Status</div>
+        <div class="stat-label">{{ t('common.qaStatus') }}</div>
         <div class="qa-badges">
           <span class="qa-badge" :class="qaStatus.lastReview?.success ? 'pass' : (qaStatus.lastReview ? 'fail' : 'na')">
-            Review: {{ qaStatus.lastReview?.success ? 'Pass' : (qaStatus.lastReview ? 'Fail' : 'N/A') }}
+            {{ t('common.review') }}: {{ qaStatus.lastReview?.success ? t('common.pass') : (qaStatus.lastReview ? t('common.fail') : t('common.na')) }}
           </span>
           <span class="qa-badge" :class="qaStatus.lastValidation?.success ? 'pass' : (qaStatus.lastValidation ? 'fail' : 'na')">
-            Test: {{ qaStatus.lastValidation?.success ? 'Pass' : (qaStatus.lastValidation ? 'Fail' : 'N/A') }}
+            {{ t('common.test') }}: {{ qaStatus.lastValidation?.success ? t('common.pass') : (qaStatus.lastValidation ? t('common.fail') : t('common.na')) }}
           </span>
         </div>
       </div>
@@ -181,9 +184,9 @@ onUnmounted(() => {
 
     <div class="content-grid">
       <div class="panel">
-        <div class="panel-header">Tasks</div>
+        <div class="panel-header">{{ t('common.tasks') }}</div>
         <div class="panel-body">
-          <div v-if="tasks.length === 0" class="empty-text">No active tasks.</div>
+          <div v-if="tasks.length === 0" class="empty-text">{{ t('hermes.noActiveTasks') }}</div>
           <div v-else class="task-list">
             <div v-for="task in tasks" :key="task.id"
               @click="selectedTask = task.id"
@@ -192,22 +195,22 @@ onUnmounted(() => {
                 <span class="task-name" :class="task.status">{{ task.name }}</span>
                 <span class="task-status" :class="task.status">{{ task.status }}</span>
               </div>
-              <div class="task-progress">Progress: {{ task.progress }}%</div>
+              <div class="task-progress">{{ t('common.progress') }}: {{ task.progress }}%</div>
             </div>
           </div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-header">Agents</div>
+        <div class="panel-header">{{ t('common.agents') }}</div>
         <div class="panel-body">
-          <div v-if="agents.length === 0" class="empty-text">No registered agents.</div>
+          <div v-if="agents.length === 0" class="empty-text">{{ t('hermes.noRegisteredAgents') }}</div>
           <div v-else class="agent-list">
             <div v-for="agent in agents" :key="agent.id" class="agent-item">
               <div class="agent-header">
                 <span class="agent-name">{{ agent.name }}</span>
                 <span class="agent-status" :class="agent.status">{{ agent.status }}</span>
               </div>
-              <div class="agent-load">Load: {{ agent.load }} / {{ agent.maxLoad }}</div>
+              <div class="agent-load">{{ t('common.load') }}: {{ agent.load }} / {{ agent.maxLoad }}</div>
             </div>
           </div>
         </div>
@@ -217,7 +220,7 @@ onUnmounted(() => {
     <div v-if="selectedTask" class="task-detail-overlay" @click.self="selectedTask = null">
       <div class="task-detail-modal">
         <div class="modal-header">
-          <h4 class="modal-title">Task Detail</h4>
+          <h4 class="modal-title">{{ t('common.taskDetail') }}</h4>
           <button @click="selectedTask = null" class="modal-close">✕</button>
         </div>
         <div class="modal-body">

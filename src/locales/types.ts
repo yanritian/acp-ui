@@ -240,6 +240,19 @@ export type MessageSchema = {
     guildIdPlaceholder: string
     channelIdPlaceholder: string
   }
+  chat: {
+    title: string
+    you: string
+    assistant: string
+    showThinking: string
+    hideThinking: string
+    thinking: string
+    reconnecting: string
+    typeMessage: string
+    typeMessageCommands: string
+    send: string
+    cancel: string
+  }
   botSettings: {
     title: string
     subtitle: string

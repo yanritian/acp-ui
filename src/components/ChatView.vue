@@ -8,6 +8,9 @@ import ModePicker from './ModePicker.vue';
 import ModelPicker from './ModelPicker.vue';
 import CommandPalette from './CommandPalette.vue';
 import type { SlashCommand } from '../lib/types';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 const sessionStore = useSessionStore();
 const inputText = ref('');
@@ -164,16 +167,16 @@ function getStatusIcon(status: string): string {
 <template>
   <div class="chat-view">
     <div class="chat-header">
-      <h2>{{ currentSession?.title || 'Chat' }}</h2>
+      <h2>{{ currentSession?.title || t('chat.title') }}</h2>
       <div class="header-right">
-        <ModelPicker 
+        <ModelPicker
           v-if="availableModels.length > 0"
           :models="availableModels"
           :current-model-id="currentModelId"
           :disabled="isLoading"
           @change="handleModelChange"
         />
-        <ModePicker 
+        <ModePicker
           v-if="availableModes.length > 0"
           :modes="availableModes"
           :current-mode-id="currentModeId"
@@ -183,33 +186,33 @@ function getStatusIcon(status: string): string {
         <span class="agent-name">{{ currentSession?.agentName }}</span>
       </div>
     </div>
-    
+
     <div ref="messagesContainer" class="messages-container">
-      <div 
-        v-for="message in messages" 
+      <div
+        v-for="message in messages"
         :key="message.id"
         :class="['message', `message-${message.role}`]"
       >
         <div class="message-header">
-          <span class="role">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
+          <span class="role">{{ message.role === 'user' ? t('chat.you') : t('chat.assistant') }}</span>
         </div>
-        
+
         <!-- Agent thinking section (collapsible) - shown first to explain reasoning -->
         <div v-if="message.thought && message.role === 'assistant'" class="thought-section">
           <button class="thought-toggle" @click="toggleThought(message.id)">
             <span class="thought-icon">💭</span>
-            <span class="thought-label">{{ isThoughtExpanded(message.id) ? 'Hide Thinking' : 'Show Thinking' }}</span>
+            <span class="thought-label">{{ isThoughtExpanded(message.id) ? t('chat.hideThinking') : t('chat.showThinking') }}</span>
             <span class="thought-chevron">{{ isThoughtExpanded(message.id) ? '▲' : '▼' }}</span>
           </button>
           <div v-if="isThoughtExpanded(message.id)" class="thought-content">
             <div v-html="renderMarkdown(message.thought)" />
           </div>
         </div>
-        
+
         <!-- Tool calls for this message (shown after thinking) -->
         <div v-if="message.toolCalls?.length" class="tool-calls-section">
-          <div 
-            v-for="tc in message.toolCalls" 
+          <div
+            v-for="tc in message.toolCalls"
             :key="tc.toolCallId"
             :class="['tool-call-inline', `tool-${tc.status}`]"
           >
@@ -223,22 +226,22 @@ function getStatusIcon(status: string): string {
             </span>
           </div>
         </div>
-        
-        <div 
+
+        <div
           v-if="message.content"
           class="message-content"
           v-html="renderMarkdown(message.content)"
         />
       </div>
-      
+
       <!-- Loading indicator -->
       <div v-if="isLoading" class="loading-indicator">
         <span class="spinner"></span>
-        <span>Thinking...</span>
-        <button class="cancel-btn" @click="handleCancel">Cancel</button>
+        <span>{{ t('chat.thinking') }}</span>
+        <button class="cancel-btn" @click="handleCancel">{{ t('chat.cancel') }}</button>
       </div>
     </div>
-    
+
     <div class="input-container">
       <CommandPalette
         ref="commandPaletteRef"
@@ -252,21 +255,21 @@ function getStatusIcon(status: string): string {
         v-model="inputText"
         :placeholder="
           isReconnecting
-            ? 'Reconnecting…'
+            ? t('chat.reconnecting')
             : (availableCommands.length > 0
-                ? 'Type your message... (/ for commands)'
-                : 'Type your message...')
+                ? t('chat.typeMessageCommands')
+                : t('chat.typeMessage'))
         "
         :disabled="isLoading || isReconnecting"
         @keydown="handleKeyDown"
         rows="3"
       />
-      <button 
+      <button
         class="send-btn"
         :disabled="!inputText.trim() || isLoading || isReconnecting"
         @click="handleSend"
       >
-        Send
+        {{ t('chat.send') }}
       </button>
     </div>
   </div>

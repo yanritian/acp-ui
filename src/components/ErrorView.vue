@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useErrorStore } from '../stores/error'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const errorStore = useErrorStore()
 
@@ -13,19 +16,19 @@ const solutionResult = ref('')
 const solutionSuccess = ref(true)
 
 const statuses = [
-  { value: 'all', label: '全部' },
-  { value: 'open', label: '待处理' },
-  { value: 'resolved', label: '已解决' },
-  { value: 'ignored', label: '已忽略' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'open', label: t('errorMonitor.pending') },
+  { value: 'resolved', label: t('errorMonitor.resolved') },
+  { value: 'ignored', label: t('errorMonitor.ignored') },
 ]
 
 const categories = [
-  { value: 'all', label: '全部' },
-  { value: 'build_error', label: '构建错误' },
-  { value: 'runtime_error', label: '运行错误' },
-  { value: 'logic_error', label: '逻辑错误' },
-  { value: 'dependency_error', label: '依赖错误' },
-  { value: 'config_error', label: '配置错误' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'build_error', label: t('errorMonitor.buildError') },
+  { value: 'runtime_error', label: t('errorMonitor.runtimeError') },
+  { value: 'logic_error', label: t('errorMonitor.logicError') },
+  { value: 'dependency_error', label: t('errorMonitor.dependencyError') },
+  { value: 'config_error', label: t('errorMonitor.configError') },
 ]
 
 const filteredErrors = computed(() => {
@@ -56,7 +59,7 @@ async function handleSubmitSolution() {
 
   const solutionId = await errorStore.saveSolution(
     solutionApproach.value.trim(),
-    solutionResult.value.trim() || '已修复',
+    solutionResult.value.trim() || t('errorMonitor.successfullyResolved'),
     selectedErrorId.value,
     undefined,
     solutionSuccess.value,
@@ -78,20 +81,20 @@ function formatTime(s: string): string {
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    open: '待处理',
-    resolved: '已解决',
-    ignored: '已忽略',
+    open: t('errorMonitor.pending'),
+    resolved: t('errorMonitor.resolved'),
+    ignored: t('errorMonitor.ignored'),
   }
   return labels[status] || status
 }
 
 function getCategoryLabel(category: string): string {
   const labels: Record<string, string> = {
-    build_error: '构建',
-    runtime_error: '运行',
-    logic_error: '逻辑',
-    dependency_error: '依赖',
-    config_error: '配置',
+    build_error: t('errorMonitor.build'),
+    runtime_error: t('errorMonitor.runtime'),
+    logic_error: t('errorMonitor.logic'),
+    dependency_error: t('errorMonitor.dependency'),
+    config_error: t('errorMonitor.config'),
   }
   return labels[category] || category
 }
@@ -106,11 +109,11 @@ onMounted(() => {
     <!-- Statistics -->
     <div class="stats-bar">
       <div class="stat-item open">
-        <span class="stat-label">待处理</span>
+        <span class="stat-label">{{ t('errorMonitor.pending') }}</span>
         <span class="stat-value">{{ openCount }}</span>
       </div>
       <div class="stat-item resolved">
-        <span class="stat-label">已解决</span>
+        <span class="stat-label">{{ t('errorMonitor.resolved') }}</span>
         <span class="stat-value">{{ resolvedCount }}</span>
       </div>
     </div>
@@ -118,13 +121,13 @@ onMounted(() => {
     <!-- Filters -->
     <div class="filters">
       <div class="filter-group">
-        <label>状态:</label>
+        <label>{{ t('errorMonitor.statusFilter') }}:</label>
         <select v-model="selectedStatus">
           <option v-for="s in statuses" :key="s.value" :value="s.value">{{ s.label }}</option>
         </select>
       </div>
       <div class="filter-group">
-        <label>类型:</label>
+        <label>{{ t('errorMonitor.typeFilter') }}:</label>
         <select v-model="selectedCategory">
           <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
         </select>
@@ -133,25 +136,25 @@ onMounted(() => {
 
     <!-- Solution Form -->
     <div v-if="showSolutionForm" class="solution-form">
-      <h3>添加解决方案</h3>
+      <h3>{{ t('errorMonitor.addSolution') }}</h3>
       <textarea
         v-model="solutionApproach"
-        placeholder="解决方案描述..."
+        :placeholder="t('errorMonitor.solutionPlaceholder')"
         rows="3"
       ></textarea>
       <input
         v-model="solutionResult"
-        placeholder="执行结果"
+        :placeholder="t('errorMonitor.resultPlaceholder')"
       />
       <div class="form-row">
         <label>
           <input type="checkbox" v-model="solutionSuccess" />
-          成功解决
+          {{ t('errorMonitor.successfullyResolved') }}
         </label>
       </div>
       <div class="form-actions">
-        <button class="btn-cancel" @click="showSolutionForm = false">取消</button>
-        <button class="btn-submit" @click="handleSubmitSolution" :disabled="!solutionApproach.trim()">提交</button>
+        <button class="btn-cancel" @click="showSolutionForm = false">{{ t('common.cancel') }}</button>
+        <button class="btn-submit" @click="handleSubmitSolution" :disabled="!solutionApproach.trim()">{{ t('errorMonitor.submit') }}</button>
       </div>
     </div>
 
@@ -162,13 +165,13 @@ onMounted(() => {
     </div>
 
     <!-- Loading -->
-    <div v-if="errorStore.loading" class="loading">加载中...</div>
+    <div v-if="errorStore.loading" class="loading">{{ t('errorMonitor.loading') }}</div>
 
     <!-- Error List -->
     <div class="error-list">
       <div v-if="filteredErrors.length === 0 && !errorStore.loading" class="empty-state">
-        <p>暂无错误记录</p>
-        <p class="hint">系统运行正常</p>
+        <p>{{ t('errorMonitor.noErrors') }}</p>
+        <p class="hint">{{ t('errorMonitor.normalOperation') }}</p>
       </div>
 
       <div v-for="err in filteredErrors" :key="err.id" class="error-card">
@@ -182,7 +185,7 @@ onMounted(() => {
           <pre>{{ err.context }}</pre>
         </div>
         <div v-if="err.status === 'open'" class="error-actions">
-          <button class="btn-resolve" @click="handleResolveError(err.id)">解决</button>
+          <button class="btn-resolve" @click="handleResolveError(err.id)">{{ t('errorMonitor.resolve') }}</button>
         </div>
       </div>
     </div>

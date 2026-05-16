@@ -282,6 +282,33 @@ export type MessageSchema = {
     executionAgents: string
     errorMessage: string
   }
+  errorMonitor: {
+    pending: string
+    resolved: string
+    ignored: string
+    all: string
+    statusFilter: string
+    typeFilter: string
+    buildError: string
+    runtimeError: string
+    logicError: string
+    dependencyError: string
+    configError: string
+    addSolution: string
+    solutionPlaceholder: string
+    resultPlaceholder: string
+    successfullyResolved: string
+    submit: string
+    loading: string
+    noErrors: string
+    normalOperation: string
+    resolve: string
+    build: string
+    runtime: string
+    logic: string
+    dependency: string
+    config: string
+  }
   botSettings: {
     title: string
     subtitle: string

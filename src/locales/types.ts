@@ -158,6 +158,28 @@ export type MessageSchema = {
     noDataHint: string
     close: string
   }
+  agentTeams: {
+    title: string
+    subtitle: string
+    agents: string
+    thinking: string
+    executing: string
+    successRate: string
+    viewAll: string
+    viewProgress: string
+    viewCollaboration: string
+    viewPets: string
+    syncStatus: string
+    syncConnected: string
+    syncPending: string
+    agentTeam: string
+    syncPanelTitle: string
+    webPlatform: string
+    desktopPlatform: string
+    mobilePlatform: string
+    syncProtocol: string
+    lastSync: string
+  }
   botSettings: {
     title: string
     subtitle: string

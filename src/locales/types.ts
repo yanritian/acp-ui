@@ -449,6 +449,38 @@ export type MessageSchema = {
     match: string
     matches: string
   }
+  orchestration: {
+    title: string
+    subtitle: string
+    runningCompleted: string
+    executionTimeline: string
+    source: string
+    status: string
+    targetSessions: string
+    sessionsCount: string
+    error: string
+    agentOutputs: string
+    noTasks: string
+    noTasksHint: string
+  }
+  capabilityProtocol: {
+    title: string
+    capabilitiesTab: string
+    protocolsTab: string
+    requires: string
+    produces: string
+    participants: string
+    agents: string
+    conditions: string
+    constraints: string
+    more: string
+    input: string
+    output: string
+    proficiencyExpert: string
+    proficiencyAdvanced: string
+    proficiencyIntermediate: string
+    proficiencyBasic: string
+  }
   botSettings: {
     title: string
     subtitle: string

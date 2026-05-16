@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue'
 import { useTeamRuntimeStore } from '../stores/team-runtime'
 import PlanVisualization from './PlanVisualization.vue'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const teamRuntime = useTeamRuntimeStore()
 
@@ -43,14 +46,14 @@ function statusIcon(status: string): string {
   <div class="orchestration-view">
     <!-- Header -->
     <header class="view-header">
-      <h1>Team Orchestration Dashboard</h1>
-      <p class="subtitle">实时监控多Agent任务执行</p>
+      <h1>{{ t('orchestration.title') }}</h1>
+      <p class="subtitle">{{ t('orchestration.subtitle') }}</p>
     </header>
 
     <!-- Running tasks summary -->
     <section class="tasks-summary">
       <h2 class="section-title">
-        运行中: {{ runningTasks.length }} | 已完成: {{ teamRuntime.completedTaskCount }}
+        {{ t('orchestration.runningCompleted', { running: runningTasks.length, completed: teamRuntime.completedTaskCount }) }}
       </h2>
       <div class="task-cards">
         <div
@@ -72,15 +75,15 @@ function statusIcon(status: string): string {
         </div>
         <div v-if="taskList.length === 0" class="empty-state">
           <span class="icon-large">🤖</span>
-          <p>暂无任务</p>
-          <p class="hint">从总会话或多Agent页面创建任务开始</p>
+          <p>{{ t('orchestration.noTasks') }}</p>
+          <p class="hint">{{ t('orchestration.noTasksHint') }}</p>
         </div>
       </div>
     </section>
 
     <!-- Plan Visualization (execution timeline) -->
     <section class="plan-section">
-      <h2 class="section-title">执行时间线</h2>
+      <h2 class="section-title">{{ t('orchestration.executionTimeline') }}</h2>
       <PlanVisualization />
     </section>
 
@@ -92,24 +95,24 @@ function statusIcon(status: string): string {
       </div>
       <div class="detail-content">
         <div class="detail-row">
-          <span class="label">来源:</span>
+          <span class="label">{{ t('orchestration.source') }}:</span>
           <span class="value">{{ selectedTask.source }}</span>
         </div>
         <div class="detail-row">
-          <span class="label">状态:</span>
+          <span class="label">{{ t('orchestration.status') }}:</span>
           <span class="value">{{ selectedTask.status }}</span>
         </div>
         <div class="detail-row">
-          <span class="label">目标会话:</span>
-          <span class="value">{{ selectedTask.targetSessionIds.length }} 个</span>
+          <span class="label">{{ t('orchestration.targetSessions') }}:</span>
+          <span class="value">{{ t('orchestration.sessionsCount', { count: selectedTask.targetSessionIds.length }) }}</span>
         </div>
         <div v-if="selectedTask.error" class="detail-row error-row">
-          <span class="label">错误:</span>
+          <span class="label">{{ t('orchestration.error') }}:</span>
           <span class="value error">{{ selectedTask.error }}</span>
         </div>
         <!-- Outputs -->
         <div v-if="selectedTaskOutputs.length > 0" class="outputs-list">
-          <h4>Agent 输出</h4>
+          <h4>{{ t('orchestration.agentOutputs') }}</h4>
           <div v-for="output in selectedTaskOutputs" :key="output.sessionId" class="output-card" :class="output.status">
             <div class="output-header">
               <span class="output-agent">{{ output.agentName }}</span>

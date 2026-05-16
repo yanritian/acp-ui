@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { AgentCapability, CollaborationProtocol } from '@/lib/collaboration/types'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 // Props
 interface Props {
@@ -62,10 +65,10 @@ function getProficiencyColor(proficiency: number): string {
 }
 
 function getProficiencyText(proficiency: number): string {
-  if (proficiency >= 80) return 'Expert'
-  if (proficiency >= 60) return 'Advanced'
-  if (proficiency >= 40) return 'Intermediate'
-  return 'Basic'
+  if (proficiency >= 80) return t('capabilityProtocol.proficiencyExpert')
+  if (proficiency >= 60) return t('capabilityProtocol.proficiencyAdvanced')
+  if (proficiency >= 40) return t('capabilityProtocol.proficiencyIntermediate')
+  return t('capabilityProtocol.proficiencyBasic')
 }
 </script>
 
@@ -77,7 +80,7 @@ function getProficiencyText(proficiency: number): string {
         <span class="agent-icon">🤖</span>
         <span class="agent-name">{{ agentName }}</span>
       </div>
-      <div class="header-subtitle">Capabilities & Protocols</div>
+      <div class="header-subtitle">{{ t('capabilityProtocol.title') }}</div>
     </div>
 
     <!-- Tab selector -->
@@ -87,7 +90,7 @@ function getProficiencyText(proficiency: number): string {
         @click="activeTab = 'capabilities'"
       >
         <span class="tab-icon">🎯</span>
-        <span class="tab-label">Capabilities</span>
+        <span class="tab-label">{{ t('capabilityProtocol.capabilitiesTab') }}</span>
         <span class="tab-count">{{ capabilities.length }}</span>
       </button>
       <button
@@ -96,7 +99,7 @@ function getProficiencyText(proficiency: number): string {
         @click="activeTab = 'protocols'"
       >
         <span class="tab-icon">📜</span>
-        <span class="tab-label">Protocols</span>
+        <span class="tab-label">{{ t('capabilityProtocol.protocolsTab') }}</span>
         <span class="tab-count">{{ protocols.length }}</span>
       </button>
     </div>
@@ -148,7 +151,7 @@ function getProficiencyText(proficiency: number): string {
 
             <!-- Prerequisites -->
             <div v-if="cap.prerequisites && cap.prerequisites.length > 0" class="cap-prerequisites">
-              <span class="prereq-label">Requires:</span>
+              <span class="prereq-label">{{ t('capabilityProtocol.requires') }}:</span>
               <div class="prereq-list">
                 <span v-for="prereq in cap.prerequisites.slice(0, 2)" :key="prereq" class="prereq-item">
                   {{ prereq }}
@@ -158,7 +161,7 @@ function getProficiencyText(proficiency: number): string {
 
             <!-- Outputs -->
             <div v-if="cap.outputs && cap.outputs.length > 0" class="cap-outputs">
-              <span class="output-label">Produces:</span>
+              <span class="output-label">{{ t('capabilityProtocol.produces') }}:</span>
               <div class="output-list">
                 <span v-for="output in cap.outputs.slice(0, 2)" :key="output" class="output-item">
                   {{ output }}
@@ -186,7 +189,7 @@ function getProficiencyText(proficiency: number): string {
             <span class="protocol-version">v{{ protocol.version }}</span>
           </div>
           <div class="protocol-badge">
-            {{ protocol.participants.length }} agents
+            {{ protocol.participants.length }} {{ t('capabilityProtocol.agents') }}
           </div>
         </div>
 
@@ -196,7 +199,7 @@ function getProficiencyText(proficiency: number): string {
           <div class="contract-section input-contract">
             <div class="contract-label">
               <span class="contract-icon">📥</span>
-              <span>Input</span>
+              <span>{{ t('capabilityProtocol.input') }}</span>
             </div>
             <div class="contract-details">
               <div class="contract-type">{{ protocol.inputContract.type }}</div>
@@ -210,7 +213,7 @@ function getProficiencyText(proficiency: number): string {
           <div class="contract-section output-contract">
             <div class="contract-label">
               <span class="contract-icon">📤</span>
-              <span>Output</span>
+              <span>{{ t('capabilityProtocol.output') }}</span>
             </div>
             <div class="contract-details">
               <div class="contract-type">{{ protocol.outputContract.type }}</div>
@@ -223,20 +226,20 @@ function getProficiencyText(proficiency: number): string {
 
         <!-- Participants -->
         <div class="protocol-participants">
-          <span class="participants-label">Participants:</span>
+          <span class="participants-label">{{ t('capabilityProtocol.participants') }}:</span>
           <div class="participants-list">
             <span v-for="participantId in protocol.participants.slice(0, 3)" :key="participantId" class="participant-badge">
               🤖 {{ participantId }}
             </span>
             <span v-if="protocol.participants.length > 3" class="participant-more">
-              +{{ protocol.participants.length - 3 }} more
+              +{{ protocol.participants.length - 3 }} {{ t('capabilityProtocol.more') }}
             </span>
           </div>
         </div>
 
         <!-- Execution conditions -->
         <div v-if="protocol.executionConditions.length > 0" class="protocol-conditions">
-          <span class="conditions-label">Conditions:</span>
+          <span class="conditions-label">{{ t('capabilityProtocol.conditions') }}:</span>
           <div class="conditions-list">
             <div v-for="condition in protocol.executionConditions.slice(0, 2)" :key="condition.id" class="condition-item">
               <span class="condition-type">{{ condition.type }}</span>
@@ -247,7 +250,7 @@ function getProficiencyText(proficiency: number): string {
 
         <!-- Constraints -->
         <div v-if="protocol.constraints.length > 0" class="protocol-constraints">
-          <span class="constraints-label">Constraints:</span>
+          <span class="constraints-label">{{ t('capabilityProtocol.constraints') }}:</span>
           <div class="constraints-list">
             <div v-for="constraint in protocol.constraints.slice(0, 2)" :key="constraint.id" class="constraint-item">
               <span class="constraint-type">{{ constraint.type }}</span>

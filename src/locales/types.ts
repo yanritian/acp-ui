@@ -253,6 +253,35 @@ export type MessageSchema = {
     send: string
     cancel: string
   }
+  history: {
+    searchPlaceholder: string
+    search: string
+    statusSuccess: string
+    statusFailed: string
+    statusRunning: string
+    statusPending: string
+    exportJson: string
+    exportMarkdown: string
+    totalTasks: string
+    successRate: string
+    averageDuration: string
+    loading: string
+    duration: string
+    seconds: string
+    detail: string
+    delete: string
+    noRecords: string
+    taskDetail: string
+    basicInfo: string
+    taskId: string
+    name: string
+    status: string
+    source: string
+    createdAt: string
+    completedAt: string
+    executionAgents: string
+    errorMessage: string
+  }
   botSettings: {
     title: string
     subtitle: string

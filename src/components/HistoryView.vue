@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useHistoryStore } from '../stores/history'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const historyStore = useHistoryStore()
 
@@ -16,10 +19,10 @@ const statistics = computed(() => historyStore.statistics)
 
 // 状态选项
 const statusOptions = [
-  { value: 'success', label: '成功', color: 'green' },
-  { value: 'failed', label: '失败', color: 'red' },
-  { value: 'running', label: '进行中', color: 'blue' },
-  { value: 'pending', label: '待处理', color: 'gray' },
+  { value: 'success', label: t('history.statusSuccess'), color: 'green' },
+  { value: 'failed', label: t('history.statusFailed'), color: 'red' },
+  { value: 'running', label: t('history.statusRunning'), color: 'blue' },
+  { value: 'pending', label: t('history.statusPending'), color: 'gray' },
 ]
 
 // 加载记录
@@ -127,10 +130,10 @@ onMounted(() => {
       <input
         v-model="searchKeyword"
         type="text"
-        placeholder="搜索任务..."
+        :placeholder="t('history.searchPlaceholder')"
         @keyup.enter="handleSearch"
       />
-      <button @click="handleSearch">搜索</button>
+      <button @click="handleSearch">{{ t('history.search') }}</button>
 
       <div class="filter-group">
         <span
@@ -145,8 +148,8 @@ onMounted(() => {
       </div>
 
       <div class="export-group">
-        <button @click="exportHistory('json')">导出 JSON</button>
-        <button @click="exportHistory('markdown')">导出 Markdown</button>
+        <button @click="exportHistory('json')">{{ t('history.exportJson') }}</button>
+        <button @click="exportHistory('markdown')">{{ t('history.exportMarkdown') }}</button>
       </div>
     </div>
 
@@ -154,21 +157,21 @@ onMounted(() => {
     <div v-if="statistics" class="statistics">
       <div class="stat-item">
         <span class="stat-value">{{ statistics.totalTasks }}</span>
-        <span class="stat-label">总任务数</span>
+        <span class="stat-label">{{ t('history.totalTasks') }}</span>
       </div>
       <div class="stat-item">
         <span class="stat-value">{{ statistics.successRate.toFixed(1) }}%</span>
-        <span class="stat-label">成功率</span>
+        <span class="stat-label">{{ t('history.successRate') }}</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ Math.round(statistics.averageDurationMs / 1000) }}s</span>
-        <span class="stat-label">平均耗时</span>
+        <span class="stat-value">{{ Math.round(statistics.averageDurationMs / 1000) }}{{ t('history.seconds') }}</span>
+        <span class="stat-label">{{ t('history.averageDuration') }}</span>
       </div>
     </div>
 
     <!-- 任务列表 -->
     <div class="task-list">
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading">{{ t('history.loading') }}</div>
 
       <div
         v-for="record in records"
@@ -185,7 +188,7 @@ onMounted(() => {
         <div class="task-meta">
           <span class="meta-item">{{ formatTime(record.createdAt) }}</span>
           <span class="meta-item" v-if="record.completedAt">
-            耗时: {{ Math.round((record.completedAt - record.createdAt) / 1000) }}秒
+            {{ t('history.duration') }}: {{ Math.round((record.completedAt - record.createdAt) / 1000) }}{{ t('history.seconds') }}
           </span>
           <span class="meta-item" v-if="record.agents && record.agents.length > 0">
             {{ record.agents.map(a => a.agentName).join(', ') }}
@@ -193,13 +196,13 @@ onMounted(() => {
         </div>
 
         <div class="task-actions">
-          <button @click="viewDetail(record.id)">详情</button>
-          <button @click="deleteRecord(record.id)">删除</button>
+          <button @click="viewDetail(record.id)">{{ t('history.detail') }}</button>
+          <button @click="deleteRecord(record.id)">{{ t('history.delete') }}</button>
         </div>
       </div>
 
       <div v-if="records.length === 0 && !loading" class="empty-state">
-        暂无历史记录
+        {{ t('history.noRecords') }}
       </div>
     </div>
 
@@ -207,41 +210,41 @@ onMounted(() => {
     <div v-if="showDetailModal" class="modal-overlay" @click.self="closeDetail">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>任务详情</h3>
+          <h3>{{ t('history.taskDetail') }}</h3>
           <button @click="closeDetail">✕</button>
         </div>
 
         <div v-if="historyStore.currentDetail" class="modal-body">
           <div class="detail-section">
-            <h4>基本信息</h4>
+            <h4>{{ t('history.basicInfo') }}</h4>
             <div class="detail-row">
-              <span class="label">任务ID:</span>
+              <span class="label">{{ t('history.taskId') }}:</span>
               <span class="value">{{ historyStore.currentDetail.id }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">名称:</span>
+              <span class="label">{{ t('history.name') }}:</span>
               <span class="value">{{ historyStore.currentDetail.name }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">状态:</span>
+              <span class="label">{{ t('history.status') }}:</span>
               <span class="value">{{ historyStore.currentDetail.status }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">来源:</span>
+              <span class="label">{{ t('history.source') }}:</span>
               <span class="value">{{ historyStore.currentDetail.source }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">创建时间:</span>
+              <span class="label">{{ t('history.createdAt') }}:</span>
               <span class="value">{{ formatTime(historyStore.currentDetail.createdAt) }}</span>
             </div>
             <div class="detail-row" v-if="historyStore.currentDetail.completedAt">
-              <span class="label">完成时间:</span>
+              <span class="label">{{ t('history.completedAt') }}:</span>
               <span class="value">{{ formatTime(historyStore.currentDetail.completedAt) }}</span>
             </div>
           </div>
 
           <div class="detail-section" v-if="historyStore.currentDetail.agents">
-            <h4>执行代理</h4>
+            <h4>{{ t('history.executionAgents') }}</h4>
             <div v-for="agent in historyStore.currentDetail.agents" :key="agent.agentId" class="agent-info">
               <span class="agent-name">{{ agent.agentName }}</span>
               <span class="agent-status">{{ agent.status }}</span>
@@ -249,7 +252,7 @@ onMounted(() => {
           </div>
 
           <div class="detail-section" v-if="historyStore.currentDetail.error">
-            <h4>错误信息</h4>
+            <h4>{{ t('history.errorMessage') }}</h4>
             <div class="error-message">
               {{ historyStore.currentDetail.error.message }}
             </div>
@@ -257,7 +260,7 @@ onMounted(() => {
         </div>
 
         <div v-else class="modal-body loading">
-          加载中...
+          {{ t('history.loading') }}
         </div>
       </div>
     </div>

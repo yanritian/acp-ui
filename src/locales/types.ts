@@ -341,6 +341,45 @@ export type MessageSchema = {
     noMemory: string
     noMemoryHint: string
   }
+  pattern: {
+    highFrequencyPatterns: string
+    usageCount: string
+    category: string
+    newPattern: string
+    patternName: string
+    patternDescription: string
+    patternExamples: string
+    patternExamplesOptional: string
+    categoryCoding: string
+    categoryArchitecture: string
+    categoryTesting: string
+    categorySecurity: string
+    categoryPerformance: string
+    categoryWorkflow: string
+    loading: string
+    noPatterns: string
+    noPatternsHint: string
+    example: string
+    success: string
+    fail: string
+  }
+  evolution: {
+    improvement: string
+    regression: string
+    discovery: string
+    type: string
+    domain: string
+    newEvolution: string
+    domainPlaceholder: string
+    reasonPlaceholder: string
+    beforePlaceholder: string
+    afterPlaceholder: string
+    before: string
+    after: string
+    loading: string
+    noEvolutions: string
+    noEvolutionsHint: string
+  }
   botSettings: {
     title: string
     subtitle: string

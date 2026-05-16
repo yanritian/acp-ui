@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useEvolutionStore } from '../stores/error'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const evolutionStore = useEvolutionStore()
 
@@ -14,15 +17,15 @@ const newBefore = ref('')
 const newAfter = ref('')
 
 const types = [
-  { value: 'all', label: '全部' },
-  { value: 'improvement', label: '改进' },
-  { value: 'regression', label: '退化' },
-  { value: 'discovery', label: '发现' },
+  { value: 'all', label: t('errorMonitor.all') },
+  { value: 'improvement', label: t('evolution.improvement') },
+  { value: 'regression', label: t('evolution.regression') },
+  { value: 'discovery', label: t('evolution.discovery') },
 ]
 
 const domains = computed(() => {
   const unique = new Set(evolutionStore.evolutions.map(e => e.domain))
-  return [{ value: 'all', label: '全部' }, ...Array.from(unique).map(d => ({ value: d, label: d }))]
+  return [{ value: 'all', label: t('errorMonitor.all') }, ...Array.from(unique).map(d => ({ value: d, label: d }))]
 })
 
 const filteredEvolutions = computed(() => {
@@ -70,9 +73,9 @@ function formatTime(s: string): string {
 
 function getTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    improvement: '改进',
-    regression: '退化',
-    discovery: '发现',
+    improvement: t('evolution.improvement'),
+    regression: t('evolution.regression'),
+    discovery: t('evolution.discovery'),
   }
   return labels[type] || type
 }
@@ -87,15 +90,15 @@ onMounted(() => {
     <!-- Statistics -->
     <div class="stats-bar">
       <div class="stat-item improvement">
-        <span class="stat-label">改进</span>
+        <span class="stat-label">{{ t('evolution.improvement') }}</span>
         <span class="stat-value">{{ improvementCount }}</span>
       </div>
       <div class="stat-item regression">
-        <span class="stat-label">退化</span>
+        <span class="stat-label">{{ t('evolution.regression') }}</span>
         <span class="stat-value">{{ regressionCount }}</span>
       </div>
       <div class="stat-item discovery">
-        <span class="stat-label">发现</span>
+        <span class="stat-label">{{ t('evolution.discovery') }}</span>
         <span class="stat-value">{{ discoveryCount }}</span>
       </div>
     </div>
@@ -103,54 +106,54 @@ onMounted(() => {
     <!-- Filters -->
     <div class="filters">
       <div class="filter-group">
-        <label>类型:</label>
+        <label>{{ t('evolution.type') }}:</label>
         <select v-model="selectedType">
-          <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
+          <option v-for="t_item in types" :key="t_item.value" :value="t_item.value">{{ t_item.label }}</option>
         </select>
       </div>
       <div class="filter-group">
-        <label>领域:</label>
+        <label>{{ t('evolution.domain') }}:</label>
         <select v-model="selectedDomain">
           <option v-for="d in domains" :key="d.value" :value="d.value">{{ d.label }}</option>
         </select>
       </div>
       <button class="btn-add" @click="showAddForm = !showAddForm">
-        {{ showAddForm ? '取消' : '+ 记录进化' }}
+        {{ showAddForm ? t('memory.cancel') : t('evolution.newEvolution') }}
       </button>
     </div>
 
     <!-- Add Form -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-row">
-        <label>类型:</label>
+        <label>{{ t('evolution.type') }}:</label>
         <select v-model="newEvolutionType">
-          <option value="improvement">改进</option>
-          <option value="regression">退化</option>
-          <option value="discovery">发现</option>
+          <option value="improvement">{{ t('evolution.improvement') }}</option>
+          <option value="regression">{{ t('evolution.regression') }}</option>
+          <option value="discovery">{{ t('evolution.discovery') }}</option>
         </select>
       </div>
       <input
         v-model="newDomain"
-        placeholder="领域 (如: 代码质量、效率、安全性)"
+        :placeholder="t('evolution.domainPlaceholder')"
       />
       <textarea
         v-model="newReason"
-        placeholder="原因/说明..."
+        :placeholder="t('evolution.reasonPlaceholder')"
         rows="2"
       ></textarea>
       <textarea
         v-model="newBefore"
-        placeholder="变更前状态 (可选)"
+        :placeholder="t('evolution.beforePlaceholder')"
         rows="2"
       ></textarea>
       <textarea
         v-model="newAfter"
-        placeholder="变更后状态 (可选)"
+        :placeholder="t('evolution.afterPlaceholder')"
         rows="2"
       ></textarea>
       <div class="form-actions">
         <button class="btn-submit" @click="handleAddEvolution" :disabled="!newReason.trim() || !newDomain.trim()">
-          保存
+          {{ t('memory.save') }}
         </button>
       </div>
     </div>
@@ -162,13 +165,13 @@ onMounted(() => {
     </div>
 
     <!-- Loading -->
-    <div v-if="evolutionStore.loading" class="loading">加载中...</div>
+    <div v-if="evolutionStore.loading" class="loading">{{ t('evolution.loading') }}</div>
 
     <!-- Evolution List -->
     <div class="evolution-list">
       <div v-if="filteredEvolutions.length === 0 && !evolutionStore.loading" class="empty-state">
-        <p>暂无进化记录</p>
-        <p class="hint">系统正在持续学习和改进</p>
+        <p>{{ t('evolution.noEvolutions') }}</p>
+        <p class="hint">{{ t('evolution.noEvolutionsHint') }}</p>
       </div>
 
       <div v-for="evo in filteredEvolutions" :key="evo.id" class="evolution-card">
@@ -180,11 +183,11 @@ onMounted(() => {
         <div class="evolution-reason">{{ evo.reason }}</div>
         <div v-if="evo.before || evo.after" class="evolution-diff">
           <div v-if="evo.before" class="before">
-            <span class="label">变更前:</span>
+            <span class="label">{{ t('evolution.before') }}:</span>
             <pre>{{ evo.before }}</pre>
           </div>
           <div v-if="evo.after" class="after">
-            <span class="label">变更后:</span>
+            <span class="label">{{ t('evolution.after') }}:</span>
             <pre>{{ evo.after }}</pre>
           </div>
         </div>

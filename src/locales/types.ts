@@ -130,6 +130,11 @@ export type MessageSchema = {
     title: string
     noTaskGraph: string
     startTaskHint: string
+    taskDetails: string
+    name: string
+    dependencies: string
+    agent: string
+    none: string
     parseRequest: string
     designArchitecture: string
     writeTests: string

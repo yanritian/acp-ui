@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import type { TaskDAG } from '@/lib/task-parser';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 interface GraphNode {
   id: string;
@@ -254,27 +257,27 @@ onMounted(() => {
   <div class="task-graph-container">
     <!-- Header with legend -->
     <div class="graph-header">
-      <h3 class="graph-title">Task Graph</h3>
+      <h3 class="graph-title">{{ t('taskGraph.title') }}</h3>
       <div class="legend">
         <span class="legend-item">
           <span class="legend-dot pending"></span>
-          <span>Pending</span>
+          <span>{{ t('common.pending') }}</span>
         </span>
         <span class="legend-item">
           <span class="legend-dot running"></span>
-          <span>Running</span>
+          <span>{{ t('common.running') }}</span>
         </span>
         <span class="legend-item">
           <span class="legend-dot completed"></span>
-          <span>Completed</span>
+          <span>{{ t('common.completed') }}</span>
         </span>
         <span class="legend-item">
           <span class="legend-dot failed"></span>
-          <span>Failed</span>
+          <span>{{ t('common.failed') }}</span>
         </span>
         <span class="legend-item">
           <span class="legend-dot blocked"></span>
-          <span>Blocked</span>
+          <span>{{ t('common.blocked') }}</span>
         </span>
       </div>
     </div>
@@ -283,8 +286,8 @@ onMounted(() => {
     <div class="graph-content">
       <div v-if="!dag || nodes.length === 0" class="empty-state">
         <div class="empty-icon">📊</div>
-        <div class="empty-text">No task graph to display</div>
-        <div class="empty-hint">Start a task to see the DAG visualization</div>
+        <div class="empty-text">{{ t('taskGraph.noTaskGraph') }}</div>
+        <div class="empty-hint">{{ t('taskGraph.startTaskHint') }}</div>
       </div>
 
       <svg
@@ -425,25 +428,25 @@ onMounted(() => {
     >
       <div class="detail-panel">
         <div class="detail-header">
-          <h4>Task Details</h4>
+          <h4>{{ t('taskGraph.taskDetails') }}</h4>
           <button @click="selectedNode = null" class="close-btn">×</button>
         </div>
         <div class="detail-body">
           <template v-for="node in nodes.filter(n => n.id === selectedNode)" :key="node.id">
             <div class="detail-row">
-              <label>Name</label>
+              <label>{{ t('taskGraph.name') }}</label>
               <span class="detail-value">{{ node.name }}</span>
             </div>
             <div class="detail-row">
-              <label>Status</label>
-              <span :class="['status-tag', node.status]">{{ node.status }}</span>
+              <label>{{ t('common.status') }}</label>
+              <span :class="['status-tag', node.status]">{{ t(`common.${node.status}`) }}</span>
             </div>
             <div class="detail-row">
-              <label>Dependencies</label>
-              <span class="detail-value">{{ node.dependencies.length > 0 ? node.dependencies.join(', ') : 'None' }}</span>
+              <label>{{ t('taskGraph.dependencies') }}</label>
+              <span class="detail-value">{{ node.dependencies.length > 0 ? node.dependencies.join(', ') : t('taskGraph.none') }}</span>
             </div>
             <div v-if="node.agent" class="detail-row">
-              <label>Agent</label>
+              <label>{{ t('taskGraph.agent') }}</label>
               <span class="detail-value">{{ node.agent }}</span>
             </div>
           </template>

@@ -407,16 +407,16 @@ function clearError() {
           
           <!-- Working Directory Picker -->
           <div class="cwd-picker">
-            <label>Working Directory:</label>
+            <label>{{ t('common.workingDirectory') }}</label>
             <!-- Desktop: read-only display + folder picker. -->
             <div v-if="folderPickerAvailable" class="cwd-row">
               <span class="cwd-path" :title="selectedCwd || 'Current directory'">
                 {{ selectedCwd ? selectedCwd.split(/[\\/]/).pop() : '.' }}
               </span>
-              <button 
-                class="cwd-btn" 
+              <button
+                class="cwd-btn"
                 @click="handleSelectFolder"
-                title="Select folder"
+                :title="t('common.selectFolder')"
                 :disabled="isConnecting || isConnected"
               >
                 📁
@@ -432,20 +432,20 @@ function clearError() {
               :value="selectedCwd"
               @input="handleCwdInput"
               :disabled="isConnecting || isConnected"
-              placeholder="/absolute/path/on/agent"
+              :placeholder="t('common.inputPlaceholder')"
               autocapitalize="none"
               autocorrect="off"
               spellcheck="false"
             />
           </div>
-          
-          <button 
+
+          <button
             v-if="hasAgents && !isConnected && !isConnecting"
             class="new-session-btn"
             :disabled="!selectedAgent || isLoading"
             @click="handleNewSession"
           >
-            {{ isLoading ? 'Connecting...' : 'New Session' }}
+            {{ isLoading ? t('common.connecting') : t('common.newSession') }}
           </button>
           
           <!-- Startup Progress -->
@@ -465,10 +465,10 @@ function clearError() {
             class="disconnect-btn"
             @click="handleDisconnect"
           >
-            Disconnect
+            {{ t('common.disconnect') }}
           </button>
         </div>
-        
+
         <!-- Session List -->
         <div class="section">
           <SessionList
@@ -560,24 +560,24 @@ function clearError() {
         <!-- Multi-Agent Chat View -->
         <MultiAgentChat v-else-if="currentView === 'multi-agent'" />
 
-        <!-- Multi-Session View (总会话) -->
+        <!-- Multi-Session View -->
         <MultiSessionChat v-else-if="currentView === 'multi-session'" />
 
         <!-- Agent Status Panel -->
         <div v-else-if="currentView === 'status'" class="view-container">
-          <h3>Agent 连接池</h3>
+          <h3>{{ t('navigation.status') }}</h3>
           <div class="status-stats">
             <div class="stat-card">
               <span class="stat-value">{{ teamRuntime.activeTaskCount }}</span>
-              <span class="stat-label">运行中任务</span>
+              <span class="stat-label">{{ t('common.runningTasks') }}</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ teamRuntime.completedTaskCount }}</span>
-              <span class="stat-label">已完成任务</span>
+              <span class="stat-label">{{ t('common.completedTasks') }}</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ teamRuntime.taskList.length }}</span>
-              <span class="stat-label">总任务数</span>
+              <span class="stat-label">{{ t('common.totalTasks') }}</span>
             </div>
           </div>
           <div v-if="teamRuntime.taskList.length > 0" class="task-list">
@@ -588,13 +588,13 @@ function clearError() {
             </div>
           </div>
           <div v-else class="empty-state">
-            <p>暂无任务</p>
+            <p>{{ t('common.noTasks') }}</p>
           </div>
         </div>
 
         <!-- Realtime Monitor -->
         <div v-else-if="currentView === 'monitor'" class="view-container">
-          <h3>实时事件</h3>
+          <h3>{{ t('navigation.monitor') }}</h3>
           <div v-if="teamRuntime.events.length > 0" class="event-list">
             <div v-for="event in teamRuntime.events.slice(0, 50)" :key="event.id" class="event-item">
               <span class="event-type">{{ event.type }}</span>
@@ -603,7 +603,7 @@ function clearError() {
             </div>
           </div>
           <div v-else class="empty-state">
-            <p>暂无事件</p>
+            <p>{{ t('common.noEvents') }}</p>
           </div>
           <TrafficMonitor />
         </div>
@@ -649,28 +649,28 @@ function clearError() {
 
         <!-- Welcome screen when not connected in chat view -->
         <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">
-          <h2>Welcome to ACP UI</h2>
-          <p>Select an agent and create a new session to get started.</p>
+          <h2>{{ t('common.welcomeTitle') }}</h2>
+          <p>{{ t('common.welcomeSubtitle') }}</p>
           <p v-if="!hasAgents" class="hint">
-            Configure agents in your config file to begin.
-          </p>
+            {{ t('common.welcomeHint') }}
+            </p>
         </div>
 
         <!-- Default state for other views -->
         <div v-else class="welcome-screen">
-          <h2>Agent Teams Platform</h2>
-          <p>请先连接代理以使用此功能</p>
+          <h2>{{ t('navigation.agentTeams') }}</h2>
+          <p>{{ t('common.pleaseConnect') }}</p>
         </div>
       </main>
-      
+
       <!-- Traffic Monitor Panel -->
       <div v-if="showTrafficMonitor" class="traffic-panel">
         <TrafficMonitor @close="showTrafficMonitor = false" />
       </div>
     </div>
-    
+
     <!-- Permission Dialog -->
-    <PermissionDialog 
+    <PermissionDialog
       v-if="pendingPermission"
       :request="pendingPermission"
       @select="handlePermissionSelect"

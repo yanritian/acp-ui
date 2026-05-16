@@ -5,6 +5,9 @@ import { addAgent, removeAgent, updateAgent } from '../lib/host';
 import { getTransportKind, type AgentTransportKind } from '../lib/types';
 import { restrictedTransports } from '../lib/platform';
 import EnvVarEditor from './EnvVarEditor.vue';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -123,13 +126,13 @@ async function handleSubmit() {
   formError.value = '';
 
   if (!formName.value.trim()) {
-    formError.value = 'Name is required';
+    formError.value = t('settings.name') + ' is required';
     return;
   }
 
   // Validate agent name is not purely numeric (JavaScript object key ordering issue)
   if (/^\d+$/.test(formName.value)) {
-    formError.value = 'Agent name cannot be purely numeric';
+    formError.value = t('settings.numericName');
     return;
   }
 
@@ -138,7 +141,7 @@ async function handleSubmit() {
 
   if (isRemote) {
     if (!formUrl.value.trim()) {
-      formError.value = 'URL is required for remote agents';
+      formError.value = t('settings.urlRequired');
       return;
     }
     const lower = formUrl.value.trim().toLowerCase();
@@ -152,7 +155,7 @@ async function handleSubmit() {
     }
   } else {
     if (!formCommand.value.trim()) {
-      formError.value = 'Command is required';
+      formError.value = t('settings.commandRequired');
       return;
     }
   }
@@ -177,7 +180,7 @@ async function handleSubmit() {
     } else {
       // Check for duplicates
       if (configStore.config.agents[formName.value]) {
-        formError.value = 'An agent with this name already exists';
+        formError.value = t('settings.duplicateName');
         isSubmitting.value = false;
         return;
       }
@@ -193,7 +196,7 @@ async function handleSubmit() {
 }
 
 async function handleDelete(name: string) {
-  if (!confirm(`Delete agent "${name}"?`)) return;
+  if (!confirm(t('settings.deleteConfirm', { name }))) return;
 
   try {
     const newConfig = await removeAgent(name);
@@ -208,25 +211,25 @@ async function handleDelete(name: string) {
   <div class="settings-overlay" @click.self="emit('close')">
     <div class="settings-panel">
       <div class="settings-header">
-        <h2>Settings</h2>
+        <h2>{{ t('settings.title') }}</h2>
         <button class="close-btn" @click="emit('close')">✕</button>
       </div>
 
       <div class="settings-content">
         <section class="agents-section">
           <div class="section-header">
-            <h3>Agents</h3>
+            <h3>{{ t('settings.agents') }}</h3>
             <button class="add-btn" @click="startAdd" :disabled="showAddForm">
-              + Add Agent
+              {{ t('settings.addAgent') }}
             </button>
           </div>
 
           <!-- Add/Edit Form -->
           <div v-if="showAddForm || editingAgent" class="agent-form">
-            <h4>{{ editingAgent ? 'Edit Agent' : 'Add New Agent' }}</h4>
+            <h4>{{ editingAgent ? t('settings.editAgent') : t('settings.addAgent') }}</h4>
 
             <div class="form-group">
-              <label>Name</label>
+              <label>{{ t('settings.name') }}</label>
               <input
                 v-model="formName"
                 type="text"
@@ -236,18 +239,18 @@ async function handleDelete(name: string) {
             </div>
 
             <div class="form-group">
-              <label>Transport</label>
+              <label>{{ t('settings.transport') }}</label>
               <select v-model="formTransport">
-                <option v-if="!restricted" value="stdio">stdio (local subprocess)</option>
-                <option value="websocket">websocket (remote)</option>
-                <option value="http">http (remote)</option>
+                <option v-if="!restricted" value="stdio">{{ t('settings.stdioTransport') }}</option>
+                <option value="websocket">{{ t('settings.websocketTransport') }}</option>
+                <option value="http">{{ t('settings.httpTransport') }}</option>
               </select>
-              <small v-if="restricted">stdio is not available on this platform.</small>
+              <small v-if="restricted">{{ t('settings.stdioNotAvailable') }}</small>
             </div>
 
             <template v-if="formTransport === 'stdio'">
               <div class="form-group">
-                <label>Command</label>
+                <label>{{ t('settings.command') }}</label>
                 <input
                   v-model="formCommand"
                   type="text"
@@ -256,13 +259,13 @@ async function handleDelete(name: string) {
               </div>
 
               <div class="form-group">
-                <label>Arguments</label>
+                <label>{{ t('settings.arguments') }}</label>
                 <input
                   v-model="formArgs"
                   type="text"
                   placeholder="-y @example/agent"
                 />
-                <small>Space-separated. Use quotes for args with spaces.</small>
+                <small>{{ t('settings.argsHint') }}</small>
               </div>
 
               <div class="form-group">
@@ -272,24 +275,22 @@ async function handleDelete(name: string) {
 
             <template v-else>
               <div class="form-group">
-                <label>URL</label>
+                <label>{{ t('settings.url') }}</label>
                 <input
                   v-model="formUrl"
                   type="text"
                   :placeholder="formTransport === 'websocket' ? 'wss://acp.example.com/v1' : 'https://acp.example.com/v1'"
                 />
                 <small>
-                  {{ formTransport === 'websocket' ? 'WebSocket endpoint (ws:// or wss://)' : 'Streamable HTTP endpoint (http:// or https://)' }}
+                  {{ formTransport === 'websocket' ? t('settings.wsUrlHint') : t('settings.httpUrlHint') }}
                 </small>
               </div>
 
               <div class="form-group">
-                <label>Headers</label>
+                <label>{{ t('settings.headers') }}</label>
                 <EnvVarEditor v-model="formHeaders" />
                 <small>
-                  Authorization headers are sent over the connection. Browser WebSocket APIs
-                  cannot attach arbitrary HTTP headers; an <code>Authorization: Bearer &lt;token&gt;</code>
-                  header is forwarded as a <code>bearer.&lt;token&gt;</code> WebSocket subprotocol.
+                  {{ t('settings.headersHint') }}
                 </small>
               </div>
             </template>
@@ -304,10 +305,10 @@ async function handleDelete(name: string) {
                 @click="handleSubmit"
                 :disabled="isSubmitting"
               >
-                {{ isSubmitting ? 'Saving...' : 'Save' }}
+                {{ isSubmitting ? t('settings.saving') : t('settings.save') }}
               </button>
               <button class="cancel-btn" @click="resetForm">
-                Cancel
+                {{ t('settings.cancel') }}
               </button>
             </div>
           </div>
@@ -331,24 +332,24 @@ async function handleDelete(name: string) {
               </div>
               <div class="agent-actions">
                 <button class="edit-btn" @click="startEdit(agent)">
-                  Edit
+                  {{ t('common.edit') }}
                 </button>
                 <button class="delete-btn" @click="handleDelete(agent.name)">
-                  Delete
+                  {{ t('settings.delete') }}
                 </button>
               </div>
             </div>
 
             <div v-if="agents.length === 0" class="no-agents">
-              No agents configured. Add one to get started!
+              {{ t('settings.noAgents') }}
             </div>
           </div>
         </section>
 
         <section class="config-section">
-          <h3>Config File</h3>
+          <h3>{{ t('settings.configSection') }}</h3>
           <p class="config-path">{{ configStore.configPath }}</p>
-          <small>Changes to this file are automatically reloaded.</small>
+          <small>{{ t('settings.configReload') }}</small>
         </section>
       </div>
     </div>

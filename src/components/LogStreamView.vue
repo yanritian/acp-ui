@@ -2,6 +2,9 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useI18n } from '@/locales';
+
+const { t } = useI18n();
 
 interface LogEntry {
   id: string;
@@ -224,14 +227,14 @@ onUnmounted(() => {
     ></div>
 
     <div class="log-header">
-      <span class="title">📋 Agent Logs</span>
+      <span class="title">{{ t('logStream.title') }}</span>
 
       <div class="controls">
         <button
           class="control-btn"
           :class="{ active: isPaused }"
           @click="togglePause()"
-          :title="isPaused ? 'Resume' : 'Pause'"
+          :title="isPaused ? t('logStream.resume') : t('logStream.pause')"
         >
           {{ isPaused ? '▶' : '⏸' }}
         </button>
@@ -239,7 +242,7 @@ onUnmounted(() => {
         <button
           class="control-btn"
           @click="clearLogs()"
-          title="Clear"
+          :title="t('logStream.clear')"
         >
           🗑
         </button>
@@ -249,7 +252,7 @@ onUnmounted(() => {
           <input
             type="text"
             class="search-input"
-            placeholder="Search logs..."
+            :placeholder="t('logStream.searchPlaceholder')"
             v-model="searchKeyword"
           />
           <button
@@ -263,14 +266,14 @@ onUnmounted(() => {
         </div>
 
         <span v-if="searchKeyword" class="match-count">
-          {{ filteredLogs.length }} match{{ filteredLogs.length === 1 ? '' : 'es' }}
+          {{ filteredLogs.length }} {{ filteredLogs.length === 1 ? t('logStream.match') : t('logStream.matches') }}
         </span>
 
         <select
           class="filter-select"
           v-model="selectedType"
         >
-          <option value="all">All Types</option>
+          <option value="all">{{ t('logStream.allTypes') }}</option>
           <option value="compile">Compile</option>
           <option value="debug">Debug</option>
           <option value="network">Network</option>
@@ -284,7 +287,7 @@ onUnmounted(() => {
           class="filter-select agent-select"
           v-model="selectedAgent"
         >
-          <option value="all">All Agents</option>
+          <option value="all">{{ t('logStream.allAgents') }}</option>
           <!-- Agent options would be populated dynamically -->
         </select>
       </div>
@@ -324,16 +327,16 @@ onUnmounted(() => {
       </div>
 
       <div v-if="filteredLogs.length === 0" class="empty-state">
-        No logs captured yet. Start an agent to see logs.
+        {{ t('logStream.noLogs') }}
       </div>
     </div>
 
     <div v-if="isPaused" class="paused-indicator">
-      ⏸ Paused - {{ logs.length }} logs buffered
+      {{ t('logStream.paused') }} - {{ logs.length }} {{ t('logStream.buffered') }}
     </div>
 
     <div class="log-count">
-      {{ filteredLogs.length }} logs
+      {{ filteredLogs.length }} {{ t('logStream.logsCount') }}
     </div>
   </div>
 </template>

@@ -380,6 +380,75 @@ export type MessageSchema = {
     noEvolutions: string
     noEvolutionsHint: string
   }
+  workflow: {
+    title: string
+    createWorkflow: string
+    running: string
+    allWorkflows: string
+    steps: string
+    run: string
+    cancel: string
+    delete: string
+    noWorkflows: string
+    noWorkflowsHint: string
+    newName: string
+    newDescription: string
+    namePlaceholder: string
+    descriptionPlaceholder: string
+    stepPlaceholder: string
+    promptPlaceholder: string
+    defaultAgent: string
+    addStep: string
+    unnamed: string
+  }
+  settings: {
+    title: string
+    agents: string
+    addAgent: string
+    editAgent: string
+    name: string
+    transport: string
+    command: string
+    arguments: string
+    url: string
+    headers: string
+    save: string
+    saving: string
+    cancel: string
+    delete: string
+    deleteConfirm: string
+    noAgents: string
+    configSection: string
+    configPath: string
+    configReload: string
+    stdioTransport: string
+    websocketTransport: string
+    httpTransport: string
+    stdioNotAvailable: string
+    urlRequired: string
+    commandRequired: string
+    wsUrlHint: string
+    httpUrlHint: string
+    argsHint: string
+    headersHint: string
+    duplicateName: string
+    numericName: string
+  }
+  logStream: {
+    title: string
+    searchPlaceholder: string
+    allTypes: string
+    allAgents: string
+    pause: string
+    resume: string
+    clear: string
+    paused: string
+    buffered: string
+    noLogs: string
+    logsCount: string
+    match: string
+    matches: string
+  }
   botSettings: {
     title: string
     subtitle: string

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useWorkflowsStore, type WorkflowStep } from '../stores/workflows'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const workflowStore = useWorkflowsStore()
 
@@ -88,15 +91,15 @@ function getStatusIcon(status: string): string {
 <template>
   <div class="workflow-view">
     <div class="workflow-header">
-      <h3>工作流管理</h3>
+      <h3>{{ t('workflow.title') }}</h3>
       <button class="create-btn" @click="showCreateModal = true" :disabled="!workflowStore.hasAgents()">
-        + 新建工作流
+        {{ t('workflow.createWorkflow') }}
       </button>
     </div>
 
     <!-- Running executions -->
     <div v-if="runningExecutions.length > 0" class="workflow-section">
-      <h4>运行中</h4>
+      <h4>{{ t('workflow.running') }}</h4>
       <div class="workflow-list">
         <div v-for="item in runningExecutions" :key="item.id" class="workflow-card running">
           <div class="card-title">
@@ -106,11 +109,11 @@ function getStatusIcon(status: string): string {
           <div class="card-steps">
             <span v-for="step in item.steps" :key="step.id" class="step-badge"
                   :class="item.execution.stepResults.get(step.id)?.status">
-              {{ step.name || '未命名' }}
+              {{ step.name || t('workflow.unnamed') }}
             </span>
           </div>
           <div class="card-actions">
-            <button @click="workflowStore.cancelWorkflow(item.id)">取消</button>
+            <button @click="workflowStore.cancelWorkflow(item.id)">{{ t('workflow.cancel') }}</button>
           </div>
         </div>
       </div>
@@ -118,7 +121,7 @@ function getStatusIcon(status: string): string {
 
     <!-- All workflows -->
     <div class="workflow-section">
-      <h4>所有工作流</h4>
+      <h4>{{ t('workflow.allWorkflows') }}</h4>
       <div class="workflow-list">
         <div v-for="wf in workflowStore.workflows" :key="wf.id" class="workflow-card" :class="getExecutionStatus(wf.id)">
           <div class="card-title">
@@ -126,24 +129,24 @@ function getStatusIcon(status: string): string {
             <span class="card-name">{{ wf.name }}</span>
           </div>
           <div class="card-meta">
-            <span>{{ wf.steps.length }} 步骤</span>
+            <span>{{ wf.steps.length }} {{ t('workflow.steps') }}</span>
             <span>{{ formatTime(wf.createdAt) }}</span>
           </div>
           <div class="card-actions">
             <button v-if="getExecutionStatus(wf.id) === 'idle'" @click="workflowStore.runWorkflow(wf.id)" :disabled="!workflowStore.hasAgents()">
-              运行
+              {{ t('workflow.run') }}
             </button>
             <button v-if="getExecutionStatus(wf.id) === 'running'" @click="workflowStore.cancelWorkflow(wf.id)">
-              取消
+              {{ t('workflow.cancel') }}
             </button>
-            <button @click="workflowStore.deleteWorkflow(wf.id)">删除</button>
+            <button @click="workflowStore.deleteWorkflow(wf.id)">{{ t('workflow.delete') }}</button>
           </div>
         </div>
       </div>
 
       <div v-if="workflowStore.workflows.length === 0" class="empty-state">
-        <p>暂无工作流</p>
-        <p class="hint">点击 "新建工作流" 创建第一个工作流</p>
+        <p>{{ t('workflow.noWorkflows') }}</p>
+        <p class="hint">{{ t('workflow.noWorkflowsHint') }}</p>
       </div>
     </div>
 
@@ -151,39 +154,39 @@ function getStatusIcon(status: string): string {
     <div v-if="showCreateModal" class="modal-overlay" @click.self="resetForm">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>新建工作流</h3>
+          <h3>{{ t('workflow.newName') }}</h3>
           <button @click="resetForm">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>名称</label>
-            <input v-model="newWorkflowName" type="text" placeholder="工作流名称" />
+            <label>{{ t('workflow.newDescription') }}</label>
+            <input v-model="newWorkflowName" type="text" :placeholder="t('workflow.namePlaceholder')" />
           </div>
           <div class="form-group">
-            <label>描述</label>
-            <textarea v-model="newWorkflowDescription" placeholder="描述（可选）" rows="2"></textarea>
+            <label>{{ t('workflow.descriptionPlaceholder') }}</label>
+            <textarea v-model="newWorkflowDescription" :placeholder="t('workflow.descriptionPlaceholder')" rows="2"></textarea>
           </div>
           <div class="form-group">
-            <label>步骤</label>
+            <label>{{ t('workflow.steps') }}</label>
             <div v-for="(step, i) in newSteps" :key="step.id" class="step-editor">
               <div class="step-header">
-                <span>步骤 {{ i + 1 }}</span>
+                <span>{{ t('workflow.steps') }} {{ i + 1 }}</span>
                 <button class="step-remove" @click="removeStep(i)">✕</button>
               </div>
-              <input v-model="step.name" placeholder="步骤名称" />
-              <textarea v-model="step.prompt" placeholder="Prompt 内容" rows="2"></textarea>
+              <input v-model="step.name" :placeholder="t('workflow.stepPlaceholder')" />
+              <textarea v-model="step.prompt" :placeholder="t('workflow.promptPlaceholder')" rows="2"></textarea>
               <div class="step-options">
                 <select v-model="step.agentName">
-                  <option value="">使用默认 Agent</option>
+                  <option value="">{{ t('workflow.defaultAgent') }}</option>
                 </select>
               </div>
             </div>
-            <button class="add-step-btn" @click="addStep">+ 添加步骤</button>
+            <button class="add-step-btn" @click="addStep">{{ t('workflow.addStep') }}</button>
           </div>
           <div class="form-actions">
-            <button class="cancel-btn" @click="resetForm">取消</button>
+            <button class="cancel-btn" @click="resetForm">{{ t('workflow.cancel') }}</button>
             <button class="submit-btn" @click="handleCreate" :disabled="!newWorkflowName.trim() || newSteps.length === 0">
-              创建
+              {{ t('workflow.createWorkflow').replace('+ ', '') }}
             </button>
           </div>
         </div>

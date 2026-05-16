@@ -278,12 +278,12 @@ async function handleNewSession() {
   // a helpful error rather than letting the agent reject `session/new`.
   const cwd = selectedCwd.value.trim();
   if (!cwd) {
-    sessionStore.error = 'Please enter a working directory (absolute path on the agent\u2019s machine).';
+    sessionStore.error = t('errors.workingDirectoryRequired');
     return;
   }
   const isAbsolute = cwd.startsWith('/') || /^[A-Za-z]:[\\/]/.test(cwd);
   if (!isAbsolute) {
-    sessionStore.error = `Working directory must be an absolute path (got: ${cwd}).`;
+    sessionStore.error = t('errors.workingDirectoryNotAbsolute', { path: cwd });
     return;
   }
 

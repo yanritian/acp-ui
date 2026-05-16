@@ -29,6 +29,7 @@ import EnhancedHermesDashboard from './components/EnhancedHermesDashboard.vue';
 import TaskGraphView from './components/TaskGraphView.vue';
 import LogStreamView from './components/LogStreamView.vue';
 import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
+import BotSettings from './components/BotSettings.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import { taskParser, type TaskDAG } from './lib/task-parser'
@@ -599,13 +600,7 @@ function clearError() {
         <TeamOrchestrationView v-else-if="currentView === 'orchestration'" />
 
         <!-- Bot Settings View -->
-        <div v-else-if="currentView === 'bot'" class="view-container">
-          <h3>Bot 配置</h3>
-          <div class="empty-state">
-            <p>Bot 功能正在开发中</p>
-            <p class="hint">当前 BotManager 仅支持事件发射，实际执行功能将在后续版本实现</p>
-          </div>
-        </div>
+        <BotSettings v-else-if="currentView === 'bot'" />
 
         <!-- Gateway Settings View -->
         <GatewaySettings v-else-if="currentView === 'gateway'" />

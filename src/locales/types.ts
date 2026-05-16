@@ -497,6 +497,19 @@ export type MessageSchema = {
     noAgentsFound: string
     addAgentsTo: string
   }
+  multiAgent: {
+    selectAgent: string
+    selectAll: string
+    clearAll: string
+    addAgentHint: string
+    singleAgent: string
+    broadcast: string
+    startConversation: string
+    addAgentWarning: string
+    processing: string
+    inputPlaceholder: string
+    send: string
+  }
   botSettings: {
     title: string
     subtitle: string

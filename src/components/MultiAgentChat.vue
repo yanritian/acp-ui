@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import { useTeamRuntimeStore } from '../stores/team-runtime'
 import { useConfigStore } from '../stores/config'
 import type { TeamRoutingMode, TeamAgentSelection } from '../lib/team-service/types'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const teamRuntime = useTeamRuntimeStore()
 const configStore = useConfigStore()
@@ -81,10 +84,10 @@ async function sendMessage() {
     <!-- Agent selection -->
     <div class="agent-selector">
       <div class="selector-header">
-        <span>选择 Agent:</span>
+        <span>{{ t('multiAgent.selectAgent') }}</span>
         <div class="selector-actions">
-          <button class="action-btn" @click="selectAll">全选</button>
-          <button class="action-btn" @click="clearAll">清空</button>
+          <button class="action-btn" @click="selectAll">{{ t('multiAgent.selectAll') }}</button>
+          <button class="action-btn" @click="clearAll">{{ t('multiAgent.clearAll') }}</button>
         </div>
       </div>
       <div class="agent-chips">
@@ -98,7 +101,7 @@ async function sendMessage() {
           {{ name }}
         </button>
         <p v-if="!hasAgents" class="no-agents">
-          请先在设置中添加 Agent
+          {{ t('multiAgent.addAgentHint') }}
         </p>
       </div>
     </div>
@@ -106,22 +109,22 @@ async function sendMessage() {
     <!-- Routing mode -->
     <div class="routing-mode">
       <label>
-        <input type="radio" v-model="routingMode" value="single" /> 单 Agent
+        <input type="radio" v-model="routingMode" value="single" /> {{ t('multiAgent.singleAgent') }}
       </label>
       <label>
-        <input type="radio" v-model="routingMode" value="broadcast" /> 广播 (所有选中 Agent)
+        <input type="radio" v-model="routingMode" value="broadcast" /> {{ t('multiAgent.broadcast') }}
       </label>
     </div>
 
     <!-- Task results -->
     <div class="results-area">
       <div v-if="taskResults.length === 0 && !teamRuntime.isRunning" class="empty-state">
-        <p>开始与 Agent Teams 对话</p>
-        <p v-if="!hasAgents" class="warning">请先在设置中添加 Agent</p>
+        <p>{{ t('multiAgent.startConversation') }}</p>
+        <p v-if="!hasAgents" class="warning">{{ t('multiAgent.addAgentWarning') }}</p>
       </div>
 
       <div v-if="teamRuntime.isRunning" class="loading-indicator">
-        <span class="spinner"></span> 正在处理...
+        <span class="spinner"></span> {{ t('multiAgent.processing') }}
       </div>
 
       <div v-for="result in taskResults" :key="result.taskId" class="result-card" :class="result.status">
@@ -148,7 +151,7 @@ async function sendMessage() {
       <textarea
         v-model="inputText"
         class="chat-input"
-        placeholder="输入消息..."
+        :placeholder="t('multiAgent.inputPlaceholder')"
         :disabled="!hasAgents || teamRuntime.isRunning"
         @keydown.enter.exact.prevent="sendMessage"
         rows="2"
@@ -158,7 +161,7 @@ async function sendMessage() {
         :disabled="!inputText.trim() || !hasAgents || teamRuntime.isRunning"
         @click="sendMessage"
       >
-        发送
+        {{ t('multiAgent.send') }}
       </button>
     </div>
   </div>

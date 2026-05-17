@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTeamRuntimeStore } from '../stores/team-runtime'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const teamRuntime = useTeamRuntimeStore()
 
@@ -29,7 +32,7 @@ function statusIcon(status: string): string {
   <div class="plan-visualization">
     <!-- Header -->
     <header class="plan-header">
-      <h2>任务执行</h2>
+      <h2>{{ t('planVisualization.title') }}</h2>
     </header>
 
     <!-- Task List -->
@@ -41,14 +44,14 @@ function statusIcon(status: string): string {
           <span class="task-source">[{{ task.source }}]</span>
         </div>
         <div class="task-meta">
-          <span>{{ task.targetSessionIds.length }} 个会话</span>
+          <span>{{ t('planVisualization.sessionsCount', { count: task.targetSessionIds.length }) }}</span>
           <span>{{ formatTime(task.createdAt) }}</span>
         </div>
         <!-- Outputs per agent -->
         <div v-for="output in getTaskOutputs(task.id)" :key="output.sessionId" class="task-output">
           <span class="output-agent">{{ output.agentName }}:</span>
           <span class="output-status">{{ output.status === 'completed' ? '✅' : output.status === 'failed' ? '❌' : '⏳' }}</span>
-          <span class="output-text">{{ output.content ? output.content.substring(0, 100) + (output.content.length > 100 ? '...' : '') : '等待输出...' }}</span>
+          <span class="output-text">{{ output.content ? output.content.substring(0, 100) + (output.content.length > 100 ? '...' : '') : t('planVisualization.waitingOutput') }}</span>
         </div>
         <div v-if="task.error" class="task-error">{{ task.error }}</div>
       </div>
@@ -57,8 +60,8 @@ function statusIcon(status: string): string {
     <!-- Empty State -->
     <div v-else class="empty-state">
       <span class="icon-large">📊</span>
-      <p>暂无执行任务</p>
-      <p class="hint">从多Agent或总会话页面创建任务开始</p>
+      <p>{{ t('planVisualization.noTasks') }}</p>
+      <p class="hint">{{ t('planVisualization.noTasksHint') }}</p>
     </div>
   </div>
 </template>

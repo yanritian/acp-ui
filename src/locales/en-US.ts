@@ -519,6 +519,13 @@ export const enUS: MessageSchema = {
     inputPlaceholder: 'Type message...',
     send: 'Send',
   },
+  planVisualization: {
+    title: 'Task Execution',
+    sessionsCount: '{count} sessions',
+    waitingOutput: 'Waiting for output...',
+    noTasks: 'No execution tasks',
+    noTasksHint: 'Create a task from multi-agent or multi-session page to start',
+  },
   botSettings: {
     title: 'Bot Settings',
     subtitle: 'Configure remote command entry (Feishu/Telegram/Discord)',

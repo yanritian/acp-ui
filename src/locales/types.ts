@@ -518,6 +518,13 @@ export type MessageSchema = {
     inputPlaceholder: string
     send: string
   }
+  planVisualization: {
+    title: string
+    sessionsCount: string
+    waitingOutput: string
+    noTasks: string
+    noTasksHint: string
+  }
   botSettings: {
     title: string
     subtitle: string

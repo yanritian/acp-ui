@@ -519,6 +519,13 @@ export const zhCN: MessageSchema = {
     inputPlaceholder: '输入消息...',
     send: '发送',
   },
+  planVisualization: {
+    title: '任务执行',
+    sessionsCount: '{count} 个会话',
+    waitingOutput: '等待输出...',
+    noTasks: '暂无执行任务',
+    noTasksHint: '从多Agent或总会话页面创建任务开始',
+  },
   botSettings: {
     title: 'Bot 配置',
     subtitle: '配置远程指令入口（飞书/Telegram/Discord）',

@@ -634,4 +634,28 @@ export type MessageSchema = {
     msMY: string
     frFR: string
   }
+  agentProgress: {
+    idleState: string
+    errorState: string
+    tasksCompleted: string
+    tasksFailed: string
+    toolCalls: string
+    thinkingTime: string
+    successRate: string
+    thinkingProcess: string
+    thinkingRealtime: string
+    thinkingChunksTimeline: string
+    parameters: string
+    executionResult: string
+    errorMessage: string
+    cancelExecution: string
+    agentOutput: string
+    outputRealtime: string
+    outputChunks: string
+    waitingPermission: string
+    timeoutWarning: string
+    selectAction: string
+    recommended: string
+    responding: string
+  }
 }

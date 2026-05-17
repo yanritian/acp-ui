@@ -525,6 +525,16 @@ export type MessageSchema = {
     noTasks: string
     noTasksHint: string
   }
+  newSessionDialog: {
+    title: string
+    agentLabel: string
+    agentHint: string
+    cwdLabel: string
+    cwdPlaceholder: string
+    cwdRequired: string
+    cwdNotAbsolute: string
+    create: string
+  }
   botSettings: {
     title: string
     subtitle: string

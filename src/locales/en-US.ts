@@ -526,6 +526,16 @@ export const enUS: MessageSchema = {
     noTasks: 'No execution tasks',
     noTasksHint: 'Create a task from multi-agent or multi-session page to start',
   },
+  newSessionDialog: {
+    title: 'New Session',
+    agentLabel: 'Agent:',
+    agentHint: 'Please add Agent in settings first',
+    cwdLabel: 'Working Directory (absolute path):',
+    cwdPlaceholder: 'e.g: D:\\work\\project or /home/user/project',
+    cwdRequired: 'Please enter working directory',
+    cwdNotAbsolute: 'Working directory must be absolute path, current: {path}',
+    create: 'Create',
+  },
   botSettings: {
     title: 'Bot Settings',
     subtitle: 'Configure remote command entry (Feishu/Telegram/Discord)',

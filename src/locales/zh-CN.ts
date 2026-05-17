@@ -526,6 +526,16 @@ export const zhCN: MessageSchema = {
     noTasks: '暂无执行任务',
     noTasksHint: '从多Agent或总会话页面创建任务开始',
   },
+  newSessionDialog: {
+    title: '新建会话',
+    agentLabel: 'Agent:',
+    agentHint: '请先在设置中添加 Agent',
+    cwdLabel: '工作目录 (绝对路径):',
+    cwdPlaceholder: '例如: D:\\work\\project 或 /home/user/project',
+    cwdRequired: '请输入工作目录',
+    cwdNotAbsolute: '工作目录必须是绝对路径，当前值: {path}',
+    create: '创建',
+  },
   botSettings: {
     title: 'Bot 配置',
     subtitle: '配置远程指令入口（飞书/Telegram/Discord）',

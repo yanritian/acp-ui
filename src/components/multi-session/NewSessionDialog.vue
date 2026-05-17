@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useConfigStore } from '../../stores/config'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const configStore = useConfigStore()
 
@@ -25,9 +28,9 @@ const isValid = computed(() => selectedAgent.value && isAbsoluteCwd.value)
 function validateCwd() {
   const value = cwd.value.trim()
   if (!value) {
-    cwdError.value = '请输入工作目录'
+    cwdError.value = t('newSessionDialog.cwdRequired')
   } else if (!isAbsoluteCwd.value) {
-    cwdError.value = `工作目录必须是绝对路径，当前值: ${value}`
+    cwdError.value = t('newSessionDialog.cwdNotAbsolute', { path: value })
   } else {
     cwdError.value = ''
   }
@@ -45,22 +48,22 @@ function handleCreate() {
 <template>
   <div class="new-session-overlay" @click.self="emit('cancel')">
     <div class="dialog">
-      <h3>新建会话</h3>
+      <h3>{{ t('newSessionDialog.title') }}</h3>
 
       <div class="field">
-        <label>Agent:</label>
+        <label>{{ t('newSessionDialog.agentLabel') }}</label>
         <select v-model="selectedAgent">
           <option v-for="name in agents" :key="name" :value="name">{{ name }}</option>
         </select>
-        <p v-if="agents.length === 0" class="hint">请先在设置中添加 Agent</p>
+        <p v-if="agents.length === 0" class="hint">{{ t('newSessionDialog.agentHint') }}</p>
       </div>
 
       <div class="field">
-        <label>工作目录 (绝对路径):</label>
+        <label>{{ t('newSessionDialog.cwdLabel') }}</label>
         <input
           v-model="cwd"
           type="text"
-          placeholder="例如: D:\work\project 或 /home/user/project"
+          :placeholder="t('newSessionDialog.cwdPlaceholder')"
           @blur="validateCwd"
           @keyup.enter="handleCreate"
         />
@@ -68,8 +71,8 @@ function handleCreate() {
       </div>
 
       <div class="actions">
-        <button class="btn-cancel" @click="emit('cancel')">取消</button>
-        <button class="btn-create" :disabled="!isValid" @click="handleCreate">创建</button>
+        <button class="btn-cancel" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+        <button class="btn-create" :disabled="!isValid" @click="handleCreate">{{ t('newSessionDialog.create') }}</button>
       </div>
     </div>
   </div>

@@ -541,6 +541,38 @@ export type MessageSchema = {
     feed: string
     play: string
   }
+  growthSystem: {
+    levelNovice: string
+    levelApprentice: string
+    levelSkilled: string
+    levelExpert: string
+    levelMaster: string
+    levelUp: string
+    experience: string
+    completedTasks: string
+    successRate: string
+    achievements: string
+    nextGoal: string
+    unlockAchievement: string
+  }
+  interactionPanel: {
+    happiness: string
+    affinity: string
+    interactionActions: string
+    pet: string
+    poke: string
+    feed: string
+    play: string
+    petEffect: string
+    pokeEffect: string
+    feedEffect: string
+    playEffect: string
+    interactionStats: string
+    petCount: string
+    lastInteraction: string
+    none: string
+    interactionTip: string
+  }
   botSettings: {
     title: string
     subtitle: string

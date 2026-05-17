@@ -153,7 +153,7 @@ async function startTunnel() {
   } catch (error) {
     gatewayConfig.value.tunnel.status = 'stopped'
     console.error('Failed to start tunnel:', error)
-    alert(`启动隧道失败: ${error}`)
+    alert(`${t('gateway.tunnelStartFailed')}: ${error}`)
   }
 }
 
@@ -187,7 +187,7 @@ async function startGateway() {
   } catch (error) {
     gatewayStatus.value = 'stopped'
     console.error('Failed to start gateway:', error)
-    alert(`启动服务失败: ${error}`)
+    alert(`${t('gateway.serviceStartFailed')}: ${error}`)
   }
 }
 
@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-if="gatewayConfig.tunnel.provider === 'frp'" class="input-group full-width">
-            <label class="input-label">frp服务器地址</label>
+            <label class="input-label">{{ t('gateway.frpServerAddress') }}</label>
             <input class="input" type="text" v-model="gatewayConfig.tunnel.customUrl" :placeholder="t('gateway.frpServerPlaceholder')" />
           </div>
         </div>
@@ -425,10 +425,10 @@ onBeforeUnmount(() => {
         <div class="help-box">
           <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
-            <li>访问 <a href="https://open.feishu.cn" target="_blank">飞书开放平台</a> 创建应用</li>
-            <li>获取 App ID 和 App Secret</li>
-            <li>配置事件订阅: <code>http://IP:{{ gatewayConfig.app.websocketPort }}/feishu/webhook</code></li>
-            <li>添加事件: <code>im.message.receive_v1</code></li>
+            <li>{{ t('gateway.feishuStep1') }} <a href="https://open.feishu.cn" target="_blank">Feishu Open Platform</a></li>
+            <li>{{ t('gateway.feishuStep2') }}</li>
+            <li>{{ t('gateway.feishuStep3') }}: <code>http://IP:{{ gatewayConfig.app.websocketPort }}/feishu/webhook</code></li>
+            <li>{{ t('gateway.feishuStep4') }}: <code>im.message.receive_v1</code></li>
           </ol>
         </div>
       </div>
@@ -462,9 +462,9 @@ onBeforeUnmount(() => {
         <div class="help-box">
           <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
-            <li>在Telegram搜索 <code>@BotFather</code></li>
-            <li>发送 <code>/newbot</code> 创建机器人</li>
-            <li>获取 Bot Token</li>
+            <li>{{ t('gateway.telegramStep1') }} <code>@BotFather</code></li>
+            <li>{{ t('gateway.telegramStep2') }}</li>
+            <li>{{ t('gateway.telegramStep3') }}</li>
           </ol>
         </div>
       </div>
@@ -506,9 +506,9 @@ onBeforeUnmount(() => {
         <div class="help-box">
           <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
-            <li>访问 <a href="https://discord.com/developers/applications" target="_blank">开发者门户</a></li>
-            <li>创建应用 → Bot → Add Bot</li>
-            <li>获取 Token 并邀请Bot到服务器</li>
+            <li>{{ t('gateway.discordStep1') }} <a href="https://discord.com/developers/applications" target="_blank">Developer Portal</a></li>
+            <li>{{ t('gateway.discordStep2') }}</li>
+            <li>{{ t('gateway.discordStep3') }}</li>
           </ol>
         </div>
       </div>

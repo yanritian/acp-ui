@@ -202,6 +202,7 @@ export type MessageSchema = {
     ngrokRegionAp: string
     ngrokRegionUs: string
     ngrokRegionEu: string
+    frpServerAddress: string
     frpServerPlaceholder: string
     publicUrl: string
     copy: string
@@ -209,6 +210,8 @@ export type MessageSchema = {
     startTunnel: string
     stopTunnel: string
     startingTunnel: string
+    tunnelStartFailed: string
+    serviceStartFailed: string
     appSection: string
     appDesc: string
     websocketPort: string
@@ -223,14 +226,24 @@ export type MessageSchema = {
     feishuDesc: string
     enableFeishu: string
     feishuConfigSteps: string
+    feishuStep1: string
+    feishuStep2: string
+    feishuStep3: string
+    feishuStep4: string
     telegramSection: string
     telegramDesc: string
     enableTelegram: string
     telegramConfigSteps: string
+    telegramStep1: string
+    telegramStep2: string
+    telegramStep3: string
     discordSection: string
     discordDesc: string
     enableDiscord: string
     discordConfigSteps: string
+    discordStep1: string
+    discordStep2: string
+    discordStep3: string
     configStepsTitle: string
     saveConfig: string
     saving: string

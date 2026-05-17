@@ -2,6 +2,9 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { AgentActivityType } from '@/lib/agent-runtime/realtime-progress-types'
 import { ACTIVITY_INDICATORS } from '@/lib/agent-runtime/realtime-progress-types'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   type: AgentActivityType
@@ -16,6 +19,7 @@ const pulseInterval = ref<number | null>(null)
 // Computed
 const indicator = computed(() => ACTIVITY_INDICATORS[props.type])
 const progressWidth = computed(() => `${props.progress || 0}%`)
+const indicatorDescription = computed(() => t(indicator.value.descriptionKey))
 
 // 动画方法
 function startPulseAnimation() {
@@ -58,7 +62,7 @@ watch(() => props.type, () => {
       :style="{ backgroundColor: indicator.color }"
     >
       <span class="indicator-icon">{{ indicator.icon }}</span>
-      <span class="indicator-text">{{ indicator.description }}</span>
+      <span class="indicator-text">{{ indicatorDescription }}</span>
     </div>
 
     <!-- Progress bar for executing -->

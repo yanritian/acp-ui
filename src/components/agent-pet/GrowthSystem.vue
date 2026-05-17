@@ -48,14 +48,26 @@ const levelTitle = computed(() => {
 const unlockedAchievements = computed(() => {
   return Object.entries(LEVEL_CONFIG.achievements)
     .filter(([id, achievement]) => props.achievements.includes(id))
-    .map(([id, achievement]) => ({ id, ...achievement }))
+    .map(([id, achievement]) => ({
+      id,
+      name: t(achievement.nameKey),
+      description: t(achievement.descriptionKey),
+      icon: achievement.icon,
+      requirement: achievement.requirement
+    }))
 })
 
 const nextAchievements = computed(() => {
   return Object.entries(LEVEL_CONFIG.achievements)
     .filter(([id]) => !props.achievements.includes(id))
     .slice(0, 3)
-    .map(([id, achievement]) => ({ id, ...achievement }))
+    .map(([id, achievement]) => ({
+      id,
+      name: t(achievement.nameKey),
+      description: t(achievement.descriptionKey),
+      icon: achievement.icon,
+      requirement: achievement.requirement
+    }))
 })
 
 // Watch for level changes
@@ -184,7 +196,7 @@ function formatNumber(num: number): string {
         </div>
         <div class="popup-text">{{ t('growthSystem.unlockAchievement') }}</div>
         <div class="popup-name">
-          {{ LEVEL_CONFIG.achievements[showAchievementPopup]?.name }}
+          {{ t(LEVEL_CONFIG.achievements[showAchievementPopup]?.nameKey || '') }}
         </div>
       </div>
     </div>

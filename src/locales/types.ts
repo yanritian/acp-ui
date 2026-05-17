@@ -668,4 +668,39 @@ export type MessageSchema = {
     emotionIntensity: string
     recentEmotion: string
   }
+  petAnimations: {
+    idle: string
+    blink: string
+    think: string
+    happy: string
+    confused: string
+    tired: string
+    working: string
+    levelup: string
+    celebrate: string
+  }
+  activityIndicators: {
+    thinking: string
+    executing: string
+    outputting: string
+    waiting: string
+    idle: string
+    error: string
+  }
+  achievements: {
+    firstTaskName: string
+    firstTaskDesc: string
+    tenTasksName: string
+    tenTasksDesc: string
+    fiftyTasksName: string
+    fiftyTasksDesc: string
+    hundredTasksName: string
+    hundredTasksDesc: string
+    perfectStreakName: string
+    perfectStreakDesc: string
+    fastExecutorName: string
+    fastExecutorDesc: string
+    deepThinkerName: string
+    deepThinkerDesc: string
+  }
 }

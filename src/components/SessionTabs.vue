@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue'
 import { useMultiSessionStore } from '../stores/multi-session'
 import NewSessionDialog from './multi-session/NewSessionDialog.vue'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const multiSession = useMultiSessionStore()
 
@@ -42,12 +45,12 @@ async function handleCloseSession(sessionId: string) {
       <span class="tab-status" :class="session.status">
         {{ session.status === 'connected' ? '●' : session.status === 'connecting' ? '◌' : '○' }}
       </span>
-      <button class="tab-close" @click.stop="handleCloseSession(session.id)" title="关闭会话">
+      <button class="tab-close" @click.stop="handleCloseSession(session.id)" :title="t('common.close')">
         ✕
       </button>
     </div>
 
-    <button class="tab-add" @click="showNewDialog = true" title="新建会话">
+    <button class="tab-add" @click="showNewDialog = true" :title="t('common.newSession')">
       +
     </button>
   </div>

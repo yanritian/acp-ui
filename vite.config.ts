@@ -42,14 +42,65 @@ export default defineConfig(async ({ mode }) => {
       "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
     },
 
-    // Web builds emit to `dist-web/` so the Tauri build pipeline (which
-    // expects `frontendDist: ../dist`) is unaffected.
-    build: isWeb
-      ? {
-          outDir: "dist-web",
-          emptyOutDir: true,
-        }
-      : undefined,
+    // 代码分割优化 - 解决大文件警告
+    build: {
+      // Web builds emit to `dist-web/` so the Tauri build pipeline (which
+      // expects `frontendDist: ../dist`) is unaffected.
+      ...(isWeb ? { outDir: "dist-web", emptyOutDir: true } : {}),
+      rollupOptions: {
+        output: {
+          // 使用函数形式的manualChunks进行动态代码分割
+          manualChunks(id) {
+            // Vue核心（包含vue和vue-router）
+            if (id.includes('node_modules/vue/') || id.includes('node_modules/@vue/') || id.includes('node_modules/vue-router/')) {
+              return 'vue-vendor';
+            }
+            // Pinia状态管理
+            if (id.includes('node_modules/pinia/')) {
+              return 'pinia';
+            }
+            // Vue Flow图形库
+            if (id.includes('node_modules/@vue-flow/')) {
+              return 'vue-flow';
+            }
+            // Tauri API
+            if (id.includes('node_modules/@tauri-apps/')) {
+              return 'tauri';
+            }
+            // 常用大型库单独分组
+            if (id.includes('node_modules/marked/')) {
+              return 'vendor-marked';
+            }
+            if (id.includes('node_modules/dompurify/')) {
+              return 'vendor-dompurify';
+            }
+            // 协作网络 + Hermes 模块合并（避免循环依赖）
+            if (id.includes('/lib/collaboration/') ||
+                id.includes('/stores/collaboration') ||
+                id.includes('/components/collaboration/') ||
+                id.includes('/components/HermesDashboard') ||
+                id.includes('/components/EnhancedHermesDashboard') ||
+                id.includes('/components/TaskGraphView')) {
+              return 'collaboration';
+            }
+            // Agent相关模块合并
+            if (id.includes('/components/agent-progress/') ||
+                id.includes('/components/agent-pet/') ||
+                id.includes('/stores/agent-realtime') ||
+                id.includes('/stores/agent-pet') ||
+                id.includes('/lib/agent-runtime/realtime-progress-types') ||
+                id.includes('/views/AgentTeamsDashboard')) {
+              return 'agent-teams';
+            }
+            // WebSocket同步模块
+            if (id.includes('/lib/sync/')) {
+              return 'sync';
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 400,
+    },
 
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
     //

@@ -58,35 +58,35 @@ const CATEGORY_PATTERNS: Record<string, RegExp[]> = {
   ],
 }
 
-// Common solution templates by category
+// Common solution templates by category (returns translation keys)
 const SOLUTION_TEMPLATES: Record<string, string[]> = {
   build_error: [
-    '检查导入路径是否正确',
-    '确保模块已安装',
-    '检查语法和类型定义',
-    '清理缓存后重新构建',
-    '检查 tsconfig/jsconfig 配置',
+    'errorSuggestions.checkImportPath',
+    'errorSuggestions.ensureModuleInstalled',
+    'errorSuggestions.checkSyntaxTypes',
+    'errorSuggestions.clearCacheRebuild',
+    'errorSuggestions.checkTsconfig',
   ],
   runtime_error: [
-    '添加 null 检查',
-    '检查对象是否存在',
-    '优化递归深度',
-    '增加超时配置',
-    '检查连接状态',
+    'errorSuggestions.addNullCheck',
+    'errorSuggestions.checkObjectExists',
+    'errorSuggestions.optimizeRecursion',
+    'errorSuggestions.increaseTimeout',
+    'errorSuggestions.checkConnection',
   ],
   dependency_error: [
-    '运行 npm install 或 yarn install',
-    '检查 package.json 版本',
-    '删除 node_modules 后重新安装',
-    '使用 --legacy-peer-deps',
-    '锁定依赖版本',
+    'errorSuggestions.runNpmInstall',
+    'errorSuggestions.checkPackageVersion',
+    'errorSuggestions.deleteNodeModules',
+    'errorSuggestions.useLegacyPeerDeps',
+    'errorSuggestions.lockDependencyVersion',
   ],
   config_error: [
-    '检查配置文件路径',
-    '验证配置格式',
-    '设置必要的环境变量',
-    '检查配置文件语法',
-    '恢复默认配置',
+    'errorSuggestions.checkConfigPath',
+    'errorSuggestions.validateConfigFormat',
+    'errorSuggestions.setEnvVariables',
+    'errorSuggestions.checkConfigSyntax',
+    'errorSuggestions.restoreDefaultConfig',
   ],
 }
 
@@ -145,7 +145,7 @@ export function matchSolution(
       matches.push({
         solution,
         similarity,
-        matchReason: `相似度: ${Math.round(similarity * 100)}%`,
+        matchReason: `errorSuggestions.similarity: ${Math.round(similarity * 100)}%`,
       })
     }
   }
@@ -188,23 +188,23 @@ function extractContextSuggestions(message: string): string[] {
 
   // File path suggestions
   if (message.includes('.ts') || message.includes('.tsx')) {
-    suggestions.push('检查 TypeScript 类型定义')
+    suggestions.push('errorSuggestions.checkTsTypes')
   }
   if (message.includes('.vue')) {
-    suggestions.push('检查 Vue 组件导入和 props')
+    suggestions.push('errorSuggestions.checkVueProps')
   }
   if (message.includes('.js') || message.includes('.jsx')) {
-    suggestions.push('检查 JavaScript 模块导出')
+    suggestions.push('errorSuggestions.checkJsExports')
   }
 
   // Import suggestions
   if (message.includes('import') || message.includes('require')) {
-    suggestions.push('验证导入路径和模块名称')
+    suggestions.push('errorSuggestions.verifyImportPath')
   }
 
   // Function suggestions
   if (message.includes('function') || message.includes('method')) {
-    suggestions.push('检查函数签名和参数')
+    suggestions.push('errorSuggestions.checkFunctionSignature')
   }
 
   return suggestions

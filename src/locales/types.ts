@@ -716,4 +716,32 @@ export type MessageSchema = {
     deepThinkerName: string
     deepThinkerDesc: string
   }
+  errorSuggestions: {
+    checkImportPath: string
+    ensureModuleInstalled: string
+    checkSyntaxTypes: string
+    clearCacheRebuild: string
+    checkTsconfig: string
+    addNullCheck: string
+    checkObjectExists: string
+    optimizeRecursion: string
+    increaseTimeout: string
+    checkConnection: string
+    runNpmInstall: string
+    checkPackageVersion: string
+    deleteNodeModules: string
+    useLegacyPeerDeps: string
+    lockDependencyVersion: string
+    checkConfigPath: string
+    validateConfigFormat: string
+    setEnvVariables: string
+    checkConfigSyntax: string
+    restoreDefaultConfig: string
+    checkTsTypes: string
+    checkVueProps: string
+    checkJsExports: string
+    verifyImportPath: string
+    checkFunctionSignature: string
+    similarity: string
+  }
 }

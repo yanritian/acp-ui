@@ -511,6 +511,14 @@ export const enUS: MessageSchema = {
     inputPlaceholder: 'Type message...',
     send: 'Send',
   },
+  multiSession: {
+    noActiveSession: 'No active session',
+    createSessionHint: 'Click + in the tab bar to create a new session',
+    startConversation: 'Start conversation',
+    you: 'You',
+    inputPlaceholder: 'Type message...',
+    send: 'Send',
+  },
   botSettings: {
     title: 'Bot Settings',
     subtitle: 'Configure remote command entry (Feishu/Telegram/Discord)',

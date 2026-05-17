@@ -511,6 +511,14 @@ export const zhCN: MessageSchema = {
     inputPlaceholder: '输入消息...',
     send: '发送',
   },
+  multiSession: {
+    noActiveSession: '没有活跃会话',
+    createSessionHint: '请点击标签栏中的 + 创建新会话',
+    startConversation: '开始对话吧',
+    you: '你',
+    inputPlaceholder: '输入消息...',
+    send: '发送',
+  },
   botSettings: {
     title: 'Bot 配置',
     subtitle: '配置远程指令入口（飞书/Telegram/Discord）',

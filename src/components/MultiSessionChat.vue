@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue'
 import { useMultiSessionStore } from '../stores/multi-session'
 import SessionTabs from './SessionTabs.vue'
+import { useI18n } from '@/locales'
+
+const { t } = useI18n()
 
 const multiSession = useMultiSessionStore()
 const inputText = ref('')
@@ -29,8 +32,8 @@ function formatTime(ts: number): string {
     <SessionTabs />
     <div class="chat-area">
     <div v-if="!activeSession" class="empty-state">
-      <h3>没有活跃会话</h3>
-      <p>请点击标签栏中的 + 创建新会话</p>
+      <h3>{{ t('multiSession.noActiveSession') }}</h3>
+      <p>{{ t('multiSession.createSessionHint') }}</p>
     </div>
 
     <template v-else>
@@ -38,7 +41,7 @@ function formatTime(ts: number): string {
       <div class="messages-container">
         <div v-if="messages.length === 0" class="empty-chat">
           <h3>{{ activeSession.agentName }}</h3>
-          <p>开始对话吧</p>
+          <p>{{ t('multiSession.startConversation') }}</p>
         </div>
 
         <div
@@ -48,7 +51,7 @@ function formatTime(ts: number): string {
           :class="msg.role"
         >
           <div class="message-header">
-            <span class="message-role">{{ msg.role === 'user' ? '你' : activeSession.agentName }}</span>
+            <span class="message-role">{{ msg.role === 'user' ? t('multiSession.you') : activeSession.agentName }}</span>
             <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
           </div>
           <div class="message-content">
@@ -77,7 +80,7 @@ function formatTime(ts: number): string {
         <textarea
           v-model="inputText"
           class="chat-input"
-          placeholder="输入消息..."
+          :placeholder="t('multiSession.inputPlaceholder')"
           :disabled="!isConnected || isLoading"
           @keydown.enter.exact.prevent="sendMessage"
           rows="2"
@@ -87,7 +90,7 @@ function formatTime(ts: number): string {
           :disabled="!inputText.trim() || !isConnected || isLoading"
           @click="sendMessage"
         >
-          发送
+          {{ t('multiSession.send') }}
         </button>
       </div>
     </template>

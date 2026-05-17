@@ -510,6 +510,14 @@ export type MessageSchema = {
     inputPlaceholder: string
     send: string
   }
+  multiSession: {
+    noActiveSession: string
+    createSessionHint: string
+    startConversation: string
+    you: string
+    inputPlaceholder: string
+    send: string
+  }
   botSettings: {
     title: string
     subtitle: string

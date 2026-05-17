@@ -71,6 +71,12 @@ class Sidebar extends ConsumerWidget {
                   path: '/hermes',
                   isSelected: currentPath == '/hermes',
                 ),
+                _NavItem(
+                  icon: Icons.account_tree_outlined,
+                  label: 'Collaboration',
+                  path: '/collaboration',
+                  isSelected: currentPath == '/collaboration',
+                ),
                 const Divider(),
                 _NavItem(
                   icon: Icons.settings_outlined,

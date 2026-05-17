@@ -10,6 +10,7 @@ import 'features/history/history_view.dart';
 import 'features/settings/settings_view.dart';
 import 'features/evolution/evolution_dashboard.dart';
 import 'features/hermes/hermes_dashboard.dart';
+import 'features/collaboration/collaboration_network_view.dart';
 
 // Router configuration with ShellRoute for persistent sidebar
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -41,6 +42,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/hermes',
             builder: (context, state) => const HermesDashboard(),
+          ),
+          GoRoute(
+            path: '/collaboration',
+            builder: (context, state) => const CollaborationNetworkView(),
           ),
         ],
       ),

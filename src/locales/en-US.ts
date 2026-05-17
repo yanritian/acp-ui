@@ -659,4 +659,14 @@ export const enUS: MessageSchema = {
     recommended: 'Recommended',
     responding: 'Responding...',
   },
+  emotionDisplay: {
+    emotionHappy: 'Feeling happy',
+    emotionFocused: 'Focused on work',
+    emotionConfused: 'Feeling confused',
+    emotionTired: 'Feeling tired',
+    emotionBored: 'Bored waiting',
+    emotionExcited: 'Excited',
+    emotionIntensity: 'Emotion Intensity',
+    recentEmotion: 'Recent Emotion',
+  },
 }

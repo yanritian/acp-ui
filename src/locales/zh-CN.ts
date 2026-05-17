@@ -659,4 +659,14 @@ export const zhCN: MessageSchema = {
     recommended: '推荐',
     responding: '正在响应...',
   },
+  emotionDisplay: {
+    emotionHappy: '心情愉快',
+    emotionFocused: '专注工作',
+    emotionConfused: '有些困惑',
+    emotionTired: '感到疲惫',
+    emotionBored: '无聊等待',
+    emotionExcited: '兴奋期待',
+    emotionIntensity: '情绪强度',
+    recentEmotion: '最近情绪',
+  },
 }

@@ -658,4 +658,14 @@ export type MessageSchema = {
     recommended: string
     responding: string
   }
+  emotionDisplay: {
+    emotionHappy: string
+    emotionFocused: string
+    emotionConfused: string
+    emotionTired: string
+    emotionBored: string
+    emotionExcited: string
+    emotionIntensity: string
+    recentEmotion: string
+  }
 }

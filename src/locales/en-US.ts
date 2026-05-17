@@ -536,6 +536,12 @@ export const enUS: MessageSchema = {
     cwdNotAbsolute: 'Working directory must be absolute path, current: {path}',
     create: 'Create',
   },
+  agentPet: {
+    pet: 'Pet',
+    poke: 'Poke',
+    feed: 'Feed',
+    play: 'Play',
+  },
   botSettings: {
     title: 'Bot Settings',
     subtitle: 'Configure remote command entry (Feishu/Telegram/Discord)',

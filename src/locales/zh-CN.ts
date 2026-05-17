@@ -536,6 +536,12 @@ export const zhCN: MessageSchema = {
     cwdNotAbsolute: '工作目录必须是绝对路径，当前值: {path}',
     create: '创建',
   },
+  agentPet: {
+    pet: '抚摸',
+    poke: '戳一下',
+    feed: '喂食',
+    play: '玩耍',
+  },
   botSettings: {
     title: 'Bot 配置',
     subtitle: '配置远程指令入口（飞书/Telegram/Discord）',

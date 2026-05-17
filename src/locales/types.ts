@@ -535,6 +535,12 @@ export type MessageSchema = {
     cwdNotAbsolute: string
     create: string
   }
+  agentPet: {
+    pet: string
+    poke: string
+    feed: string
+    play: string
+  }
   botSettings: {
     title: string
     subtitle: string

@@ -1,6 +1,8 @@
 /// Agent Teams Dashboard
 /// 多Agent协作平台主界面
 
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/stores/agent_realtime/agent_realtime_store.dart';
@@ -40,6 +42,7 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   String _workspacePath = 'D:/dingsun/acp-ui/erp_system';
   String _wsUrl = 'ws://127.0.0.1:1420';
   bool _isExecutiveAgentInitialized = false;
+  StreamSubscription<String>? _messageSubscription;
 
   @override
   void initState() {
@@ -52,6 +55,7 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   void dispose() {
     _requestController.dispose();
     _scrollController.dispose();
+    _messageSubscription?.cancel();
     super.dispose();
   }
 
@@ -61,10 +65,112 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     try {
       await wsService.connect();
       ref.read(connectionStatusProvider.notifier).state = true;
+
+      // 监听WebSocket消息流
+      _messageSubscription = wsService.messageStream.listen((data) {
+        _handleWebSocketMessage(data);
+      });
+
       await _initExecutiveAgent();
     } catch (e) {
       print('[AgentTeams] WebSocket连接失败: $e');
       ref.read(connectionStatusProvider.notifier).state = false;
+    }
+  }
+
+  /// 处理WebSocket消息（转发的事件）
+  void _handleWebSocketMessage(String data) {
+    try {
+      final msg = jsonDecode(data) as Map<String, dynamic>;
+      final msgType = msg['type'] as String?;
+      final msgData = msg['data'] as Map<String, dynamic>?;
+
+      print('[AgentTeams] 收到消息: $msgType');
+
+      switch (msgType) {
+        case 'task-started':
+          setState(() {
+            _isExecuting = true;
+            _executionLogs.add('🚀 任务开始: ${msgData?['request'] ?? ''}');
+          });
+          break;
+
+        case 'agent-message':
+          final agentName = msgData?['agentName'] as String?;
+          final content = msgData?['content'] as String?;
+          if (agentName != null && content != null) {
+            setState(() {
+              _executionLogs.add('🤖 [$agentName]: ${content.substring(0, 100)}...');
+            });
+          }
+          break;
+
+        case 'agent-status-update':
+          final agentType = msgData?['agentType'] as String?;
+          final status = msgData?['status'] as String?;
+          if (agentType != null && status != null) {
+            setState(() {
+              _executionLogs.add('🔄 [$agentType] 状态: $status');
+            });
+          }
+          break;
+
+        case 'file-created':
+          final path = msgData?['path'] as String?;
+          final lines = msgData?['lines'] as int?;
+          if (path != null) {
+            setState(() {
+              _executionLogs.add('📁 创建文件: $path (${lines ?? 0} 行)');
+            });
+          }
+          break;
+
+        case 'files-created':
+          final files = msgData?['files'] as List?;
+          if (files != null) {
+            setState(() {
+              _executionLogs.add('📁 批量创建 ${files.length} 个文件');
+              for (final file in files) {
+                _executionLogs.add('  - $file');
+              }
+            });
+          }
+          break;
+
+        case 'task-completed':
+          final summary = msgData?['summary'] as String?;
+          setState(() {
+            _isExecuting = false;
+            _executionLogs.add('✅ 任务完成!');
+            if (summary != null) {
+              _executionLogs.add(summary.substring(0, 200));
+            }
+          });
+          break;
+
+        case 'agent-error':
+          final error = msgData?['error'] as String?;
+          setState(() {
+            _isExecuting = false;
+            _executionLogs.add('❌ 错误: $error');
+          });
+          break;
+      }
+
+      // 滚动到底部
+      _scrollToBottom();
+    } catch (e) {
+      print('[AgentTeams] 消息解析错误: $e');
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+      );
     }
   }
 

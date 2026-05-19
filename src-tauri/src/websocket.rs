@@ -212,6 +212,57 @@ impl WebSocketServer {
             }
         });
 
+        // Spawn event forwarding thread - forward Tauri events to WebSocket clients
+        let connections_for_events = Arc::clone(&connections);
+        let running_for_events = Arc::clone(&running);
+        let app_handle_for_events = app_handle.clone();
+
+        tokio::spawn(async move {
+            // Listen to Tauri events and forward to WebSocket clients
+            let events_to_forward = [
+                "task-started",
+                "agent-message",
+                "agent-status-update",
+                "agent-error",
+                "file-created",
+                "files-created",
+                "task-completed",
+            ];
+
+            for event_name in events_to_forward {
+                let connections_clone = Arc::clone(&connections_for_events);
+                let running_clone = Arc::clone(&running_for_events);
+
+                // Use Tauri event listener
+                let _ = app_handle_for_events.listen(event_name, |event| {
+                    if !*running_clone.read() {
+                        return;
+                    }
+
+                    // Forward event payload to all connected WebSocket clients
+                    let payload = event.payload().clone();
+                    let forward_json = serde_json::json!({
+                        "type": event_name,
+                        "data": payload,
+                    });
+
+                    if let Ok(json_str) = serde_json::to_string(&forward_json) {
+                        let conns = connections_clone.read();
+                        for (_client_id, cs) in conns.iter() {
+                            if cs.authenticated {
+                                let _ = cs.sender.send(Message::Text(json_str.clone().into()));
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Keep thread alive while server is running
+            while *running_for_events.read() {
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            }
+        });
+
         Ok(format!("ws://localhost:{}", self.port))
     }
 

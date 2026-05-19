@@ -7,6 +7,7 @@ import '../../data/stores/agent_realtime/agent_realtime_store.dart';
 import '../../data/stores/agent_realtime/agent_pet_store.dart';
 import '../../data/models/agent_realtime/agent_realtime_types.dart';
 import '../../data/models/agent_pet/agent_pet_types.dart';
+import '../../data/services/websocket_service.dart';
 import '../widgets/agent_progress_panel.dart';
 import '../widgets/agent_pet_avatar.dart';
 import '../widgets/collaboration_network.dart';
@@ -30,11 +31,78 @@ class AgentTeamsDashboard extends ConsumerStatefulWidget {
 class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   ViewMode _currentView = ViewMode.all;
   String? _selectedAgentId;
+  final _requestController = TextEditingController();
+  final _scrollController = ScrollController();
+  List<String> _executionLogs = [];
+  bool _isExecuting = false;
+
+  // 配置状态
+  String _workspacePath = 'D:/dingsun/acp-ui/erp_system';
+  String _wsUrl = 'ws://127.0.0.1:1420';
+  bool _isExecutiveAgentInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _selectedAgentId = 'planner-001';
+    _connectWebSocket();
+  }
+
+  @override
+  void dispose() {
+    _requestController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _connectWebSocket() async {
+    final wsService = ref.read(webSocketServiceProvider);
+    wsService.configureUrl(_wsUrl);
+    try {
+      await wsService.connect();
+      ref.read(connectionStatusProvider.notifier).state = true;
+      await _initExecutiveAgent();
+    } catch (e) {
+      print('[AgentTeams] WebSocket连接失败: $e');
+      ref.read(connectionStatusProvider.notifier).state = false;
+    }
+  }
+
+  Future<void> _initExecutiveAgent() async {
+    final wsService = ref.read(webSocketServiceProvider);
+    if (!wsService.isConnected()) return;
+
+    await wsService.initExecutiveAgent(_workspacePath);
+    _isExecutiveAgentInitialized = true;
+    setState(() {
+      _executionLogs.add('✅ Executive Agent 已初始化');
+      _executionLogs.add('📁 工作目录: $_workspacePath');
+    });
+  }
+
+  Future<void> _executeTask() async {
+    final request = _requestController.text.trim();
+    if (request.isEmpty) return;
+
+    final wsService = ref.read(webSocketServiceProvider);
+    if (!wsService.isConnected()) {
+      setState(() {
+        _executionLogs.add('❌ WebSocket未连接');
+      });
+      return;
+    }
+
+    setState(() {
+      _isExecuting = true;
+      _executionLogs.add('📤 发送需求: $request');
+      _requestController.clear();
+    });
+
+    await wsService.executeDevelopmentTask(request);
+
+    setState(() {
+      _executionLogs.add('⏳ 任务已提交，等待执行...');
+    });
   }
 
   @override
@@ -50,7 +118,16 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
           _buildAgentTeamPanel(realtimeState, petState),
           // 右侧：主内容区域
           Expanded(
-            child: _buildMainContent(realtimeState, petState),
+            child: Column(
+              children: [
+                // 主内容
+                Expanded(
+                  child: _buildMainContent(realtimeState, petState),
+                ),
+                // 底部输入框
+                _buildRequestInputPanel(),
+              ],
+            ),
           ),
         ],
       ),
@@ -69,6 +146,12 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
       actions: [
         // 同步状态指示
         _buildSyncIndicator(realtimeState.isConnected),
+        // 配置按钮
+        IconButton(
+          icon: const Icon(Icons.settings_applications),
+          onPressed: () => _showConfigDialog(),
+          tooltip: '配置',
+        ),
         // 语言切换按钮
         IconButton(
           icon: const Icon(Icons.language),
@@ -836,6 +919,252 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 底部需求输入面板
+  Widget _buildRequestInputPanel() {
+    final isConnected = ref.watch(connectionStatusProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 执行日志
+          if (_executionLogs.isNotEmpty)
+            Container(
+              height: 80,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _executionLogs.length,
+                itemBuilder: (context, index) {
+                  return Text(
+                    _executionLogs[index],
+                    style: const TextStyle(fontSize: 12),
+                  );
+                },
+              ),
+            ),
+          // 输入框
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _requestController,
+                  decoration: InputDecoration(
+                    hintText: '输入开发需求 (如: 做一个ERP系统)',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.grey.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        Icons.send,
+                        color: isConnected && !_isExecuting
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey,
+                      ),
+                      onPressed: isConnected && !_isExecuting ? _executeTask : null,
+                    ),
+                  ),
+                  maxLines: 2,
+                  onSubmitted: (_) => _executeTask(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 执行状态指示
+              if (_isExecuting)
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          // 状态栏
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                Icons.circle,
+                color: isConnected ? Colors.green : Colors.red,
+                size: 10,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isConnected ? '已连接' : '未连接',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+              const SizedBox(width: 8),
+              if (_isExecutiveAgentInitialized)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '✅ Ready',
+                    style: TextStyle(fontSize: 10, color: Colors.green),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Text(
+                '工作目录: $_workspacePath',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 配置对话框
+  void _showConfigDialog() {
+    final workspaceController = TextEditingController(text: _workspacePath);
+    final wsUrlController = TextEditingController(text: _wsUrl);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.settings_applications),
+            SizedBox(width: 8),
+            Text('Agent Teams 配置'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 工作目录配置
+              const Text('工作目录', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: workspaceController,
+                decoration: InputDecoration(
+                  hintText: '项目文件生成目录',
+                  filled: true,
+                  fillColor: Colors.grey.withOpacity(0.1),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.folder_open),
+                    onPressed: () {
+                      // TODO: 实现目录选择
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // WebSocket URL配置
+              const Text('WebSocket 服务器', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: wsUrlController,
+                decoration: InputDecoration(
+                  hintText: 'ws://127.0.0.1:1420',
+                  filled: true,
+                  fillColor: Colors.grey.withOpacity(0.1),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Agent配置说明
+              const Text('Agent 配置', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Agent配置在 Tauri 后端 agents.yaml 文件中管理',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text('当前内置Agent:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text('• Planner - 规划智能体', style: TextStyle(fontSize: 11)),
+                    Text('• Architect - 架构设计智能体', style: TextStyle(fontSize: 11)),
+                    Text('• Coder - 编码智能体', style: TextStyle(fontSize: 11)),
+                    Text('• CodeReviewer - 代码审查智能体', style: TextStyle(fontSize: 11)),
+                    Text('• Tester - 测试智能体', style: TextStyle(fontSize: 11)),
+                    Text('• SecurityReviewer - 安全审查智能体', style: TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newWorkspace = workspaceController.text.trim();
+              final newWsUrl = wsUrlController.text.trim();
+
+              if (newWorkspace.isNotEmpty && newWsUrl.isNotEmpty) {
+                setState(() {
+                  _workspacePath = newWorkspace;
+                  _wsUrl = newWsUrl;
+                  _executionLogs.clear();
+                  _executionLogs.add('⚙️ 配置已更新');
+                  _executionLogs.add('📁 工作目录: $_workspacePath');
+                  _executionLogs.add('🔌 WebSocket: $_wsUrl');
+                });
+
+                Navigator.pop(context);
+
+                // 重新连接并初始化
+                await _connectWebSocket();
+              }
+            },
+            child: const Text('保存并重新连接'),
           ),
         ],
       ),

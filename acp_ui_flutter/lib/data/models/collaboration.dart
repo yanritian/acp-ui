@@ -1,6 +1,33 @@
 /// Collaboration types for Flutter
 /// Based on TypeScript types from src/lib/collaboration/types.ts
 
+/// Node type enumeration
+enum NodeType {
+  planner,
+  architect,
+  developer,
+  tddGuide,
+  codeReviewer,
+  securityReviewer,
+  performanceReviewer,
+  docUpdater,
+}
+
+/// Node status enumeration
+enum NodeStatus {
+  active,
+  idle,
+  busy,
+  error,
+}
+
+/// Edge status enumeration
+enum EdgeStatus {
+  flowing,
+  pending,
+  completed,
+}
+
 /// Agent capability definition
 class AgentCapability {
   final String id;

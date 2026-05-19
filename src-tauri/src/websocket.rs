@@ -68,6 +68,12 @@ pub enum RemoteCommand {
     UnsubscribeLogs { agent_id: Option<String> },
     GetLogs { limit: Option<u64>, log_type: Option<String> },
     SearchLogs { keyword: String, limit: Option<u64> },
+    // Executive Agent commands (for Flutter mobile)
+    InitExecutiveAgent { workspace: String },
+    ExecuteDevelopmentTask { request: String },
+    GetExecutiveAgentStatus {},
+    GetGeneratedFiles {},
+    ClearExecutiveAgent {},
 }
 
 /// Client connection state (stored per-connection)
@@ -685,6 +691,115 @@ async fn handle_remote_command(
                 }
             }
         },
+        "init_executive_agent" => {
+            let workspace = request.payload.as_ref()
+                .and_then(|p| p.get("workspace").and_then(|v| v.as_str()))
+                .unwrap_or("D:/dingsun/acp-ui/erp_system");
+
+            let workspace_path = std::path::PathBuf::from(workspace);
+
+            // Create workspace directory
+            if !workspace_path.exists() {
+                if let Err(e) = std::fs::create_dir_all(&workspace_path) {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some(format!("创建工作目录失败: {}", e)),
+                    }
+                } else {
+                    let manager = crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
+                    *state.executive_agent_manager.lock().unwrap() = Some(manager);
+
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: true,
+                        data: Some(serde_json::json!({ "workspace": workspace, "initialized": true })),
+                        error: None,
+                    }
+                }
+            } else {
+                let manager = crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
+                *state.executive_agent_manager.lock().unwrap() = Some(manager);
+
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: true,
+                    data: Some(serde_json::json!({ "workspace": workspace, "initialized": true })),
+                    error: None,
+                }
+            }
+        },
+        "execute_development_task" => {
+            // Forward to frontend for async execution
+            let request_text = request.payload.as_ref()
+                .and_then(|p| p.get("request").and_then(|v| v.as_str()))
+                .unwrap_or("");
+
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "execute_development_task",
+                "request_id": request.id,
+                "client_id": client_id,
+                "request": request_text,
+            }));
+
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "forwarded": true, "message": "任务已提交，请监听事件获取结果" })),
+                error: None,
+            }
+        },
+        "get_executive_agent_status" => {
+            let manager = state.executive_agent_manager.lock().unwrap();
+            if let Some(mgr) = manager.as_ref() {
+                let status = mgr.get_agent_status();
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: true,
+                    data: Some(serde_json::json!({ "status": status })),
+                    error: None,
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Executive Agent Manager 未初始化".to_string()),
+                }
+            }
+        },
+        "get_generated_files" => {
+            let manager = state.executive_agent_manager.lock().unwrap();
+            if let Some(mgr) = manager.as_ref() {
+                let files = mgr.get_generated_files();
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: true,
+                    data: Some(serde_json::json!({ "files": files })),
+                    error: None,
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Executive Agent Manager 未初始化".to_string()),
+                }
+            }
+        },
+        "clear_executive_agent" => {
+            let manager = state.executive_agent_manager.lock().unwrap();
+            if let Some(mgr) = manager.as_ref() {
+                mgr.clear();
+            }
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "cleared": true })),
+                error: None,
+            }
+        },
         unknown => RemoteResponse {
             id: request.id.clone(),
             ok: false,
@@ -765,6 +880,32 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
         RemoteCommand::SearchLogs { keyword, limit } => {
             let _ = app_handle.emit("remote-command", serde_json::json!({
                 "type": "search_logs", "keyword": keyword, "limit": limit, "client_id": client_id,
+            }));
+        }
+        // Executive Agent commands (legacy format)
+        RemoteCommand::InitExecutiveAgent { workspace } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "init_executive_agent", "workspace": workspace, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::ExecuteDevelopmentTask { request } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "execute_development_task", "request": request, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::GetExecutiveAgentStatus {} => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "get_executive_agent_status", "client_id": client_id,
+            }));
+        }
+        RemoteCommand::GetGeneratedFiles {} => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "get_generated_files", "client_id": client_id,
+            }));
+        }
+        RemoteCommand::ClearExecutiveAgent {} => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "clear_executive_agent", "client_id": client_id,
             }));
         }
     }

@@ -93,7 +93,10 @@ class _AgentPetAvatarState extends State<AgentPetAvatar>
   }
 
   void _handlePet() {
-    _animationController.forward().then(() => _animationController.reverse());
+    _animationController.forward();
+    Future.delayed(Duration(milliseconds: _animationController.duration?.inMilliseconds ?? 300), () {
+      _animationController.reverse();
+    });
     _triggerAnimation(PetAnimationType.happy);
   }
 

@@ -210,6 +210,7 @@ class CollaborationNotifier extends StateNotifier<CollaborationState> {
         sourceAgentId: 'planner-001',
         targetAgentId: 'architect-001',
         severity: 'info',
+        payload: null,
         details: EventDetails(summary: 'Architecture design task assigned'),
       ),
       CollaborationEvent(
@@ -218,6 +219,7 @@ class CollaborationNotifier extends StateNotifier<CollaborationState> {
         timestamp: DateTime.now().millisecondsSinceEpoch - 5000,
         sourceAgentId: 'architect-001',
         severity: 'info',
+        payload: null,
         details: EventDetails(summary: 'File read operation', duration: 120),
       ),
     ];
@@ -261,30 +263,32 @@ class CollaborationNotifier extends StateNotifier<CollaborationState> {
       .where((e) => e.status == 'completed' && e.duration != null)
       .toList();
     final avgDuration = completedWithDuration.isEmpty
-      ? 0
+      ? 0.0
       : completedWithDuration.fold<int>(0, (sum, e) => sum + (e.duration ?? 0)) /
         completedWithDuration.length;
 
     // Calculate collaboration efficiency
     final totalEdges = state.edges.length;
     final efficiency = totalEdges == 0
-      ? 100
+      ? 100.0
       : ((completedEdges / totalEdges) * 100).round();
 
     return CollaborationNetworkStats(
       totalAgents: state.nodes.length,
       activeAgents: activeNodes,
-      totalTasks: state.edges.length,
+      totalTasks: totalEdges,
       runningTasks: flowingEdges,
       completedTasks: completedEdges,
       failedTasks: failedEdges,
       averageTaskDuration: avgDuration.round(),
-      collaborationEfficiency: efficiency,
+      collaborationEfficiency: efficiency.round(),
       messageCount: state.events.where((e) => e.type.contains('message')).length,
       toolCallCount: state.events.where((e) => e.type.contains('tool')).length,
       protocolInvocations: state.events.where((e) => e.type == 'protocol_invoked').length,
     );
   }
+
+  int get totalTasks => state.edges.length;
 }
 
 /// Provider for collaboration state

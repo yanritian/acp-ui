@@ -731,5 +731,194 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
     // Logs table for LogStream system
     crate::log_stream::init_logs_table(conn)?;
 
+    // Executive Sessions table for Executive Agent persistence
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS executive_sessions (
+            id TEXT PRIMARY KEY,
+            request TEXT NOT NULL,
+            workspace TEXT NOT NULL,
+            status TEXT NOT NULL,
+            summary TEXT,
+            files_json TEXT,
+            logs_json TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_exec_sessions_status ON executive_sessions(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_exec_sessions_created ON executive_sessions(created_at)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
     Ok(())
+}
+
+// ===== Executive Session Database Operations =====
+
+/// Executive Session record for database storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutiveSessionRecord {
+    pub id: String,
+    pub request: String,
+    pub workspace: String,
+    pub status: String,
+    pub summary: Option<String>,
+    pub files_json: Option<String>,
+    pub logs_json: Option<String>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+impl DatabaseManager {
+    /// Save an executive session to database
+    pub fn save_executive_session(&self, session: &ExecutiveSessionRecord) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO executive_sessions (
+                id, request, workspace, status, summary, files_json, logs_json, created_at, completed_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                session.id,
+                session.request,
+                session.workspace,
+                session.status,
+                session.summary,
+                session.files_json,
+                session.logs_json,
+                session.created_at,
+                session.completed_at,
+            ],
+        ).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    /// Load executive sessions from database
+    pub fn load_executive_sessions(&self, limit: Option<u64>) -> Result<Vec<ExecutiveSessionRecord>, String> {
+        let conn = self.conn.lock().unwrap();
+
+        let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+
+        let sql = format!(
+            "SELECT id, request, workspace, status, summary, files_json, logs_json, created_at, completed_at
+             FROM executive_sessions ORDER BY created_at DESC {}",
+            limit_clause
+        );
+
+        let records: Vec<ExecutiveSessionRecord> = conn.prepare(&sql)
+            .map_err(|e| e.to_string())?
+            .query_map([], |row| {
+                Ok(ExecutiveSessionRecord {
+                    id: row.get(0)?,
+                    request: row.get(1)?,
+                    workspace: row.get(2)?,
+                    status: row.get(3)?,
+                    summary: row.get(4)?,
+                    files_json: row.get(5)?,
+                    logs_json: row.get(6)?,
+                    created_at: row.get(7)?,
+                    completed_at: row.get(8)?,
+                })
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+
+        Ok(records)
+    }
+
+    /// Get single executive session by ID
+    pub fn get_executive_session(&self, id: &str) -> Result<Option<ExecutiveSessionRecord>, String> {
+        let conn = self.conn.lock().unwrap();
+
+        let sql = "SELECT id, request, workspace, status, summary, files_json, logs_json, created_at, completed_at
+                   FROM executive_sessions WHERE id = ?1";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+
+        let result = stmt.query_row(params![id], |row| {
+            Ok(ExecutiveSessionRecord {
+                id: row.get(0)?,
+                request: row.get(1)?,
+                workspace: row.get(2)?,
+                status: row.get(3)?,
+                summary: row.get(4)?,
+                files_json: row.get(5)?,
+                logs_json: row.get(6)?,
+                created_at: row.get(7)?,
+                completed_at: row.get(8)?,
+            })
+        });
+
+        match result {
+            Ok(record) => Ok(Some(record)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    /// Delete executive session
+    pub fn delete_executive_session(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+
+        conn.execute(
+            "DELETE FROM executive_sessions WHERE id = ?1",
+            params![id],
+        ).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    /// Get executive session statistics
+    pub fn get_executive_session_stats(&self) -> Result<ExecutiveSessionStats, String> {
+        let conn = self.conn.lock().unwrap();
+
+        let total: u64 = conn.query_row(
+            "SELECT COUNT(*) FROM executive_sessions",
+            [],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
+        let completed: u64 = conn.query_row(
+            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'completed'",
+            [],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
+        let running: u64 = conn.query_row(
+            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'running'",
+            [],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
+        let error: u64 = conn.query_row(
+            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'error'",
+            [],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
+        Ok(ExecutiveSessionStats {
+            total,
+            completed,
+            running,
+            error,
+        })
+    }
+}
+
+/// Executive session statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutiveSessionStats {
+    pub total: u64,
+    pub completed: u64,
+    pub running: u64,
+    pub error: u64,
 }

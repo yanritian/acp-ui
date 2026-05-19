@@ -12,6 +12,7 @@ mod hooks_executor;
 mod session_manager;  // NEW: Claw Code Session Management
 mod event_router;     // NEW: Claw Code Event Router (clawhip layer)
 mod feishu_rich_message;  // NEW: Feishu rich message support (images, files, cards)
+mod executive_agent;  // NEW: Executive Agent - executes actual development tasks
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
@@ -21,8 +22,10 @@ use websocket::WebSocketServer;
 use log_stream::{LogStreamManager, LogEntry, LogType};
 use permission_checker::{PermissionChecker, PermissionConfig, PermissionResult};
 use agent_config_parser::{AgentConfigParser, AgentConfigParsed, ParseResult};
+use executive_agent::{ExecutiveAgentManager, TaskResult, GeneratedFile};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Listener, Manager, State};
 use uuid::Uuid;
@@ -35,6 +38,7 @@ pub struct AppState {
     pub ws_server: Arc<Mutex<Option<WebSocketServer>>>,
     pub tunnel_manager: Arc<Mutex<Option<NgrokManager>>>,
     pub log_stream_manager: Arc<Mutex<Option<LogStreamManager>>>,
+    pub executive_agent_manager: Arc<Mutex<Option<ExecutiveAgentManager>>>,
 }
 
 impl AppState {
@@ -46,6 +50,7 @@ impl AppState {
             ws_server: Arc::new(Mutex::new(None)),
             tunnel_manager: Arc::new(Mutex::new(None)),
             log_stream_manager: Arc::new(Mutex::new(None)),
+            executive_agent_manager: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -437,7 +442,20 @@ pub fn run() {
             load_agent_config,
             list_agent_configs,
             delete_agent_config,
-            get_example_agent_config
+            get_example_agent_config,
+            // Executive Agent commands
+            init_executive_agent,
+            execute_development_task,
+            get_executive_agent_status,
+            get_task_result,
+            get_generated_files,
+            clear_executive_agent,
+            // Executive Session database commands
+            load_executive_sessions,
+            get_executive_session_by_id,
+            delete_executive_session_by_id,
+            get_executive_session_stats,
+            save_executive_session_record
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1786,4 +1804,160 @@ fn delete_agent_config(name: String, state: State<AppState>) -> Result<(), Strin
 #[tauri::command]
 fn get_example_agent_config() -> String {
     agent_config_parser::get_example_config()
+}
+
+// ===== Executive Agent Commands =====
+
+/// Initialize Executive Agent Manager with workspace path
+#[tauri::command]
+fn init_executive_agent(
+    workspace: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let workspace_path = std::path::PathBuf::from(&workspace);
+
+    // Create workspace directory if not exists
+    if !workspace_path.exists() {
+        std::fs::create_dir_all(&workspace_path)
+            .map_err(|e| format!("创建工作目录失败: {}", e))?;
+    }
+
+    let manager = ExecutiveAgentManager::new(workspace_path);
+    *state.executive_agent_manager.lock().unwrap() = Some(manager);
+
+    Ok(())
+}
+
+/// Execute development task using multi-agent workflow
+#[tauri::command]
+async fn execute_development_task(
+    request: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<TaskResult, String> {
+    // Get workspace path from manager (quick operation, no await)
+    let workspace_path = {
+        let manager_guard = state.executive_agent_manager.lock().unwrap();
+        let manager = manager_guard
+            .as_ref()
+            .ok_or_else(|| "Executive Agent Manager 未初始化，请先调用 init_executive_agent".to_string())?;
+
+        // Clone workspace path only
+        manager.workspace.clone()
+    };
+    // Lock is released here
+
+    // Create a new manager for this execution (ownership, no lock needed)
+    let manager = ExecutiveAgentManager::new(workspace_path);
+
+    // Execute workflow (async operation with no locks held)
+    let result = manager.execute_workflow(request, app_handle).await?;
+
+    // Update state with the manager that has results
+    {
+        let mut mgr = state.executive_agent_manager.lock().unwrap();
+        *mgr = Some(manager);
+    }
+
+    Ok(result)
+}
+
+/// Get executive agent status
+#[tauri::command]
+fn get_executive_agent_status(state: State<AppState>) -> Result<HashMap<String, String>, String> {
+    let manager = state.executive_agent_manager.lock().unwrap();
+    let manager = manager.as_ref()
+        .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
+
+    let status = manager.get_agent_status();
+    Ok(status.into_iter().map(|(k, v)| (format!("{:?}", k), format!("{:?}", v))).collect())
+}
+
+/// Get task result with generated files
+#[tauri::command]
+fn get_task_result(state: State<AppState>) -> Result<Vec<GeneratedFile>, String> {
+    let manager = state.executive_agent_manager.lock().unwrap();
+    let manager = manager.as_ref()
+        .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
+
+    Ok(manager.get_generated_files())
+}
+
+/// Get all generated files
+#[tauri::command]
+fn get_generated_files(state: State<AppState>) -> Result<Vec<GeneratedFile>, String> {
+    let manager = state.executive_agent_manager.lock().unwrap();
+    let manager = manager.as_ref()
+        .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
+
+    Ok(manager.get_generated_files())
+}
+
+/// Clear executive agent state
+#[tauri::command]
+fn clear_executive_agent(state: State<AppState>) -> Result<(), String> {
+    let manager = state.executive_agent_manager.lock().unwrap();
+    if let Some(manager) = manager.as_ref() {
+        manager.clear();
+    }
+    Ok(())
+}
+
+// ===== Executive Session Database Commands =====
+
+/// Load executive sessions from database
+#[tauri::command]
+fn load_executive_sessions(
+    limit: Option<u64>,
+    state: State<AppState>,
+) -> Result<Vec<database::ExecutiveSessionRecord>, String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.load_executive_sessions(limit)
+}
+
+/// Get single executive session by ID
+#[tauri::command]
+fn get_executive_session_by_id(
+    id: String,
+    state: State<AppState>,
+) -> Result<Option<database::ExecutiveSessionRecord>, String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.get_executive_session(&id)
+}
+
+/// Delete executive session from database
+#[tauri::command]
+fn delete_executive_session_by_id(
+    id: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.delete_executive_session(&id)
+}
+
+/// Get executive session statistics
+#[tauri::command]
+fn get_executive_session_stats(state: State<AppState>) -> Result<database::ExecutiveSessionStats, String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.get_executive_session_stats()
+}
+
+/// Save executive session record to database
+#[tauri::command]
+fn save_executive_session_record(
+    session: database::ExecutiveSessionRecord,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.save_executive_session(&session)
 }

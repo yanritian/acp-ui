@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 
 import '../agent/agent_pool.dart';
 import '../agent/agent_bridge.dart';
@@ -40,6 +41,7 @@ class Orchestrator {
   final SessionManager _sessionManager;
   final Map<String, Task> _tasks = {};
   final StreamController<Task> _taskController = StreamController<Task>.broadcast();
+  final Uuid _uuid = const Uuid();
 
   Orchestrator({
     required AgentPool agentPool,
@@ -50,7 +52,7 @@ class Orchestrator {
   /// Create a new task
   Task createTask(String description) {
     final task = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _uuid.v4(),
       description: description,
       createdAt: DateTime.now(),
     );

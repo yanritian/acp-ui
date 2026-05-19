@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' if (dart.library.html) 'dart:html';
+import 'dart:io' if (dart.library.html) 'process_stub.dart';
 
 import '../../data/models/agent.dart';
 import '../transport/websocket_transport.dart';

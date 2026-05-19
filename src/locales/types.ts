@@ -97,6 +97,7 @@ export type MessageSchema = {
     status: string
     monitor: string
     history: string
+    executiveSession: string
   }
   navigationDescriptions: {
     chat: string
@@ -117,6 +118,7 @@ export type MessageSchema = {
     status: string
     monitor: string
     history: string
+    executiveSession: string
   }
   hermes: {
     title: string
@@ -197,6 +199,7 @@ export type MessageSchema = {
     tunnelProviderFrp: string
     tunnelProviderCloudflare: string
     ngrokToken: string
+    ngrokHint: string
     ngrokTokenPlaceholder: string
     ngrokRegion: string
     ngrokRegionAp: string

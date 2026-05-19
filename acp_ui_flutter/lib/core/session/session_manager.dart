@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 
 import '../../data/models/session.dart';
 
@@ -9,6 +10,7 @@ class SessionManager {
   final int _maxMessages;
   final int _compactionThreshold;
   final StreamController<Session> _sessionController = StreamController<Session>.broadcast();
+  final Uuid _uuid = const Uuid();
 
   SessionManager({
     int maxMessages = 100,
@@ -23,7 +25,7 @@ class SessionManager {
     }
 
     final session = Session(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _uuid.v4(),
       agentId: agentId,
       createdAt: DateTime.now(),
       lastActive: DateTime.now(),

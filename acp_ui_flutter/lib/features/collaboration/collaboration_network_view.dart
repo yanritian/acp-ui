@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:acp_ui_flutter/data/stores/collaboration_store.dart';
@@ -276,17 +277,17 @@ class _NetworkGraphPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final arrowSize = 10.0;
-    final angle = atan2(endY - midY + controlOffset, endX - midX - controlOffset);
+    final angle = math.atan2(endY - midY + controlOffset, endX - midX - controlOffset);
 
     final arrowPath = Path();
     arrowPath.moveTo(endX, endY);
     arrowPath.lineTo(
-      endX - arrowSize * cos(angle - pi / 6),
-      endY - arrowSize * sin(angle - pi / 6),
+      endX - arrowSize * math.cos(angle - math.pi / 6),
+      endY - arrowSize * math.sin(angle - math.pi / 6),
     );
     arrowPath.lineTo(
-      endX - arrowSize * cos(angle + pi / 6),
-      endY - arrowSize * sin(angle + pi / 6),
+      endX - arrowSize * math.cos(angle + math.pi / 6),
+      endY - arrowSize * math.sin(angle + math.pi / 6),
     );
     arrowPath.close();
 
@@ -321,8 +322,8 @@ class _NetworkGraphPainter extends CustomPainter {
     final loadRect = Rect.fromCircle(center: center, radius: radius - 10);
     canvas.drawArc(
       loadRect,
-      -pi / 2,
-      2 * pi * loadPercentage,
+      -math.pi / 2,
+      2 * math.pi * loadPercentage,
       false,
       loadPaint,
     );

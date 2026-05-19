@@ -77,6 +77,12 @@ class Sidebar extends ConsumerWidget {
                   path: '/collaboration',
                   isSelected: currentPath == '/collaboration',
                 ),
+                _NavItem(
+                  icon: Icons.rocket_launch_outlined,
+                  label: 'Agent Teams',
+                  path: '/agent-teams',
+                  isSelected: currentPath == '/agent-teams',
+                ),
                 const Divider(),
                 _NavItem(
                   icon: Icons.settings_outlined,

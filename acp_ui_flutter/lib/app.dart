@@ -11,6 +11,7 @@ import 'features/settings/settings_view.dart';
 import 'features/evolution/evolution_dashboard.dart';
 import 'features/hermes/hermes_dashboard.dart';
 import 'features/collaboration/collaboration_network_view.dart';
+import 'features/agent_teams/agent_teams_dashboard.dart';
 
 // Router configuration with ShellRoute for persistent sidebar
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -46,6 +47,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/collaboration',
             builder: (context, state) => const CollaborationNetworkView(),
+          ),
+          GoRoute(
+            path: '/agent-teams',
+            builder: (context, state) => const AgentTeamsDashboard(),
           ),
         ],
       ),

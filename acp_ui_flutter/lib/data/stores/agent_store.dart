@@ -6,7 +6,7 @@ import '../models/agent.dart';
 /// Agent Pool Provider
 final agentPoolProvider = Provider<AgentPool>((ref) {
   return AgentPool(
-    baseUrl: 'ws://localhost:8080',
+    baseUrl: 'ws://192.168.3.7:8080',
     maxAgents: 10,
   );
 });

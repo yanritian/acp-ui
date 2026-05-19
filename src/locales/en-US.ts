@@ -98,6 +98,7 @@ export const enUS: MessageSchema = {
     status: 'Status',
     monitor: 'Monitor',
     history: 'History',
+    executiveSession: 'Executive Sessions',
   },
   navigationDescriptions: {
     chat: 'Single Agent session',
@@ -118,6 +119,7 @@ export const enUS: MessageSchema = {
     status: 'View Agent connection pool',
     monitor: 'View real-time events',
     history: 'Query task history',
+    executiveSession: 'View Executive Agent session records and generated files',
   },
   hermes: {
     title: 'Hermes Dashboard',
@@ -198,6 +200,7 @@ export const enUS: MessageSchema = {
     tunnelProviderFrp: 'frp (Self-hosted server required)',
     tunnelProviderCloudflare: 'Cloudflare Tunnel (Free)',
     ngrokToken: 'ngrok Token',
+    ngrokHint: 'Free registration',
     ngrokTokenPlaceholder: 'Get from ngrok.com',
     ngrokRegion: 'Region',
     ngrokRegionAp: 'Asia Pacific (Singapore)',

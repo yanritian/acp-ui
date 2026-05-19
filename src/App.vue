@@ -32,6 +32,7 @@ import LogStreamView from './components/LogStreamView.vue';
 import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
 import BotSettings from './components/BotSettings.vue';
 import LanguageSelector from './components/LanguageSelector.vue';
+import ExecutiveSessionView from './components/ExecutiveSessionView.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import { taskParser, type TaskDAG } from './lib/task-parser'
@@ -65,7 +66,7 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session'>('chat');
 const showLogStream = ref(false);
 
 // Mock Task DAG for demo
@@ -643,6 +644,9 @@ function clearError() {
 
         <!-- Agent Teams Platform Dashboard (Phase 2-4: 实时进度 + 类人宠物 + 三端同步) -->
         <AgentTeamsDashboard v-else-if="currentView === 'agent-teams'" />
+
+        <!-- Executive Session View (会话记录和执行详情) -->
+        <ExecutiveSessionView v-else-if="currentView === 'executive-session'" />
 
         <!-- Task Graph View (DAG Visualization) -->
         <TaskGraphView v-else-if="currentView === 'task-graph'" :dag="mockTaskDag" :show-agents="true" orientation="vertical" />

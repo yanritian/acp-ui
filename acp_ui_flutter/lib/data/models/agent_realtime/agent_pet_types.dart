@@ -243,7 +243,7 @@ class PetAnimationConfig {
   final String expression;
   final String description;
 
-  PetAnimationConfig({
+  const PetAnimationConfig({
     required this.frames,
     required this.duration,
     required this.expression,
@@ -291,7 +291,7 @@ class EmotionExpression {
   final String color;
   final String animation;
 
-  EmotionExpression({
+  const EmotionExpression({
     required this.emoji,
     required this.color,
     required this.animation,

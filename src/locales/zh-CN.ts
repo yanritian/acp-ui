@@ -98,6 +98,7 @@ export const zhCN: MessageSchema = {
     status: '状态',
     monitor: '监控',
     history: '历史',
+    executiveSession: '执行记录',
   },
   navigationDescriptions: {
     chat: '单 Agent 会话',
@@ -118,6 +119,7 @@ export const zhCN: MessageSchema = {
     status: '查看 Agent 连接池',
     monitor: '查看实时事件',
     history: '查询任务历史',
+    executiveSession: '查看 Executive Agent 会话记录和生成文件',
   },
   hermes: {
     title: 'Hermes Dashboard',
@@ -198,6 +200,7 @@ export const zhCN: MessageSchema = {
     tunnelProviderFrp: 'frp (需要自有服务器)',
     tunnelProviderCloudflare: 'Cloudflare Tunnel (免费)',
     ngrokToken: 'ngrok Token',
+    ngrokHint: '免费注册',
     ngrokTokenPlaceholder: '从ngrok.com获取',
     ngrokRegion: '区域',
     ngrokRegionAp: '亚太 (新加坡)',

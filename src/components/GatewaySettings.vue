@@ -288,7 +288,7 @@ onBeforeUnmount(() => {
           <div v-if="gatewayConfig.tunnel.provider === 'ngrok'" class="input-group">
             <label class="input-label">{{ t('gateway.ngrokToken') }}</label>
             <input class="input" type="password" v-model="gatewayConfig.tunnel.ngrokToken" :placeholder="t('gateway.ngrokTokenPlaceholder')" />
-            <span class="input-hint">免费注册: <a href="https://ngrok.com" target="_blank">ngrok.com</a></span>
+            <span class="input-hint">{{ t('gateway.ngrokHint') }}: <a href="https://ngrok.com" target="_blank">ngrok.com</a></span>
           </div>
 
           <div v-if="gatewayConfig.tunnel.provider === 'ngrok'" class="input-group">

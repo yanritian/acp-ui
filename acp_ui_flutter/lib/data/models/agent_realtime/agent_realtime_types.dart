@@ -343,7 +343,7 @@ class ActivityIndicatorConfig {
   final String animation;
   final String description;
 
-  ActivityIndicatorConfig({
+  const ActivityIndicatorConfig({
     required this.icon,
     required this.color,
     required this.animation,

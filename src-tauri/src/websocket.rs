@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Listener, Manager};
 
 use crate::gateway_config::constant_time_eq;
 
@@ -135,18 +135,27 @@ impl WebSocketServer {
 
         let _ = app_handle.emit("ws-server-started", self.port);
 
+        // Clone all Arcs before spawning tasks
         let clients = Arc::clone(&self.clients);
         let connections = Arc::clone(&self.connections);
         let running = Arc::clone(&self.running);
         let auth_token = Arc::clone(&self.auth_token);
         let log_push_interval = self.log_push_interval_ms;
+
+        // Clone for log batch push thread
         let connections_for_log = Arc::clone(&self.connections);
         let running_for_log = Arc::clone(&self.running);
+
+        // Clone for event forwarding thread
+        let connections_for_events = Arc::clone(&self.connections);
+        let running_for_events = Arc::clone(&self.running);
 
         // Clone app_handle before moving into spawn
         let app_handle_for_accept = app_handle.clone();
         let app_handle_for_log = app_handle.clone();
+        let app_handle_for_events = app_handle.clone();
 
+        // Accept connections thread
         tokio::spawn(async move {
             while *running.read() {
                 match listener.accept().await {
@@ -175,7 +184,7 @@ impl WebSocketServer {
             }
         });
 
-        // Spawn log batch push thread
+        // Log batch push thread
         tokio::spawn(async move {
             use crate::AppState;
             use crate::log_stream::LogEntry;
@@ -212,11 +221,7 @@ impl WebSocketServer {
             }
         });
 
-        // Spawn event forwarding thread - forward Tauri events to WebSocket clients
-        let connections_for_events = Arc::clone(&connections);
-        let running_for_events = Arc::clone(&running);
-        let app_handle_for_events = app_handle.clone();
-
+        // Event forwarding thread - forward Tauri events to WebSocket clients
         tokio::spawn(async move {
             // Listen to Tauri events and forward to WebSocket clients
             let events_to_forward = [
@@ -232,17 +237,18 @@ impl WebSocketServer {
             for event_name in events_to_forward {
                 let connections_clone = Arc::clone(&connections_for_events);
                 let running_clone = Arc::clone(&running_for_events);
+                let event_name_str = event_name.to_string();
 
-                // Use Tauri event listener
-                let _ = app_handle_for_events.listen(event_name, |event| {
+                // Use Tauri event listener with move closure
+                let _ = app_handle_for_events.listen(event_name_str.clone(), move |event| {
                     if !*running_clone.read() {
                         return;
                     }
 
                     // Forward event payload to all connected WebSocket clients
-                    let payload = event.payload().clone();
+                    let payload = event.payload();
                     let forward_json = serde_json::json!({
-                        "type": event_name,
+                        "type": event_name_str,
                         "data": payload,
                     });
 

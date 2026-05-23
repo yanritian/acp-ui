@@ -22,7 +22,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) => const ChatView(),
+            builder: (context, state) => const AgentTeamsDashboard(),
           ),
           GoRoute(
             path: '/multi-agent',
@@ -84,6 +84,14 @@ class MainLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    if (isMobile) {
+      // On mobile, just show the child directly (full screen)
+      return child;
+    }
+
     return Scaffold(
       body: Row(
         children: [

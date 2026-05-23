@@ -304,7 +304,7 @@ class LevelConfig {
   static const int baseExperience = 100;
   static const double experienceMultiplier = 1.5;
 
-  static const Map<String, AchievementConfig> achievements = {
+  static final Map<String, AchievementConfig> achievements = {
     'first_task': AchievementConfig(
       name: '初出茅庐',
       description: '完成第一个任务',

@@ -5,8 +5,9 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// WebSocket Service Provider - connects to Rust Tauri Backend
 final webSocketServiceProvider = Provider<WebSocketService>((ref) {
-  // Default to local development, can be configured
-  return WebSocketService(url: 'ws://127.0.0.1:1420');
+  // Default to WebSocket server port (1421)
+  // Use 10.0.2.2 for Android emulator to access host machine
+  return WebSocketService(url: 'ws://10.0.2.2:1421');
 });
 
 /// Connection Status Provider
@@ -28,17 +29,18 @@ final agentMessagesStreamProvider = StreamProvider<Map<String, dynamic>>((ref) {
 class WebSocketService {
   WebSocketChannel? _channel;
   final StreamController<String> _messageController = StreamController<String>.broadcast();
-  final String url;
+  String _url;
   bool _isConnected = false;
   String? _authToken;
   String? _clientId;
 
-  WebSocketService({required this.url});
+  WebSocketService({required String url}) : _url = url;
 
   Stream<String> get messageStream => _messageController.stream;
   bool isConnected() => _isConnected;
   bool get isConnectedGetter => _isConnected;
   String? get clientId => _clientId;
+  String get url => _url;
 
   /// Set authentication token (from QR code)
   void setAuthToken(String token) {
@@ -47,7 +49,7 @@ class WebSocketService {
 
   /// Configure server URL
   void configureUrl(String newUrl) {
-    url = newUrl;
+    _url = newUrl;
   }
 
   /// Connect to WebSocket server
@@ -187,6 +189,43 @@ class WebSocketService {
       'id': _generateRequestId(),
       'type': 'request',
       'command': 'clear_executive_agent',
+    });
+  }
+
+  /// Spawn and execute agent from config (Claude Code, Gemini CLI, etc.)
+  Future<void> spawnAndExecuteAgent(String agentName, String request, String? workspace) async {
+    await sendJson({
+      'id': _generateRequestId(),
+      'type': 'request',
+      'command': 'spawn_and_execute_agent',
+      'payload': {
+        'agent_name': agentName,
+        'request': request,
+        if (workspace != null) 'workspace': workspace,
+      },
+    });
+  }
+
+  /// Get task history from database
+  Future<void> getTaskHistory(int limit, List<String>? status, String? source) async {
+    await sendJson({
+      'id': _generateRequestId(),
+      'type': 'request',
+      'command': 'get_task_history',
+      'payload': {
+        'limit': limit,
+        if (status != null) 'status': status,
+        if (source != null) 'source': source,
+      },
+    });
+  }
+
+  /// Get task statistics
+  Future<void> getTaskStatistics() async {
+    await sendJson({
+      'id': _generateRequestId(),
+      'type': 'request',
+      'command': 'get_task_statistics',
     });
   }
 

@@ -1,5 +1,5 @@
-/// Agent Teams Dashboard
-/// 多Agent协作平台主界面
+/// Agent Teams Dashboard - Modern Mobile UI
+/// Material Design 3 风格的多Agent协作平台主界面
 
 import 'dart:async';
 import 'dart:convert';
@@ -10,17 +10,33 @@ import '../../data/stores/agent_realtime/agent_pet_store.dart';
 import '../../data/models/agent_realtime/agent_realtime_types.dart';
 import '../../data/models/agent_pet/agent_pet_types.dart';
 import '../../data/services/websocket_service.dart';
-import '../widgets/agent_progress_panel.dart';
-import '../widgets/agent_pet_avatar.dart';
-import '../widgets/collaboration_network.dart';
 
 /// 视图模式枚举
 enum ViewMode {
-  all,
+  home,
   progress,
   collaboration,
   pet,
 }
+
+/// 主色调 - Material Design 3
+const Color kPrimaryColor = Color(0xFF6750A4);
+const Color kSecondaryColor = Color(0xFF7D5260);
+const Color kTertiaryColor = Color(0xFF7D5700);
+const Color kSurfaceColor = Color(0xFFFFFBFE);
+const Color kBackgroundColor = Color(0xFFF7F2FA);
+/// Material Design 3 灰色调色板
+const Color kGrey100 = Color(0xFFF5F5F5);
+const Color kGrey400 = Color(0xFFBDBDBD);
+const Color kGrey500 = Color(0xFF9E9E9E);
+const Color kGrey600 = Color(0xFF757575);
+const Color kGrey700 = Color(0xFF616161);
+const Color kGrey800 = Color(0xFF424242);
+const Color kGrey900 = Color(0xFF212121);
+const Color kTeal700 = Color(0xFF00796B);
+const Color kAmber700 = Color(0xFFFFA000);
+
+const Color kCardColor = Colors.white;
 
 /// Agent Teams Dashboard 主页面
 class AgentTeamsDashboard extends ConsumerStatefulWidget {
@@ -31,8 +47,7 @@ class AgentTeamsDashboard extends ConsumerStatefulWidget {
 }
 
 class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
-  ViewMode _currentView = ViewMode.all;
-  String? _selectedAgentId;
+  ViewMode _currentView = ViewMode.home;
   final _requestController = TextEditingController();
   final _scrollController = ScrollController();
   List<String> _executionLogs = [];
@@ -40,14 +55,31 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
 
   // 配置状态
   String _workspacePath = 'D:/dingsun/acp-ui/erp_system';
-  String _wsUrl = 'ws://127.0.0.1:1420';
+  String _wsUrl = 'ws://10.0.2.2:1421';
   bool _isExecutiveAgentInitialized = false;
   StreamSubscription<String>? _messageSubscription;
+
+  // Agent 选择
+  String _selectedAgentMode = 'hermes_native';
+  String _selectedAgentName = 'Claude Code';
+  String? _selectedAgentId = 'planner-001';
+
+  // 可用Agent列表
+  final List<Map<String, dynamic>> _availableAgents = [
+    {'name': 'Claude Code', 'icon': '🤖', 'color': Colors.indigo},
+    {'name': 'GitHub Copilot', 'icon': '✈️', 'color': Colors.blue},
+    {'name': 'Gemini CLI', 'icon': '💎', 'color': Colors.teal},
+    {'name': 'Qwen Code', 'icon': '🌟', 'color': Colors.amber},
+    {'name': 'Hermes Agent', 'icon': '⚡', 'color': Colors.deepPurple},
+  ];
+
+  // 任务历史
+  List<Map<String, dynamic>> _taskHistory = [];
+  bool _isLoadingHistory = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedAgentId = 'planner-001';
     _connectWebSocket();
   }
 
@@ -65,99 +97,66 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     try {
       await wsService.connect();
       ref.read(connectionStatusProvider.notifier).state = true;
-
-      // 监听WebSocket消息流
-      _messageSubscription = wsService.messageStream.listen((data) {
-        _handleWebSocketMessage(data);
-      });
-
+      _messageSubscription = wsService.messageStream.listen(_handleWebSocketMessage);
       await _initExecutiveAgent();
+      await _loadTaskHistory();
     } catch (e) {
       print('[AgentTeams] WebSocket连接失败: $e');
       ref.read(connectionStatusProvider.notifier).state = false;
     }
   }
 
-  /// 处理WebSocket消息（转发的事件）
   void _handleWebSocketMessage(String data) {
     try {
       final msg = jsonDecode(data) as Map<String, dynamic>;
       final msgType = msg['type'] as String?;
       final msgData = msg['data'] as Map<String, dynamic>?;
 
-      print('[AgentTeams] 收到消息: $msgType');
-
       switch (msgType) {
         case 'task-started':
           setState(() {
             _isExecuting = true;
-            _executionLogs.add('🚀 任务开始: ${msgData?['request'] ?? ''}');
+            _executionLogs.add('🚀 任务开始');
           });
           break;
-
+        case 'agent-started':
+          setState(() {
+            _isExecuting = true;
+            _executionLogs.add('🤖 Agent启动: ${msgData?['agentName'] ?? ''}');
+          });
+          break;
         case 'agent-message':
-          final agentName = msgData?['agentName'] as String?;
-          final content = msgData?['content'] as String?;
-          if (agentName != null && content != null) {
+          final content = msgData?['message'] as String?;
+          if (content != null) {
             setState(() {
-              _executionLogs.add('🤖 [$agentName]: ${content.substring(0, 100)}...');
+              final preview = content.length > 100 ? '${content.substring(0, 100)}...' : content;
+              _executionLogs.add(preview);
             });
           }
           break;
-
-        case 'agent-status-update':
-          final agentType = msgData?['agentType'] as String?;
-          final status = msgData?['status'] as String?;
-          if (agentType != null && status != null) {
-            setState(() {
-              _executionLogs.add('🔄 [$agentType] 状态: $status');
-            });
-          }
-          break;
-
-        case 'file-created':
-          final path = msgData?['path'] as String?;
-          final lines = msgData?['lines'] as int?;
-          if (path != null) {
-            setState(() {
-              _executionLogs.add('📁 创建文件: $path (${lines ?? 0} 行)');
-            });
-          }
-          break;
-
-        case 'files-created':
-          final files = msgData?['files'] as List?;
-          if (files != null) {
-            setState(() {
-              _executionLogs.add('📁 批量创建 ${files.length} 个文件');
-              for (final file in files) {
-                _executionLogs.add('  - $file');
-              }
-            });
-          }
-          break;
-
         case 'task-completed':
-          final summary = msgData?['summary'] as String?;
           setState(() {
             _isExecuting = false;
-            _executionLogs.add('✅ 任务完成!');
-            if (summary != null) {
-              _executionLogs.add(summary.substring(0, 200));
-            }
+            _executionLogs.add('✅ 任务完成');
           });
           break;
-
         case 'agent-error':
-          final error = msgData?['error'] as String?;
           setState(() {
             _isExecuting = false;
-            _executionLogs.add('❌ 错误: $error');
+            _executionLogs.add('❌ 错误: ${msgData?['error'] ?? ''}');
           });
           break;
+        default:
+          if (msg['ok'] == true && msg['data'] != null) {
+            final data = msg['data'] as Map<String, dynamic>;
+            if (data['tasks'] != null) {
+              setState(() {
+                _taskHistory = (data['tasks'] as List).map((t) => t as Map<String, dynamic>).toList();
+                _isLoadingHistory = false;
+              });
+            }
+          }
       }
-
-      // 滚动到底部
       _scrollToBottom();
     } catch (e) {
       print('[AgentTeams] 消息解析错误: $e');
@@ -177,13 +176,8 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   Future<void> _initExecutiveAgent() async {
     final wsService = ref.read(webSocketServiceProvider);
     if (!wsService.isConnected()) return;
-
     await wsService.initExecutiveAgent(_workspacePath);
     _isExecutiveAgentInitialized = true;
-    setState(() {
-      _executionLogs.add('✅ Executive Agent 已初始化');
-      _executionLogs.add('📁 工作目录: $_workspacePath');
-    });
   }
 
   Future<void> _executeTask() async {
@@ -192,114 +186,194 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
 
     final wsService = ref.read(webSocketServiceProvider);
     if (!wsService.isConnected()) {
-      setState(() {
-        _executionLogs.add('❌ WebSocket未连接');
-      });
+      setState(() => _executionLogs.add('❌ WebSocket未连接'));
       return;
     }
 
     setState(() {
       _isExecuting = true;
-      _executionLogs.add('📤 发送需求: $request');
+      _executionLogs.add('📤 发送: $request');
       _requestController.clear();
     });
 
-    await wsService.executeDevelopmentTask(request);
+    if (_selectedAgentMode == 'hermes_native') {
+      await wsService.executeDevelopmentTask(request);
+    } else {
+      await wsService.spawnAndExecuteAgent(_selectedAgentName, request, _workspacePath);
+    }
+  }
 
-    setState(() {
-      _executionLogs.add('⏳ 任务已提交，等待执行...');
-    });
+  Future<void> _loadTaskHistory() async {
+    final wsService = ref.read(webSocketServiceProvider);
+    if (!wsService.isConnected()) return;
+    setState(() => _isLoadingHistory = true);
+    await wsService.getTaskHistory(10, null, null);
   }
 
   @override
   Widget build(BuildContext context) {
     final realtimeState = ref.watch(agentRealtimeProvider);
     final petState = ref.watch(agentPetProvider);
+    final isConnected = ref.watch(connectionStatusProvider);
 
     return Scaffold(
-      appBar: _buildAppBar(realtimeState),
-      body: Row(
-        children: [
-          // 左侧：Agent团队列表
-          _buildAgentTeamPanel(realtimeState, petState),
-          // 右侧：主内容区域
-          Expanded(
-            child: Column(
-              children: [
-                // 主内容
-                Expanded(
-                  child: _buildMainContent(realtimeState, petState),
-                ),
-                // 底部输入框
-                _buildRequestInputPanel(),
-              ],
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: kBackgroundColor,
+      appBar: _buildAppBar(isConnected),
+      bottomNavigationBar: _buildBottomNav(),
+      floatingActionButton: _buildFAB(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: _buildBody(realtimeState, petState),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(AgentRealtimeState realtimeState) {
+  PreferredSizeWidget _buildAppBar(bool isConnected) {
     return AppBar(
-      title: const Row(
+      backgroundColor: kSurfaceColor,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      title: Row(
         children: [
-          Icon(Icons.rocket_launch, size: 28),
-          SizedBox(width: 8),
-          Text('Agent Teams Platform'),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: kPrimaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.rocket_launch_rounded, color: kPrimaryColor, size: 20),
+          ),
+          const SizedBox(width: 10),
+          const Text('Agent Teams', style: TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
       actions: [
-        // 同步状态指示
-        _buildSyncIndicator(realtimeState.isConnected),
-        // 配置按钮
+        // 连接状态
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: isConnected ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(isConnected ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                size: 16, color: isConnected ? Colors.green : Colors.red),
+              const SizedBox(width: 4),
+              Text(isConnected ? '在线' : '离线',
+                style: TextStyle(fontSize: 12, color: isConnected ? Colors.green : Colors.red)),
+            ],
+          ),
+        ),
         IconButton(
-          icon: const Icon(Icons.settings_applications),
+          icon: Icon(Icons.settings_rounded, color: kGrey700),
           onPressed: () => _showConfigDialog(),
-          tooltip: '配置',
-        ),
-        // 语言切换按钮
-        IconButton(
-          icon: const Icon(Icons.language),
-          onPressed: () => _showLanguageDialog(),
-          tooltip: '切换语言',
-        ),
-        // 帮助按钮
-        IconButton(
-          icon: const Icon(Icons.help_outline),
-          onPressed: () => _showHelpDialog(),
-          tooltip: '帮助',
         ),
       ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: _buildStatsBar(realtimeState),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: kSurfaceColor,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2)),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentView.index,
+        onTap: (index) => setState(() => _currentView = ViewMode.values[index]),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedItemColor: kPrimaryColor,
+        unselectedItemColor: kGrey500,
+        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: '首页',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.trending_up_outlined),
+            activeIcon: const Icon(Icons.trending_up),
+            label: '进度',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.people_outline),
+            activeIcon: const Icon(Icons.people),
+            label: '协作',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.pets_outlined),
+            activeIcon: const Icon(Icons.pets),
+            label: '宠物',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSyncIndicator(bool isConnected) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isConnected ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isConnected ? Icons.cloud_done : Icons.cloud_off,
-            size: 16,
-            color: isConnected ? Colors.green : Colors.red,
+  Widget _buildFAB() {
+    return FloatingActionButton(
+      onPressed: () => _showInputDialog(),
+      backgroundColor: kPrimaryColor,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+    );
+  }
+
+  Widget _buildBody(AgentRealtimeState realtimeState, AgentPetState petState) {
+    switch (_currentView) {
+      case ViewMode.home:
+        return _buildHomeView(realtimeState, petState);
+      case ViewMode.progress:
+        return _buildProgressView(realtimeState);
+      case ViewMode.collaboration:
+        return _buildCollaborationView(realtimeState);
+      case ViewMode.pet:
+        return _buildPetView(petState);
+    }
+  }
+
+  /// 首页 - 任务列表 + 统计
+  Widget _buildHomeView(AgentRealtimeState realtimeState, AgentPetState petState) {
+    return RefreshIndicator(
+      onRefresh: _loadTaskHistory,
+      color: kPrimaryColor,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // 统计概览
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _buildStatsOverview(realtimeState),
+            ),
           ),
-          const SizedBox(width: 4),
-          Text(
-            isConnected ? '已连接' : '断开',
-            style: TextStyle(
-              color: isConnected ? Colors.green : Colors.red,
-              fontSize: 12,
+          // 快捷操作区
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: _buildQuickActions(),
+            ),
+          ),
+          // Agent 列表
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _buildAgentListSection(realtimeState, petState),
+            ),
+          ),
+          // 任务历史
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              child: _buildTaskHistorySection(),
             ),
           ),
         ],
@@ -307,44 +381,45 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     );
   }
 
-  Widget _buildStatsBar(AgentRealtimeState state) {
+  Widget _buildStatsOverview(AgentRealtimeState state) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _buildStatCard('代理', '${state.agents.length}', Icons.smart_toy),
-          const SizedBox(width: 16),
-          _buildStatCard('思考', '${state.thinkingCount}', Icons.psychology),
-          const SizedBox(width: 16),
-          _buildStatCard('执行', '${state.executingCount}', Icons.bolt),
-          const SizedBox(width: 16),
-          _buildStatCard('成功率', '${(state.globalSuccessRate * 100).toStringAsFixed(0)}%', Icons.check_circle),
-          const SizedBox(width: 24),
-          // 视图切换按钮
-          _buildViewToggleButtons(),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [kPrimaryColor, kPrimaryColor.withOpacity(0.7)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: kPrimaryColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.blue),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+          Row(
             children: [
-              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('智能协作平台', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('v1.0', style: const TextStyle(fontSize: 12, color: Colors.white)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              _buildStatItem('${state.agents.length}', '活跃Agent', Icons.smart_toy_rounded),
+              const SizedBox(width: 24),
+              _buildStatItem('${state.thinkingCount}', '思考中', Icons.psychology_rounded),
+              const SizedBox(width: 24),
+              _buildStatItem('${state.executingCount}', '执行中', Icons.bolt_rounded),
             ],
           ),
         ],
@@ -352,90 +427,201 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     );
   }
 
-  Widget _buildViewToggleButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildStatItem(String value, String label, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildViewButton('全部', ViewMode.all, Icons.dashboard),
-        _buildViewButton('进度', ViewMode.progress, Icons.timeline),
-        _buildViewButton('协作', ViewMode.collaboration, Icons.device_hub),
-        _buildViewButton('宠物', ViewMode.pet, Icons.pets),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white.withOpacity(0.8), size: 16),
+            const SizedBox(width: 6),
+            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+          ],
+        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8))),
       ],
     );
   }
 
-  Widget _buildViewButton(String label, ViewMode mode, IconData icon) {
-    final isSelected = _currentView == mode;
-    return InkWell(
-      onTap: () => setState(() => _currentView = mode),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey.withOpacity(0.3),
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('快捷操作', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _buildQuickActionCard(Icons.code_rounded, '新建任务', kPrimaryColor, () => _showInputDialog()),
+            const SizedBox(width: 12),
+            _buildQuickActionCard(Icons.folder_rounded, '项目目录', Colors.teal, () => _showConfigDialog()),
+            const SizedBox(width: 12),
+            _buildQuickActionCard(Icons.history_rounded, '历史记录', Colors.indigo, () => _loadTaskHistory()),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 8),
+              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: color)),
+            ],
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      ),
+    );
+  }
+
+  Widget _buildAgentListSection(AgentRealtimeState realtimeState, AgentPetState petState) {
+    final agents = realtimeState.agents.values.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(icon, size: 16, color: isSelected ? Colors.white : Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey,
-                fontSize: 12,
-              ),
+            const Text('Agent 团队', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () {},
+              icon: Icon(Icons.add_rounded, size: 18),
+              label: const Text('添加'),
+              style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (agents.isEmpty)
+          _buildEmptyAgentsPlaceholder()
+        else
+          ...agents.map((agent) => _buildAgentCard(agent, petState)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyAgentsPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: kGrey100,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.smart_toy_outlined, size: 48, color: kGrey400),
+            const SizedBox(height: 12),
+            Text('暂无活跃Agent', style: TextStyle(color: kGrey500)),
+            const SizedBox(height: 8),
+            Text('点击下方按钮创建任务', style: TextStyle(fontSize: 12, color: kGrey400)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAgentTeamPanel(
-    AgentRealtimeState realtimeState,
-    AgentPetState petState,
-  ) {
+  Widget _buildAgentCard(AgentRealtimeStatus agent, AgentPetState petState) {
+    final isSelected = _selectedAgentId == agent.agentId;
+    final pet = petState.pets.values.firstWhere(
+      (p) => p.agentId == agent.agentId,
+      orElse: () => _createDefaultPet(agent.agentId),
+    );
+
     return Container(
-      width: 280,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
-        border: Border(
-          right: BorderSide(color: Colors.grey.withOpacity(0.2)),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 面板标题
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: const Row(
-              children: [
-                Icon(Icons.group, size: 20),
-                SizedBox(width: 8),
-                Text('Agent团队', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          // Agent列表
-          Expanded(
-            child: ListView.builder(
-              itemCount: realtimeState.agents.length,
-              itemBuilder: (context, index) {
-                final agent = realtimeState.agents.values.elementAt(index);
-                final pet = petState.pets.values.firstWhere(
-                  (p) => p.agentId == agent.agentId,
-                  orElse: () => _createDefaultPet(agent.agentId),
-                );
-                return _buildAgentCard(agent, pet);
-              },
-            ),
-          ),
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isSelected ? kPrimaryColor : Colors.grey.withOpacity(0.15)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
+      ),
+      child: InkWell(
+        onTap: () => setState(() => _selectedAgentId = agent.agentId),
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            // 头像
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: kPrimaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(_getAgentEmoji(agent.agentName), style: const TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // 信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(agent.agentName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getActivityColor(agent.currentActivity.type).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _getActivityText(agent.currentActivity.type),
+                          style: TextStyle(fontSize: 11, color: _getActivityColor(agent.currentActivity.type)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text('Lv.${pet.level}', style: const TextStyle(fontSize: 12, color: kGrey600)),
+                      const SizedBox(width: 12),
+                      Icon(Icons.task_alt_rounded, size: 14, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text('${agent.stats.tasksCompleted} 任务', style: const TextStyle(fontSize: 12, color: kGrey600)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // 进度指示
+            if (agent.currentActivity.type != AgentActivityType.idle)
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  value: agent.currentActivity.progress / 100,
+                  strokeWidth: 3,
+                  backgroundColor: Colors.grey.withOpacity(0.2),
+                  valueColor: AlwaysStoppedAnimation(_getActivityColor(agent.currentActivity.type)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -460,500 +646,768 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     );
   }
 
-  Widget _buildAgentCard(AgentRealtimeStatus agent, AgentPet pet) {
-    final isSelected = _selectedAgentId == agent.agentId;
-    final activityIcon = _getActivityIcon(agent.currentActivity.type);
-    final activityColor = _getActivityColor(agent.currentActivity.type);
-
-    return InkWell(
-      onTap: () => setState(() => _selectedAgentId = agent.agentId),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Colors.blue : Colors.grey.withOpacity(0.2),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Agent头像和名称
-            Row(
-              children: [
-                AgentPetAvatar(
-                  pet: pet,
-                  size: 48,
-                  showAnimation: true,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        agent.agentName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(activityIcon, size: 14, color: activityColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            _getActivityText(agent.currentActivity.type),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: activityColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Lv徽章
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Lv.${pet.level}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.purple,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // 进度条
-            if (agent.currentActivity.type != AgentActivityType.idle)
-              LinearProgressIndicator(
-                value: agent.currentActivity.progress / 100,
-                backgroundColor: Colors.grey.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation(activityColor),
-              ),
-            const SizedBox(height: 8),
-            // 统计信息
-            Row(
-              children: [
-                _buildMiniStat('任务', '${agent.stats.tasksCompleted}'),
-                const SizedBox(width: 8),
-                _buildMiniStat('成功率', '${(agent.stats.successRate * 100).toStringAsFixed(0)}%'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniStat(String label, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        const SizedBox(width: 4),
-        Text(value, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  IconData _getActivityIcon(AgentActivityType type) {
-    switch (type) {
-      case AgentActivityType.thinking:
-        return Icons.psychology;
-      case AgentActivityType.executing:
-        return Icons.bolt;
-      case AgentActivityType.outputting:
-        return Icons.output;
-      case AgentActivityType.idle:
-        return Icons.bedtime;
-      case AgentActivityType.waiting:
-        return Icons.hourglass_empty;
-      case AgentActivityType.error:
-        return Icons.error;
-    }
+  String _getAgentEmoji(String agentName) {
+    final name = agentName.toLowerCase();
+    if (name.contains('planner')) return '';
+    if (name.contains('architect')) return '🏗️';
+    if (name.contains('developer') || name.contains('coder')) return '💻';
+    if (name.contains('reviewer')) return '🔍';
+    if (name.contains('tdd') || name.contains('test')) return '🧪';
+    if (name.contains('security')) return '🔒';
+    if (name.contains('doc')) return '';
+    return '🤖';
   }
 
   Color _getActivityColor(AgentActivityType type) {
     switch (type) {
-      case AgentActivityType.thinking:
-        return Colors.blue;
-      case AgentActivityType.executing:
-        return Colors.orange;
-      case AgentActivityType.outputting:
-        return Colors.green;
-      case AgentActivityType.idle:
-        return Colors.grey;
-      case AgentActivityType.waiting:
-        return Colors.purple;
-      case AgentActivityType.error:
-        return Colors.red;
+      case AgentActivityType.thinking: return Colors.blue;
+      case AgentActivityType.executing: return Colors.orange;
+      case AgentActivityType.outputting: return Colors.green;
+      case AgentActivityType.idle: return Colors.grey;
+      case AgentActivityType.waiting: return Colors.purple;
+      case AgentActivityType.error: return Colors.red;
     }
   }
 
   String _getActivityText(AgentActivityType type) {
     switch (type) {
-      case AgentActivityType.thinking:
-        return '正在思考';
-      case AgentActivityType.executing:
-        return '正在执行';
-      case AgentActivityType.outputting:
-        return '正在输出';
-      case AgentActivityType.idle:
-        return '空闲';
-      case AgentActivityType.waiting:
-        return '等待';
-      case AgentActivityType.error:
-        return '错误';
+      case AgentActivityType.thinking: return '思考';
+      case AgentActivityType.executing: return '执行';
+      case AgentActivityType.outputting: return '输出';
+      case AgentActivityType.idle: return '空闲';
+      case AgentActivityType.waiting: return '等待';
+      case AgentActivityType.error: return '错误';
     }
   }
 
-  Widget _buildMainContent(
-    AgentRealtimeState realtimeState,
-    AgentPetState petState,
-  ) {
-    final selectedAgent = realtimeState.agents[_selectedAgentId ?? ''];
-    final selectedPet = petState.pets.values.firstWhere(
-      (p) => p.agentId == _selectedAgentId,
-      orElse: () => _createDefaultPet(_selectedAgentId ?? ''),
-    );
-
-    switch (_currentView) {
-      case ViewMode.all:
-        return _buildAllView(realtimeState, petState, selectedAgent, selectedPet);
-      case ViewMode.progress:
-        return AgentProgressPanel(agent: selectedAgent);
-      case ViewMode.collaboration:
-        return const CollaborationNetwork();
-      case ViewMode.pet:
-        return _buildPetDetailView(selectedPet);
-    }
-  }
-
-  Widget _buildAllView(
-    AgentRealtimeState realtimeState,
-    AgentPetState petState,
-    AgentRealtimeStatus? agent,
-    AgentPet pet,
-  ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 实时进度面板
-          if (agent != null)
-            AgentProgressPanel(agent: agent),
-          const SizedBox(height: 16),
-          // 协作网络迷你版
-          const CollaborationNetwork(miniMode: true),
-          const SizedBox(height: 16),
-          // 宠物互动面板
-          _buildPetInteractionPanel(pet),
-        ],
-      ),
+  Widget _buildTaskHistorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('任务历史', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (_isLoadingHistory)
+              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimaryColor))
+            else
+              TextButton.icon(
+                onPressed: _loadTaskHistory,
+                icon: Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('刷新'),
+                style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_taskHistory.isEmpty)
+          _buildEmptyHistoryPlaceholder()
+        else
+          ..._taskHistory.map((task) => _buildTaskCard(task)),
+      ],
     );
   }
 
-  Widget _buildPetDetailView(AgentPet pet) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 大头像
-          Center(
-            child: AgentPetAvatar(
-              pet: pet,
-              size: 120,
-              showAnimation: true,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // 状态信息
-          _buildPetStatusCard(pet),
-          const SizedBox(height: 16),
-          // 互动按钮
-          _buildInteractionButtons(pet),
-          const SizedBox(height: 16),
-          // 成就展示
-          _buildAchievementsSection(pet),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPetInteractionPanel(AgentPet pet) {
+  Widget _buildEmptyHistoryPlaceholder() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        color: kGrey100,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.pets, size: 20),
-              SizedBox(width: 8),
-              Text('宠物状态', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildEmotionIndicator(pet),
-              _buildHappinessBar(pet),
-              _buildIntimacyBar(pet),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildMiniInteractionButtons(pet),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmotionIndicator(AgentPet pet) {
-    return Column(
-      children: [
-        Text(
-          _getEmotionEmoji(pet.emotion),
-          style: const TextStyle(fontSize: 32),
-        ),
-        const SizedBox(height: 4),
-        Text(pet.statusText, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-
-  String _getEmotionEmoji(PetEmotion emotion) {
-    switch (emotion) {
-      case PetEmotion.happy:
-        return '😊';
-      case PetEmotion.thinking:
-        return '🤔';
-      case PetEmotion.sleepy:
-        return '😴';
-      case PetEmotion.confused:
-        return '😕';
-      case PetEmotion.excited:
-        return '🎉';
-      case PetEmotion.bored:
-        return '😐';
-      case PetEmotion.calm:
-        return '🙂';
-    }
-  }
-
-  Widget _buildHappinessBar(AgentPet pet) {
-    return Column(
-      children: [
-        const Text('快乐度', style: TextStyle(fontSize: 12)),
-        const SizedBox(height: 4),
-        SizedBox(
-          width: 80,
-          child: LinearProgressIndicator(
-            value: pet.happiness / 100,
-            backgroundColor: Colors.grey.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation(Colors.green),
-          ),
-        ),
-        Text('${pet.happiness.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildIntimacyBar(AgentPet pet) {
-    return Column(
-      children: [
-        const Text('亲密度', style: TextStyle(fontSize: 12)),
-        const SizedBox(height: 4),
-        SizedBox(
-          width: 80,
-          child: LinearProgressIndicator(
-            value: pet.intimacy / 100,
-            backgroundColor: Colors.grey.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation(Colors.pink),
-          ),
-        ),
-        Text('${pet.intimacy.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildMiniInteractionButtons(AgentPet pet) {
-    final petStore = ref.read(agentPetProvider.notifier);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildMiniButton('👋', '抚摸', () => petStore.interactWithPet(pet.petId, 'pet')),
-        _buildMiniButton('👉', '戳', () => petStore.interactWithPet(pet.petId, 'poke')),
-        _buildMiniButton('🍖', '喂食', () => petStore.interactWithPet(pet.petId, 'feed')),
-        _buildMiniButton('🎾', '玩', () => petStore.interactWithPet(pet.petId, 'play')),
-      ],
-    );
-  }
-
-  Widget _buildMiniButton(String emoji, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      child: Center(
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
-            Text(label, style: const TextStyle(fontSize: 10)),
+            Icon(Icons.history_outlined, size: 40, color: kGrey400),
+            const SizedBox(height: 12),
+            Text('暂无任务历史', style: TextStyle(color: kGrey500)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPetStatusCard(AgentPet pet) {
+  Widget _buildTaskCard(Map<String, dynamic> task) {
+    final status = task['status'] as String?;
+    final name = task['name'] as String? ?? '未知任务';
+    final statusColor = status == 'success' ? Colors.green : status == 'failed' ? Colors.red : Colors.orange;
+    final statusIcon = status == 'success' ? Icons.check_circle_rounded : status == 'failed' ? Icons.error_rounded : Icons.pending_rounded;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 1)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(statusIcon, color: statusColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text('状态: ${status ?? "进行中"}', style: TextStyle(fontSize: 12, color: kGrey500)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: kGrey400),
+        ],
+      ),
+    );
+  }
+
+  /// 进度视图
+  Widget _buildProgressView(AgentRealtimeState realtimeState) {
+    final selectedAgent = realtimeState.agents[_selectedAgentId ?? ''];
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 执行状态
+                if (_isExecuting) _buildExecutingIndicator(),
+                // 执行日志
+                if (_executionLogs.isNotEmpty) _buildExecutionLogs(),
+                const SizedBox(height: 16),
+                // Agent进度
+                if (selectedAgent != null) _buildAgentProgressDetail(selectedAgent),
+                // 空状态
+                if (selectedAgent == null && !_isExecuting) _buildProgressEmptyState(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExecutingIndicator() {
     return Container(
       padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(colors: [Colors.indigo.withOpacity(0.1), Colors.blue.withOpacity(0.1)]),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.indigo.withOpacity(0.3)),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(child: _buildStatusItem('等级', 'Lv.${pet.level}')),
-              Expanded(child: _buildStatusItem('经验', '${pet.experience}')),
-            ],
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimaryColor),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatusItem('快乐度', '${pet.happiness.toStringAsFixed(0)}%')),
-              Expanded(child: _buildStatusItem('亲密度', '${pet.intimacy.toStringAsFixed(0)}%')),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('正在执行', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text('${_selectedAgentMode == 'hermes_native' ? "Hermes Native" : _selectedAgentName}',
+                  style: TextStyle(fontSize: 12, color: kGrey600)),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatusItem('总任务', '${pet.totalTasks}')),
-              Expanded(child: _buildStatusItem('成功率', '${((pet.successfulTasks / pet.totalTasks) * 100).toStringAsFixed(0)}%')),
-            ],
+          IconButton(
+            onPressed: () => setState(() => _isExecuting = false),
+            icon: Icon(Icons.stop_circle_rounded, color: Colors.red),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatusItem(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildInteractionButtons(AgentPet pet) {
-    final petStore = ref.read(agentPetProvider.notifier);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton.icon(
-          onPressed: () => petStore.interactWithPet(pet.petId, 'pet'),
-          icon: const Text('👋', style: TextStyle(fontSize: 24)),
-          label: const Text('抚摸 (+5快乐)'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        ElevatedButton.icon(
-          onPressed: () => petStore.interactWithPet(pet.petId, 'feed'),
-          icon: const Text('🍖', style: TextStyle(fontSize: 24)),
-          label: const Text('喂食 (+10快乐+5亲密)'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        ElevatedButton.icon(
-          onPressed: () => petStore.interactWithPet(pet.petId, 'play'),
-          icon: const Text('🎾', style: TextStyle(fontSize: 24)),
-          label: const Text('玩耍 (+15快乐+10亲密)'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.purple,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAchievementsSection(AgentPet pet) {
+  Widget _buildExecutionLogs() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 200,
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: kGrey900,
         borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: kGrey800,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.terminal_rounded, color: Colors.greenAccent, size: 16),
+                const SizedBox(width: 8),
+                const Text('执行日志', style: TextStyle(fontSize: 12, color: Colors.white)),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => setState(() => _executionLogs.clear()),
+                  icon: Icon(Icons.clear_all_rounded, color: kGrey500, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(8),
+              itemCount: _executionLogs.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(_executionLogs[index], style: const TextStyle(fontSize: 12, color: Colors.white)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAgentProgressDetail(AgentRealtimeStatus agent) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          // 标题
+          Row(
             children: [
-              Icon(Icons.emoji_events, size: 20, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('成就', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(child: Text(_getAgentEmoji(agent.agentName), style: const TextStyle(fontSize: 20))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(agent.agentName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    Text(_getActivityText(agent.currentActivity.type),
+                      style: TextStyle(fontSize: 12, color: _getActivityColor(agent.currentActivity.type))),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getActivityColor(agent.currentActivity.type).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('${agent.currentActivity.progress}%',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
+                    color: _getActivityColor(agent.currentActivity.type))),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: pet.achievements.map((a) => _buildAchievementBadge(a)).toList(),
+          const SizedBox(height: 20),
+          // 进度条
+          LinearProgressIndicator(
+            value: agent.currentActivity.progress / 100,
+            backgroundColor: Colors.grey.withOpacity(0.15),
+            valueColor: AlwaysStoppedAnimation(_getActivityColor(agent.currentActivity.type)),
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 20),
+          // 统计
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildProgressStat(Icons.task_alt_rounded, '${agent.stats.tasksCompleted}', '完成', Colors.green),
+              _buildProgressStat(Icons.error_outline_rounded, '${agent.stats.tasksFailed}', '失败', Colors.red),
+              _buildProgressStat(Icons.timer_outlined, '${(agent.stats.averageDuration / 1000).toStringAsFixed(1)}s', '耗时', Colors.orange),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAchievementBadge(String achievementId) {
-    final achievementInfo = _getAchievementInfo(achievementId);
+  Widget _buildProgressStat(IconData icon, String value, String label, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(fontSize: 12, color: kGrey600)),
+      ],
+    );
+  }
+
+  Widget _buildProgressEmptyState() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.2),
+        color: kGrey100,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.hourglass_empty_rounded, size: 64, color: kGrey400),
+            const SizedBox(height: 16),
+            const Text('暂无执行进度', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            Text('选择一个Agent或创建新任务', style: TextStyle(color: kGrey500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 协作视图
+  Widget _buildCollaborationView(AgentRealtimeState realtimeState) {
+    final agents = realtimeState.agents.values.toList();
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 协作网络概览
+                _buildCollaborationOverview(agents),
+                const SizedBox(height: 16),
+                // Agent选择器
+                _buildAgentSelector(agents),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCollaborationOverview(List<AgentRealtimeStatus> agents) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.teal.withOpacity(0.15), Colors.cyan.withOpacity(0.1)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.teal.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.people_rounded, color: kTeal700, size: 24),
+              const SizedBox(width: 12),
+              const Text('协作网络', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // 可视化网格
+          Container(
+            height: 160,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _buildCollaborationGraph(agents),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollaborationGraph(List<AgentRealtimeStatus> agents) {
+    if (agents.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.device_hub_rounded, size: 40, color: kGrey400),
+            const SizedBox(height: 8),
+            Text('暂无Agent连接', style: TextStyle(color: kGrey500)),
+          ],
+        ),
+      );
+    }
+
+    // 显示Agent节点网格
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+      ),
+      itemCount: agents.length,
+      itemBuilder: (context, index) {
+        final agent = agents[index];
+        final isSelected = _selectedAgentId == agent.agentId;
+        return GestureDetector(
+          onTap: () => setState(() => _selectedAgentId = agent.agentId),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isSelected ? kPrimaryColor.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(color: isSelected ? kPrimaryColor : Colors.grey.withOpacity(0.3), width: 2),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_getAgentEmoji(agent.agentName), style: const TextStyle(fontSize: 24)),
+                const SizedBox(height: 4),
+                Text(agent.agentName.split(' ').first,
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAgentSelector(List<AgentRealtimeStatus> agents) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('选择协作Agent', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ...agents.map((agent) => InkWell(
+              onTap: () => setState(() => _selectedAgentId = agent.agentId),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedAgentId == agent.agentId ? kPrimaryColor.withOpacity(0.15) : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _selectedAgentId == agent.agentId ? kPrimaryColor : Colors.grey.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_getAgentEmoji(agent.agentName), style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 6),
+                    Text(agent.agentName.split(' ').first,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            )),
+            InkWell(
+              onTap: () => _showInputDialog(),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 16, color: kGrey600),
+                    const SizedBox(width: 6),
+                    Text('添加', style: TextStyle(fontSize: 12, color: kGrey600)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 宠物视图
+  Widget _buildPetView(AgentPetState petState) {
+    final selectedPet = petState.pets.values.firstWhere(
+      (p) => p.agentId == _selectedAgentId,
+      orElse: () => _createDefaultPet(_selectedAgentId ?? ''),
+    );
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // 宠物头像
+                _buildPetAvatar(selectedPet),
+                const SizedBox(height: 24),
+                // 状态卡片
+                _buildPetStatusCards(selectedPet),
+                const SizedBox(height: 24),
+                // 互动按钮
+                _buildInteractionPanel(selectedPet),
+                const SizedBox(height: 24),
+                // 成就
+                _buildAchievementsPanel(selectedPet),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPetAvatar(AgentPet pet) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_getPetGradientColor(pet.emotion).withOpacity(0.2), _getPetGradientColor(pet.emotion).withOpacity(0.1)],
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: _getPetGradientColor(pet.emotion).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(_getEmotionEmoji(pet.emotion), style: const TextStyle(fontSize: 64)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('Lv.${pet.level}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.purple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPetGradientColor(PetEmotion emotion) {
+    switch (emotion) {
+      case PetEmotion.happy: return Colors.green;
+      case PetEmotion.thinking: return Colors.blue;
+      case PetEmotion.sleepy: return Colors.grey;
+      case PetEmotion.confused: return Colors.orange;
+      case PetEmotion.excited: return Colors.purple;
+      case PetEmotion.bored: return Colors.amber;
+      case PetEmotion.calm: return Colors.teal;
+    }
+  }
+
+  String _getEmotionEmoji(PetEmotion emotion) {
+    switch (emotion) {
+      case PetEmotion.happy: return '😊';
+      case PetEmotion.thinking: return '🤔';
+      case PetEmotion.sleepy: return '😴';
+      case PetEmotion.confused: return '😕';
+      case PetEmotion.excited: return '🎉';
+      case PetEmotion.bored: return '😐';
+      case PetEmotion.calm: return '🙂';
+    }
+  }
+
+  Widget _buildPetStatusCards(AgentPet pet) {
+    return Row(
+      children: [
+        Expanded(child: _buildPetStatusCard(Icons.favorite_rounded, '快乐度', '${pet.happiness.toStringAsFixed(0)}%', Colors.green)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildPetStatusCard(Icons.favorite_border_rounded, '亲密度', '${pet.intimacy.toStringAsFixed(0)}%', Colors.pink)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildPetStatusCard(Icons.task_alt_rounded, '任务数', '${pet.totalTasks}', Colors.indigo)),
+      ],
+    );
+  }
+
+  Widget _buildPetStatusCard(IconData icon, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(fontSize: 12, color: kGrey600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractionPanel(AgentPet pet) {
+    final petStore = ref.read(agentPetProvider.notifier);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('互动', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildInteractionButton('👋', '抚摸', '+5快乐', Colors.green, () => petStore.interactWithPet(pet.petId, 'pet')),
+              const SizedBox(width: 8),
+              _buildInteractionButton('👉', '戳戳', '-2快乐', Colors.orange, () => petStore.interactWithPet(pet.petId, 'poke')),
+              const SizedBox(width: 8),
+              _buildInteractionButton('🍖', '喂食', '+10快乐', Colors.brown, () => petStore.interactWithPet(pet.petId, 'feed')),
+              const SizedBox(width: 8),
+              _buildInteractionButton('🎾', '玩耍', '+15快乐', Colors.purple, () => petStore.interactWithPet(pet.petId, 'play')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractionButton(String emoji, String label, String effect, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Column(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(effect, style: TextStyle(fontSize: 10, color: kGrey500)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAchievementsPanel(AgentPet pet) {
+    final achievements = pet.achievements;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.emoji_events_rounded, color: kAmber700, size: 20),
+              const SizedBox(width: 8),
+              const Text('成就', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text('${achievements.length} 个', style: TextStyle(fontSize: 12, color: kGrey600)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (achievements.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(Icons.star_outline_rounded, size: 32, color: kGrey400),
+                    const SizedBox(height: 8),
+                    Text('暂无成就', style: TextStyle(color: kGrey500)),
+                    Text('完成任务解锁成就', style: TextStyle(fontSize: 12, color: kGrey400)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: achievements.map((id) => _buildAchievementBadge(id)).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAchievementBadge(String id) {
+    final info = _getAchievementInfo(id);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Colors.amber.withOpacity(0.2), Colors.orange.withOpacity(0.15)]),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.amber),
+        border: Border.all(color: Colors.amber.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(achievementInfo['emoji']!, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 4),
-          Text(achievementInfo['name']!, style: const TextStyle(fontSize: 12)),
+          Text(info['emoji']!, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          Text(info['name']!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -971,308 +1425,244 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
     return achievements[id] ?? {'emoji': '🏅', 'name': id};
   }
 
-  void _showLanguageDialog() {
-    showDialog(
+  void _showInputDialog() {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('切换语言'),
-        content: Column(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+        decoration: const BoxDecoration(
+          color: kSurfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(title: const Text('🇨🇳 中文'), onTap: () {}),
-            ListTile(title: const Text('🇺🇸 English'), onTap: () {}),
-            ListTile(title: const Text('🇯🇵 日本語'), onTap: () {}),
-            ListTile(title: const Text('🇰🇷 한국어'), onTap: () {}),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.help),
-            SizedBox(width: 8),
-            Text('使用帮助'),
-          ],
-        ),
-        content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('快捷键:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('Ctrl+1 → 全部视图'),
-              Text('Ctrl+2 → 进度视图'),
-              Text('Ctrl+3 → 协作视图'),
-              Text('Ctrl+4 → 宠物视图'),
-              SizedBox(height: 16),
-              Text('宠物互动:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('👋 抚摸: +5 快乐度'),
-              Text('👉戳一下: -2 快乐度'),
-              Text('🍖 喂食: +10 快乐度 +5 亲密度'),
-              Text('🎾 玩耍: +15 快乐度 +10 亲密度'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 底部需求输入面板
-  Widget _buildRequestInputPanel() {
-    final isConnected = ref.watch(connectionStatusProvider);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 执行日志
-          if (_executionLogs.isNotEmpty)
+            // 标题
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.add_task_rounded, color: kPrimaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Text('创建新任务', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Agent选择
             Container(
-              height: 80,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: _executionLogs.length,
-                itemBuilder: (context, index) {
-                  return Text(
-                    _executionLogs[index],
-                    style: const TextStyle(fontSize: 12),
-                  );
-                },
+              child: Row(
+                children: [
+                  Icon(Icons.smart_toy_rounded, color: kPrimaryColor, size: 18),
+                  const SizedBox(width: 8),
+                  Text('执行模式:', style: const TextStyle(fontSize: 12)),
+                  const Spacer(),
+                  Text(_selectedAgentMode == 'hermes_native' ? 'Hermes Native' : _selectedAgentName,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                  Icon(Icons.chevron_right_rounded, color: kGrey400),
+                ],
               ),
             ),
-          // 输入框
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _requestController,
-                  decoration: InputDecoration(
-                    hintText: '输入开发需求 (如: 做一个ERP系统)',
-                    hintStyle: TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.05),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        Icons.send,
-                        color: isConnected && !_isExecuting
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey,
-                      ),
-                      onPressed: isConnected && !_isExecuting ? _executeTask : null,
-                    ),
-                  ),
-                  maxLines: 2,
-                  onSubmitted: (_) => _executeTask(),
+            const SizedBox(height: 16),
+            // 输入框
+            TextField(
+              controller: _requestController,
+              autofocus: true,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: '描述你的需求...',
+                hintStyle: TextStyle(color: kGrey400),
+                filled: true,
+                fillColor: Colors.grey.withOpacity(0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 发送按钮
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _executeTask();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.send_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    const Text('发送任务', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // 执行状态指示
-              if (_isExecuting)
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          // 状态栏
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                Icons.circle,
-                color: isConnected ? Colors.green : Colors.red,
-                size: 10,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isConnected ? '已连接' : '未连接',
-                style: TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-              const SizedBox(width: 8),
-              if (_isExecutiveAgentInitialized)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '✅ Ready',
-                    style: TextStyle(fontSize: 10, color: Colors.green),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Text(
-                '工作目录: $_workspacePath',
-                style: TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// 配置对话框
   void _showConfigDialog() {
-    final workspaceController = TextEditingController(text: _workspacePath);
-    final wsUrlController = TextEditingController(text: _wsUrl);
-
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.settings_applications),
-            SizedBox(width: 8),
-            Text('Agent Teams 配置'),
-          ],
-        ),
-        content: SingleChildScrollView(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: kSurfaceColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              // 工作目录配置
-              const Text('工作目录', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              TextField(
-                controller: workspaceController,
-                decoration: InputDecoration(
-                  hintText: '项目文件生成目录',
-                  filled: true,
-                  fillColor: Colors.grey.withOpacity(0.1),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: () {
-                      // TODO: 实现目录选择
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // WebSocket URL配置
-              const Text('WebSocket 服务器', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              TextField(
-                controller: wsUrlController,
-                decoration: InputDecoration(
-                  hintText: 'ws://127.0.0.1:1420',
-                  filled: true,
-                  fillColor: Colors.grey.withOpacity(0.1),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Agent配置说明
-              const Text('Agent 配置', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              // 头部
               Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Agent配置在 Tauri 后端 agents.yaml 文件中管理',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.settings_rounded, color: Colors.indigo, size: 20),
                     ),
-                    SizedBox(height: 8),
-                    Text('当前内置Agent:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 4),
-                    Text('• Planner - 规划智能体', style: TextStyle(fontSize: 11)),
-                    Text('• Architect - 架构设计智能体', style: TextStyle(fontSize: 11)),
-                    Text('• Coder - 编码智能体', style: TextStyle(fontSize: 11)),
-                    Text('• CodeReviewer - 代码审查智能体', style: TextStyle(fontSize: 11)),
-                    Text('• Tester - 测试智能体', style: TextStyle(fontSize: 11)),
-                    Text('• SecurityReviewer - 安全审查智能体', style: TextStyle(fontSize: 11)),
+                    const SizedBox(width: 12),
+                    const Text('配置设置', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded, color: kGrey600),
+                    ),
+                  ],
+                ),
+              ),
+              // 内容
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    // 执行模式
+                    const Text('执行模式', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    _buildModeOption('Hermes Native', '阿里云 Coding Plan', Icons.rocket_launch_rounded, Colors.indigo,
+                      _selectedAgentMode == 'hermes_native', () {
+                        setState(() => _selectedAgentMode = 'hermes_native');
+                        Navigator.pop(context);
+                      }),
+                    const SizedBox(height: 8),
+                    ..._availableAgents.map((agent) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildModeOption(
+                        agent['name'] as String,
+                        '外部 Agent',
+                        Icons.smart_toy_rounded,
+                        agent['color'] as Color,
+                        _selectedAgentName == agent['name'] && _selectedAgentMode == 'external_agent',
+                        () {
+                          setState(() {
+                            _selectedAgentMode = 'external_agent';
+                            _selectedAgentName = agent['name'] as String;
+                          });
+                          Navigator.pop(context);
+                        },
+                      ),
+                    )),
+                    const SizedBox(height: 24),
+                    // WebSocket URL
+                    const Text('WebSocket服务器', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(_wsUrl, style: const TextStyle(fontSize: 13)),
+                    ),
+                    const SizedBox(height: 24),
+                    // 工作目录
+                    const Text('工作目录', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(_workspacePath, style: const TextStyle(fontSize: 13)),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newWorkspace = workspaceController.text.trim();
-              final newWsUrl = wsUrlController.text.trim();
+      ),
+    );
+  }
 
-              if (newWorkspace.isNotEmpty && newWsUrl.isNotEmpty) {
-                setState(() {
-                  _workspacePath = newWorkspace;
-                  _wsUrl = newWsUrl;
-                  _executionLogs.clear();
-                  _executionLogs.add('⚙️ 配置已更新');
-                  _executionLogs.add('📁 工作目录: $_workspacePath');
-                  _executionLogs.add('🔌 WebSocket: $_wsUrl');
-                });
-
-                Navigator.pop(context);
-
-                // 重新连接并初始化
-                await _connectWebSocket();
-              }
-            },
-            child: const Text('保存并重新连接'),
-          ),
-        ],
+  Widget _buildModeOption(String title, String subtitle, IconData icon, Color color, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.12) : Colors.grey.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? color : Colors.grey.withOpacity(0.15), width: isSelected ? 2 : 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isSelected ? color : Colors.black)),
+                  Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              ),
+            ),
+            if (isSelected) Icon(Icons.check_circle_rounded, color: color, size: 20),
+          ],
+        ),
       ),
     );
   }

@@ -757,6 +757,354 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
         [],
     ).map_err(|e| e.to_string())?;
 
+    // ===== Architecture Optimization Tables (Phase 1) =====
+
+    // Agent Registry tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS agent_bases (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            transport TEXT NOT NULL DEFAULT 'stdio',
+            capabilities_json TEXT NOT NULL,
+            default_skills_json TEXT,
+            default_hooks_json TEXT,
+            description TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS agent_templates (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            base_id TEXT NOT NULL,
+            skills_strategy TEXT NOT NULL DEFAULT 'append',
+            hooks_strategy TEXT NOT NULL DEFAULT 'append',
+            permissions_json TEXT,
+            config_json TEXT,
+            description TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (base_id) REFERENCES agent_bases(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS agent_instances (
+            id TEXT PRIMARY KEY,
+            template_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            pid INTEGER,
+            session_id TEXT,
+            cwd TEXT NOT NULL,
+            config_override_json TEXT,
+            started_at TEXT,
+            stopped_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (template_id) REFERENCES agent_templates(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_instances_status ON agent_instances(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Team orchestration tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS teams (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            members_json TEXT NOT NULL,
+            sync_points_json TEXT,
+            execution_strategy TEXT NOT NULL DEFAULT 'parallel',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS team_executions (
+            id TEXT PRIMARY KEY,
+            team_id TEXT NOT NULL,
+            plan_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            started_at TEXT,
+            completed_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (team_id) REFERENCES teams(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_executions_status ON team_executions(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Smart routing tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS route_decisions (
+            id TEXT PRIMARY KEY,
+            input_id TEXT,
+            task_type TEXT NOT NULL,
+            input_type TEXT NOT NULL,
+            complexity TEXT NOT NULL,
+            route_target TEXT NOT NULL,
+            reason TEXT,
+            agent_load INTEGER DEFAULT 0,
+            historical_success_rate REAL,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_route_decisions_target ON route_decisions(route_target)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS input_logs (
+            id TEXT PRIMARY KEY,
+            source TEXT NOT NULL,
+            input_type TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            route_to TEXT,
+            metadata_json TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_input_logs_source ON input_logs(source)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Agent flow tracking tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS agent_flows (
+            id TEXT PRIMARY KEY,
+            agent_id TEXT NOT NULL,
+            session_id TEXT,
+            task_id TEXT,
+            flow_steps_json TEXT NOT NULL,
+            state_snapshots_json TEXT,
+            context_length INTEGER DEFAULT 0,
+            thinking_tokens INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            completed_at TEXT
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_agent_flows_agent ON agent_flows(agent_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS flow_steps (
+            id TEXT PRIMARY KEY,
+            flow_id TEXT NOT NULL,
+            step_index INTEGER NOT NULL,
+            step_type TEXT NOT NULL,
+            tool_name TEXT,
+            content TEXT,
+            result_status TEXT,
+            duration_ms INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (flow_id) REFERENCES agent_flows(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_flow_steps_flow ON flow_steps(flow_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS tool_calls_detail (
+            id TEXT PRIMARY KEY,
+            flow_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            arguments_json TEXT,
+            result_json TEXT,
+            result_status TEXT NOT NULL,
+            duration_ms INTEGER,
+            error TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (flow_id) REFERENCES agent_flows(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tool_calls_flow ON tool_calls_detail(flow_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Self-healing tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS anomalies (
+            id TEXT PRIMARY KEY,
+            anomaly_type TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT 'medium',
+            target TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            health_score REAL DEFAULT 100.0,
+            baseline_value REAL,
+            current_value REAL,
+            deviation REAL,
+            detected_at TEXT NOT NULL,
+            resolved_at TEXT
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_anomalies_target ON anomalies(target)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_anomalies_severity ON anomalies(severity)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS circuit_breakers (
+            id TEXT PRIMARY KEY,
+            target TEXT NOT NULL UNIQUE,
+            state TEXT NOT NULL DEFAULT 'closed',
+            failure_count INTEGER DEFAULT 0,
+            success_count INTEGER DEFAULT 0,
+            last_failure_at TEXT,
+            cool_down_until TEXT,
+            threshold INTEGER DEFAULT 5,
+            reset_timeout_ms INTEGER DEFAULT 30000,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS healing_actions (
+            id TEXT PRIMARY KEY,
+            anomaly_id TEXT NOT NULL,
+            action_type TEXT NOT NULL,
+            action_params_json TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            result TEXT,
+            executed_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (anomaly_id) REFERENCES anomalies(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_healing_actions_status ON healing_actions(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Skill generation tables
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS generated_skills (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            definition_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft',
+            risk_level TEXT NOT NULL DEFAULT 'low',
+            validation_steps_json TEXT,
+            validation_results_json TEXT,
+            usage_count INTEGER DEFAULT 0,
+            success_rate REAL DEFAULT 0.0,
+            source_pattern_id TEXT,
+            created_at TEXT NOT NULL,
+            approved_at TEXT,
+            FOREIGN KEY (source_pattern_id) REFERENCES patterns(id)
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_skills_status ON generated_skills(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Knowledge nodes for long-term memory
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS knowledge_nodes (
+            id TEXT PRIMARY KEY,
+            node_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            embedding_id TEXT,
+            relevance_score REAL DEFAULT 0.5,
+            access_count INTEGER DEFAULT 0,
+            expires_at TEXT,
+            metadata_json TEXT,
+            created_at TEXT NOT NULL,
+            last_accessed TEXT
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_type ON knowledge_nodes(node_type)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Audit log for compliance
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS audit_log (
+            id TEXT PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id TEXT,
+            action TEXT NOT NULL,
+            details_json TEXT,
+            ip_address TEXT,
+            created_at TEXT NOT NULL
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event_type)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // FTS5 virtual table for memory full-text search
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+            content,
+            tags,
+            agent_id,
+            session_id,
+            content='memories'
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
     Ok(())
 }
 

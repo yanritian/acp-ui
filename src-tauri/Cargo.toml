@@ -49,6 +49,7 @@ hermes-tools = { path = "hermes-crates/hermes-tools" }
 hermes-environments = { path = "hermes-crates/hermes-environments" }
 hermes-skills = { path = "hermes-crates/hermes-skills" }
 hermes-intelligence = { path = "hermes-crates/hermes-intelligence" }
+hermes-memory = { path = "hermes-crates/hermes-memory" }
 
 # `machine-uid` reads platform-specific machine identifiers and does not
 # support iOS / Android. Telemetry on mobile falls back to an anonymous id.

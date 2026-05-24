@@ -236,13 +236,8 @@ impl SharedEventRouter {
     }
 
     pub fn route(&self, event: Event) {
-        // Get handlers first (while holding lock), then release lock before invoking
-        let handlers = {
-            let router = self.inner.lock().unwrap();
-            router.get_handlers(&event)
-        };
-        // Lock released, now invoke handlers safely
-        EventRouter::invoke_handlers(handlers, &event);
+        let mut router = self.inner.lock().unwrap();
+        router.route(event);
     }
 
     pub fn process_queue(&self) -> usize {
@@ -285,36 +280,40 @@ mod tests {
     fn test_event_routing() {
         let mut router = EventRouter::new(100);
 
-        // Subscribe to ToolUse events
-        let counter = Arc::new(Mutex::new(0));
-        let counter_clone = counter.clone();
-        router.subscribe("ToolUse", Arc::new(|event| {
+        // Subscribe to ToolUse events and count Bash calls
+        let bash_count = Arc::new(Mutex::new(0));
+        let bash_count_clone = bash_count.clone();
+
+        // Create a static-safe callback using owned data
+        let callback: Arc<dyn Fn(&Event) + Send + Sync> = Arc::new(move |event| {
             if let Event::ToolUse { tool_name, .. } = event {
                 if tool_name == "Bash" {
-                    let mut c = counter_clone.lock().unwrap();
+                    let mut c = bash_count_clone.lock().unwrap();
                     *c += 1;
                 }
             }
-        }));
+        });
+
+        router.subscribe("ToolUse", callback);
 
         // Route events
         router.route(Event::ToolUse {
-            agent_id: "agent-1",
-            tool_name: "Bash",
-            args: "ls -la",
+            agent_id: "agent-1".to_string(),
+            tool_name: "Bash".to_string(),
+            args: "ls -la".to_string(),
         });
 
         router.route(Event::ToolUse {
-            agent_id: "agent-1",
-            tool_name: "Read",
-            args: "/home/user/file.txt",
+            agent_id: "agent-1".to_string(),
+            tool_name: "Read".to_string(),
+            args: "/home/user/file.txt".to_string(),
         });
 
         // Process queue
         router.process_queue();
 
         // Check counter
-        let c = counter.lock().unwrap();
+        let c = bash_count.lock().unwrap();
         assert_eq!(*c, 1); // Only Bash event should increment
     }
 
@@ -325,8 +324,8 @@ mod tests {
         // Add more events than queue size
         for i in 0..10 {
             router.route(Event::Log {
-                agent_id: "agent-1",
-                log_type: "stdout",
+                agent_id: "agent-1".to_string(),
+                log_type: "stdout".to_string(),
                 content: format!("Log {}", i),
             });
         }
@@ -339,9 +338,9 @@ mod tests {
         let router = SharedEventRouter::new(100);
 
         router.route(Event::ToolResult {
-            agent_id: "agent-1",
-            tool_name: "Bash",
-            result: "success",
+            agent_id: "agent-1".to_string(),
+            tool_name: "Bash".to_string(),
+            result: "success".to_string(),
             success: true,
         });
 

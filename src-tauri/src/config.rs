@@ -452,9 +452,9 @@ mod tests {
     }
 
     #[test]
-    fn defaults_keep_all_nine_stdio_agents() {
+    fn defaults_keep_all_eleven_stdio_agents() {
         let cfg = AgentsConfig::default();
-        assert_eq!(cfg.agents.len(), 9);
+        assert_eq!(cfg.agents.len(), 11);
         for (_, a) in &cfg.agents {
             assert_eq!(a.transport, AgentTransport::Stdio);
             assert!(a.command.is_some());

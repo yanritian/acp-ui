@@ -19,10 +19,6 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'node node_modules/vite/bin/vite.js --port 1420',
-    url: 'http://localhost:1420',
-    reuseExistingServer: true,
-    timeout: 120000,
-  },
+  // Disable auto webServer for Windows - start manually with `npm run dev`
+  webServer: undefined,
 })

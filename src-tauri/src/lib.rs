@@ -14,6 +14,9 @@ mod event_router;     // NEW: Claw Code Event Router (clawhip layer)
 mod feishu_rich_message;  // NEW: Feishu rich message support (images, files, cards)
 mod executive_agent;  // NEW: Executive Agent - executes actual development tasks
 mod agent_registry;   // NEW: Agent Registry - Docker-like Base/Template/Instance system
+mod smart_router;     // NEW: Smart Router - three-layer complexity evaluation
+mod circuit_breaker;  // NEW: Circuit Breaker - three-state failure protection
+mod self_healing;     // NEW: Self-Healing - EWMA anomaly detection
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
@@ -25,6 +28,9 @@ use permission_checker::{PermissionChecker, PermissionConfig, PermissionResult};
 use agent_config_parser::{AgentConfigParser, AgentConfigParsed, ParseResult};
 use executive_agent::{ExecutiveAgentManager, TaskResult, GeneratedFile};
 use agent_registry::{AgentRegistry, AgentBase, AgentTemplate};
+use smart_router::{TaskAnalyzer, RouteDecision};
+use circuit_breaker::{CircuitBreakerManager, CircuitState};
+use self_healing::{AnomalyDetector, AnomalyRecord};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

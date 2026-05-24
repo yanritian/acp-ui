@@ -13,6 +13,7 @@ mod session_manager;  // NEW: Claw Code Session Management
 mod event_router;     // NEW: Claw Code Event Router (clawhip layer)
 mod feishu_rich_message;  // NEW: Feishu rich message support (images, files, cards)
 mod executive_agent;  // NEW: Executive Agent - executes actual development tasks
+mod agent_registry;   // NEW: Agent Registry - Docker-like Base/Template/Instance system
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
@@ -23,6 +24,7 @@ use log_stream::{LogStreamManager, LogEntry, LogType};
 use permission_checker::{PermissionChecker, PermissionConfig, PermissionResult};
 use agent_config_parser::{AgentConfigParser, AgentConfigParsed, ParseResult};
 use executive_agent::{ExecutiveAgentManager, TaskResult, GeneratedFile};
+use agent_registry::{AgentRegistry, AgentBase, AgentTemplate};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

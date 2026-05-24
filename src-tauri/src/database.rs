@@ -776,6 +776,32 @@ pub struct ExecutiveSessionRecord {
     pub completed_at: Option<String>,
 }
 
+/// Thinking Chunk record for capturing Agent thinking process
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThinkingChunkRecord {
+    pub id: String,
+    pub task_id: String,
+    pub content: String,
+    pub depth: u32,
+    pub duration_ms: u64,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Tool Call record for capturing Agent tool execution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCallRecord {
+    pub id: String,
+    pub task_id: String,
+    pub tool_name: String,
+    pub arguments_json: Option<String>,
+    pub result: Option<String>,
+    pub status: String,
+    pub duration_ms: Option<u64>,
+    pub error: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
 impl DatabaseManager {
     /// Save an executive session to database
     pub fn save_executive_session(&self, session: &ExecutiveSessionRecord) -> Result<(), String> {

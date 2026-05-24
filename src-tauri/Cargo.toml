@@ -35,11 +35,20 @@ parking_lot = "0.12"
 indexmap = { version = "2", features = ["serde"] }
 shell-escape = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 regex = "1"
 ureq = { version = "2", features = ["json"] }
 reqwest = { version = "0.12", features = ["json", "multipart"] }  # NEW: For Feishu rich message API
 serde_yaml = "0.9"  # NEW: For proper YAML parsing (nested structures support)
+
+# Hermes crates - local dependencies
+hermes-agent = { path = "hermes-crates/hermes-agent" }
+hermes-core = { path = "hermes-crates/hermes-core" }
+hermes-config = { path = "hermes-crates/hermes-config" }
+hermes-tools = { path = "hermes-crates/hermes-tools" }
+hermes-environments = { path = "hermes-crates/hermes-environments" }
+hermes-skills = { path = "hermes-crates/hermes-skills" }
+hermes-intelligence = { path = "hermes-crates/hermes-intelligence" }
 
 # `machine-uid` reads platform-specific machine identifiers and does not
 # support iOS / Android. Telemetry on mobile falls back to an anonymous id.

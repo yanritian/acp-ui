@@ -49,3 +49,50 @@ Desktop.ini
 *.AppImage
 *.deb
 *.rpm
+
+# Screenshots and images (keep _screenshots/ if organized)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+!src/assets/
+
+# Temp test directories
+test_demo/
+test_erp/
+test_final/
+test_hello/
+test_output/
+test_result/
+test-workspace/
+
+# Python scripts and batch files
+*.py
+*.bat
+*.cmd
+
+# Agent result files
+agent_result.txt
+api_response.json
+
+# Flutter generated files (build_runner output)
+acp_ui_flutter/lib/l10n/app_localizations.dart
+acp_ui_flutter/lib/l10n/app_localizations_en.dart
+acp_ui_flutter/lib/l10n/app_localizations_zh.dart
+acp_ui_flutter/lib/**/*.g.dart
+acp_ui_flutter/.dart_tool/
+acp_ui_flutter/build/
+acp_ui_flutter/android/.gradle/
+acp_ui_flutter_new/
+
+# Playwright MCP output
+.playwright-mcp/
+
+# Claude Code plans (keep only committed ones)
+.claude/plans/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

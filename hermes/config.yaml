@@ -1,0 +1,8 @@
+model: alibaba-coding-plan:qwen3.6-plus
+extra_body:
+  strict_api: false
+  strict_tool_calls: false
+llm_providers:
+  alibaba-coding-plan:
+    api_key: sk-sp-eca00ed2f6924349b9fc243b612860a2
+    base_url: https://coding.dashscope.aliyuncs.com/v1

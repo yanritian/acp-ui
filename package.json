@@ -38,6 +38,7 @@
     "@types/dompurify": "^3.0.5",
     "@types/node": "^25.1.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "bmad-method": "^6.7.1",
     "jsdom": "^26.1.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",

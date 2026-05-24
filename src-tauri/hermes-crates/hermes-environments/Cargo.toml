@@ -1,0 +1,33 @@
+[package]
+name = "hermes-environments"
+version = "0.1.1"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/nousresearch/hermes-engine"
+description = "Terminal backends and environment management for Hermes Agent"
+
+[features]
+default = []
+docker = []
+ssh = []
+daytona = []
+modal = []
+singularity = []
+
+[dependencies]
+hermes-core = { path = "../hermes-core" }
+hermes-config = { path = "../hermes-config" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+thiserror = "2"
+which = "7"
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"

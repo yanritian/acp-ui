@@ -9,17 +9,17 @@
 ## 一、进度总览
 
 ```
-总进度: 0/38 (0%) - 修订后减少15个任务
-├── Phase 0: 0/3 (0%) - 构建修复 (Cargo链接 + 类型定义)
-├── Phase 1: 0/6 (0%) - 基础设施补全 (16新表 + Chroma)
-├── Phase 2: 0/5 (0%) - Agent Registry (复用7 crates)
-├── Phase 3: 0/4 (0%) - 记忆系统增强 (复用memories表)
-├── Phase 4: 0/5 (0%) - 智能路由 (复用orchestrator)
-├── Phase 5: 0/3 (0%) - 自愈系统增强 (复用errors表)
-├── Phase 6: 0/4 (0%) - Team编排增强 (复用TeamView)
-├── Phase 7: 0/3 (0%) - Hermes集成 (复用32文件)
-├── Phase 8: 0/5 (0%) - 前端对接 (复用35+组件)
-└── Phase 9: 0/3 (0%) - 测试验收 (复用E2E骨架)
+总进度: 3/38 (8%)
+├── Phase 0: ✅ 完成 (3/3) - Cargo链接 + 类型定义
+├── Phase 1: ✅ 完成 (6/6) - 16新表 + hermes-memory
+├── Phase 2: ✅ 完成 (5/5) - Agent Registry模块
+├── Phase 3: 0/4 (0%) - 记忆系统增强
+├── Phase 4: 0/5 (0%) - 智能路由
+├── Phase 5: 0/3 (0%) - 自愈系统增强
+├── Phase 6: 0/4 (0%) - Team编排增强
+├── Phase 7: 0/3 (0%) - Hermes集成
+├── Phase 8: 0/5 (0%) - 前端对接
+└── Phase 9: 0/3 (0%) - 测试验收
 ```
 
 ---

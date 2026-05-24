@@ -688,6 +688,8 @@ flutter test
 | Phase 7 | Hermes Memory Crate | ✅ 完成 | b869e8f | SQLite + Chroma hybrid search |
 | Phase 8 | Frontend Build | ✅ 完成 | - | Vue 前端构建成功 |
 | Phase 9 | Unit Tests | ✅ 完成 | 0f65f30 | 14 个单元测试全部通过 |
+| Phase 10 | Tauri Commands | ✅ 完成 | 5972258 | 9个新命令暴露给前端 |
+| Phase 11 | Playwright Config | ✅ 完成 | b3d8a9c | Windows 环境适配 |
 
 ### 核心模块文件
 
@@ -723,5 +725,27 @@ test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 架构优化核心模块已完成。后续可选：
 1. 添加集成测试验证 Rust + Vue 联动
-2. 完善 E2E 测试（Playwright）
+2. 完善 E2E 测试（Playwright）- 需手动启动 dev server
 3. Flutter 移动端修复（独立任务）
+
+### 新增 Tauri 命令
+
+| 命令 | 功能 |
+|------|------|
+| `analyze_task_complexity` | Smart Router 任务复杂度分析 |
+| `get_circuit_breaker_status` | 熔断器状态查询 |
+| `is_circuit_breaker_allowed` | 检查请求是否允许 |
+| `reset_circuit_breaker` | 重置熔断器 |
+| `get_all_circuit_breakers` | 所有熔断器状态 |
+| `create_dag_plan` | DAG 执行计划创建 |
+| `get_dag_plan_progress` | 计划进度跟踪 |
+| `check_anomaly` | 异常检测检查 |
+| `update_anomaly_baseline` | 基线更新 |
+
+### 前端集成状态
+
+- `src/lib/team-service/agent-teams-service.ts` ✅ 完整实现
+- `src/lib/team-service/types.ts` ✅ 类型定义
+- `src/views/AgentTeamsDashboard.vue` ✅ 界面组件
+- `src/components/HermesDashboard.vue` ✅ 监控面板
+- `src/components/EnhancedHermesDashboard.vue` ✅ 增强面板

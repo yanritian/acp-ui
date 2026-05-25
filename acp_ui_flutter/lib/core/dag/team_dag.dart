@@ -44,8 +44,8 @@ class TeamMember {
     required this.agentId,
     required this.templateId,
     required this.role,
-    this.capabilities = [],
-    this.dependencies = [],
+    this.capabilities = const [],
+    this.dependencies = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -68,7 +68,7 @@ class SyncPoint {
   SyncPoint({
     required this.id,
     required this.name,
-    this.waitFor = [],
+    this.waitFor = const [],
     this.triggerAction = '',
     this.timeoutMs = 30000,
   });
@@ -95,7 +95,7 @@ class DAGNode {
   DAGNode({
     required this.id,
     required this.memberId,
-    this.dependencies = [],
+    this.dependencies = const [],
     this.status = NodeStatus.pending,
     this.startedAt,
     this.completedAt,
@@ -143,8 +143,8 @@ class ExecutionPlan {
     required this.id,
     required this.teamId,
     required this.strategy,
-    this.nodes = [],
-    this.syncPoints = [],
+    this.nodes = const [],
+    this.syncPoints = const [],
     this.currentSyncPoint,
     this.status = ExecutionStatus.planning,
     required this.createdAt,

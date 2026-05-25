@@ -1,7 +1,9 @@
-/// Smart Router - 任务复杂度分析
+/// Smart Router - 任务复杂度分析与路由决策
 ///
-/// 调用 Tauri 命令进行三层渐进复杂度评估
+/// 调用 Tauri 后端的 analyze_task_complexity 命令
 
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 /// 任务复杂度级别
@@ -50,7 +52,7 @@ enum EvaluationMethod {
   llmAssisted,
 }
 
-/// 路由决策
+/// 路由决策结果
 class RouteDecision {
   final String id;
   final TaskType taskType;
@@ -107,64 +109,71 @@ class RouteDecision {
 
   static TaskComplexity _parseComplexity(String s) {
     return TaskComplexity.values.firstWhere(
-      (e) => e.name == s.replaceAll('_', ''),
+      (e) => e.name.replaceAll('_', '') == s.replaceAll('_', ''),
       orElse: () => TaskComplexity.medium,
     );
   }
 
   static RouteTarget _parseRouteTarget(String s) {
     return RouteTarget.values.firstWhere(
-      (e) => e.name == s.replaceAll('-', '_'),
+      (e) => e.name.replaceAll('_', '') == s.replaceAll('-', ''),
       orElse: () => RouteTarget.team,
     );
   }
 
   static EvaluationMethod _parseEvaluationMethod(String s) {
     return EvaluationMethod.values.firstWhere(
-      (e) => e.name == s.replaceAll('_', ''),
+      (e) => e.name.replaceAll('_', '') == s.replaceAll('_', ''),
       orElse: () => EvaluationMethod.heuristic,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'task_type': taskType.name,
+    'input_type': inputType.name,
+    'complexity': complexity.name,
+    'route_target': routeTarget.name.replaceAll('_', '-'),
+    'reason': reason,
+    'agent_load': agentLoad,
+    'historical_success_rate': historicalSuccessRate,
+    'evaluation_method': evaluationMethod.name,
+    'created_at': createdAt.toIso8601String(),
+  };
 }
 
 /// Smart Router 服务
 class SmartRouter {
+  final WebSocketService? _wsService;
+
+  SmartRouter({WebSocketService? wsService}) : _wsService = wsService;
+
   /// 分析任务复杂度
-  ///
-  /// 通过 WebSocket 或 HTTP 调用 Tauri 后端的 analyze_task_complexity 命令
   Future<RouteDecision> analyze(
     String input,
     InputType inputType,
   ) async {
-    // WebSocket 方式调用 Tauri 命令
-    // 实际实现需要通过 WebSocketService
-    final request = {
-      'command': 'analyze_task_complexity',
-      'args': {
-        'input': input,
-        'input_type': inputType.name,
-      },
-    };
+    if (_wsService != null && _wsService!.isConnectedGetter) {
+      // WebSocket 方式调用 Tauri 命令
+      final request = {
+        'command': 'analyze_task_complexity',
+        'args': {
+          'input': input,
+          'input_type': inputType.name,
+        },
+      };
 
-    // TODO: 通过 WebSocket 发送请求并接收响应
-    // final response = await _wsService.sendCommand(request);
+      // TODO: 实现 WebSocket 响应等待
+      // final response = await _wsService.sendAndWait(request);
+      // return RouteDecision.fromJson(response);
+    }
 
-    // 临时返回模拟决策（实际需要 WebSocket 连接）
-    return RouteDecision(
-      id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
-      taskType: TaskType.fullstack,
-      inputType: inputType,
-      complexity: TaskComplexity.medium,
-      routeTarget: RouteTarget.claudeCodeSonnet,
-      reason: 'Mock decision - WebSocket not connected',
-      evaluationMethod: EvaluationMethod.heuristic,
-      createdAt: DateTime.now(),
-    );
+    // 本地启发式分析（备用）
+    return _localAnalyze(input, inputType);
   }
 
-  /// 本地启发式分析（备用）
-  RouteDecision localAnalyze(String input, InputType inputType) {
-    // 简单的启发式规则
+  /// 本地启发式分析
+  RouteDecision _localAnalyze(String input, InputType inputType) {
     final complexity = _determineComplexity(input);
     final taskType = _determineTaskType(input);
     final target = _selectTarget(taskType, complexity);
@@ -182,30 +191,35 @@ class SmartRouter {
   }
 
   TaskComplexity _determineComplexity(String input) {
-    if (input.contains('修改一行') || input.contains('修复bug')) {
+    final lower = input.toLowerCase();
+    if (lower.contains('修改一行') || lower.contains('fix') || lower.contains('bug')) {
       return TaskComplexity.simple;
     }
-    if (input.contains('重构') || input.contains('添加功能')) {
+    if (lower.contains('refactor') || lower.contains('重构') || lower.contains('添加')) {
       return TaskComplexity.medium;
     }
-    if (input.contains('跨模块') || input.contains('新功能')) {
+    if (lower.contains('跨模块') || lower.contains('新功能') || lower.contains('feature')) {
       return TaskComplexity.complex;
     }
-    if (input.contains('多agent') || input.contains('系统设计')) {
+    if (lower.contains('多agent') || lower.contains('system') || lower.contains('架构')) {
       return TaskComplexity.veryComplex;
     }
     return TaskComplexity.medium;
   }
 
   TaskType _determineTaskType(String input) {
-    if (input.contains('vue') || input.contains('前端') || input.contains('ui')) {
+    final lower = input.toLowerCase();
+    if (lower.contains('vue') || lower.contains('ui') || lower.contains('前端')) {
       return TaskType.frontend;
     }
-    if (input.contains('api') || input.contains('后端') || input.contains('数据库')) {
+    if (lower.contains('api') || lower.contains('backend') || lower.contains('数据库')) {
       return TaskType.backend;
     }
-    if (input.contains('测试') || input.contains('qa')) {
+    if (lower.contains('test') || lower.contains('测试')) {
       return TaskType.testing;
+    }
+    if (lower.contains('doc') || lower.contains('文档')) {
+      return TaskType.documentation;
     }
     return TaskType.fullstack;
   }
@@ -227,4 +241,11 @@ class SmartRouter {
         return RouteTarget.claudeCodeSonnet;
     }
   }
+}
+
+/// WebSocketService 类型占位（实际从 services 导入）
+class WebSocketService {
+  final String url;
+  WebSocketService({required this.url});
+  bool isConnectedGetter = false;
 }

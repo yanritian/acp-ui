@@ -96,3 +96,5 @@ acp_ui_flutter_new/
 .DS_Store
 Thumbs.db
 Desktop.ini
+.cargo/
+.tauri-tools/

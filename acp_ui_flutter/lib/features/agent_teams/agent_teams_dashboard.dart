@@ -10,6 +10,9 @@ import '../../data/stores/agent_realtime/agent_pet_store.dart';
 import '../../data/models/agent_realtime/agent_realtime_types.dart';
 import '../../data/models/agent_pet/agent_pet_types.dart';
 import '../../data/services/websocket_service.dart';
+import '../../core/router/smart_router.dart';
+import '../../core/circuit/circuit_breaker.dart';
+import '../../core/dag/team_dag.dart';
 
 /// 视图模式枚举
 enum ViewMode {
@@ -77,10 +80,30 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   List<Map<String, dynamic>> _taskHistory = [];
   bool _isLoadingHistory = false;
 
+  // 新模块状态
+  final SmartRouter _smartRouter = SmartRouter();
+  final CircuitBreakerManager _circuitBreakerManager = CircuitBreakerManager();
+  final DAGEngine _dagEngine = DAGEngine();
+  List<CircuitBreakerRecord> _circuitBreakers = [];
+  double _dagProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
     _connectWebSocket();
+    _loadCircuitBreakerStatus();
+  }
+
+  /// 加载熔断器状态
+  Future<void> _loadCircuitBreakerStatus() async {
+    final breakers = await _circuitBreakerManager.getAllStatuses();
+    setState(() => _circuitBreakers = breakers);
+  }
+
+  /// 分析任务复杂度
+  Future<void> _analyzeTask(String input) async {
+    final decision = await _smartRouter.analyze(input, InputType.text);
+    _executionLogs.add('📊 任务分析: ${decision.complexity.name} → ${decision.routeTarget.name}');
   }
 
   @override

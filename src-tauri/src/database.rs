@@ -3,7 +3,7 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Task status enum
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

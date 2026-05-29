@@ -336,8 +336,8 @@ impl TaskAnalyzer {
         task_type: &TaskType,
         complexity: &TaskComplexity,
         input_type: &InputType,
-        agent_load: u32,
-        success_rate: f64,
+        _agent_load: u32,
+        _success_rate: f64,
     ) -> RouteTarget {
         // Image input prefers Claude Code (visual capability)
         if *input_type == InputType::Image {

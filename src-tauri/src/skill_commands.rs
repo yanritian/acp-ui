@@ -3,7 +3,6 @@
 //! Provides direct frontend access to the Skill meta-tool system.
 //! These commands wrap the hermes-tools Skill handlers for Tauri IPC.
 
-use std::sync::Arc;
 use tauri::State;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -75,7 +74,7 @@ pub struct CreateSkillResult {
 
 /// List all available skills
 #[tauri::command]
-pub fn skills_list(state: State<AppState>) -> Result<Vec<SkillMeta>, String> {
+pub fn skills_list(_state: State<AppState>) -> Result<Vec<SkillMeta>, String> {
     // In production, this would call SkillProvider through ToolRegistry
     // For now, return core skills list
     let core_skills = [
@@ -194,7 +193,7 @@ pub async fn skill_manage(
     name: Option<String>,
     content: Option<String>,
     feedback: Option<String>,
-    category: Option<String>,
+    _category: Option<String>,
     version: Option<String>,
 ) -> Result<Value, String> {
     match action.as_str() {

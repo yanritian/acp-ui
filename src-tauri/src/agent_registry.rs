@@ -276,7 +276,7 @@ impl AgentRegistry {
     fn merge_skills(&self, base: &AgentBase, template: &AgentTemplate) -> Vec<String> {
         match template.skills_strategy {
             ConfigStrategy::Append => {
-                let mut skills = base.default_skills.clone();
+                let skills = base.default_skills.clone();
                 // Add template-specific skills (would come from config_override)
                 skills
             }
@@ -335,7 +335,7 @@ impl AgentRegistry {
     }
 
     /// Validate derivation depth (max 3 layers)
-    fn validate_derivation_depth(&self, base_id: &str) -> Result<(), String> {
+    fn validate_derivation_depth(&self, _base_id: &str) -> Result<(), String> {
         // Check if this base is derived from another template
         // For simplicity, we assume bases are layer 0, templates are layer 1
         // Template from Template would be layer 2, etc.

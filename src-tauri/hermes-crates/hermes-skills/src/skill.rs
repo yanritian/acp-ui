@@ -207,11 +207,18 @@ impl SkillProvider for SkillManager {
         info!("Creating skill: {}", name);
 
         // Validate the skill content through the guard.
+        let skill = Skill::minimal(name, content);
+        // Add optional fields
         let skill = Skill {
-            name: name.to_string(),
-            content: content.to_string(),
+            name: skill.name,
+            content: skill.content,
             category: category.map(String::from),
             description: None,
+            execution_pattern: skill.execution_pattern,
+            version: skill.version,
+            execution_stats: skill.execution_stats,
+            tags: vec![],
+            author: None,
         };
         self.guard.validate_skill(&skill)?;
 

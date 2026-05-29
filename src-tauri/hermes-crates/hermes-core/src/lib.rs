@@ -23,6 +23,12 @@ pub use types::{
     UsageStats,
 };
 
+// Re-export skill evolution types
+pub use types::{
+    ErrorPattern, EvolutionReason, EvolutionTriggers, SkillExecutionPattern,
+    SkillExecutionStats, SkillVersion,
+};
+
 // Re-export tool schema types
 pub use tool_schema::{tool_schema, JsonSchema, ToolSchema};
 

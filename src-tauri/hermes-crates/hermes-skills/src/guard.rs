@@ -238,12 +238,7 @@ mod tests {
     use super::*;
 
     fn make_skill(name: &str, content: &str) -> Skill {
-        Skill {
-            name: name.to_string(),
-            content: content.to_string(),
-            category: None,
-            description: None,
-        }
+        Skill::minimal(name, content)
     }
 
     #[test]

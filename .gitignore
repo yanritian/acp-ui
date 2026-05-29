@@ -16,6 +16,15 @@ dist-web
 # Tauri build artifacts
 src-tauri/target
 
+# Hermes crates build artifacts
+src-tauri/hermes-crates/**/target/
+
+# Playwright test outputs
+playwright-report/
+playwright-report-functional/
+test-output/
+test-results/
+
 # Tauri generated files (mobile builds, schemas)
 src-tauri/gen/android
 src-tauri/gen/apple

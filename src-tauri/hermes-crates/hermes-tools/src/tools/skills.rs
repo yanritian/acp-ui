@@ -306,35 +306,24 @@ mod tests {
             content: &str,
             category: Option<&str>,
         ) -> Result<Skill, AgentError> {
-            Ok(Skill {
-                name: name.into(),
-                content: content.into(),
-                category: category.map(String::from),
-                description: None,
-            })
+            let mut skill = Skill::minimal(name, content);
+            skill.category = category.map(String::from);
+            Ok(skill)
         }
         async fn get_skill(&self, name: &str) -> Result<Option<Skill>, AgentError> {
-            Ok(Some(Skill {
-                name: name.into(),
-                content: "skill content".into(),
-                category: None,
-                description: None,
-            }))
+            Ok(Some(Skill::minimal(name, "skill content")))
         }
         async fn list_skills(&self) -> Result<Vec<SkillMeta>, AgentError> {
             Ok(vec![SkillMeta {
                 name: "test".into(),
                 category: None,
                 description: None,
+                version: Some("1.0.0".to_string()),
+                generation: Some(0),
             }])
         }
         async fn update_skill(&self, name: &str, content: &str) -> Result<Skill, AgentError> {
-            Ok(Skill {
-                name: name.into(),
-                content: content.into(),
-                category: None,
-                description: None,
-            })
+            Ok(Skill::minimal(name, content))
         }
         async fn delete_skill(&self, _name: &str) -> Result<(), AgentError> {
             Ok(())

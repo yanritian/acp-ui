@@ -163,6 +163,11 @@ impl SkillStore for FileSkillStore {
                     content,
                     category: fm.category,
                     description: fm.description,
+                    execution_pattern: Default::default(),
+                    version: Default::default(),
+                    execution_stats: None,
+                    tags: vec![],
+                    author: None,
                 }));
             }
         }
@@ -282,6 +287,8 @@ impl FileSkillStore {
                                     name: fm.name,
                                     category,
                                     description: fm.description,
+                                    version: fm.version,
+                                    generation: Some(0),
                                 });
                             }
                             Err(e) => {
@@ -337,6 +344,11 @@ mod tests {
             content: "# Greet\nSay hello.".to_string(),
             category: Some("social".to_string()),
             description: Some("Greets people".to_string()),
+            execution_pattern: Default::default(),
+            version: Default::default(),
+            execution_stats: None,
+            tags: vec![],
+            author: None,
         };
 
         store.save(&skill).await.unwrap();
@@ -357,12 +369,22 @@ mod tests {
             content: "Content A".to_string(),
             category: Some("cat1".to_string()),
             description: None,
+            execution_pattern: Default::default(),
+            version: Default::default(),
+            execution_stats: None,
+            tags: vec![],
+            author: None,
         };
         let skill_b = Skill {
             name: "skill-b".to_string(),
             content: "Content B".to_string(),
             category: None,
             description: None,
+            execution_pattern: Default::default(),
+            version: Default::default(),
+            execution_stats: None,
+            tags: vec![],
+            author: None,
         };
 
         store.save(&skill_a).await.unwrap();
@@ -382,6 +404,11 @@ mod tests {
             content: "Temporary".to_string(),
             category: None,
             description: None,
+            execution_pattern: Default::default(),
+            version: Default::default(),
+            execution_stats: None,
+            tags: vec![],
+            author: None,
         };
 
         store.save(&skill).await.unwrap();

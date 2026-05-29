@@ -404,12 +404,7 @@ mod tests {
 
     #[test]
     fn test_verify_skill_signature_valid_hex() {
-        let skill = Skill {
-            name: "test".to_string(),
-            content: "hello".to_string(),
-            category: None,
-            description: None,
-        };
+        let skill = Skill::minimal("test", "hello");
         // A valid 64-char hex string should pass.
         let sig = "a".repeat(64);
         assert!(verify_skill_signature(&skill, &sig).is_ok());
@@ -417,24 +412,14 @@ mod tests {
 
     #[test]
     fn test_verify_skill_signature_invalid_length() {
-        let skill = Skill {
-            name: "test".to_string(),
-            content: "hello".to_string(),
-            category: None,
-            description: None,
-        };
+        let skill = Skill::minimal("test", "hello");
         let sig = "tooshort";
         assert!(verify_skill_signature(&skill, sig).is_err());
     }
 
     #[test]
     fn test_verify_skill_signature_invalid_chars() {
-        let skill = Skill {
-            name: "test".to_string(),
-            content: "hello".to_string(),
-            category: None,
-            description: None,
-        };
+        let skill = Skill::minimal("test", "hello");
         // 64 chars but contains non-hex.
         let sig = "g".repeat(64);
         assert!(verify_skill_signature(&skill, &sig).is_err());

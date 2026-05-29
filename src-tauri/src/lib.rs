@@ -18,6 +18,7 @@ mod smart_router;     // NEW: Smart Router - three-layer complexity evaluation
 mod circuit_breaker;  // NEW: Circuit Breaker - three-state failure protection
 mod self_healing;     // NEW: Self-Healing - EWMA anomaly detection
 mod team_dag;         // NEW: Team DAG execution engine with SyncPoints
+mod skill_commands;   // NEW: Skill System Tauri Commands (OpenClacky pattern)
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
@@ -483,7 +484,13 @@ pub fn run() {
             create_dag_plan,
             get_dag_plan_progress,
             check_anomaly,
-            update_anomaly_baseline
+            update_anomaly_baseline,
+            // Skill System Commands (OpenClacky pattern)
+            skill_commands::skills_list,
+            skill_commands::skill_view,
+            skill_commands::invoke_skill,
+            skill_commands::create_skill,
+            skill_commands::skill_manage
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

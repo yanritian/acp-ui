@@ -376,15 +376,267 @@ pub struct SkillMeta {
     pub name: String,
     pub category: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub generation: Option<u32>,
 }
 
-/// A skill definition.
+/// Skill execution pattern - determines how invoke_skill orchestrates core tools
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillExecutionPattern {
+    /// Sequential execution: call tools in order
+    #[default]
+    Sequential,
+    /// Parallel execution: multiple independent steps at once
+    Parallel,
+    /// Conditional execution: decide next step based on previous result
+    Conditional,
+    /// Loop until condition satisfied
+    LoopUntil,
+    /// Interactive: requires user input for intermediate results
+    Interactive,
+}
+
+/// Skill version tracking for self-evolution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct SkillVersion {
+    /// Semantic version (e.g., "1.2.3")
+    #[serde(default = "default_semver")]
+    pub semver: String,
+    /// Content hash for deduplication
+    #[serde(default)]
+    pub content_hash: String,
+    /// Evolution generation (number of improvements since creation)
+    #[serde(default)]
+    pub generation: u32,
+    /// Last evolution timestamp
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_evolved_at: Option<String>,
+    /// Reason for last evolution
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_evolution_reason: Option<String>,
+}
+
+fn default_semver() -> String {
+    "1.0.0".to_string()
+}
+
+/// Skill execution statistics for self-evolution decisions
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct SkillExecutionStats {
+    /// Total execution count
+    #[serde(default)]
+    pub total_executions: u64,
+    /// Success count
+    #[serde(default)]
+    pub success_count: u64,
+    /// Failure count
+    #[serde(default)]
+    pub failure_count: u64,
+    /// Average execution time in milliseconds
+    #[serde(default)]
+    pub avg_duration_ms: u64,
+    /// Average user rating (1-5)
+    #[serde(default)]
+    pub avg_rating: f32,
+    /// Common error patterns for evolution analysis
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub common_errors: Vec<ErrorPattern>,
+    /// Last execution timestamp
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_executed_at: Option<String>,
+}
+
+/// Error pattern for identifying evolution opportunities
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ErrorPattern {
+    /// Error description pattern
+    pub pattern: String,
+    /// Occurrence count
+    #[serde(default)]
+    pub count: u32,
+    /// Suggested fix from evolution
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_fix: Option<String>,
+}
+
+/// A skill definition with self-evolution support
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Skill {
+    /// Skill name (unique identifier, kebab-case)
     pub name: String,
+    /// Skill content (Markdown execution instructions)
     pub content: String,
+    /// Category (e.g., "development", "testing", "deployment")
     pub category: Option<String>,
+    /// Short description
     pub description: Option<String>,
+    /// Execution pattern
+    #[serde(default)]
+    pub execution_pattern: SkillExecutionPattern,
+    /// Version tracking
+    #[serde(default)]
+    pub version: SkillVersion,
+    /// Execution statistics
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_stats: Option<SkillExecutionStats>,
+    /// Tags for search and categorization
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    /// Author/creator
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+}
+
+/// Context for skill execution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct SkillExecutionContext {
+    /// Session ID
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Agent name
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+    /// Task ID
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
+    /// Working directory
+    #[serde(default)]
+    pub cwd: String,
+    /// Previous tool outputs for reference
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub previous_outputs: serde_json::Map<String, serde_json::Value>,
+}
+
+/// Result from skill execution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct SkillExecutionResult {
+    /// Success status
+    pub success: bool,
+    /// Output content
+    #[serde(default)]
+    pub output: String,
+    /// Error message if failed
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Execution duration in milliseconds
+    #[serde(default)]
+    pub duration_ms: u64,
+    /// Number of tool calls made
+    #[serde(default)]
+    pub tool_calls_count: u32,
+    /// Whether self-evolution was triggered
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub evolved: bool,
+    /// Evolution summary if evolved
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evolution_summary: Option<String>,
+}
+
+/// Invocation request for invoke_skill meta-tool
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SkillInvocation {
+    /// Skill name to invoke
+    pub skill_name: String,
+    /// Parameters for skill execution
+    #[serde(default)]
+    pub parameters: serde_json::Map<String, serde_json::Value>,
+    /// Execution context
+    #[serde(default)]
+    pub context: SkillExecutionContext,
+}
+
+impl Skill {
+    /// Create a minimal skill with just name and content
+    pub fn minimal(name: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            content: content.into(),
+            category: None,
+            description: None,
+            execution_pattern: SkillExecutionPattern::default(),
+            version: SkillVersion::default(),
+            execution_stats: None,
+            tags: Vec::new(),
+            author: None,
+        }
+    }
+
+    /// Check if skill needs evolution based on execution stats
+    pub fn should_evolve(&self, triggers: &EvolutionTriggers) -> Option<EvolutionReason> {
+        let stats = self.execution_stats.as_ref()?;
+
+        // Check minimum execution threshold
+        if stats.total_executions < triggers.min_executions {
+            return None;
+        }
+
+        // Check cooldown period
+        if let Some(_last_evolved) = &self.version.last_evolved_at {
+            // Parse timestamp and check cooldown (simplified)
+            // In production, use proper datetime parsing
+        }
+
+        // Check failure rate
+        if stats.total_executions > 0 {
+            let failure_rate = stats.failure_count as f32 / stats.total_executions as f32;
+            if failure_rate > triggers.failure_rate_threshold {
+                return Some(EvolutionReason::HighFailureRate(failure_rate));
+            }
+        }
+
+        // Check recurring errors
+        for pattern in &stats.common_errors {
+            if pattern.count >= triggers.error_pattern_threshold {
+                return Some(EvolutionReason::RecurringError(pattern.clone()));
+            }
+        }
+
+        // Check low rating
+        if stats.avg_rating > 0.0 && stats.avg_rating < triggers.min_rating_threshold {
+            return Some(EvolutionReason::LowRating(stats.avg_rating));
+        }
+
+        None
+    }
+}
+
+/// Triggers for skill self-evolution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EvolutionTriggers {
+    /// Failure rate threshold (trigger if above)
+    pub failure_rate_threshold: f32,
+    /// Minimum executions before considering evolution
+    pub min_executions: u64,
+    /// Error pattern occurrence threshold
+    pub error_pattern_threshold: u32,
+    /// Minimum acceptable rating
+    pub min_rating_threshold: f32,
+    /// Cooldown between evolutions in seconds
+    pub cooldown_seconds: u64,
+}
+
+impl Default for EvolutionTriggers {
+    fn default() -> Self {
+        Self {
+            failure_rate_threshold: 0.15,  // 15% failure rate
+            min_executions: 10,             // at least 10 runs
+            error_pattern_threshold: 3,     // same error 3 times
+            min_rating_threshold: 2.5,      // rating below 2.5/5
+            cooldown_seconds: 3600,         // 1 hour cooldown
+        }
+    }
+}
+
+/// Reason for triggering evolution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum EvolutionReason {
+    HighFailureRate(f32),
+    RecurringError(ErrorPattern),
+    LowRating(f32),
+    UserRequested,
 }
 
 // ---------------------------------------------------------------------------

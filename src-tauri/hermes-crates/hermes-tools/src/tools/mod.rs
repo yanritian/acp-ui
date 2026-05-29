@@ -15,6 +15,7 @@ pub mod file;
 pub mod gpt_image;
 pub mod homeassistant;
 pub mod image_gen;
+pub mod invoke_skill;       // Meta-tool for skill delegation (OpenClacky pattern)
 pub mod managed_tool_gateway;
 pub mod media_workflow;
 pub mod memory;
@@ -24,6 +25,7 @@ pub mod osv_check;
 pub mod process_registry;
 pub mod session_search;
 pub mod skill_commands;
+pub mod skill_evolution;    // Self-evolution module
 pub mod skill_utils;
 pub mod skills;
 pub mod terminal;

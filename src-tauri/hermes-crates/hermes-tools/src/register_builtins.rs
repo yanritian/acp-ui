@@ -223,7 +223,7 @@ pub fn register_builtin_tools(
         vec![],
     );
 
-    // -- Skills (3 tools) ----------------------------------------------------
+    // -- Skills (5 tools: list, view, manage, invoke, create) ---------------
     reg(
         registry,
         "skills",
@@ -246,9 +246,29 @@ pub fn register_builtin_tools(
         registry,
         "skills",
         Arc::new(crate::tools::skills::SkillManageHandler::new(
-            skill_provider,
+            skill_provider.clone(),
         )),
         "⚙️",
+        vec![],
+    );
+    // Meta-tool: invoke_skill (OpenClacky pattern - core delegation entry point)
+    reg(
+        registry,
+        "skills",
+        Arc::new(crate::tools::invoke_skill::InvokeSkillHandler::new(
+            skill_provider.clone(),
+        )),
+        "⚡",
+        vec![],
+    );
+    // Natural language skill creation
+    reg(
+        registry,
+        "skills",
+        Arc::new(crate::tools::invoke_skill::CreateSkillHandler::new(
+            skill_provider,
+        )),
+        "✨",
         vec![],
     );
 

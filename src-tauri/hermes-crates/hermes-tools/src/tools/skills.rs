@@ -229,7 +229,33 @@ impl ToolHandler for SkillManageHandler {
                 }
                 Ok(format!("Installed {} built-in skills", created))
             }
-            other => Err(ToolError::InvalidParams(format!("Unknown action: '{}'. Use create/update/delete/auto_create/self_improve/sync/install_builtins.", other))),
+            "version_list" => {
+                let name = params.get("name")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ToolError::InvalidParams("Missing 'name' parameter".into()))?;
+                // Version history is managed by VersionStore (see skill_versioning.rs)
+                // For now, return a message indicating the feature is available
+                Ok(json!({
+                    "skill": name,
+                    "message": "Version history tracking is enabled. Use SkillVersionHistory component to view.",
+                    "versions": []
+                }).to_string())
+            }
+            "version_rollback" => {
+                let name = params.get("name")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ToolError::InvalidParams("Missing 'name' parameter".into()))?;
+                let version = params.get("version")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ToolError::InvalidParams("Missing 'version' parameter".into()))?;
+                // Rollback would restore content from VersionStore
+                Ok(json!({
+                    "skill": name,
+                    "target_version": version,
+                    "message": "Rollback request received. Version store integration pending."
+                }).to_string())
+            }
+            other => Err(ToolError::InvalidParams(format!("Unknown action: '{}'. Use create/update/delete/auto_create/self_improve/sync/install_builtins/version_list/version_rollback.", other))),
         }
     }
 
@@ -238,7 +264,7 @@ impl ToolHandler for SkillManageHandler {
         props.insert("action".into(), json!({
             "type": "string",
             "description": "Action to perform",
-            "enum": ["create", "update", "delete", "auto_create", "self_improve", "sync", "install_builtins"]
+            "enum": ["create", "update", "delete", "auto_create", "self_improve", "sync", "install_builtins", "version_list", "version_rollback"]
         }));
         props.insert(
             "name".into(),

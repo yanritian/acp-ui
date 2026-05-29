@@ -26,7 +26,9 @@ pub mod process_registry;
 pub mod session_search;
 pub mod skill_commands;
 pub mod skill_evolution;    // Self-evolution module
+pub mod skill_params;       // Parameter parsing & validation
 pub mod skill_utils;
+pub mod skill_versioning;   // Version history & rollback
 pub mod skills;
 pub mod terminal;
 pub mod todo;

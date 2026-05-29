@@ -490,7 +490,8 @@ pub fn run() {
             skill_commands::skill_view,
             skill_commands::invoke_skill,
             skill_commands::create_skill,
-            skill_commands::skill_manage
+            skill_commands::skill_manage,
+            skill_commands::skill_rate
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

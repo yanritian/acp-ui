@@ -21,7 +21,7 @@ export {
   skillInvoker,
   invokeSkill,
   createSkill,
-  DEFAULT_EVOLUTION_TRIGgers,
+  DEFAULT_EVOLUTION_TRIGGERS,
 } from './skill-invoker';
 
 // Re-export core skills list

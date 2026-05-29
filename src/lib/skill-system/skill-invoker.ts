@@ -187,7 +187,7 @@ export async function createSkill(
 /**
  * Get evolution triggers configuration
  */
-export const DEFAULT_EVOLUTION_TRIGgers: EvolutionTriggers = {
+export const DEFAULT_EVOLUTION_TRIGGERS: EvolutionTriggers = {
   failureRateThreshold: 0.15,    // 15% failure rate triggers evolution
   minExecutions: 10,             // Need at least 10 runs before considering evolution
   errorPatternThreshold: 3,      // Same error 3 times triggers evolution

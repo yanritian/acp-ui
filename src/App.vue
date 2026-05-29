@@ -33,6 +33,7 @@ import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
 import BotSettings from './components/BotSettings.vue';
 import LanguageSelector from './components/LanguageSelector.vue';
 import ExecutiveSessionView from './components/ExecutiveSessionView.vue';
+import SkillManager from './components/skills/SkillManager.vue';
 import { FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import { taskParser, type TaskDAG } from './lib/task-parser'
@@ -66,7 +67,7 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills'>('chat');
 const showLogStream = ref(false);
 
 // Mock Task DAG for demo
@@ -638,6 +639,9 @@ function clearError() {
 
         <!-- Hermes Dashboard (Agent Progress Monitor) -->
         <HermesDashboard v-else-if="currentView === 'hermes'" />
+
+        <!-- Skills Management View -->
+        <SkillManager v-else-if="currentView === 'skills'" />
 
         <!-- Collaboration Network View (Network Visualization) -->
         <EnhancedHermesDashboard v-else-if="currentView === 'collaboration'" />

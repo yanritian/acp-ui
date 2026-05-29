@@ -99,6 +99,7 @@ export const frFR: MessageSchema = {
     monitor: 'Moniteur',
     history: 'Historique',
     executiveSession: 'Session Exécutive',
+    skills: 'Compétences',
   },
   navigationDescriptions: {
     chat: 'Session agent unique',
@@ -120,6 +121,7 @@ export const frFR: MessageSchema = {
     monitor: 'Afficher les événements temps réel',
     history: 'Rechercher l\'historique des tâches',
     executiveSession: 'Afficher les enregistrements de session Agent Exécutif et fichiers générés',
+    skills: 'Parcourir, exécuter et gérer les versions des compétences',
   },
   hermes: {
     title: 'Dashboard Hermes',

@@ -99,6 +99,7 @@ export const zhCN: MessageSchema = {
     monitor: '监控',
     history: '历史',
     executiveSession: '执行记录',
+    skills: '技能管理',
   },
   navigationDescriptions: {
     chat: '单 Agent 会话',
@@ -120,6 +121,7 @@ export const zhCN: MessageSchema = {
     monitor: '查看实时事件',
     history: '查询任务历史',
     executiveSession: '查看 Executive Agent 会话记录和生成文件',
+    skills: '浏览、执行和管理技能版本',
   },
   hermes: {
     title: 'Hermes Dashboard',

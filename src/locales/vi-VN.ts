@@ -99,6 +99,7 @@ export const viVN: MessageSchema = {
     monitor: 'Giám sát',
     history: 'Lịch sử',
     executiveSession: 'Phiên thực thi',
+    skills: 'Kỹ năng',
   },
   navigationDescriptions: {
     chat: 'Phiên Agent đơn',
@@ -120,6 +121,7 @@ export const viVN: MessageSchema = {
     monitor: 'Hiển thị sự kiện realtime',
     history: 'Tìm kiếm lịch sử nhiệm vụ',
     executiveSession: 'Xem bản ghi phiên Executive Agent và file đã tạo',
+    skills: 'Duyệt, thực thi và quản lý phiên bản kỹ năng',
   },
   hermes: {
     title: 'Hermes Dashboard',

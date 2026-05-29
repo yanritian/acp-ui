@@ -99,6 +99,7 @@ export const thTH: MessageSchema = {
     monitor: 'Monitor',
     history: 'History',
     executiveSession: 'Executive Session',
+    skills: 'ทักษะ',
   },
   navigationDescriptions: {
     chat: 'เซสชัน Agent เดี่ยว',
@@ -120,6 +121,7 @@ export const thTH: MessageSchema = {
     monitor: 'แสดง events realtime',
     history: 'Search history งาน',
     executiveSession: 'ดูบันทึกเซสชัน Executive Agent และไฟล์ที่สร้าง',
+    skills: 'เรียกดู ดำเนินการ และจัดการเวอร์ชันทักษะ',
   },
   hermes: {
     title: 'Hermes Dashboard',

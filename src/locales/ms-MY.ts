@@ -99,6 +99,7 @@ export const msMY: MessageSchema = {
     monitor: 'Monitor',
     history: 'History',
     executiveSession: 'Executive Session',
+    skills: 'Kemahiran',
   },
   navigationDescriptions: {
     chat: 'Sesi Agent single',
@@ -120,6 +121,7 @@ export const msMY: MessageSchema = {
     monitor: 'Papar events realtime',
     history: 'Search history tugas',
     executiveSession: 'Lihat rekod sesi Executive Agent dan file yang dihasilkan',
+    skills: 'Cari, jalankan dan urus versi kemahiran',
   },
   hermes: {
     title: 'Hermes Dashboard',

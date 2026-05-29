@@ -99,6 +99,7 @@ export const ruRU: MessageSchema = {
     monitor: 'Монитор',
     history: 'История',
     executiveSession: 'Исполнительная сессия',
+    skills: 'Навыки',
   },
   navigationDescriptions: {
     chat: 'Сессия одиночного агента',
@@ -120,6 +121,7 @@ export const ruRU: MessageSchema = {
     monitor: 'Показать события в реальном времени',
     history: 'Поиск истории задач',
     executiveSession: 'Просмотр записей сеансов Исполнительного Агента и созданных файлов',
+    skills: 'Обзор, выполнение и управление версиями навыков',
   },
   hermes: {
     title: 'Hermes Dashboard',

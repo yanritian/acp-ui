@@ -98,6 +98,7 @@ export type MessageSchema = {
     monitor: string
     history: string
     executiveSession: string
+    skills: string
   }
   navigationDescriptions: {
     chat: string
@@ -119,6 +120,7 @@ export type MessageSchema = {
     monitor: string
     history: string
     executiveSession: string
+    skills: string
   }
   hermes: {
     title: string

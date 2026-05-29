@@ -99,6 +99,7 @@ export const koKR: MessageSchema = {
     monitor: '모니터',
     history: '히스토리',
     executiveSession: '실행 기록',
+    skills: '스킬',
   },
   navigationDescriptions: {
     chat: '단일 Agent 세션',
@@ -120,6 +121,7 @@ export const koKR: MessageSchema = {
     monitor: '실시간 이벤트 표시',
     history: '작업 스토리 검색',
     executiveSession: 'Executive Agent 세션 기록 및 생성 파일 보기',
+    skills: '스킬 탐색, 실행 및 버전 관리',
   },
   hermes: {
     title: 'Hermes Dashboard',

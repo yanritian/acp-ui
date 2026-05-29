@@ -99,6 +99,7 @@ export const jaJP: MessageSchema = {
     monitor: '監視',
     history: '履歴',
     executiveSession: '実行記録',
+    skills: 'スキル',
   },
   navigationDescriptions: {
     chat: '単一Agentセッション',
@@ -120,6 +121,7 @@ export const jaJP: MessageSchema = {
     monitor: 'リアルタイムイベント表示',
     history: 'タスク履歴検索',
     executiveSession: 'Executive Agentセッション記録と生成ファイル表示',
+    skills: 'スキルの閲覧・実行・バージョン管理',
   },
   hermes: {
     title: 'Hermes Dashboard',

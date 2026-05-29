@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 /// Agent Base - the "Image" layer
 /// Defines the foundational agent configuration (e.g., claude-code-base, codex-base)
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentBase {
     pub id: String,
@@ -23,6 +24,7 @@ pub struct AgentBase {
 }
 
 /// Transport type for agent communication
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransportType {
     Stdio,      // Local process (stdin/stdout)
@@ -30,6 +32,7 @@ pub enum TransportType {
     ACP,        // Agent Client Protocol
 }
 
+#[allow(dead_code)]
 impl TransportType {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -51,6 +54,7 @@ impl TransportType {
 
 /// Agent Template - the "Dockerfile" layer
 /// Derives from Base with configuration strategies
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentTemplate {
     pub id: String,
@@ -66,6 +70,7 @@ pub struct AgentTemplate {
 }
 
 /// Configuration strategy for template derivation
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigStrategy {
     Append,     // Add to base configuration
@@ -73,6 +78,7 @@ pub enum ConfigStrategy {
     Exclude,    // Remove from base configuration
 }
 
+#[allow(dead_code)]
 impl ConfigStrategy {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -94,6 +100,7 @@ impl ConfigStrategy {
 
 /// Agent Instance - the "Container" layer
 /// Running instance of a Template
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInstance {
     pub id: String,
@@ -110,6 +117,7 @@ pub struct AgentInstance {
 }
 
 /// Instance status
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InstanceStatus {
     Pending,
@@ -121,6 +129,7 @@ pub enum InstanceStatus {
     Restarting,
 }
 
+#[allow(dead_code)]
 impl InstanceStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -149,6 +158,7 @@ impl InstanceStatus {
 }
 
 /// Permission configuration
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionConfig {
     pub allow: Vec<String>,
@@ -156,6 +166,7 @@ pub struct PermissionConfig {
     pub cwd_restrict: bool,
 }
 
+#[allow(dead_code)]
 impl Default for PermissionConfig {
     fn default() -> Self {
         Self {
@@ -171,6 +182,7 @@ impl Default for PermissionConfig {
 }
 
 /// Agent Registry - manages Base, Template, and Instance
+#[allow(dead_code)]
 pub struct AgentRegistry {
     bases: HashMap<String, AgentBase>,
     templates: HashMap<String, AgentTemplate>,
@@ -178,6 +190,7 @@ pub struct AgentRegistry {
     max_derivation_depth: u32, // Limit to 3 layers
 }
 
+#[allow(dead_code)]
 impl AgentRegistry {
     /// Create a new Agent Registry
     pub fn new() -> Self {
@@ -380,6 +393,7 @@ impl AgentRegistry {
 }
 
 /// Merged configuration for running an instance
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMergedConfig {
     pub base_id: String,

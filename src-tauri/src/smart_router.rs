@@ -15,6 +15,7 @@ pub enum TaskComplexity {
     VeryComplex, // Multi-agent needed
 }
 
+#[allow(dead_code)]
 impl TaskComplexity {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -39,6 +40,7 @@ pub enum TaskType {
     BugFix,         // Fix issues
 }
 
+#[allow(dead_code)]
 impl TaskType {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -78,6 +80,7 @@ pub enum InputType {
     Command,    // Direct command
 }
 
+#[allow(dead_code)]
 impl InputType {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -101,6 +104,7 @@ pub enum RouteTarget {
     HumanReview,        // Needs human decision
 }
 
+#[allow(dead_code)]
 impl RouteTarget {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -138,6 +142,7 @@ pub enum EvaluationMethod {
     LLMAssisted, // High-cost LLM evaluation
 }
 
+#[allow(dead_code)]
 impl EvaluationMethod {
     pub fn as_str(&self) -> &'static str {
         match self {

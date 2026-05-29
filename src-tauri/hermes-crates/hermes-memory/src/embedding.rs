@@ -2,7 +2,6 @@
 
 use crate::MemoryError;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 
 /// Embedding level for tiered processing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,14 +34,14 @@ pub trait EmbeddingProvider: Send + Sync {
 
 /// Local ONNX embedding provider (L1)
 pub struct LocalEmbeddingProvider {
-    model_path: String,
+    _model_path: String,
     dimension: usize,
 }
 
 impl LocalEmbeddingProvider {
     pub fn new(model_path: String) -> Result<Self, MemoryError> {
         Ok(Self {
-            model_path,
+            _model_path: model_path,
             dimension: 384, // Standard small model dimension
         })
     }
@@ -94,9 +93,9 @@ impl EmbeddingProvider for LocalEmbeddingProvider {
 
 /// Cloud API embedding provider (L2)
 pub struct CloudEmbeddingProvider {
-    client: Client,
-    api_url: String,
-    api_key: String,
+    _client: Client,
+    _api_url: String,
+    _api_key: String,
     dimension: usize,
     model: String,
 }
@@ -106,9 +105,9 @@ impl CloudEmbeddingProvider {
         let client = Client::new();
 
         Ok(Self {
-            client,
-            api_url,
-            api_key,
+            _client: client,
+            _api_url: api_url,
+            _api_key: api_key,
             dimension: 1024,
             model,
         })

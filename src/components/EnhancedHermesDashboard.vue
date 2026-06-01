@@ -226,8 +226,6 @@ function toggleAutoRefresh() {
 
 // Lifecycle
 onMounted(() => {
-  initializeMockData()
-
   // Subscribe to orchestrator events
   orchestrator.subscribe('task_complete', handleOrchestratorEvent)
   orchestrator.subscribe('task_failed', handleOrchestratorEvent)

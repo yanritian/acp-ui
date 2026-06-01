@@ -77,6 +77,27 @@ export type MessageSchema = {
     inputPlaceholder: string
     sendMessage: string
     messageInputPlaceholder: string
+    moreFeatures: string
+    quickStart: string
+    coreFeatures: string
+    step1Title: string
+    step1Desc: string
+    step2Title: string
+    step2Desc: string
+    step3Title: string
+    step3Desc: string
+    featureChat: string
+    featureChatDesc: string
+    featureMultiAgent: string
+    featureMultiAgentDesc: string
+    featureNetwork: string
+    featureNetworkDesc: string
+    featureBot: string
+    featureBotDesc: string
+    tip: string
+    configureAgents: string
+    noMockData: string
+    startCollaborationHint: string
   }
   navigation: {
     chat: string
@@ -99,6 +120,7 @@ export type MessageSchema = {
     history: string
     executiveSession: string
     skills: string
+    agentConfig: string
   }
   navigationDescriptions: {
     chat: string
@@ -121,6 +143,7 @@ export type MessageSchema = {
     history: string
     executiveSession: string
     skills: string
+    agentConfig: string
   }
   hermes: {
     title: string
@@ -748,5 +771,32 @@ export type MessageSchema = {
     verifyImportPath: string
     checkFunctionSignature: string
     similarity: string
+  }
+  agentConfig: {
+    title: string
+    addAgent: string
+    editAgent: string
+    noAgents: string
+    noAgentsHint: string
+    running: string
+    stopped: string
+    type: string
+    command: string
+    start: string
+    stop: string
+    edit: string
+    delete: string
+    agentName: string
+    agentNamePlaceholder: string
+    connectionType: string
+    stdioOption: string
+    startCommand: string
+    commandHelp: string
+    cancel: string
+    save: string
+    startFailed: string
+    saveFailed: string
+    deleteConfirm: string
+    deleteFailed: string
   }
 }

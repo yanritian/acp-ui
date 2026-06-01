@@ -30,11 +30,12 @@ import EnhancedHermesDashboard from './components/EnhancedHermesDashboard.vue';
 import TaskGraphView from './components/TaskGraphView.vue';
 import LogStreamView from './components/LogStreamView.vue';
 import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
+import AgentConfigView from './views/AgentConfigView.vue';
 import BotSettings from './components/BotSettings.vue';
 import LanguageSelector from './components/LanguageSelector.vue';
 import ExecutiveSessionView from './components/ExecutiveSessionView.vue';
 import SkillManager from './components/skills/SkillManager.vue';
-import { FEATURES } from './lib/feature-registry'
+import { FEATURES, CORE_FEATURES, ADVANCED_FEATURES } from './lib/feature-registry'
 import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
 import { taskParser, type TaskDAG } from './lib/task-parser'
 import './assets/modern.css'
@@ -42,14 +43,24 @@ import type { SavedSession } from './lib/types';
 
 const { t } = useI18n();
 
-// Translated features
-const translatedFeatures = computed(() =>
-  FEATURES.map(f => ({
+// Translated features - grouped into core and advanced
+const coreFeatures = computed(() =>
+  CORE_FEATURES.map(f => ({
     ...f,
     label: t(f.labelKey as any),
     description: t(f.descriptionKey as any),
   }))
 );
+
+const advancedFeatures = computed(() =>
+  ADVANCED_FEATURES.map(f => ({
+    ...f,
+    label: t(f.labelKey as any),
+    description: t(f.descriptionKey as any),
+  }))
+);
+
+const showAdvancedMenu = ref(false);
 
 const configStore = useConfigStore();
 const sessionStore = useSessionStore();
@@ -67,7 +78,7 @@ const showSettings = ref(false);
 const showTrafficMonitor = ref(false);
 const showStartupDetails = ref(false);
 // View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills'>('chat');
+const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills' | 'agent-config'>('chat');
 const showLogStream = ref(false);
 
 // Mock Task DAG for demo
@@ -196,9 +207,6 @@ const pendingAuthMethods = computed(() => sessionStore.pendingAuthMethods);
 const pendingAuthAgentName = computed(() => sessionStore.pendingAuthAgentName);
 
 onMounted(async () => {
-  // Initialize mock Task DAG for demo
-  initializeMockDag();
-
   // Track viewport width so the sidebar can default-collapse into a drawer
   // on phones / narrow windows. We watch a MediaQueryList rather than
   // resize for correctness across orientation changes on iOS.
@@ -483,8 +491,9 @@ function clearError() {
         <div class="section view-nav">
           <h3 class="nav-title">{{ t('common.featureNavigation') }}</h3>
           <nav class="nav-buttons">
+            <!-- Core features (always visible) -->
             <button
-              v-for="feature in translatedFeatures"
+              v-for="feature in coreFeatures"
               :key="feature.id"
               :class="['nav-btn', { active: currentView === feature.id }]"
               @click="navigateToFeature(feature.id)"
@@ -493,6 +502,32 @@ function clearError() {
               <span class="nav-icon">{{ feature.icon }}</span>
               <span class="nav-text">{{ feature.label }}</span>
             </button>
+
+            <!-- More menu for advanced features -->
+            <div class="more-menu">
+              <button
+                class="nav-btn more-btn"
+                @click="showAdvancedMenu = !showAdvancedMenu"
+                :title="t('common.moreFeatures')"
+              >
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-text">{{ t('common.moreFeatures') }} {{ showAdvancedMenu ? '▼' : '▶' }}</span>
+              </button>
+
+              <!-- Advanced features (collapsible) -->
+              <div v-if="showAdvancedMenu" class="advanced-features">
+                <button
+                  v-for="feature in advancedFeatures"
+                  :key="feature.id"
+                  :class="['nav-btn advanced-btn', { active: currentView === feature.id }]"
+                  @click="navigateToFeature(feature.id)"
+                  :title="feature.description"
+                >
+                  <span class="nav-icon">{{ feature.icon }}</span>
+                  <span class="nav-text">{{ feature.label }}</span>
+                </button>
+              </div>
+            </div>
           </nav>
         </div>
 
@@ -652,16 +687,82 @@ function clearError() {
         <!-- Executive Session View (会话记录和执行详情) -->
         <ExecutiveSessionView v-else-if="currentView === 'executive-session'" />
 
+        <!-- Agent Config View (Agent 配置管理) -->
+        <AgentConfigView v-else-if="currentView === 'agent-config'" />
+
         <!-- Task Graph View (DAG Visualization) -->
         <TaskGraphView v-else-if="currentView === 'task-graph'" :dag="mockTaskDag" :show-agents="true" orientation="vertical" />
 
         <!-- Welcome screen when not connected in chat view -->
         <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">
-          <h2>{{ t('common.welcomeTitle') }}</h2>
-          <p>{{ t('common.welcomeSubtitle') }}</p>
-          <p v-if="!hasAgents" class="hint">
-            {{ t('common.welcomeHint') }}
+          <div class="welcome-header">
+            <h2>{{ t('common.welcomeTitle') }}</h2>
+            <p class="welcome-subtitle">{{ t('common.welcomeSubtitle') }}</p>
+          </div>
+
+          <!-- Quick Start Guide -->
+          <div class="quick-start-guide">
+            <h3>🚀 {{ t('common.quickStart') }}</h3>
+            <div class="steps">
+              <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <h4>{{ t('common.step1Title') }}</h4>
+                  <p>{{ t('common.step1Desc') }}</p>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <h4>{{ t('common.step2Title') }}</h4>
+                  <p>{{ t('common.step2Desc') }}</p>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <h4>{{ t('common.step3Title') }}</h4>
+                  <p>{{ t('common.step3Desc') }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Highlights -->
+          <div class="feature-highlights">
+            <h3>✨ {{ t('common.coreFeatures') }}</h3>
+            <div class="features-grid">
+              <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h4>{{ t('common.featureChat') }}</h4>
+                <p>{{ t('common.featureChatDesc') }}</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h4>{{ t('common.featureMultiAgent') }}</h4>
+                <p>{{ t('common.featureMultiAgentDesc') }}</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">🕸️</div>
+                <h4>{{ t('common.featureNetwork') }}</h4>
+                <p>{{ t('common.featureNetworkDesc') }}</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h4>{{ t('common.featureBot') }}</h4>
+                <p>{{ t('common.featureBotDesc') }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!hasAgents" class="hint-section">
+            <p class="hint">
+              💡 <strong>{{ t('common.tip') }}：</strong>{{ t('common.welcomeHint') }}
             </p>
+            <button class="config-agents-btn" @click="showSettings = true">
+              ⚙️ {{ t('common.configureAgents') }}
+            </button>
+          </div>
         </div>
 
         <!-- Default state for other views -->
@@ -961,6 +1062,39 @@ html, body, #app {
   transition: all 0.2s ease;
 }
 
+/* Core features - slightly larger and more prominent */
+.nav-btn.core-feature {
+  font-weight: 500;
+}
+
+/* More menu button */
+.more-btn {
+  border-top: 1px solid var(--border-color);
+  margin-top: 8px;
+  padding-top: 12px;
+  font-weight: 500;
+}
+
+/* Advanced features container */
+.advanced-features {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-color);
+}
+
+.advanced-btn {
+  font-size: 13px;
+  padding: 8px 12px;
+  opacity: 0.85;
+}
+
+.advanced-btn:hover {
+  opacity: 1;
+}
+
 .nav-icon {
   font-size: 18px;
   width: 24px;
@@ -1140,21 +1274,188 @@ html, body, #app {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  justify-content: flex-start;
   padding: 2rem;
   color: var(--text-secondary);
+  overflow-y: auto;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.welcome-header {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .welcome-screen h2 {
   margin-bottom: 0.5rem;
   color: var(--text-primary);
+  font-size: 2rem;
+}
+
+.welcome-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+/* Quick Start Guide */
+.quick-start-guide {
+  width: 100%;
+  margin-bottom: 2rem;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.quick-start-guide h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary);
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.step-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Feature Highlights */
+.feature-highlights {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.feature-highlights h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.feature-card {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Hint Section */
+.hint-section {
+  width: 100%;
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(var(--primary-rgb), 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .welcome-screen .hint {
-  margin-top: 1rem;
-  font-size: 0.875rem;
-  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.config-agents-btn {
+  padding: 0.75rem 1.5rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.config-agents-btn:hover {
+  background: var(--primary-dark, #0056b3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.config-agents-btn:active {
+  transform: translateY(0);
 }
 
 /* ---------- Inline View Containers (status, monitor, bot) ---------- */

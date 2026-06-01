@@ -77,10 +77,6 @@ function toggleAutoRefresh() {
 
 // Lifecycle
 onMounted(() => {
-  // 初始化模拟数据（演示）
-  realtimeStore.initializeMockData()
-  petStore.initializeMockPets()
-
   // 选择第一个Agent
   if (realtimeStore.allAgents.length > 0) {
     selectAgent(realtimeStore.allAgents[0].agentId)

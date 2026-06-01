@@ -87,9 +87,6 @@ const toggleAutoRefresh = () => {
 };
 
 onMounted(() => {
-  // Initialize mock data for demo
-  initializeMockData();
-
   orchestrator.subscribe('task_complete', handleTaskComplete);
   orchestrator.subscribe('task_failed', handleTaskFailed);
   orchestrator.subscribe('review_result', handleReviewResult);

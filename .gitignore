@@ -66,6 +66,7 @@ Desktop.ini
 *.gif
 *.bmp
 !src/assets/
+!docs/test-reports/screenshots/*.png
 
 # Temp test directories
 test_demo/

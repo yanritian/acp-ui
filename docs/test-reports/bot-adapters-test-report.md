@@ -44,48 +44,25 @@
 
 ## 3. 测试截图
 
-### Gateway Settings 页面布局
+### Gateway Settings 全页面截图
 
-页面使用**卡片布局**而非 Tab 布局，每个 Bot 平台有独立的配置卡片：
+![Gateway Full Page](screenshots/gateway-full-page.png)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Remote Control Configuration                                │
-│  Configure mobile app, Feishu, Telegram...                  │
-│  [Stopped] [Start Service] [Stop Service]                    │
-├─────────────────────────────────────────────────────────────┤
-│  🌐 Network Tunnel                                           │
-│  Remote control without public IP                            │
-│  Enable Tunnel: Recommended: ngrok or frp...                 │
-├─────────────────────────────────────────────────────────────┤
-│  📱 App Remote Connection                                    │
-│  Scan QR code with mobile app                                │
-│  WebSocket Port: 1420  Auth Mode: QR Code Scan               │
-├─────────────────────────────────────────────────────────────┤
-│  💬 Feishu Bot                                               │
-│  Send commands via Feishu                                    │
-│  Enable Feishu Bot                                           │
-│  Configuration Steps:                                        │
-│  - Visit Feishu Open Platform                                │
-│  - Get App ID and App Secret                                 │
-├─────────────────────────────────────────────────────────────┤
-│  ✈️ Telegram Bot                                             │
-│  Remote control via Telegram                                 │
-│  Enable Telegram Bot                                         │
-│  Configuration Steps:                                        │
-│  - Search @BotFather                                         │
-│  - Send /newbot to create                                    │
-├─────────────────────────────────────────────────────────────┤
-│  🎮 Discord Bot                                              │
-│  Remote control via Discord                                  │
-│  Enable Discord Bot                                          │
-│  Configuration Steps:                                        │
-│  - Visit Developer Portal                                    │
-│  - Create App → Bot → Add Bot                                │
-├─────────────────────────────────────────────────────────────┤
-│  [Save Configuration]                                        │
-└─────────────────────────────────────────────────────────────┘
-```
+### 服务控制区域
+
+![Service Control](screenshots/service-control.png)
+
+### Feishu Bot 配置卡片
+
+![Feishu Card](screenshots/feishu-card.png)
+
+### Telegram Bot 配置卡片
+
+![Telegram Card](screenshots/telegram-card.png)
+
+### Discord Bot 配置卡片
+
+![Discord Card](screenshots/discord-card.png)
 
 ---
 
@@ -118,6 +95,9 @@ cd src-tauri && cargo test bot_adapters
 
 # E2E 测试
 cd .. && npx playwright test tests/e2e/gateway.spec.ts
+
+# 生成截图
+npx playwright test tests/e2e/screenshot-gateway.spec.ts
 
 # 完整测试套件
 npm test && cargo test

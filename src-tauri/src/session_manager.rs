@@ -231,7 +231,7 @@ impl SessionManager {
                         .unwrap_or_else(|_| Vec::new()),
                     branch_lock: row.get(5)?,
                     status: serde_json::from_str(&row.get::<_, String>(6)?)
-                        .unwrap_or_else(|_| SessionStatus::Active),
+                        .unwrap_or(SessionStatus::Active),
                     compaction_count: row.get(7)?,
                 })
             },

@@ -43,15 +43,10 @@ impl Default for HermesConfig {
 }
 
 /// 执行模式 - 仅 HermesNative
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum ExecutionMode {
+    #[default]
     HermesNative,
-}
-
-impl Default for ExecutionMode {
-    fn default() -> Self {
-        ExecutionMode::HermesNative
-    }
 }
 
 /// 智能体类型
@@ -203,7 +198,7 @@ impl ExecutiveAgentManager {
                 }
             }
 
-            if let Ok(_) = fs::write(&full_path, &content) {
+            if fs::write(&full_path, &content).is_ok() {
                 let lines = content.lines().count();
                 let file_info = GeneratedFile {
                     path: full_path.to_string_lossy().to_string(),

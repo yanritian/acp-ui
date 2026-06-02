@@ -29,7 +29,7 @@ pub struct AgentBase {
 pub enum TransportType {
     Stdio,      // Local process (stdin/stdout)
     WebSocket,  // Remote WebSocket connection
-    ACP,        // Agent Client Protocol
+    Acp,        // Agent Client Protocol
 }
 
 #[allow(dead_code)]
@@ -38,7 +38,7 @@ impl TransportType {
         match self {
             TransportType::Stdio => "stdio",
             TransportType::WebSocket => "websocket",
-            TransportType::ACP => "acp",
+            TransportType::Acp => "acp",
         }
     }
 
@@ -46,7 +46,7 @@ impl TransportType {
         match s {
             "stdio" => Ok(TransportType::Stdio),
             "websocket" => Ok(TransportType::WebSocket),
-            "acp" => Ok(TransportType::ACP),
+            "acp" => Ok(TransportType::Acp),
             other => Err(format!("Unknown transport type: {}", other)),
         }
     }

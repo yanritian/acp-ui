@@ -207,7 +207,7 @@ impl NgrokManager {
                     // Parse port from addr (format: "127.0.0.1:PORT" or "PORT")
                     let tunnel_port = if addr_str.contains(':') {
                         // Split on ':' and parse the last part as port
-                        addr_str.split(':').last()
+                        addr_str.split(':').next_back()
                             .and_then(|s| s.parse::<u16>().ok())
                     } else {
                         // Try to parse the whole string as port

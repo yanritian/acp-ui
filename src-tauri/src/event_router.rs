@@ -104,7 +104,7 @@ impl EventRouter {
     pub fn subscribe(&mut self, event_type: &str, handler: EventHandler) {
         self.subscribers
             .entry(event_type.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(handler);
         println!("Subscribed to event type: {}", event_type);
     }

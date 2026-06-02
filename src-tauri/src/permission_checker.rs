@@ -11,7 +11,7 @@ use std::path::Path;
 
 /// Permission mode hierarchy (Claw Code inspired)
 /// Defines the base permission level for an agent
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionMode {
     /// Can only read files, no write operations
@@ -23,13 +23,8 @@ pub enum PermissionMode {
     /// Ask user for each operation via prompt
     Prompt,
     /// Auto-allow with rule-based checks (default)
+    #[default]
     Allow,
-}
-
-impl Default for PermissionMode {
-    fn default() -> Self {
-        PermissionMode::Allow
-    }
 }
 
 /// Permission rule for allowing or denying operations

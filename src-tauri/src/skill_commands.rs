@@ -260,7 +260,7 @@ pub async fn skill_rate(
     skill_name: String,
     rating: u8,
 ) -> Result<Value, String> {
-    if rating < 1 || rating > 5 {
+    if !(1..=5).contains(&rating) {
         return Err("Rating must be between 1 and 5".to_string());
     }
     Ok(json!({

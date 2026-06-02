@@ -323,9 +323,10 @@ impl LogStreamManager {
         let mut queue = self.batch_queue.write();
         let batch: Vec<LogEntry> = queue.drain(..).collect();
 
-        if !batch.is_empty() && self.app_handle.is_some() {
-            let handle = self.app_handle.as_ref().unwrap();
-            let _ = handle.emit("log-batch", batch.clone());
+        if !batch.is_empty() {
+            if let Some(handle) = self.app_handle.as_ref() {
+                let _ = handle.emit("log-batch", batch.clone());
+            }
         }
 
         batch

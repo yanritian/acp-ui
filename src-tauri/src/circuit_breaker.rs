@@ -142,13 +142,12 @@ impl CircuitBreakerManager {
             breaker.updated_at = Utc::now();
 
             // In half-open, check if enough successes to close
-            if breaker.state == CircuitState::HalfOpen {
-                if breaker.success_count >= breaker.config.success_threshold {
+            if breaker.state == CircuitState::HalfOpen
+                && breaker.success_count >= breaker.config.success_threshold {
                     breaker.state = CircuitState::Closed;
                     breaker.failure_count = 0;
                     breaker.success_count = 0;
                     breaker.cool_down_until = None;
-                }
             }
         }
     }
@@ -163,13 +162,12 @@ impl CircuitBreakerManager {
             breaker.updated_at = Utc::now();
 
             // In closed state, check if threshold reached
-            if breaker.state == CircuitState::Closed {
-                if breaker.failure_count >= breaker.config.failure_threshold {
+            if breaker.state == CircuitState::Closed
+                && breaker.failure_count >= breaker.config.failure_threshold {
                     breaker.state = CircuitState::Open;
                     breaker.cool_down_until = Some(
                         Utc::now() + chrono::Duration::milliseconds(breaker.config.timeout_ms as i64)
                     );
-                }
             }
 
             // In half-open, any failure returns to open

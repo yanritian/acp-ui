@@ -631,6 +631,7 @@ pub struct PatternRecord {
     pub updated_at: String,
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 fn save_memory(
     content: String,

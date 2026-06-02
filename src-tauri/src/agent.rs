@@ -273,8 +273,8 @@ impl AgentManager {
     pub fn get_running_agents_info(&self) -> Vec<AgentInstance> {
         self.agents
             .read()
-            .iter()
-            .map(|(id, _)| AgentInstance {
+            .keys()
+            .map(|id| AgentInstance {
                 id: id.clone(),
                 name: String::new(),
             })

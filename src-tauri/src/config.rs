@@ -94,6 +94,7 @@ impl AgentConfig {
     }
 
     /// Build a complete agent config with all fields
+    #[allow(clippy::too_many_arguments)]
     pub fn full(
         transport: AgentTransport,
         command: Option<String>,
@@ -354,9 +355,9 @@ fn get_config_path(_app: &AppHandle) -> Result<PathBuf, String> {
     // so existing installations don't need to migrate.
     #[cfg(desktop)]
     {
-        return dirs::config_dir()
+        dirs::config_dir()
             .map(|p| p.join("acp-ui").join("agents.json"))
-            .ok_or_else(|| "Could not find config directory".to_string());
+            .ok_or_else(|| "Could not find config directory".to_string())
     }
     // On mobile, the only writable per-app location is the sandbox config
     // dir exposed by Tauri. `dirs::config_dir()` is unreliable there.
@@ -392,14 +393,13 @@ fn setup_watcher(
         move |res: Result<notify::Event, notify::Error>| {
             if let Ok(event) = res {
                 match event.kind {
-                    EventKind::Modify(_) | EventKind::Create(_) => {
-                        if event.paths.iter().any(|p| p == &config_path_for_watcher) {
+                    EventKind::Modify(_) | EventKind::Create(_)
+                        if event.paths.iter().any(|p| p == &config_path_for_watcher) => {
                             if let Ok(new_config) = load_config(&config_path_for_watcher) {
                                 *config.write() = new_config.clone();
                                 let _ = app_handle.emit("config-changed", new_config);
                             }
                         }
-                    }
                     _ => {}
                 }
             }

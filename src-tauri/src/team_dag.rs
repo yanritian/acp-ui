@@ -273,7 +273,7 @@ impl DAGEngine {
 
         // Track completed nodes
         let completed = self.completed_nodes.entry(plan_id.to_string())
-            .or_insert_with(HashSet::new);
+            .or_default();
         completed.insert(node.member_id.clone());
 
         // Check sync points inline

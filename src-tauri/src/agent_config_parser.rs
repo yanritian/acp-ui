@@ -109,13 +109,12 @@ impl AgentConfigParser {
                     message: "stdio transport requires 'command' field".to_string(),
                 });
             }
-        } else if config.transport == "websocket" || config.transport == "http" {
-            if config.url.is_none() || config.url.as_ref().map(|u| u.is_empty()).unwrap_or(true) {
+        } else if (config.transport == "websocket" || config.transport == "http")
+            && (config.url.is_none() || config.url.as_ref().map(|u| u.is_empty()).unwrap_or(true)) {
                 errors.push(ValidationError {
                     field: "url".to_string(),
                     message: format!("{} transport requires 'url' field", config.transport),
                 });
-            }
         }
 
         // Validate working directory if specified

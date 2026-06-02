@@ -220,3 +220,159 @@ fn format_feishu_response(response: &BotResponse) -> String {
 fn format_app_response(response: &BotResponse) -> String {
     response.message.clone()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_status_command() {
+        let cmd = parse_bot_text("/status");
+        assert!(matches!(cmd, BotCommand::Status));
+
+        let cmd = parse_bot_text("status");
+        assert!(matches!(cmd, BotCommand::Status));
+
+        let cmd = parse_bot_text("STATUS");
+        assert!(matches!(cmd, BotCommand::Status));
+    }
+
+    #[test]
+    fn test_parse_agents_command() {
+        let cmd = parse_bot_text("/agents");
+        assert!(matches!(cmd, BotCommand::ListAgents));
+
+        let cmd = parse_bot_text("list");
+        assert!(matches!(cmd, BotCommand::ListAgents));
+    }
+
+    #[test]
+    fn test_parse_agent_command() {
+        let cmd = parse_bot_text("/agent write hello world");
+        match cmd {
+            BotCommand::Agent { prompt, agent_name } => {
+                assert_eq!(prompt, "write hello world");
+                assert!(agent_name.is_none());
+            },
+            _ => panic!("Expected Agent command"),
+        }
+
+        // Missing prompt
+        let cmd = parse_bot_text("/agent");
+        assert!(matches!(cmd, BotCommand::Unknown { .. }));
+    }
+
+    #[test]
+    fn test_parse_team_command() {
+        let cmd = parse_bot_text("/team codex,claude-code review this code");
+        match cmd {
+            BotCommand::Team { prompt, agents, routing } => {
+                assert_eq!(prompt, "review this code");
+                assert_eq!(agents, vec!["codex", "claude-code"]);
+                assert_eq!(routing, "single");
+            },
+            _ => panic!("Expected Team command"),
+        }
+
+        let cmd = parse_bot_text("/team broadcast analyze the system");
+        match cmd {
+            BotCommand::Team { prompt, agents, routing } => {
+                assert_eq!(prompt, "analyze the system");
+                assert!(agents.is_empty());
+                assert_eq!(routing, "broadcast");
+            },
+            _ => panic!("Expected Team command with broadcast"),
+        }
+    }
+
+    #[test]
+    fn test_parse_pause_resume_cancel() {
+        let cmd = parse_bot_text("/pause agent-123");
+        match cmd {
+            BotCommand::Pause { agent_id } => assert_eq!(agent_id, "agent-123"),
+            _ => panic!("Expected Pause command"),
+        }
+
+        let cmd = parse_bot_text("/resume agent-456");
+        match cmd {
+            BotCommand::Resume { agent_id } => assert_eq!(agent_id, "agent-456"),
+            _ => panic!("Expected Resume command"),
+        }
+
+        let cmd = parse_bot_text("/cancel task-789");
+        match cmd {
+            BotCommand::Cancel { target_id } => assert_eq!(target_id, "task-789"),
+            _ => panic!("Expected Cancel command"),
+        }
+
+        // Missing ID
+        let cmd = parse_bot_text("/pause");
+        assert!(matches!(cmd, BotCommand::Unknown { .. }));
+    }
+
+    #[test]
+    fn test_parse_history_command() {
+        let cmd = parse_bot_text("/history");
+        match cmd {
+            BotCommand::History { limit } => assert_eq!(limit, Some(10)),
+            _ => panic!("Expected History command"),
+        }
+
+        let cmd = parse_bot_text("/history 5");
+        match cmd {
+            BotCommand::History { limit } => assert_eq!(limit, Some(5)),
+            _ => panic!("Expected History command with limit"),
+        }
+    }
+
+    #[test]
+    fn test_parse_unknown_command() {
+        let cmd = parse_bot_text("/foobar");
+        match cmd {
+            BotCommand::Unknown { raw } => assert_eq!(raw, "foobar"),
+            _ => panic!("Expected Unknown command"),
+        }
+
+        let cmd = parse_bot_text("");
+        assert!(matches!(cmd, BotCommand::Unknown { .. }));
+    }
+
+    #[test]
+    fn test_format_response_telegram() {
+        let response = BotResponse {
+            success: true,
+            message: "系统运行正常".to_string(),
+            data: Some(serde_json::json!({ "agents": 3 })),
+        };
+
+        let formatted = format_response(&response, "telegram");
+        assert!(formatted.starts_with("✅"));
+        assert!(formatted.contains("系统运行正常"));
+        assert!(formatted.contains("agents"));
+    }
+
+    #[test]
+    fn test_format_response_feishu() {
+        let response = BotResponse {
+            success: false,
+            message: "执行失败".to_string(),
+            data: None,
+        };
+
+        let formatted = format_response(&response, "feishu");
+        assert!(formatted.starts_with("❌"));
+        assert!(formatted.contains("执行失败"));
+    }
+
+    #[test]
+    fn test_format_response_app() {
+        let response = BotResponse {
+            success: true,
+            message: "任务完成".to_string(),
+            data: None,
+        };
+
+        let formatted = format_response(&response, "app");
+        assert_eq!(formatted, "任务完成");
+    }
+}

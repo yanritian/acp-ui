@@ -11,6 +11,8 @@
 mod app_ws;
 mod telegram;
 mod feishu;
+#[cfg(test)]
+mod erp_test;
 
 pub use app_ws::AppWsAdapter;
 pub use telegram::TelegramAdapter;

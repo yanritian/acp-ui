@@ -23,6 +23,54 @@
 
 ---
 
+## 1.1 ERP 系统集成测试
+
+### 测试文件: `src-tauri/src/bot_adapters/erp_test.rs`
+
+| 测试名称 | 结果 | 说明 |
+|---------|------|------|
+| test_erp_status_command | ✅ PASS | ERP系统状态查询 |
+| test_erp_inventory_development | ✅ PASS | 单Agent开发库存管理模块 |
+| test_erp_multi_agent_collaboration | ✅ PASS | 多Agent协作开发财务模块 |
+| test_erp_broadcast_mode | ✅ PASS | Broadcast模式架构分析 |
+| test_erp_task_control | ✅ PASS | 任务暂停/恢复/取消控制 |
+| test_erp_history_query | ✅ PASS | 查询ERP开发历史记录 |
+| test_erp_full_development_flow | ✅ PASS | 完整ERP开发流程模拟 |
+| test_erp_cross_platform_output | ✅ PASS | 各平台输出格式对比 |
+
+**ERP集成测试总数: 8 通过**
+
+### ERP测试输出示例
+
+```
+=== ERP系统开发完整流程测试 ===
+
+Step 1: 发送命令 /status -> Status
+Step 2: 发送命令 /agents -> ListAgents
+Step 3: 发送命令 /agent 开发库存管理模块 -> Agent { prompt: "开发库存管理模块" }
+Step 4: 发送命令 /team codex,claude-code 开发财务模块 -> Team { agents: ["codex", "claude-code"] }
+Step 5: 发送命令 /history 5 -> History { limit: Some(5) }
+
+=== ERP进度报告 - 各平台输出格式 ===
+
+Telegram:
+✅ ERP系统开发进度报告
+{
+  "completed_modules": ["inventory", "hr"],
+  "in_progress": ["finance"],
+  "pending": ["sales", "purchase"],
+  "total_progress": "40%"
+}
+
+Feishu:
+✅ ERP系统开发进度报告
+
+App WebSocket:
+ERP系统开发进度报告
+```
+
+---
+
 ## 2. E2E 测试 (Playwright)
 
 ### 测试文件: `tests/e2e/gateway.spec.ts`

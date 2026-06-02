@@ -91,6 +91,35 @@ export const useConfigStore = defineStore('config', () => {
     error.value = null;
   }
 
+  /** Get a valid absolute cwd for an agent. Falls back to user home if not configured. */
+  function getDefaultCwd(agentName?: string): string {
+    // Try agent's configured PWD first
+    if (agentName) {
+      const agent = config.value.agents[agentName];
+      const pwd = agent?.env?.PWD;
+      if (pwd && isAbsolutePath(pwd)) {
+        return pwd;
+      }
+    }
+    // Fall back to first agent with valid PWD
+    for (const [name, agent] of Object.entries(config.value.agents)) {
+      const pwd = agent.env?.PWD;
+      if (pwd && isAbsolutePath(pwd)) {
+        return pwd;
+      }
+    }
+    // Fall back to platform home directory
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.HOME || process.env.USERPROFILE || '/';
+    }
+    // Web fallback
+    return '/';
+  }
+
+  function isAbsolutePath(path: string): boolean {
+    return path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path);
+  }
+
   return {
     config,
     configPath,
@@ -108,5 +137,6 @@ export const useConfigStore = defineStore('config', () => {
     setupHotReload,
     updateFromEvent,
     clearError,
+    getDefaultCwd,
   };
 });

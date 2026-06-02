@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
+import { isTauriHost } from '../lib/platform'
 import { useI18n } from '@/locales'
 
 const { t } = useI18n()
@@ -47,14 +49,50 @@ const savedMessage = ref('')
 const activeTab = ref<'feishu' | 'telegram' | 'discord'>('feishu')
 
 async function loadConfig() {
-  // Try to load from Tauri if available
-  try {
-    const saved = localStorage.getItem('bot-config')
-    if (saved) {
-      config.value = JSON.parse(saved)
+  if (isTauriHost()) {
+    try {
+      const gatewayConfig = await invoke<Record<string, unknown>>('get_gateway_config')
+      if (gatewayConfig) {
+        // Extract bot-related config from gateway config
+        if (gatewayConfig.feishu) {
+          const incoming = gatewayConfig.feishu as Record<string, unknown>
+          config.value.feishu = {
+            appId: (incoming.appId as string) ?? '',
+            appSecret: (incoming.appSecret as string) ?? '',
+            encryptKey: (incoming.encryptKey as string) ?? '',
+            verificationToken: (incoming.verificationToken as string) ?? '',
+            enabled: (incoming.enabled as boolean) ?? false,
+          }
+        }
+        if (gatewayConfig.telegram) {
+          const incoming = gatewayConfig.telegram as Record<string, unknown>
+          config.value.telegram = {
+            botToken: (incoming.botToken as string) ?? '',
+            enabled: (incoming.enabled as boolean) ?? false,
+          }
+        }
+        if (gatewayConfig.discord) {
+          const incoming = gatewayConfig.discord as Record<string, unknown>
+          config.value.discord = {
+            botToken: (incoming.botToken as string) ?? '',
+            channelId: (incoming.channelId as string) ?? '',
+            enabled: (incoming.enabled as boolean) ?? false,
+          }
+        }
+      }
+    } catch (e) {
+      console.log('No existing gateway config, using defaults')
     }
-  } catch (e) {
-    console.error('Failed to load bot config:', e)
+  } else {
+    // Web fallback: localStorage
+    try {
+      const saved = localStorage.getItem('bot-config')
+      if (saved) {
+        config.value = JSON.parse(saved)
+      }
+    } catch (e) {
+      console.error('Failed to load bot config:', e)
+    }
   }
 }
 
@@ -63,12 +101,18 @@ async function saveConfig() {
   savedMessage.value = ''
 
   try {
-    // Save to localStorage for now
-    localStorage.setItem('bot-config', JSON.stringify(config.value))
-
-    // In Tauri, would call backend to save
-    // await invoke('save_bot_config', { config: config.value })
-
+    if (isTauriHost()) {
+      // Save via gateway config command
+      await invoke('save_gateway_config', {
+        config: {
+          feishu: config.value.feishu,
+          telegram: config.value.telegram,
+          discord: config.value.discord,
+        }
+      })
+    } else {
+      localStorage.setItem('bot-config', JSON.stringify(config.value))
+    }
     savedMessage.value = t('botSettings.configSaved')
     setTimeout(() => { savedMessage.value = '' }, 3000)
   } catch (e) {
@@ -79,7 +123,6 @@ async function saveConfig() {
 }
 
 function testConnection(platform: string) {
-  // Placeholder for connection test
   savedMessage.value = t('botSettings.testConnectionDev', { platform })
   setTimeout(() => { savedMessage.value = '' }, 3000)
 }

@@ -153,7 +153,7 @@ export const useWorkflowsStore = defineStore('workflows', () => {
     executions.value.set(workflowId, exec)
 
     const agentNames = Object.keys(configStore.config.agents)
-    const cwd = configStore.config.agents[agentNames[0]]?.env?.PWD ?? '.'
+    const cwd = configStore.getDefaultCwd(agentNames[0])
 
     // Execute steps sequentially (respecting dependsOn)
     for (let i = 0; i < wf.steps.length; i++) {

@@ -56,7 +56,7 @@ async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || !hasAgents.value) return
 
-  const cwd = configStore.config.agents[agentNames.value[0]]?.env?.PWD ?? '.'
+  const cwd = configStore.getDefaultCwd(agentNames.value[0])
   const agents: TeamAgentSelection[] = Array.from(selectedAgents.value).map(name => ({
     agentName: name,
     cwd,

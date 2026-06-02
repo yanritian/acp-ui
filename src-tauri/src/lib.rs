@@ -19,6 +19,8 @@ mod circuit_breaker;  // NEW: Circuit Breaker - three-state failure protection
 mod self_healing;     // NEW: Self-Healing - EWMA anomaly detection
 mod team_dag;         // NEW: Team DAG execution engine with SyncPoints
 mod skill_commands;   // NEW: Skill System Tauri Commands (OpenClacky pattern)
+mod bot_adapters;     // NEW: Bot Adapters - Telegram, Feishu, Discord, App WebSocket
+use bot_adapters::BotAdapter;
 
 use agent::{AgentInstance, AgentManager, AgentStatus};
 use config::{AgentConfig, AgentTransport, AgentsConfig, ConfigManager};
@@ -49,6 +51,9 @@ pub struct AppState {
     pub circuit_breaker_manager: Arc<Mutex<circuit_breaker::CircuitBreakerManager>>,
     pub dag_engine: Arc<Mutex<team_dag::DAGEngine>>,
     pub anomaly_detector: Arc<Mutex<self_healing::AnomalyDetector>>,
+    // Bot Adapters
+    pub telegram_adapter: Arc<Mutex<Option<bot_adapters::TelegramAdapter>>>,
+    pub feishu_adapter: Arc<Mutex<Option<bot_adapters::FeishuAdapter>>>,
 }
 
 impl AppState {
@@ -65,6 +70,9 @@ impl AppState {
             circuit_breaker_manager: Arc::new(Mutex::new(circuit_breaker::CircuitBreakerManager::new())),
             dag_engine: Arc::new(Mutex::new(team_dag::DAGEngine::new())),
             anomaly_detector: Arc::new(Mutex::new(self_healing::AnomalyDetector::new())),
+            // Bot Adapters
+            telegram_adapter: Arc::new(Mutex::new(None)),
+            feishu_adapter: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -1449,13 +1457,15 @@ fn save_gateway_config(config: GatewayConfig, state: State<AppState>) -> Result<
 }
 
 #[tauri::command]
-fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<AppState>) -> Result<(), String> {
+async fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     println!("Starting gateway with config");
 
-    // Persist config to database
-    let db = state.database.lock().map_err(|e| e.to_string())?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
-    gateway_config::save_gateway_config(db, &config)?;
+    // Persist config to database - release lock before async operations
+    {
+        let db = state.database.lock().map_err(|e| e.to_string())?;
+        let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+        gateway_config::save_gateway_config(db, &config)?;
+    }
 
     // Generate auth token for app gateway
     if let Some(app_config) = &config.app {
@@ -1470,21 +1480,27 @@ fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<AppS
         }
     }
 
-    // 2. Feishu Bot (placeholder)
+    // Start Feishu Bot if enabled
     if let Some(feishu) = &config.feishu {
         if feishu.enabled {
-            println!("Feishu Bot enabled, App ID: {}", feishu.app_id);
+            let mut adapter = bot_adapters::FeishuAdapter::new(feishu);
+            adapter.start(&app_handle).await?;
+            *state.feishu_adapter.lock().unwrap() = Some(adapter);
+            println!("Feishu Bot started, App ID: {}", feishu.app_id);
         }
     }
 
-    // 3. Telegram Bot (placeholder)
+    // Start Telegram Bot if enabled
     if let Some(telegram) = &config.telegram {
         if telegram.enabled {
-            println!("Telegram Bot enabled");
+            let mut adapter = bot_adapters::TelegramAdapter::new(telegram);
+            adapter.start(&app_handle).await?;
+            *state.telegram_adapter.lock().unwrap() = Some(adapter);
+            println!("Telegram Bot started");
         }
     }
 
-    // 4. Discord Bot (placeholder)
+    // Discord Bot (placeholder)
     if let Some(discord) = &config.discord {
         if discord.enabled {
             println!("Discord Bot enabled, Guild: {:?}", discord.guild_id);
@@ -1497,10 +1513,10 @@ fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<AppS
 }
 
 #[tauri::command]
-fn stop_gateway(app_handle: AppHandle, state: State<AppState>) -> Result<(), String> {
+async fn stop_gateway(app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     println!("Stopping gateway");
 
-    // 1. 停止WebSocket服务器
+    // 1. Stop WebSocket server
     {
         let ws = state.ws_server.lock().unwrap();
         if let Some(server) = ws.as_ref() {
@@ -1509,9 +1525,27 @@ fn stop_gateway(app_handle: AppHandle, state: State<AppState>) -> Result<(), Str
         }
     }
 
-    // 2. TODO: 停止飞书Bot
-    // 3. TODO: 停止Telegram Bot
-    // 4. TODO: 停止Discord Bot
+    // 2. Stop Feishu Bot - release lock before await
+    let feishu_adapter = {
+        let mut feishu = state.feishu_adapter.lock().unwrap();
+        feishu.take()
+    };
+    if let Some(mut adapter) = feishu_adapter {
+        adapter.stop().await?;
+        println!("Feishu Bot stopped");
+    }
+
+    // 3. Stop Telegram Bot - release lock before await
+    let telegram_adapter = {
+        let mut telegram = state.telegram_adapter.lock().unwrap();
+        telegram.take()
+    };
+    if let Some(mut adapter) = telegram_adapter {
+        adapter.stop().await?;
+        println!("Telegram Bot stopped");
+    }
+
+    // 4. Discord Bot (placeholder)
 
     // Emit gateway stopped event
     let _ = app_handle.emit("gateway-stopped", ());

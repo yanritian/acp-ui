@@ -37,6 +37,8 @@ shell-escape = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 regex = "1"
+rust_decimal = "1"  # ERP Finance: decimal precision
+thiserror = "1"     # ERP Finance: error handling
 ureq = { version = "2", features = ["json", "tls"] }  # tls uses rustls by default in ureq 2.x
 reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }  # NEW: For Feishu rich message API
 serde_yaml = "0.9"  # NEW: For proper YAML parsing (nested structures support)

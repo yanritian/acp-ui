@@ -3,6 +3,7 @@ mod config;
 mod database;
 mod gateway_config;
 mod websocket;
+mod finance;  // ERP Finance Module
 mod tunnel;
 mod log_stream;
 mod permission_checker;

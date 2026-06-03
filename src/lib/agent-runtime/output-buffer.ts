@@ -16,19 +16,34 @@ export class OutputBuffer {
     private readonly agentName: string,
   ) {}
 
-  apply(notification: SessionNotification): RuntimeOutput {
+  apply(notification: SessionNotification | Record<string, unknown>): RuntimeOutput {
     const update = notification.update
 
-    if (update.sessionUpdate === 'user_message_chunk' && update.content.type === 'text') {
+    // Handle cases where update might be undefined or have different structure
+    if (!update) {
+      // Try alternative notification structure (status/output format from custom servers)
+      const altNotification = notification as Record<string, unknown>
+      if (altNotification.status === 'running' && Array.isArray(altNotification.output)) {
+        for (const item of (altNotification.output as Array<Record<string, unknown>>)) {
+          if (item.type === 'text' && typeof item.text === 'string') {
+            this.content += item.text
+            this.appendMessage('assistant', item.text)
+          }
+        }
+      }
+      return this.snapshot()
+    }
+
+    if (update.sessionUpdate === 'user_message_chunk' && update.content?.type === 'text') {
       this.appendMessage('user', update.content.text)
     }
 
-    if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text') {
+    if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
       this.content += update.content.text
       this.appendMessage('assistant', update.content.text)
     }
 
-    if (update.sessionUpdate === 'agent_thought_chunk' && update.content.type === 'text') {
+    if (update.sessionUpdate === 'agent_thought_chunk' && update.content?.type === 'text') {
       this.thought += update.content.text
       const last = this.messages[this.messages.length - 1]
       if (last && last.role === 'assistant') {

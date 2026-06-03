@@ -1,6 +1,10 @@
-import type { SessionNotification } from '@agentclientprotocol/sdk'
+import type { SessionNotification, SessionUpdate } from '@agentclientprotocol/sdk'
 import type { ChatMessage, ToolCallInfo } from '../types'
 import type { RuntimeOutput, RuntimeTaskStatus } from './types'
+
+function isSessionNotification(n: SessionNotification | Record<string, unknown>): n is SessionNotification {
+  return 'sessionId' in n && 'update' in n && typeof n.update === 'object' && n.update !== null && 'sessionUpdate' in n.update
+}
 
 export class OutputBuffer {
   private messages: ChatMessage[] = []
@@ -17,11 +21,8 @@ export class OutputBuffer {
   ) {}
 
   apply(notification: SessionNotification | Record<string, unknown>): RuntimeOutput {
-    const update = notification.update
-
-    // Handle cases where update might be undefined or have different structure
-    if (!update) {
-      // Try alternative notification structure (status/output format from custom servers)
+    // Handle alternative notification structure (status/output format from custom servers)
+    if (!isSessionNotification(notification)) {
       const altNotification = notification as Record<string, unknown>
       if (altNotification.status === 'running' && Array.isArray(altNotification.output)) {
         for (const item of (altNotification.output as Array<Record<string, unknown>>)) {
@@ -33,6 +34,8 @@ export class OutputBuffer {
       }
       return this.snapshot()
     }
+
+    const update = notification.update
 
     if (update.sessionUpdate === 'user_message_chunk' && update.content?.type === 'text') {
       this.appendMessage('user', update.content.text)

@@ -3,6 +3,7 @@ import { OutputBuffer } from '../output-buffer'
 
 function textUpdate(sessionUpdate: 'user_message_chunk' | 'agent_message_chunk' | 'agent_thought_chunk', text: string) {
   return {
+    sessionId: 'session-1',
     update: {
       sessionUpdate,
       content: { type: 'text', text },
@@ -25,6 +26,7 @@ describe('OutputBuffer', () => {
     buffer.apply(textUpdate('agent_message_chunk', 'answer'))
     buffer.apply(textUpdate('agent_thought_chunk', 'reasoning'))
     const output = buffer.apply({
+      sessionId: 'session-1',
       update: {
         sessionUpdate: 'tool_call',
         toolCallId: 'tool-1',

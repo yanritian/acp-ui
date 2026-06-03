@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { loadKvStore, type KVStore } from '../lib/host/storage'
 import { useConfigStore } from '../stores/config'
+import { useHistoryStore } from '../stores/history'
+import type { TaskRecord } from '../lib/storage/history-store'
 import type {
   SavedSession,
   ChatMessage,
@@ -215,18 +217,22 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     session.isLoading = true
     session.error = null
 
+    const taskId = crypto.randomUUID()
+    const startTime = Date.now()
+
     // Add user message immediately for instant feedback
     const userMsgId = crypto.randomUUID()
     session.messages.push({
       id: userMsgId,
       role: 'user',
       content: text,
-      timestamp: Date.now(),
+      timestamp: startTime,
     })
 
+    let output: RuntimeOutput | null = null
     try {
-      await runner.prompt({
-        taskId: crypto.randomUUID(),
+      output = await runner.prompt({
+        taskId,
         prompt: text,
         source: 'multi-session',
       })
@@ -236,6 +242,55 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
       session.messages = session.messages.filter(m => m.id !== userMsgId)
     } finally {
       session.isLoading = false
+    }
+
+    // Save to history after completion
+    if (output) {
+      try {
+        const historyStore = useHistoryStore()
+        const record: TaskRecord = {
+          id: taskId,
+          name: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
+          status: output.status === 'completed' ? 'success' : output.status === 'failed' ? 'failed' : 'running',
+          createdAt: startTime,
+          completedAt: output.status === 'completed' || output.status === 'failed' ? Date.now() : undefined,
+          source: 'app',
+          agents: [{
+            agentId: session.id,
+            agentName: session.agentName,
+            role: 'executor',
+            status: output.status,
+            startTime,
+            endTime: output.status !== 'running' ? Date.now() : undefined,
+            outputFiles: [],
+          }],
+          conversations: output.messages.map(m => ({
+            timestamp: m.timestamp,
+            speaker: m.role,
+            message: m.content,
+            toolCalls: m.toolCalls,
+          })),
+          outputs: [{
+            type: 'message',
+            content: output.content,
+            agentId: session.id,
+          }],
+          syncRecords: [],
+          error: output.error ? {
+            message: output.error,
+            timestamp: Date.now(),
+          } : undefined,
+        }
+        await historyStore.loadRecords()
+        // Use internal store save method
+        const store = historyStore.records
+        // Direct save via the internal HistoryStore instance
+        const { getHistoryStore } = await import('../lib/storage/history-store')
+        const internalStore = getHistoryStore()
+        await internalStore.saveTask(record)
+      } catch (e) {
+        console.warn('Failed to save task to history:', e)
+      }
     }
   }
 

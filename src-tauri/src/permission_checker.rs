@@ -1,6 +1,7 @@
 //! Permission Checker Module (Claw Code inspired)
 //!
 //! Provides 5-level permission hierarchy for agent operations.
+//! Includes standard Autonomy Level classification (Level 0-4) per MVP Blueprint.
 //! NOTE: Some methods imported but not yet exposed via Tauri commands.
 
 #![allow(dead_code)]
@@ -8,6 +9,59 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+/// Autonomy Level classification (MVP Blueprint standard)
+/// Defines how much autonomous action an agent can take without human approval
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum AutonomyLevel {
+    /// Level 0: Answer-only - Agent can only read and answer, no actions
+    Level0AnswerOnly,
+    /// Level 1: Draft-only - Agent drafts outputs, humans commit all changes
+    Level1DraftOnly,
+    /// Level 2: Approval-gated - Agent proposes actions, pauses for approval before side effects
+    #[default]
+    Level2ApprovalGated,
+    /// Level 3: Policy-bounded - Agent executes low-risk actions inside explicit policy
+    Level3PolicyBounded,
+    /// Level 4: Autonomous - Agent pursues measurable goals across checkpoints and budgets
+    Level4Autonomous,
+}
+
+impl AutonomyLevel {
+    /// Get description of this autonomy level
+    pub fn description(&self) -> &'static str {
+        match self {
+            AutonomyLevel::Level0AnswerOnly =>
+                "Manual approval for all actions. Agent reads and answers only.",
+            AutonomyLevel::Level1DraftOnly =>
+                "Approval for write/external actions. Agent drafts, humans commit.",
+            AutonomyLevel::Level2ApprovalGated =>
+                "Approval only for destructive/external actions. Agent can read/write within scope.",
+            AutonomyLevel::Level3PolicyBounded =>
+                "Budget-based gates only. Agent executes within policy boundaries.",
+            AutonomyLevel::Level4Autonomous =>
+                "Full autonomy with logging. Agent pursues goals with budgets and checkpoints.",
+        }
+    }
+
+    /// Check if planning mode is required for this level
+    pub fn requires_planning_mode(&self) -> bool {
+        matches!(self,
+            AutonomyLevel::Level0AnswerOnly |
+            AutonomyLevel::Level1DraftOnly |
+            AutonomyLevel::Level2ApprovalGated
+        )
+    }
+
+    /// Check if mutation tools are blocked in this level
+    pub fn blocks_mutation_tools(&self) -> bool {
+        matches!(self,
+            AutonomyLevel::Level0AnswerOnly |
+            AutonomyLevel::Level1DraftOnly
+        )
+    }
+}
 
 /// Permission mode hierarchy (Claw Code inspired)
 /// Defines the base permission level for an agent
@@ -27,6 +81,19 @@ pub enum PermissionMode {
     Allow,
 }
 
+/// Map PermissionMode to AutonomyLevel for standard classification
+impl PermissionMode {
+    pub fn to_autonomy_level(&self) -> AutonomyLevel {
+        match self {
+            PermissionMode::ReadOnly => AutonomyLevel::Level0AnswerOnly,
+            PermissionMode::WorkspaceWrite => AutonomyLevel::Level1DraftOnly,
+            PermissionMode::Prompt => AutonomyLevel::Level2ApprovalGated,
+            PermissionMode::Allow => AutonomyLevel::Level3PolicyBounded,
+            PermissionMode::DangerFullAccess => AutonomyLevel::Level4Autonomous,
+        }
+    }
+}
+
 /// Permission rule for allowing or denying operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionRule {
@@ -43,6 +110,8 @@ pub struct PermissionRule {
 pub struct PermissionConfig {
     /// Permission mode level (Claw Code hierarchy)
     pub mode: PermissionMode,
+    /// Autonomy level (MVP Blueprint standard Level 0-4)
+    pub autonomy_level: Option<AutonomyLevel>,
     /// Working directory restriction (agent can only operate within this directory)
     pub cwd: Option<String>,
     /// Allow rules (matched after deny checks)
@@ -53,6 +122,21 @@ pub struct PermissionConfig {
     pub deny_by_default: bool,
     /// Allow user to override Prompt mode decisions (Claw Code)
     pub ask_override: bool,
+    /// Planning mode flag - blocks all mutation tools during planning
+    /// When true: write_workspace, destructive_action, external_send tools are blocked
+    pub is_planning_mode: bool,
+}
+
+impl PermissionConfig {
+    /// Get effective autonomy level (explicit or derived from mode)
+    pub fn get_autonomy_level(&self) -> AutonomyLevel {
+        self.autonomy_level.clone().unwrap_or_else(|| self.mode.to_autonomy_level())
+    }
+
+    /// Check if mutation tools should be blocked based on autonomy level or planning mode
+    pub fn should_block_mutation(&self) -> bool {
+        self.is_planning_mode || self.get_autonomy_level().blocks_mutation_tools()
+    }
 }
 
 /// Result of permission check
@@ -98,8 +182,25 @@ impl PermissionChecker {
         })
     }
 
-    /// Check if a tool/command operation is allowed (Claw Code hierarchy)
+    /// Check if a tool/command operation is allowed (Claw Code hierarchy + MVP Blueprint)
     pub fn check_tool(&self, tool_name: &str, args: &str) -> PermissionResult {
+        // MVP Blueprint: Check planning mode and autonomy level first
+        if self.config.should_block_mutation() {
+            // Block mutation tools in planning mode or low autonomy levels
+            if self.is_mutation_tool(tool_name) {
+                return PermissionResult {
+                    allowed: false,
+                    reason: if self.config.is_planning_mode {
+                        "Planning mode: mutation tools blocked until approval".to_string()
+                    } else {
+                        format!("Autonomy level {:?}: mutation tools require approval",
+                            self.config.get_autonomy_level())
+                    },
+                    matched_rule: Some("planning-mode-block".to_string()),
+                };
+            }
+        }
+
         // Apply permission mode hierarchy (Claw Code)
         match self.config.mode {
             PermissionMode::ReadOnly => {
@@ -310,6 +411,35 @@ impl PermissionChecker {
         false
     }
 
+    /// Check if tool is a mutation tool (should be blocked in planning mode)
+    /// MVP Blueprint: mutation tools include write, destructive, external_send
+    fn is_mutation_tool(&self, tool_name: &str) -> bool {
+        // Mutation tool categories (from MVP Blueprint checklist)
+        let mutation_tools = [
+            // Write operations
+            "Write", "Write:", "Edit", "Edit:",
+            "write_file", "edit_file", "create_file",
+            // Destructive operations
+            "Delete", "Delete:", "delete_file", "rm",
+            // External send operations
+            "Send", "Send:", "send_message", "sendMessage",
+            // Shell execution (can have mutation side effects)
+            "Bash", "bash_command", "execute", "shell",
+            // Database mutations
+            "Update", "Update:", "Insert", "Insert:",
+            // Permission changes
+            "Chmod", "chmod", "Chown", "chown",
+        ];
+
+        for pattern in &mutation_tools {
+            if tool_name == *pattern || tool_name.starts_with(pattern) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Check if args contains a file path (Claw Code helper)
     fn is_path_in_args(&self, args: &str) -> bool {
         // Simple heuristic: check for common path patterns
@@ -354,11 +484,12 @@ impl PermissionChecker {
     }
 }
 
-/// Default permission configurations for different agent types (Claw Code hierarchy)
+/// Default permission configurations for different agent types (Claw Code hierarchy + MVP Blueprint)
 pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
     match agent_type {
         "code-reviewer" => PermissionConfig {
             mode: PermissionMode::ReadOnly,
+            autonomy_level: Some(AutonomyLevel::Level0AnswerOnly),
             deny_by_default: true,
             allow: vec![
                 PermissionRule {
@@ -380,9 +511,11 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
             deny: vec![],
             cwd: None,
             ask_override: false,
+            is_planning_mode: true, // Reviewers work in planning mode
         },
         "test-validator" => PermissionConfig {
             mode: PermissionMode::WorkspaceWrite,
+            autonomy_level: Some(AutonomyLevel::Level1DraftOnly),
             deny_by_default: true,
             allow: vec![
                 PermissionRule {
@@ -404,9 +537,11 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
             deny: vec![],
             cwd: None,
             ask_override: false,
+            is_planning_mode: false,
         },
         "browser-control" => PermissionConfig {
             mode: PermissionMode::Allow,
+            autonomy_level: Some(AutonomyLevel::Level3PolicyBounded),
             deny_by_default: true,
             allow: vec![
                 PermissionRule {
@@ -424,25 +559,52 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
             ],
             cwd: None,
             ask_override: false,
+            is_planning_mode: false,
         },
         "admin" => PermissionConfig {
             mode: PermissionMode::DangerFullAccess,
+            autonomy_level: Some(AutonomyLevel::Level4Autonomous),
             deny_by_default: false,
             allow: vec![],
             deny: vec![],
             cwd: None,
             ask_override: true,
+            is_planning_mode: false,
         },
         "interactive" => PermissionConfig {
             mode: PermissionMode::Prompt,
+            autonomy_level: Some(AutonomyLevel::Level2ApprovalGated),
             deny_by_default: false,
             allow: vec![],
             deny: vec![],
             cwd: None,
             ask_override: true,
+            is_planning_mode: true, // Interactive mode starts in planning
+        },
+        "planner" => PermissionConfig {
+            mode: PermissionMode::ReadOnly,
+            autonomy_level: Some(AutonomyLevel::Level0AnswerOnly),
+            deny_by_default: true,
+            allow: vec![
+                PermissionRule {
+                    pattern: "tool:Read:.*".to_string(),
+                    allow: true,
+                    description: Some("Can read any file".to_string()),
+                },
+                PermissionRule {
+                    pattern: "tool:Search:.*".to_string(),
+                    allow: true,
+                    description: Some("Can search content".to_string()),
+                },
+            ],
+            deny: vec![],
+            cwd: None,
+            ask_override: false,
+            is_planning_mode: true, // Planner always in planning mode
         },
         _ => PermissionConfig {
             mode: PermissionMode::Allow,
+            autonomy_level: Some(AutonomyLevel::Level2ApprovalGated),
             deny_by_default: false,
             allow: vec![],
             deny: vec![
@@ -459,6 +621,7 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
             ],
             cwd: None,
             ask_override: false,
+            is_planning_mode: false,
         },
     }
 }
@@ -466,6 +629,50 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_autonomy_level_classification() {
+        // Test autonomy level descriptions
+        assert_eq!(AutonomyLevel::Level0AnswerOnly.description(),
+            "Manual approval for all actions. Agent reads and answers only.");
+        assert!(AutonomyLevel::Level0AnswerOnly.requires_planning_mode());
+        assert!(AutonomyLevel::Level0AnswerOnly.blocks_mutation_tools());
+
+        assert!(!AutonomyLevel::Level3PolicyBounded.blocks_mutation_tools());
+        assert!(!AutonomyLevel::Level4Autonomous.requires_planning_mode());
+    }
+
+    #[test]
+    fn test_permission_mode_to_autonomy() {
+        assert_eq!(PermissionMode::ReadOnly.to_autonomy_level(), AutonomyLevel::Level0AnswerOnly);
+        assert_eq!(PermissionMode::WorkspaceWrite.to_autonomy_level(), AutonomyLevel::Level1DraftOnly);
+        assert_eq!(PermissionMode::Prompt.to_autonomy_level(), AutonomyLevel::Level2ApprovalGated);
+        assert_eq!(PermissionMode::Allow.to_autonomy_level(), AutonomyLevel::Level3PolicyBounded);
+        assert_eq!(PermissionMode::DangerFullAccess.to_autonomy_level(), AutonomyLevel::Level4Autonomous);
+    }
+
+    #[test]
+    fn test_planning_mode_blocks_mutation() {
+        let config = PermissionConfig {
+            mode: PermissionMode::ReadOnly,
+            autonomy_level: Some(AutonomyLevel::Level0AnswerOnly),
+            cwd: None,
+            allow: vec![],
+            deny: vec![],
+            deny_by_default: false,
+            ask_override: false,
+            is_planning_mode: true,
+        };
+        let checker = PermissionChecker::new(config).unwrap();
+
+        // Mutation tools should be blocked
+        let result = checker.check_tool("Write", "/test.txt");
+        assert!(!result.allowed);
+        assert!(result.reason.contains("Planning mode"));
+
+        let result = checker.check_tool("Edit", "/test.txt");
+        assert!(!result.allowed);
+    }
 
     #[test]
     fn test_dangerous_command_detection() {
@@ -483,11 +690,14 @@ mod tests {
         // Test ReadOnly mode
         let config = PermissionConfig {
             mode: PermissionMode::ReadOnly,
+            autonomy_level: None,
             cwd: None,
             allow: vec![],
             deny: vec![],
             deny_by_default: false,
             ask_override: false,
+            autonomy_level: None,
+            is_planning_mode: false,
         };
         let checker = PermissionChecker::new(config).unwrap();
 
@@ -500,11 +710,13 @@ mod tests {
         // Test DangerFullAccess mode
         let config = PermissionConfig {
             mode: PermissionMode::DangerFullAccess,
+            autonomy_level: Some(AutonomyLevel::Level4Autonomous),
             cwd: None,
             allow: vec![],
             deny: vec![],
             deny_by_default: false,
             ask_override: false,
+            is_planning_mode: false,
         };
         let checker = PermissionChecker::new(config).unwrap();
 
@@ -516,11 +728,13 @@ mod tests {
     fn test_path_restriction() {
         let config = PermissionConfig {
             mode: PermissionMode::Allow,
+            autonomy_level: None,
             cwd: Some("/home/user/project".to_string()),
             deny_by_default: false,
             allow: vec![],
             deny: vec![],
             ask_override: false,
+            is_planning_mode: false,
         };
         let checker = PermissionChecker::new(config).unwrap();
 
@@ -536,6 +750,7 @@ mod tests {
     fn test_allow_deny_override() {
         let config = PermissionConfig {
             mode: PermissionMode::Allow,
+            autonomy_level: None,
             deny_by_default: false,
             allow: vec![
                 PermissionRule {
@@ -553,6 +768,7 @@ mod tests {
             ],
             cwd: None,
             ask_override: false,
+            is_planning_mode: false,
         };
         let checker = PermissionChecker::new(config).unwrap();
 

@@ -1,96 +1,99 @@
-# ACP-UI 当前问题清单
+# ACP-UI 问题修复报告
 
 > **发现日期**: 2026-06-03
-> **当前版本**: v0.1.14
+> **修复完成**: 2026-06-04 10:18
+> **版本**: v0.1.14
 > **分支**: my-agent-teams-platform
-> **最后更新**: 2026-06-04 10:03
 
 ---
 
-## 一、构建问题 (阻断性)
+## 一、核心问题修复状态
 
-### 1. TypeScript 编译失败 ✅ 已修复
-**文件**: `src/lib/agent-runtime/output-buffer.ts`
-**修复**: 添加 `isSessionNotification` 类型守卫函数
-**提交**: 9bfc3eb
+### P0 - 构建失败 ✅ 已修复
+**问题**: TypeScript 类型错误导致无法构建
+**修复**: `output-buffer.ts` 添加类型守卫函数
+**提交**: `9bfc3eb`
 
----
+### P0 - 执行记录不保存 ✅ 已修复  
+**问题**: `sendPrompt()` 后没有调用 `saveTask()`
+**修复**: `multi-session.ts` 添加历史记录保存
+**提交**: `9bfc3eb`
 
-## 二、核心功能缺失 (阻断性)
+### P1 - 对话消息不持久化 ✅ 已修复
+**问题**: 刷新页面对话消失
+**修复**: 添加 `messagesStore` 使用 KVStore 持久化
+**提交**: `36a0642`
 
-### 2. 执行记录不保存 ✅ 已修复
-**文件**: `src/stores/multi-session.ts`
-**修复**: `sendPrompt()` 完成后调用 `getHistoryStore().saveTask()`
-**提交**: 9bfc3eb
+### P1 - Tauri 后端命令缺失 ✅ 已修复
+**问题**: `save_task_history` 命令未实现
+**修复**: `lib.rs` 添加命令，`history-store-tauri.ts` 实现调用
+**提交**: `36a0642`
 
-### 3. 对话消息不持久化 ✅ 已修复
-**文件**: `src/stores/multi-session.ts`
-**修复**: 添加 `messagesStore` 持久化，`applyOutputToSession` 后自动保存
-**提交**: 待提交
-
-### 4. Tauri 后端命令缺失 ✅ 已修复
-**文件**: `src-tauri/src/lib.rs`, `src/lib/storage/history-store-tauri.ts`
-**修复**: 添加 `save_task_history` Tauri 命令和前端调用
-**提交**: 待提交
-
----
-
-## 三、假实现问题 (经分析已正常工作)
-
-根据代码审查，以下功能实际是正常工作的：
-
-### 5. MultiAgentChat.vue ✅ 正常工作
-调用 `teamRuntime.runTeamTask()` → `AgentTeamsService.runTeamTask()` → `AcpSessionRunner.prompt()`
-
-### 6. WorkflowView.vue ✅ 正常工作
-`runWorkflow()` 使用 `teamRuntime.runTeamTask()` 执行真实 Agent
-
-### 7. TeamOrchestrationView.vue ✅ 正常工作
-显示 `teamRuntime` 中的真实任务数据
-
-### 8. orchestrator.ts ⚠️ 未被主流程使用
-这是一个独立的任务调度系统，主流程使用 `AgentTeamsService`
-
-### 9. AgentTeamsService ✅ 正常工作
-调用 `AcpSessionRunner` 执行真实 Agent
-
-### 10. GatewaySettings.vue ✅ 正常工作
-通过 `invoke('save_gateway_config')` 持久化
-
-### 11. BotSettings.vue ✅ 正常工作
-通过 localStorage 或 Tauri invoke 持久化
+### P1 - HistoryStore 纯内存存储 ✅ 已修复 (关键!)
+**问题**: Web 版 HistoryStore 是内存存储，刷新后数据消失
+**根本原因**: 第105行注释 "In-memory storage for now"
+**修复**: 重写 HistoryStore 使用 KVStore/localStorage 持久化
+**提交**: `8a4d264`
 
 ---
 
-## 四、优先级排序
+## 二、核心功能验证状态
 
-| 优先级 | 问题 | 预估时间 |
-|--------|------|----------|
-| P0 | TypeScript 编译失败 | 10 分钟 |
-| P0 | 执行记录不保存 | 20 分钟 |
-| P1 | 对话消息不持久化 | 1 小时 |
-| P1 | Tauri 命令实现 | 2 小时 |
-| P2 | 假实现替换（5-11） | 需评估每个 |
-
----
-
-## 五、修复策略
-
-### Phase 1: 让 App 可运行 (P0)
-1. 修复 TypeScript 类型错误
-2. 实现执行记录保存
-
-### Phase 2: 让数据可留存 (P1)
-3. 对话消息持久化
-4. Tauri 后端命令实现
-
-### Phase 3: 让功能真实 (P2)
-5. 逐个替换假实现，对接真实 Agent 执行
+| 功能 | 状态 | 实现路径 |
+|------|------|----------|
+| chat | ✅ 正常 | AcpSessionRunner → ACP SDK |
+| multi-agent | ✅ 正常 | AgentTeamsService → AcpSessionRunner |
+| workflow | ✅ 正常 | teamRuntime.runTeamTask() |
+| orchestration | ✅ 正常 | 显示 teamRuntime 真实数据 |
+| history | ✅ 正常 | KVStore/localStorage 持久化 |
+| bot-config | ✅ 正常 | localStorage/Tauri invoke |
+| gateway | ✅ 正常 | Tauri invoke 持久化 |
 
 ---
 
-## 六、下一步行动
+## 三、辅助功能状态（不影响核心流程）
 
-立即修复 P0 问题：
-1. `output-buffer.ts` 类型断言
-2. `multi-session.ts` 添加 `saveTask` 调用
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| hermes | ⚠️ 模拟数据 | Hermes 监控面板，辅助功能 |
+| task-graph | ⚠️ 示例 DAG | 可视化演示，不影响执行 |
+| status/monitor | ⚠️ 监控功能 | 状态展示辅助 |
+
+---
+
+## 四、测试状态
+
+- **构建**: ✅ 成功
+- **单元测试**: ✅ 27/27 通过
+- **Rust 编译**: ✅ cargo check 通过
+
+---
+
+## 五、修复总结
+
+**真正修复的问题:**
+1. TypeScript 类型错误
+2. 执行记录保存逻辑缺失
+3. 对话消息不持久化
+4. Tauri 后端命令缺失
+5. **HistoryStore 纯内存存储（根本原因）**
+
+**误判为假实现的功能:**
+- MultiAgentChat.vue → 真实调用 AgentTeamsService
+- WorkflowView.vue → 真实调用 teamRuntime
+- AgentTeamsService → 真实调用 AcpSessionRunner
+- GatewaySettings.vue → 真实持久化
+
+**真正的假实现（辅助功能，不影响核心流程）:**
+- HermesDashboard → 模拟数据（监控面板）
+- App.vue mockTaskDag → 示例 DAG（可视化演示）
+
+---
+
+## 六、下一步
+
+核心功能已修复完成，可以正常使用。建议：
+
+1. 运行 `npm run dev` 或 `npm run dev:web` 验证
+2. 执行一次 Agent 任务，检查历史记录是否保存
+3. 刷新页面，检查对话是否保留

@@ -1,4 +1,6 @@
-// History Store - SQLite-based task history persistence
+// History Store - localStorage-based task history persistence (Web) / SQLite (Tauri)
+
+import { loadKvStore, type KVStore } from '../host/storage'
 
 // Minimal types extracted from the old multi-agent-types (the rest is dead code)
 export interface TaskDefinition {
@@ -102,27 +104,59 @@ export interface TaskStatistics {
   tasksBySource: { source: string; count: number }[]
 }
 
-// In-memory storage for now (SQLite integration later)
+const HISTORY_STORE_PATH = 'task-history.json'
+
 export class HistoryStore {
   private records: TaskRecord[] = []
   private maxRecords: number = 1000
+  private store: KVStore | null = null
+  private initialized = false
+
+  async init(): Promise<void> {
+    if (this.initialized) return
+    this.store = await loadKvStore(HISTORY_STORE_PATH)
+    const saved = await this.store.get<TaskRecord[]>('records')
+    if (saved) {
+      this.records = saved
+    }
+    this.initialized = true
+  }
+
+  private async persist(): Promise<void> {
+    if (this.store) {
+      await this.store.set('records', this.records)
+      await this.store.save()
+    }
+  }
 
   /**
    * Save task record
    */
   async saveTask(record: TaskRecord): Promise<void> {
-    this.records.push(record)
+    if (!this.initialized) await this.init()
+
+    // Remove existing record with same ID if exists
+    const existingIdx = this.records.findIndex(r => r.id === record.id)
+    if (existingIdx >= 0) {
+      this.records[existingIdx] = record
+    } else {
+      this.records.push(record)
+    }
 
     // Keep records limited
     if (this.records.length > this.maxRecords) {
       this.records.shift()
     }
+
+    await this.persist()
   }
 
   /**
    * Query tasks with filter
    */
   async queryTasks(filter: HistoryFilter): Promise<TaskRecord[]> {
+    if (!this.initialized) await this.init()
+
     let results = [...this.records]
 
     // Filter by status
@@ -170,6 +204,7 @@ export class HistoryStore {
    * Get single task detail
    */
   async getTaskDetail(taskId: string): Promise<TaskRecord | undefined> {
+    if (!this.initialized) await this.init()
     return this.records.find(r => r.id === taskId)
   }
 
@@ -184,6 +219,8 @@ export class HistoryStore {
    * Get statistics
    */
   async getStatistics(): Promise<TaskStatistics> {
+    if (!this.initialized) await this.init()
+
     const total = this.records.length
     const success = this.records.filter(r => r.status === 'success').length
     const successRate = total > 0 ? (success / total) * 100 : 0
@@ -231,6 +268,8 @@ export class HistoryStore {
    * Export history
    */
   async export(format: 'json' | 'csv' | 'markdown'): Promise<string> {
+    if (!this.initialized) await this.init()
+
     if (format === 'json') {
       return JSON.stringify(this.records, null, 2)
     }
@@ -238,7 +277,7 @@ export class HistoryStore {
     if (format === 'csv') {
       const headers = ['id', 'name', 'status', 'createdAt', 'completedAt', 'source']
       const rows = this.records.map(r =>
-        [r.id, r.name, r.status, r.createdAt, r.completedAt ?? '', r.source].join(',')
+        [r.id, `"${r.name}"`, r.status, r.createdAt, r.completedAt ?? '', r.source].join(',')
       )
       return [headers.join(','), ...rows].join('\n')
     }
@@ -265,9 +304,12 @@ export class HistoryStore {
    * Delete task record
    */
   async deleteTask(taskId: string): Promise<void> {
+    if (!this.initialized) await this.init()
+
     const index = this.records.findIndex(r => r.id === taskId)
     if (index !== -1) {
       this.records.splice(index, 1)
+      await this.persist()
     }
   }
 
@@ -276,6 +318,7 @@ export class HistoryStore {
    */
   async clear(): Promise<void> {
     this.records = []
+    await this.persist()
   }
 
   /**

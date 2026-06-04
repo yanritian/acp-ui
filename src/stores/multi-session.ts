@@ -17,6 +17,7 @@ import { getAppVersion } from '../lib/host'
 import type { RuntimeOutput } from '../lib/agent-runtime/types'
 
 const STORE_PATH = 'multi-sessions.json'
+const MESSAGES_STORE_PATH = 'session-messages.json'
 
 export interface SessionState {
   id: string
@@ -71,6 +72,7 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
   const savedSessionsMeta = ref<SavedSession[]>([])
 
   let store: KVStore | null = null
+  let messagesStore: KVStore | null = null
 
   const activeSession = computed(() => {
     if (!activeSessionId.value) return null
@@ -97,6 +99,9 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     if (saved) {
       savedSessionsMeta.value = saved
     }
+
+    // Load messages store
+    messagesStore = await loadKvStore(MESSAGES_STORE_PATH)
   }
 
   async function saveMeta() {
@@ -104,6 +109,21 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
       await store.set('sessions', savedSessionsMeta.value)
       await store.save()
     }
+  }
+
+  async function saveMessages(sessionId: string, msgs: ChatMessage[]) {
+    if (messagesStore) {
+      await messagesStore.set(sessionId, msgs)
+      await messagesStore.save()
+    }
+  }
+
+  async function loadMessages(sessionId: string): Promise<ChatMessage[]> {
+    if (messagesStore) {
+      const saved = await messagesStore.get<ChatMessage[]>(sessionId)
+      return saved ?? []
+    }
+    return []
   }
 
   async function createSession(agentName: string, cwd: string): Promise<string> {
@@ -181,9 +201,17 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     }
   }
 
-  function switchSession(sessionId: string) {
+  async function switchSession(sessionId: string) {
     if (sessions.value.has(sessionId)) {
       activeSessionId.value = sessionId
+      // Load persisted messages for this session
+      const session = sessions.value.get(sessionId)
+      if (session && session.messages.length === 0) {
+        const savedMsgs = await loadMessages(sessionId)
+        if (savedMsgs.length > 0) {
+          session.messages = savedMsgs
+        }
+      }
     }
   }
 
@@ -201,6 +229,13 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
     }
 
     savedSessionsMeta.value = savedSessionsMeta.value.filter(s => s.id !== sessionId)
+
+    // Clean up messages store for this session
+    if (messagesStore) {
+      await messagesStore.set(sessionId, undefined)
+      await messagesStore.save()
+    }
+
     try {
       await saveMeta()
     } catch (e) {
@@ -323,6 +358,11 @@ export const useMultiSessionStore = defineStore('multiSession', () => {
         session.toolCalls.set(tc.toolCallId, tc)
       }
     }
+
+    // Persist messages after each update
+    saveMessages(sessionId, session.messages).catch(e => {
+      console.warn('Failed to persist messages:', e)
+    })
   }
 
   function handleUnexpectedClose(sessionId: string, reason?: string) {

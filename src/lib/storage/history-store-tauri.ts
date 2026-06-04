@@ -76,8 +76,26 @@ function toFrontendStatistics(s: BackendTaskStatistics): TaskStatistics {
 }
 
 export class TauriHistoryStore {
-  async saveTask(_record: TaskRecord): Promise<void> {
-    // TODO: implement save_task_record Tauri command
+  async saveTask(record: TaskRecord): Promise<void> {
+    // Convert frontend TaskRecord to backend format
+    const backendRecord: BackendTaskRecord = {
+      id: record.id,
+      name: record.name,
+      status: record.status,
+      source: record.source,
+      created_at: new Date(record.createdAt).toISOString(),
+      completed_at: record.completedAt ? new Date(record.completedAt).toISOString() : null,
+      error_message: record.error?.message ?? null,
+      agents: record.agents.map(a => ({
+        agent_id: a.agentId,
+        agent_name: a.agentName,
+        status: a.status,
+        started_at: new Date(a.startTime).toISOString(),
+        completed_at: a.endTime ? new Date(a.endTime).toISOString() : null,
+        output: null,
+      })),
+    }
+    await invoke('save_task_history', { task: backendRecord })
   }
 
   async queryTasks(filter: HistoryFilter): Promise<TaskRecord[]> {

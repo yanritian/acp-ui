@@ -416,6 +416,7 @@ pub fn run() {
             delete_task_history,
             search_tasks,
             get_task_detail,
+            save_task_history,
             save_memory,
             search_memories,
             get_agent_memories,
@@ -558,6 +559,14 @@ fn get_task_detail(task_id: String, state: State<AppState>) -> Result<Option<dat
     let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
 
     db.get_task(&task_id)
+}
+
+#[tauri::command]
+fn save_task_history(task: database::TaskRecord, state: State<AppState>) -> Result<(), String> {
+    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+
+    db.save_task(&task)
 }
 
 // ===== Memory Commands =====

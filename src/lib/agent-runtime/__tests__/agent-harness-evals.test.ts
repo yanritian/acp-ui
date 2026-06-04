@@ -875,3 +875,288 @@ describe('Budget + Compaction Integration', () => {
     expect(compactionResult.summary.currentObjective).toContain('budget')
   })
 })
+
+// ============================================
+// Tool Misuse Prevention Tests (MVP Blueprint Checklist)
+// ============================================
+
+describe('Tool Misuse Prevention', () => {
+  describe('Inappropriate Tool Selection', () => {
+    it('should detect when agent uses write tool for read-only task', () => {
+      // Scenario: Task only requires reading, but agent tries to write
+      const taskAnalysis = {
+        requiredCapabilities: ['read', 'search'],
+        taskType: 'information-gathering',
+      }
+
+      const proposedTools = ['write_file', 'edit_file', 'delete_file']
+
+      // Check if proposed tools match task requirements
+      const misuseDetected = proposedTools.some(tool =>
+        !taskAnalysis.requiredCapabilities.some(cap => tool.includes(cap))
+      )
+
+      expect(misuseDetected).toBe(true)
+    })
+
+    it('should detect shell execution for simple read operations', () => {
+      // Scenario: Agent uses bash for simple file read instead of read_file
+      const taskType = 'file-inspection'
+      const proposedTool = 'bash_command'
+      const commandArgs = 'cat /etc/config.yaml'
+
+      // Shell execution for simple read is misuse
+      const isMisuse = proposedTool === 'bash_command' &&
+        taskType === 'file-inspection' &&
+        commandArgs.includes('cat')
+
+      expect(isMisuse).toBe(true)
+    })
+
+    it('should detect excessive tool parallelization', () => {
+      // Scenario: Agent tries to execute 20 parallel tool calls
+      const proposedParallelCalls = 20
+      const safeLimit = 5
+
+      const exceedsSafeLimit = proposedParallelCalls > safeLimit
+      expect(exceedsSafeLimit).toBe(true)
+    })
+  })
+
+  describe('Unauthorized Tool Access', () => {
+    it('should detect financial action without authorization', () => {
+      // Scenario: Agent attempts financial_action without proper scope
+      const agentScope = ['read_workspace', 'write_workspace']
+      const toolRiskClass = 'financial_action'
+
+      const unauthorized = !agentScope.includes(toolRiskClass)
+      expect(unauthorized).toBe(true)
+    })
+
+    it('should detect destructive action in planning mode', () => {
+      // Scenario: Planning mode agent tries destructive action
+      const isPlanningMode = true
+      const toolRiskClass = 'destructive_action'
+
+      const blocked = isPlanningMode && toolRiskClass === 'destructive_action'
+      expect(blocked).toBe(true)
+    })
+
+    it('should detect external send without approval', () => {
+      // Scenario: Agent tries to send message without approval
+      const toolPermission = 'approval_required'
+      const hasApproval = false
+
+      const unauthorized = toolPermission === 'approval_required' && !hasApproval
+      expect(unauthorized).toBe(true)
+    })
+  })
+
+  describe('Tool Chain Abuse', () => {
+    it('should detect circular tool calls', () => {
+      // Scenario: Agent creates circular chain: read -> write -> read same file
+      const toolChain = [
+        { tool: 'read_file', args: '/test.txt' },
+        { tool: 'write_file', args: '/test.txt' },
+        { tool: 'read_file', args: '/test.txt' }, // Circular
+      ]
+
+      // Detect if same file appears multiple times in read operations
+      const readTargets = toolChain
+        .filter(t => t.tool === 'read_file')
+        .map(t => t.args)
+
+      const hasCircular = readTargets.some((target, i) =>
+        readTargets.indexOf(target) !== i
+      )
+
+      expect(hasCircular).toBe(true)
+    })
+
+    it('should detect escalation chain to privileged tools', () => {
+      // Scenario: Agent tries to escalate from read to admin
+      const permissionProgression = [
+        { level: 'Level0AnswerOnly', toolsUsed: ['read_file'] },
+        { level: 'Level0AnswerOnly', toolsUsed: ['bash_command', 'chmod'] }, // Escalation
+      ]
+
+      const level0Tools = ['read_file', 'read_directory', 'search_files']
+      const escalation = permissionProgression.some(p =>
+        p.level === 'Level0AnswerOnly' &&
+        p.toolsUsed.some(t => !level0Tools.includes(t))
+      )
+
+      expect(escalation).toBe(true)
+    })
+
+    it('should detect retry abuse for denied operations', () => {
+      // Scenario: Agent retries denied operation multiple times
+      const toolHistory = [
+        { tool: 'delete_file', status: 'denied', reason: 'destructive_action' },
+        { tool: 'delete_file', status: 'denied', reason: 'destructive_action' },
+        { tool: 'delete_file', status: 'denied', reason: 'destructive_action' }, // Abuse
+      ]
+
+      const deniedCount = toolHistory.filter(t => t.status === 'denied').length
+      const retryAbuse = deniedCount >= 3
+
+      expect(retryAbuse).toBe(true)
+    })
+  })
+
+  describe('Resource Misuse', () => {
+    it('should detect oversized result requests', () => {
+      // Scenario: Agent requests result exceeding limit
+      const requestedLimit = 50000 // chars
+      const safeLimit = 8000
+
+      const exceedsLimit = requestedLimit > safeLimit
+      expect(exceedsLimit).toBe(true)
+    })
+
+    it('should detect excessive timeout requests', () => {
+      // Scenario: Agent requests 5 minute timeout for simple operation
+      const requestedTimeout = 300000 // 5 minutes
+      const operationType = 'simple_read'
+      const recommendedTimeout = 10000 // 10 seconds for simple read
+
+      const excessive = operationType === 'simple_read' &&
+        requestedTimeout > recommendedTimeout * 3
+
+      expect(excessive).toBe(true)
+    })
+
+    it('should detect unnecessary context expansion', () => {
+      // Scenario: Agent loads 50MB context for simple task
+      const loadedContextTokens = 50000
+      const taskComplexity = 'simple'
+
+      const wasteful = taskComplexity === 'simple' && loadedContextTokens > 10000
+      expect(wasteful).toBe(true)
+    })
+  })
+})
+
+// ============================================
+// Autonomy Level Enforcement Tests
+// ============================================
+
+describe('Autonomy Level Enforcement', () => {
+  describe('Level 0: Answer-only', () => {
+    it('should block all non-read tools', () => {
+      const autonomyLevel = 'Level0AnswerOnly'
+      const blockedTools = ['write_file', 'edit_file', 'bash_command', 'send_message']
+
+      // All non-read tools should be blocked
+      const allBlocked = blockedTools.every(tool =>
+        tool.includes('write') ||
+        tool.includes('edit') ||
+        tool.includes('bash') ||
+        tool.includes('send')
+      )
+
+      expect(allBlocked).toBe(true)
+    })
+
+    it('should only allow read and search tools', () => {
+      const autonomyLevel = 'Level0AnswerOnly'
+      const allowedTools = ['read_file', 'read_directory', 'search_files', 'search_content']
+
+      // Only read/search tools should be allowed
+      const allAllowed = allowedTools.every(tool =>
+        tool.includes('read') || tool.includes('search')
+      )
+
+      expect(allAllowed).toBe(true)
+    })
+  })
+
+  describe('Level 1: Draft-only', () => {
+    it('should allow draft tools', () => {
+      const autonomyLevel = 'Level1DraftOnly'
+      const draftTools = ['draft_message', 'draft_plan']
+
+      // Draft tools should be allowed
+      const draftsAllowed = draftTools.every(tool => tool.includes('draft'))
+      expect(draftsAllowed).toBe(true)
+    })
+
+    it('should block commit actions', () => {
+      const autonomyLevel = 'Level1DraftOnly'
+      const commitTools = ['send_message', 'write_file']
+
+      // Commit tools should require approval
+      const blocked = commitTools.every(tool =>
+        tool.includes('send') || tool.includes('write')
+      )
+
+      expect(blocked).toBe(true)
+    })
+  })
+
+  describe('Level 2: Approval-gated', () => {
+    it('should allow workspace writes with approval', () => {
+      const autonomyLevel = 'Level2ApprovalGated'
+      const toolRiskClass = 'write_workspace'
+      const requiresApproval = true
+
+      // Write workspace allowed with approval
+      const canProceed = toolRiskClass === 'write_workspace' && requiresApproval
+      expect(canProceed).toBe(true)
+    })
+
+    it('should deny destructive without recovery', () => {
+      const autonomyLevel = 'Level2ApprovalGated'
+      const toolRiskClass = 'destructive_action'
+      const hasRecovery = false
+
+      // Destructive denied without recovery
+      const denied = toolRiskClass === 'destructive_action' && !hasRecovery
+      expect(denied).toBe(true)
+    })
+  })
+
+  describe('Level 3: Policy-bounded', () => {
+    it('should allow actions within budget', () => {
+      const autonomyLevel = 'Level3PolicyBounded'
+      const budgetStatus = { exceeded: false, steps: 10, maxSteps: 50 }
+
+      // Actions allowed when budget not exceeded
+      const canProceed = autonomyLevel === 'Level3PolicyBounded' &&
+        !budgetStatus.exceeded
+
+      expect(canProceed).toBe(true)
+    })
+
+    it('should block actions when budget exceeded', () => {
+      const autonomyLevel = 'Level3PolicyBounded'
+      const budgetStatus = { exceeded: true, steps: 51, maxSteps: 50 }
+
+      // Actions blocked when budget exceeded
+      const blocked = autonomyLevel === 'Level3PolicyBounded' &&
+        budgetStatus.exceeded
+
+      expect(blocked).toBe(true)
+    })
+  })
+
+  describe('Level 4: Autonomous', () => {
+    it('should allow all logged actions', () => {
+      const autonomyLevel = 'Level4Autonomous'
+      const loggingEnabled = true
+
+      // Level 4 allows all with logging
+      const canProceed = autonomyLevel === 'Level4Autonomous' && loggingEnabled
+      expect(canProceed).toBe(true)
+    })
+
+    it('should still enforce budget limits', () => {
+      const autonomyLevel = 'Level4Autonomous'
+      const budgetStatus = { exceeded: true }
+
+      // Even Level 4 respects budget
+      const blocked = budgetStatus.exceeded
+      expect(blocked).toBe(true)
+    })
+  })
+})

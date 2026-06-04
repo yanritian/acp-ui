@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { orchestrator, type Event } from '@/lib/orchestrator';
-import { agentMatcher } from '@/lib/agent-matcher';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from '@/locales';
+import { useHermesApi, type HermesTaskStatus } from '@/lib/hermes-api';
 
 const { t } = useI18n();
+const hermesApi = useHermesApi();
 
 interface TaskDisplay {
   id: string;
@@ -21,113 +21,101 @@ interface AgentDisplay {
   load: number;
   maxLoad: number;
   status: 'idle' | 'busy' | 'overloaded';
+  thinkingCount: number;
+  toolCallCount: number;
 }
 
-// State
+// State - now connected to real Hermes data
 const tasks = ref<TaskDisplay[]>([]);
 const agents = ref<AgentDisplay[]>([]);
-const qaStatus = ref<{
-  lastReview?: { success: boolean; score: number; errors: number };
-  lastValidation?: { success: boolean; coverage: number; passed: number };
-}>({});
 const selectedTask = ref<string | null>(null);
 const autoRefresh = ref(true);
+
+// Computed - from Hermes API
+const runningTasks = computed(() => hermesApi.runningTasksCount.value);
+const completedTasks = computed(() => hermesApi.completedTasksCount.value);
+const overallProgress = computed(() => hermesApi.progressPercent.value);
+const systemLoad = computed(() => hermesApi.systemLoad.value);
+const connected = computed(() => hermesApi.connected.value);
+
+// QA Status from metrics
+const qaStatus = computed(() => {
+  const metrics = hermesApi.metrics.value;
+  return {
+    lastReview: metrics.totalTasksCompleted > 0 ? {
+      success: metrics.totalTasksFailed < metrics.totalTasksCompleted,
+      score: Math.round((metrics.totalTasksCompleted / (metrics.totalTasksCompleted + metrics.totalTasksFailed || 1)) * 100),
+      errors: metrics.totalTasksFailed,
+    } : undefined,
+    lastValidation: metrics.totalThinkingChunks > 0 ? {
+      success: true,
+      coverage: Math.min(100, Math.round(metrics.totalToolCalls * 10)),
+      passed: metrics.totalThinkingChunks,
+    } : undefined,
+  };
+});
+
+// Convert Hermes task to display format
+const convertTask = (hermesTask: HermesTaskStatus): TaskDisplay => ({
+  id: hermesTask.taskId,
+  name: hermesTask.request.slice(0, 50) + (hermesTask.request.length > 50 ? '...' : ''),
+  status: hermesTask.status === 'running' ? 'running' :
+          hermesTask.status === 'completed' ? 'completed' :
+          hermesTask.status === 'failed' ? 'failed' : 'pending',
+  agent: 'coder',
+  progress: hermesTask.status === 'completed' ? 100 :
+            hermesTask.status === 'running' ? overallProgress.value : 0,
+  error: hermesTask.status === 'failed' ? 'Execution failed' : undefined,
+});
+
+// Refresh data from Hermes API
+const refreshData = async () => {
+  // Update agents from Hermes status
+  const agentState = hermesApi.agent.value;
+  agents.value = [{
+    id: 'hermes-coder',
+    name: 'Hermes Coder',
+    load: agentState.status === 'busy' ? 80 : 0,
+    maxLoad: 100,
+    status: agentState.status === 'busy' ? 'busy' :
+            agentState.status === 'error' ? 'overloaded' : 'idle',
+    thinkingCount: agentState.thinkingCount,
+    toolCallCount: agentState.toolCallCount,
+  }];
+
+  // Update tasks from current task + history
+  const currentTask = hermesApi.task.value;
+  const history = hermesApi.history.value;
+
+  tasks.value = [];
+  if (currentTask) {
+    tasks.value.push(convertTask(currentTask));
+  }
+  tasks.value.push(...history.slice(0, 10).map(convertTask));
+};
+
+// Watch Hermes API state changes
+watch([hermesApi.agent, hermesApi.task, hermesApi.metrics], () => {
+  refreshData();
+}, { deep: true });
+
+// Auto refresh toggle
 let intervalId: ReturnType<typeof setInterval> | null = null;
-
-// Computed
-const runningTasks = computed(() => tasks.value.filter(t => t.status === 'running').length);
-const completedTasks = computed(() => tasks.value.filter(t => t.status === 'completed').length);
-const overallProgress = computed(() => {
-  const total = tasks.value.length;
-  return total === 0 ? 0 : Math.round((completedTasks.value / total) * 100);
-});
-const systemLoad = computed(() => {
-  const total = agents.value.reduce((sum, a) => sum + a.load, 0);
-  const max = agents.value.reduce((sum, a) => sum + a.maxLoad, 0);
-  return max === 0 ? 0 : Math.round((total / max) * 100);
-});
-const overloadedAgents = computed(() => agents.value.filter(a => a.status === 'overloaded').length);
-
-const refreshData = () => {
-  const registeredAgents = agentMatcher.getAllAgents();
-  agents.value = registeredAgents.map(a => ({
-    id: a.agentId,
-    name: a.agentId.split('-')[0],
-    load: a.currentLoad,
-    maxLoad: a.maxLoad,
-    status: a.currentLoad / a.maxLoad >= 0.8 ? 'overloaded' : a.currentLoad > 0 ? 'busy' : 'idle',
-  }));
-};
-
-const handleTaskComplete = (event: Event) => {
-  const payload = event.payload as { nodeId: string };
-  const task = tasks.value.find(t => t.id === payload.nodeId);
-  if (task) { task.status = 'completed'; task.progress = 100; }
-  refreshData();
-};
-
-const handleTaskFailed = (event: Event) => {
-  const payload = event.payload as { nodeId: string; error: string };
-  const task = tasks.value.find(t => t.id === payload.nodeId);
-  if (task) { task.status = 'failed'; task.error = payload.error; }
-  refreshData();
-};
-
-const handleReviewResult = (event: Event) => {
-  qaStatus.value.lastReview = event.payload as { success: boolean; score: number; errors: number };
-};
-
-const handleTestResult = (event: Event) => {
-  qaStatus.value.lastValidation = event.payload as { success: boolean; coverage: number; passed: number };
-};
 
 const toggleAutoRefresh = () => {
   if (intervalId) { clearInterval(intervalId); intervalId = null; }
   if (autoRefresh.value) { intervalId = setInterval(refreshData, 2000); }
 };
 
-onMounted(() => {
-  orchestrator.subscribe('task_complete', handleTaskComplete);
-  orchestrator.subscribe('task_failed', handleTaskFailed);
-  orchestrator.subscribe('review_result', handleReviewResult);
-  orchestrator.subscribe('test_result', handleTestResult);
+onMounted(async () => {
+  // Initialize Hermes API connection
+  await hermesApi.init();
   refreshData();
   if (autoRefresh.value) { intervalId = setInterval(refreshData, 2000); }
 });
 
-function initializeMockData() {
-  // Register mock agents
-  const mockAgents = [
-    { agentId: 'planner-001', capabilities: ['planning'], specialization: ['orchestration'], currentLoad: 2, maxLoad: 3, performanceScore: 90 },
-    { agentId: 'architect-001', capabilities: ['architecture'], specialization: ['design'], currentLoad: 3, maxLoad: 4, performanceScore: 95 },
-    { agentId: 'tddGuide-001', capabilities: ['testing'], specialization: ['quality'], currentLoad: 1, maxLoad: 3, performanceScore: 92 },
-    { agentId: 'codeReviewer-001', capabilities: ['review'], specialization: ['qa'], currentLoad: 0, maxLoad: 2, performanceScore: 88 },
-    { agentId: 'securityReviewer-001', capabilities: ['security'], specialization: ['audit'], currentLoad: 1, maxLoad: 2, performanceScore: 95 },
-  ];
-
-  mockAgents.forEach(agent => agentMatcher.registerAgent(agent));
-
-  // Create mock tasks
-  tasks.value = [
-    { id: 'task-1', name: 'Parse Request', status: 'completed', agent: 'planner-001', progress: 100 },
-    { id: 'task-2', name: 'Design Architecture', status: 'running', agent: 'architect-001', progress: 60 },
-    { id: 'task-3', name: 'Write Tests', status: 'pending', agent: 'tddGuide-001', progress: 0 },
-    { id: 'task-4', name: 'Implement Code', status: 'pending', agent: 'codeReviewer-001', progress: 0 },
-    { id: 'task-5', name: 'Security Audit', status: 'pending', agent: 'securityReviewer-001', progress: 0 },
-  ];
-
-  // Set mock QA status
-  qaStatus.value = {
-    lastReview: { success: true, score: 95, errors: 2 },
-    lastValidation: { success: true, coverage: 85, passed: 42 },
-  };
-}
-
 onUnmounted(() => {
-  orchestrator.unsubscribe('task_complete', handleTaskComplete);
-  orchestrator.unsubscribe('task_failed', handleTaskFailed);
-  orchestrator.unsubscribe('review_result', handleReviewResult);
-  orchestrator.unsubscribe('test_result', handleTestResult);
+  hermesApi.cleanup();
   if (intervalId) { clearInterval(intervalId); }
 });
 </script>
@@ -137,7 +125,9 @@ onUnmounted(() => {
     <header class="hermes-header">
       <div>
         <h1 class="hermes-title">{{ t('hermes.title') }}</h1>
-        <p class="hermes-subtitle">{{ t('hermes.subtitle') }}</p>
+        <p class="hermes-subtitle">
+          {{ connected ? t('hermes.connected') : t('hermes.disconnected') }}
+        </p>
       </div>
       <div class="hermes-controls">
         <label class="auto-refresh-label">
@@ -164,7 +154,7 @@ onUnmounted(() => {
       <div class="stat-card">
         <div class="stat-label">{{ t('common.systemLoad') }}</div>
         <div class="stat-value">{{ systemLoad }}%</div>
-        <div class="stat-sub">{{ overloadedAgents }} {{ t('common.overloaded') }}</div>
+        <div class="stat-sub">{{ hermesApi.agent.value.thinkingCount }} thinking</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('common.qaStatus') }}</div>
@@ -208,6 +198,10 @@ onUnmounted(() => {
                 <span class="agent-status" :class="agent.status">{{ agent.status }}</span>
               </div>
               <div class="agent-load">{{ t('common.load') }}: {{ agent.load }} / {{ agent.maxLoad }}</div>
+              <div class="agent-stats">
+                <span>Thinking: {{ agent.thinkingCount }}</span>
+                <span>Tools: {{ agent.toolCallCount }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -513,6 +507,14 @@ onUnmounted(() => {
   font-size: 11px;
   color: #94A3B8;
   margin-top: 6px;
+}
+
+.agent-stats {
+  font-size: 11px;
+  color: #64748B;
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
 }
 
 .task-detail-overlay {

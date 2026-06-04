@@ -22,6 +22,9 @@ mod team_dag;         // NEW: Team DAG execution engine with SyncPoints
 mod skill_commands;   // NEW: Skill System Tauri Commands (OpenClacky pattern)
 mod bot_adapters;     // NEW: Bot Adapters - Telegram, Feishu, Discord, App WebSocket
 mod commands;         // Refactored Tauri command handlers organized by domain
+mod plugin_registry;  // NEW: Unified Plugin Registry - Skills/MCP/Hooks/CLI/Adapters
+mod swarm_orchestrator; // NEW: Agent Swarm Orchestrator - top-level Codex/Claude Code coordination
+mod workflow_engine;  // NEW: Ultra Workflow Engine - multi-stage orchestrated workflows
 
 use agent::{AgentManager};
 use config::ConfigManager;
@@ -47,6 +50,10 @@ pub struct AppState {
     // Bot Adapters
     pub telegram_adapter: Arc<Mutex<Option<bot_adapters::TelegramAdapter>>>,
     pub feishu_adapter: Arc<Mutex<Option<bot_adapters::FeishuAdapter>>>,
+    // Pluggable Architecture
+    pub plugin_registry: Arc<Mutex<plugin_registry::PluginRegistry>>,
+    pub swarm_orchestrator: Arc<Mutex<swarm_orchestrator::SwarmOrchestrator>>,
+    pub workflow_engine: Arc<Mutex<workflow_engine::WorkflowEngine>>,
 }
 
 impl AppState {
@@ -66,6 +73,10 @@ impl AppState {
             // Bot Adapters
             telegram_adapter: Arc::new(Mutex::new(None)),
             feishu_adapter: Arc::new(Mutex::new(None)),
+            // Pluggable Architecture
+            plugin_registry: Arc::new(Mutex::new(plugin_registry::PluginRegistry::new())),
+            swarm_orchestrator: Arc::new(Mutex::new(swarm_orchestrator::SwarmOrchestrator::new())),
+            workflow_engine: Arc::new(Mutex::new(workflow_engine::WorkflowEngine::new())),
         }
     }
 }
@@ -151,6 +162,14 @@ pub fn run() {
 
             // Auto-start WebSocket server on port 1421 for remote control testing
             let app_handle_for_ws = app.handle().clone();
+
+            // Seed default plugins (16 core skills + 2 MCP servers)
+            {
+                let mut registry = state.plugin_registry.lock().unwrap();
+                registry.seed_defaults();
+                println!("✅ Plugin registry seeded with {} plugins", registry.list(None).len());
+            }
+
             tauri::async_runtime::spawn(async move {
                 let server = websocket::WebSocketServer::new(1421);
                 match server.start(app_handle_for_ws.clone(), false).await {
@@ -284,7 +303,36 @@ pub fn run() {
             skill_commands::invoke_skill,
             skill_commands::create_skill,
             skill_commands::skill_manage,
-            skill_commands::skill_rate
+            skill_commands::skill_rate,
+            // Plugin Registry commands
+            plugin_registry::plugin_list,
+            plugin_registry::plugin_register,
+            plugin_registry::plugin_unregister,
+            plugin_registry::plugin_get,
+            plugin_registry::plugin_set_enabled,
+            plugin_registry::plugin_update_config,
+            plugin_registry::plugin_search,
+            plugin_registry::plugin_get_stats,
+            plugin_registry::plugin_get_history,
+            // Swarm Orchestrator commands
+            swarm_orchestrator::swarm_register_agent,
+            swarm_orchestrator::swarm_list_agents,
+            swarm_orchestrator::swarm_create_task,
+            swarm_orchestrator::swarm_submit_result,
+            swarm_orchestrator::swarm_get_task,
+            swarm_orchestrator::swarm_get_health,
+            swarm_orchestrator::swarm_cancel_task,
+            // Workflow Engine commands
+            workflow_engine::workflow_create,
+            workflow_engine::workflow_validate,
+            workflow_engine::workflow_list,
+            workflow_engine::workflow_get,
+            workflow_engine::workflow_get_progress,
+            workflow_engine::workflow_update_status,
+            workflow_engine::workflow_submit_result,
+            workflow_engine::workflow_generate_from_task,
+            workflow_engine::workflow_cancel,
+            workflow_engine::workflow_save
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

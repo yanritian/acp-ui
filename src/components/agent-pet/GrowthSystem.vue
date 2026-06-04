@@ -192,11 +192,11 @@ function formatNumber(num: number): string {
     <div v-if="showAchievementPopup" class="achievement-popup">
       <div class="popup-content">
         <div class="popup-icon">
-          {{ LEVEL_CONFIG.achievements[showAchievementPopup]?.icon }}
+          {{ (LEVEL_CONFIG.achievements as Record<string, any>)[showAchievementPopup!]?.icon }}
         </div>
         <div class="popup-text">{{ t('growthSystem.unlockAchievement') }}</div>
         <div class="popup-name">
-          {{ t(LEVEL_CONFIG.achievements[showAchievementPopup]?.nameKey || '') }}
+          {{ t((LEVEL_CONFIG.achievements as Record<string, any>)[showAchievementPopup!]?.nameKey || '') }}
         </div>
       </div>
     </div>

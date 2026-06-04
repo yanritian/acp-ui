@@ -1,6 +1,6 @@
 use crate::database::DatabaseManager;
 
-use crate::{AppConfig, GatewayConfig, TunnelConfig};
+use crate::commands::gateway::{AppConfig, GatewayConfig, TunnelConfig};
 
 const CONFIG_KEY: &str = "gateway_config";
 

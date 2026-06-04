@@ -307,7 +307,7 @@ export class WebSocketSyncService {
   private handleSyncResponse(payload: any) {
     if (payload.agents && this.realtimeStore) {
       // 同步Agent列表
-      payload.agents.forEach(agent => {
+      payload.agents.forEach((agent: any) => {
         this.realtimeStore!.registerAgent(agent.agentId, agent.agentName)
         this.realtimeStore!.updateAgentStatus(agent.agentId, agent)
       })
@@ -315,14 +315,14 @@ export class WebSocketSyncService {
 
     if (payload.pets && this.petStore) {
       // 同步宠物列表
-      payload.pets.forEach(pet => {
+      payload.pets.forEach((pet: any) => {
         this.petStore!.createPet(pet.agentId, pet.name, pet.appearance?.type)
       })
     }
 
     if (payload.events && this.realtimeStore) {
       // 同步事件历史
-      payload.events.forEach(event => {
+      payload.events.forEach((event: any) => {
         this.realtimeStore!.handleRealtimeEvent(event)
       })
     }

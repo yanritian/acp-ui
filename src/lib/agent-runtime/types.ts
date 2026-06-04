@@ -1,8 +1,10 @@
 import type { AgentConfig, ChatMessage, PermissionRequest, ToolCallInfo } from '../types'
+import type { BudgetLimits, BudgetConsumption } from './budget-tracker'
+import type { CompactionSummary, RehydrationArtifacts } from './context-compactor'
 
 export type RuntimeTransportKind = 'stdio' | 'websocket' | 'http'
 export type RuntimeConnectionStatus = 'idle' | 'connecting' | 'connected' | 'busy' | 'paused' | 'error' | 'disconnected'
-export type RuntimeTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+export type RuntimeTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'stopped_budget_exceeded'
 
 export interface RuntimeAgentConfig {
   name: string
@@ -71,6 +73,22 @@ export interface RuntimePromptOptions {
   prompt: string
   source: RuntimeTask['source']
   memories?: string[]
+  budgetLimits?: Partial<BudgetLimits>
+  objective?: string // For compaction summary
+}
+
+export interface RuntimeBudgetState {
+  limits: BudgetLimits
+  consumption: BudgetConsumption
+  exceeded: boolean
+  exceededReason?: string
+}
+
+export interface RuntimeCompactionState {
+  lastCompactionTimestamp: number
+  summary: CompactionSummary | null
+  rehydrationArtifacts: RehydrationArtifacts | null
+  pendingCompaction: boolean
 }
 
 export interface RuntimePermissionBridge {

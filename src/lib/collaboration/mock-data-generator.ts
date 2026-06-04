@@ -451,7 +451,7 @@ export class CollaborationMockDataGenerator {
   private generateConditions(count: number): any[] {
     const conditionTypes = ['precondition', 'postcondition', 'invariant']
 
-    const conditions = []
+    const conditions: any[] = []
     for (let i = 0; i < count; i++) {
       conditions.push({
         id: `cond-${i}`,
@@ -471,7 +471,7 @@ export class CollaborationMockDataGenerator {
   private generateConstraints(count: number): any[] {
     const constraintTypes = ['timeout', 'resource_limit', 'quality_threshold', 'dependency']
 
-    const constraints = []
+    const constraints: any[] = []
     for (let i = 0; i < count; i++) {
       const type = constraintTypes[i % constraintTypes.length]
       const value = type === 'timeout'
@@ -495,7 +495,7 @@ export class CollaborationMockDataGenerator {
    * Generate protocol examples
    */
   private generateProtocolExamples(protocolIndex: number, count: number): any[] {
-    const examples = []
+    const examples: any[] = []
     for (let i = 0; i < count; i++) {
       examples.push({
         id: `example-${protocolIndex}-${i}`,

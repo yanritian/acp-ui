@@ -4,7 +4,7 @@
 //! Uses Feishu Open Platform API for message handling.
 
 use crate::bot_adapters::{BotAdapter, BotCommand, BotResponse};
-use crate::FeishuConfig;
+use crate::commands::gateway::FeishuConfig;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

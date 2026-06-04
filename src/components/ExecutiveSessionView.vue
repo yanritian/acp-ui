@@ -346,6 +346,7 @@ onMounted(async () => {
         console.log('[ExecutiveSessionView] Received remote-command:', data);
 
         if (data.type === 'execute_development_task' && data.request) {
+          if (!invoke) return;
           // 调用真正的Tauri command执行任务
           try {
             isLoading.value = true;

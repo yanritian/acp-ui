@@ -3,7 +3,9 @@ import { AcpClientBridge, createAcpClient } from '../acp-bridge'
 import type { AgentConfig, SavedSession } from '../types'
 import { OutputBuffer } from './output-buffer'
 import { RuntimeError, assertAbsoluteCwd, toRuntimeError } from './runtime-errors'
-import type { RuntimeOutput, RuntimePromptOptions, RuntimeSession, RuntimeConnectionStatus } from './types'
+import { BudgetTracker, DEFAULT_BUDGET_LIMITS, createBudgetStopStatus } from './budget-tracker'
+import { ContextCompactor, createContextCompactor } from './context-compactor'
+import type { RuntimeOutput, RuntimePromptOptions, RuntimeSession, RuntimeConnectionStatus, RuntimeBudgetState, RuntimeCompactionState } from './types'
 
 export interface AcpSessionRunnerOptions {
   agentName: string
@@ -17,6 +19,8 @@ export interface AcpSessionRunnerOptions {
 export class AcpSessionRunner {
   private client: AcpClientBridge | null = null
   private runtimeSession: RuntimeSession | null = null
+  private budgetTracker: BudgetTracker | null = null
+  private contextCompactor: ContextCompactor | null = null
 
   constructor(private readonly options: AcpSessionRunnerOptions) {}
 
@@ -34,6 +38,27 @@ export class AcpSessionRunner {
 
   get connectionStatus(): RuntimeConnectionStatus {
     return this.runtimeSession?.status ?? 'idle'
+  }
+
+  get budgetState(): RuntimeBudgetState | null {
+    if (!this.budgetTracker) return null
+    const check = this.budgetTracker.check()
+    return {
+      limits: this.budgetTracker.getLimits(),
+      consumption: this.budgetTracker.getConsumption(),
+      exceeded: check.exceeded,
+      exceededReason: check.exceeded ? check.reason : undefined,
+    }
+  }
+
+  get compactionState(): RuntimeCompactionState | null {
+    if (!this.contextCompactor) return null
+    return {
+      lastCompactionTimestamp: this.contextCompactor.getLastCompactionTimestamp(),
+      summary: null, // Would be populated after compaction
+      rehydrationArtifacts: null,
+      pendingCompaction: false,
+    }
   }
 
   async create(): Promise<RuntimeSession> {
@@ -94,25 +119,84 @@ export class AcpSessionRunner {
       throw new RuntimeError('session-not-found', '没有可用会话。')
     }
 
-    const promptText = options.memories?.length
-      ? ['以下是相关记忆：', ...options.memories.map((m) => `- ${m}`), '', options.prompt].join('\n')
-      : options.prompt
+    // Initialize budget tracker for this task
+    this.budgetTracker = new BudgetTracker(options.budgetLimits || {})
+    this.contextCompactor = createContextCompactor()
+
+    const objective = options.objective || options.prompt.slice(0, 100)
+
+    // Build prompt with compaction summary if available
+    let promptText = options.prompt
+    if (options.memories?.length) {
+      promptText = ['以下是相关记忆：', ...options.memories.map((m) => `- ${m}`), '', options.prompt].join('\n')
+    }
+
+    // Check budget before starting
+    const budgetCheck = this.budgetTracker.check()
+    if (budgetCheck.exceeded) {
+      const errorOutput = this.createBudgetErrorOutput(options.taskId, budgetCheck)
+      this.options.onOutput?.(errorOutput)
+      return errorOutput
+    }
 
     const buffer = new OutputBuffer(options.taskId, this.runtimeSession.id, this.runtimeSession.agentName)
     const previousHandler = this.client.onSessionUpdate
+
+    // Track tool calls for budget
+    let toolCallCount = 0
+    let toolResultChars = 0
+
     this.client.onSessionUpdate = (notification) => {
       const output = buffer.apply(notification)
+
+      // Track tool calls in budget
+      if (output.toolCalls.length > toolCallCount) {
+        const newCalls = output.toolCalls.length - toolCallCount
+        this.budgetTracker?.recordToolCalls(newCalls, 0)
+        toolCallCount = output.toolCalls.length
+      }
+
+      // Track output size
+      toolResultChars += output.content.length
+      this.budgetTracker?.recordToolResultSize(output.content.length)
+
+      // Check for compaction need
+      const messages = output.messages
+      const estimatedTokens = this.contextCompactor?.estimateTokens(messages) || 0
+      if (this.contextCompactor?.needsCompaction(messages, output.toolCalls, estimatedTokens).needed) {
+        // In a full implementation, we would pause and compact here
+        // For MVP, we just log and continue
+        console.warn('Context approaching limit, compaction recommended')
+      }
+
       this.options.onOutput?.(output)
       previousHandler?.(notification)
     }
 
     try {
+      // Record step
+      this.budgetTracker.recordStep()
+
       await this.client.prompt({
         sessionId: this.runtimeSession.acpSessionId,
         prompt: [{ type: 'text', text: promptText }],
       })
+
+      // Final budget check
+      const finalCheck = this.budgetTracker.check()
+      if (finalCheck.exceeded) {
+        const errorOutput = this.createBudgetErrorOutput(options.taskId, finalCheck)
+        this.options.onOutput?.(errorOutput)
+        return errorOutput
+      }
+
       const output = buffer.complete()
       this.options.onOutput?.(output)
+
+      // Record final consumption - estimate tokens from output
+      const finalEstimatedTokens = this.contextCompactor?.estimateTokens(output.messages) ?? output.content.length / 4
+      this.budgetTracker.recordTokens(finalEstimatedTokens, output.content.length / 4)
+
       return output
     } catch (error) {
       const runtimeError = toRuntimeError(error, 'task-failed')
@@ -122,6 +206,26 @@ export class AcpSessionRunner {
     } finally {
       this.client.onSessionUpdate = previousHandler
       this.runtimeSession.lastUpdated = Date.now()
+    }
+  }
+
+  private createBudgetErrorOutput(taskId: string, budgetResult: { exceeded: true; reason: string; limitName: string; current: number; limit: number; nextSafeAction: string }): RuntimeOutput {
+    return {
+      taskId,
+      sessionId: this.runtimeSession?.id || '',
+      agentName: this.runtimeSession?.agentName || '',
+      content: '',
+      thought: '',
+      messages: [{
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `⚠️ Budget exceeded: ${budgetResult.reason}\n\nCurrent: ${budgetResult.current}, Limit: ${budgetResult.limit}\n\n${budgetResult.nextSafeAction}`,
+        timestamp: Date.now(),
+        toolCalls: [],
+      }],
+      toolCalls: [],
+      status: 'stopped_budget_exceeded',
+      error: budgetResult.reason,
     }
   }
 

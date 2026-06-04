@@ -1,8 +1,28 @@
+# Hermes Configuration for ACP-UI
+# Alibaba Bailian (阿里百炼云) Coding Plan API
+
 model: alibaba-coding-plan:qwen3.6-plus
+
+# Disable strict API mode for compatibility
 extra_body:
   strict_api: false
   strict_tool_calls: false
+
+# LLM Provider Configuration
 llm_providers:
   alibaba-coding-plan:
     api_key: sk-sp-eca00ed2f6924349b9fc243b612860a2
     base_url: https://coding.dashscope.aliyuncs.com/v1
+    model: qwen3.6-plus
+
+# Budget limits
+budget:
+  max_result_size_chars: 80000
+  max_aggregate_chars: 200000
+
+# Max turns for agent loop
+max_turns: 50
+
+# Terminal settings
+terminal:
+  timeout: 300

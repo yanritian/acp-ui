@@ -36,7 +36,8 @@ pub struct HermesConfig {
 impl Default for HermesConfig {
     fn default() -> Self {
         Self {
-            config_dir: None,
+            // 使用项目目录下的 hermes 配置，避免 C 盘操作
+            config_dir: Some("D:/dingsun/acp-ui/hermes".to_string()),
             model: "alibaba-coding-plan:qwen3.6-plus".to_string(),
         }
     }

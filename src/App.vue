@@ -1,195 +1,66 @@
 <script setup lang="ts">
-// Extend Window interface for bot command cleanup
-declare global {
-  interface Window {
-    _unlistenBotCommand?: () => void;
-  }
-}
-
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { listen } from '@tauri-apps/api/event';
-import { canPickFolder, pickFolder, loadKvStore, type KVStore } from './lib/host';
-import { useConfigStore } from './stores/config';
-import { useSessionStore } from './stores/session';
-import { useMultiSessionStore } from './stores/multi-session';
-import { useTeamRuntimeStore } from './stores/team-runtime';
-import { initTelemetry } from './lib/telemetry';
-import { useI18n } from './locales';
-import AgentSelector from './components/AgentSelector.vue';
-import SessionList from './components/SessionList.vue';
-import ChatView from './components/ChatView.vue';
-import PermissionDialog from './components/PermissionDialog.vue';
-import SettingsView from './components/SettingsView.vue';
-import AuthMethodDialog from './components/AuthMethodDialog.vue';
-import TrafficMonitor from './components/TrafficMonitor.vue';
-import StartupProgress from './components/StartupProgress.vue';
-import MultiAgentChat from './components/MultiAgentChat.vue';
-import HistoryView from './components/HistoryView.vue';
-import WorkflowView from './components/WorkflowView.vue';
-import GatewaySettings from './components/GatewaySettings.vue';
-import TeamOrchestrationView from './components/TeamOrchestrationView.vue';
-import MultiSessionChat from './components/MultiSessionChat.vue';
-import MemoryView from './components/MemoryView.vue';
-import ErrorView from './components/ErrorView.vue';
-import EvolutionView from './components/EvolutionView.vue';
-import PatternView from './components/PatternView.vue';
-import HermesDashboard from './components/HermesDashboard.vue';
-import EnhancedHermesDashboard from './components/EnhancedHermesDashboard.vue';
-import TaskGraphView from './components/TaskGraphView.vue';
-import LogStreamView from './components/LogStreamView.vue';
-import AgentTeamsDashboard from './views/AgentTeamsDashboard.vue';
-import AgentConfigView from './views/AgentConfigView.vue';
-import BotSettings from './components/BotSettings.vue';
-import LanguageSelector from './components/LanguageSelector.vue';
-import ExecutiveSessionView from './components/ExecutiveSessionView.vue';
-import SkillManager from './components/skills/SkillManager.vue';
-import { FEATURES, CORE_FEATURES, ADVANCED_FEATURES } from './lib/feature-registry'
-import { startEvolutionEngine, trackBehavior } from './lib/self-improvement'
-import { taskParser, type TaskDAG } from './lib/task-parser'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useConfigStore } from './stores/config'
+import { useSessionStore } from './stores/session'
+import { useMultiSessionStore } from './stores/multi-session'
+import { useI18n } from './locales'
+import { trackBehavior } from './lib/self-improvement'
+import { startEvolutionEngine } from './lib/self-improvement'
+import type { SavedSession } from './lib/types'
 import './assets/modern.css'
-import type { SavedSession } from './lib/types';
 
-const { t } = useI18n();
+// Composables
+import { useResponsiveLayout } from './composables/useResponsiveLayout'
+import { useReconnect } from './composables/useReconnect'
+import { usePreferences } from './composables/usePreferences'
+import { useBotCommand } from './composables/useBotCommand'
 
-// Translated features - grouped into core and advanced
-const coreFeatures = computed(() =>
-  CORE_FEATURES.map(f => ({
-    ...f,
-    label: t(f.labelKey as any),
-    description: t(f.descriptionKey as any),
-  }))
-);
+// Components
+import AppSidebar from './components/AppSidebar.vue'
+import ConnectionBanner from './components/ConnectionBanner.vue'
+import WelcomeScreen from './components/WelcomeScreen.vue'
+import PermissionDialog from './components/PermissionDialog.vue'
+import SettingsView from './components/SettingsView.vue'
+import AuthMethodDialog from './components/AuthMethodDialog.vue'
+import TrafficMonitor from './components/TrafficMonitor.vue'
+import LogStreamView from './components/LogStreamView.vue'
 
-const advancedFeatures = computed(() =>
-  ADVANCED_FEATURES.map(f => ({
-    ...f,
-    label: t(f.labelKey as any),
-    description: t(f.descriptionKey as any),
-  }))
-);
+const { t } = useI18n()
+const router = useRouter()
+const route = useRoute()
 
-const showAdvancedMenu = ref(false);
+// Stores
+const configStore = useConfigStore()
+const sessionStore = useSessionStore()
+const multiSession = useMultiSessionStore()
 
-const configStore = useConfigStore();
-const sessionStore = useSessionStore();
-const multiSession = useMultiSessionStore();
-const teamRuntime = useTeamRuntimeStore();
+// Composables
+const { showSidebar, isNarrowLayout, toggleSidebar, handleBackdropClick } = useResponsiveLayout()
+const { handleManualReconnect } = useReconnect()
+const { selectedCwd, folderPickerAvailable, loadPreferences, handleSelectFolder, handleCwdInput } = usePreferences()
+useBotCommand()
 
-const selectedAgent = ref('');
-const selectedCwd = ref('');
-// On mobile / web there is no native folder picker (and the cwd refers to
-// a path on the *agent's* machine, not the local device), so we expose a
-// free-text field instead of the picker button.
-const folderPickerAvailable = canPickFolder();
-const showSidebar = ref(true);
-const showSettings = ref(false);
-const showTrafficMonitor = ref(false);
-const showStartupDetails = ref(false);
-// View types
-const currentView = ref<'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills' | 'agent-config'>('chat');
-const showLogStream = ref(false);
+// Local state
+const selectedAgent = ref('')
+const showSettings = ref(false)
+const showTrafficMonitor = ref(false)
+const showStartupDetails = ref(false)
+const showLogStream = ref(false)
 
-// Mock Task DAG for demo
-const mockTaskDag = ref<TaskDAG | null>(null);
-
-function initializeMockDag() {
-  // Create a sample DAG for visualization
-  const nodes = new Map<string, any>();
-  const edges = new Map<string, string[]>();
-
-  const steps = [
-    { id: 'step-1', name: 'Parse Request', status: 'completed', agent: 'planner-001', deps: [] },
-    { id: 'step-2', name: 'Design Architecture', status: 'running', agent: 'architect-001', deps: ['step-1'] },
-    { id: 'step-3', name: 'Write Tests', status: 'pending', agent: 'tddGuide-001', deps: ['step-2'] },
-    { id: 'step-4', name: 'Implement Code', status: 'pending', agent: 'codeReviewer-001', deps: ['step-2'] },
-    { id: 'step-5', name: 'Security Audit', status: 'pending', agent: 'securityReviewer-001', deps: ['step-3', 'step-4'] },
-    { id: 'step-6', name: 'Build & Deploy', status: 'pending', agent: 'build-001', deps: ['step-5'] },
-  ];
-
-  for (const step of steps) {
-    // Use dag.id prefix for node IDs to match edge building logic
-    const nodeId = `demo-dag-001-${step.id}`;
-    nodes.set(nodeId, {
-      id: nodeId,
-      step: {
-        id: step.id,
-        name: step.name,
-        action: 'task',
-        agentType: 'general',
-        // Dependencies use short IDs - TaskGraphView will add dag.id prefix
-        dependencies: step.deps
-      },
-      status: step.status as 'pending' | 'running' | 'completed' | 'failed' | 'blocked',
-      assignedAgent: step.agent,
-    });
-
-    // Build reverse edges: dependency -> dependent
-    for (const dep of step.deps) {
-      const depNodeId = `demo-dag-001-${dep}`;
-      if (!edges.has(depNodeId)) {
-        edges.set(depNodeId, []);
-      }
-      edges.get(depNodeId)!.push(nodeId);
-    }
-  }
-
-  mockTaskDag.value = {
-    id: 'demo-dag-001',
-    name: 'Feature Development Workflow',
-    nodes,
-    edges,
-    rootNodes: ['demo-dag-001-step-1'],
-  };
-}
-
-// Reactive flag tracking whether the viewport is narrow enough to show the
-// sidebar as a slide-in drawer (mobile / very narrow desktop windows). Used
-// by the template to decide when the backdrop is interactive and by
-// onMounted to default the drawer closed.
-const isNarrowLayout = ref(false);
-let narrowMql: MediaQueryList | null = null;
-function syncNarrowLayout() {
-  if (narrowMql) isNarrowLayout.value = narrowMql.matches;
-}
-
-// Foreground-reconnect plumbing. Mobile OSes freeze the WebView when the
-// app is backgrounded and routers may drop the idle TCP connection while
-// we're away. When the user returns we ask the session store to silently
-// reattach to the last session if we have one.
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-function scheduleReconnect() {
-  // Coalesce rapid visibility/online flips into a single attempt.
-  if (reconnectTimer) return;
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    // Skip if the browser still thinks we're offline; we'll be re-triggered
-    // by the `online` event when connectivity returns.
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-    void sessionStore.tryReconnect();
-  }, 250);
-}
-function handleVisibilityChange() {
-  if (typeof document !== 'undefined' && !document.hidden) scheduleReconnect();
-}
-function handleOnline() {
-  scheduleReconnect();
-}
-
-// Preferences store for persisting user selections
-let prefsStore: KVStore | null = null;
-
-const isConnected = computed(() => sessionStore.isConnected);
-const isLoading = computed(() => sessionStore.isLoading);
-const isConnecting = computed(() => sessionStore.isConnecting);
-const isReconnecting = computed(() => sessionStore.isReconnecting);
-const error = computed(() => sessionStore.error || configStore.error);
-const hasAgents = computed(() => configStore.hasAgents);
+// Computed properties from stores
+const isConnected = computed(() => sessionStore.isConnected)
+const isLoading = computed(() => sessionStore.isLoading)
+const isConnecting = computed(() => sessionStore.isConnecting)
+const isReconnecting = computed(() => sessionStore.isReconnecting)
+const error = computed(() => sessionStore.error || configStore.error)
+const hasAgents = computed(() => configStore.hasAgents)
 
 // Name of the agent the reconnect banner refers to. Falls back to the
 // generic "agent" if the saved session has no name (shouldn't happen).
 const reconnectingAgentName = computed(
   () => sessionStore.currentSession?.agentName ?? 'agent'
-);
+)
 
 // True when there is a saved session we *could* reconnect to but the
 // transport is currently down. Surfaces a manual "Reconnect" affordance on
@@ -201,398 +72,147 @@ const canManuallyReconnect = computed(
     !isReconnecting.value &&
     !isConnecting.value &&
     !!sessionStore.currentSession?.supportsLoadSession
-);
-
-async function handleManualReconnect() {
-  await sessionStore.tryReconnect();
-}
+)
 
 // Watch for permission requests from session store
-const pendingPermission = computed(() => sessionStore.pendingPermission);
+const pendingPermission = computed(() => sessionStore.pendingPermission)
 
 // Watch for auth method selection requests
-const pendingAuthMethods = computed(() => sessionStore.pendingAuthMethods);
-const pendingAuthAgentName = computed(() => sessionStore.pendingAuthAgentName);
+const pendingAuthMethods = computed(() => sessionStore.pendingAuthMethods)
+const pendingAuthAgentName = computed(() => sessionStore.pendingAuthAgentName)
+
+// Current view name from route
+const currentViewName = computed(() => route.name as string)
+
+// Is the current view the chat view?
+const isChatView = computed(() => currentViewName.value === 'chat')
 
 onMounted(async () => {
-  // Track viewport width so the sidebar can default-collapse into a drawer
-  // on phones / narrow windows. We watch a MediaQueryList rather than
-  // resize for correctness across orientation changes on iOS.
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    narrowMql = window.matchMedia('(max-width: 800px)');
-    syncNarrowLayout();
-    narrowMql.addEventListener('change', syncNarrowLayout);
-    if (isNarrowLayout.value) showSidebar.value = false;
-  }
-
-  // Load persisted preferences first
-  prefsStore = await loadKvStore('preferences.json');
-  
-  // Initialize telemetry (check user preference)
-  const telemetryEnabled = await prefsStore.get<boolean>('telemetryEnabled') ?? true;
-  await initTelemetry(telemetryEnabled);
+  // Load persisted preferences
+  await loadPreferences()
   
   // Initialize stores
-  await configStore.loadConfig();
-  await configStore.setupHotReload();
-  await sessionStore.initStore();
-  await multiSession.initStore();
+  await configStore.loadConfig()
+  await configStore.setupHotReload()
+  await sessionStore.initStore()
+  await multiSession.initStore()
 
   // Start self-improvement engine (analyzes patterns every 5 minutes)
-  startEvolutionEngine();
+  startEvolutionEngine()
 
   // Track initial feature usage
-  trackBehavior('app-started', { agentCount: configStore.hasAgents ? 'yes' : 'no' });
-  
-  const savedCwd = await prefsStore.get<string>('lastCwd');
-  if (savedCwd) {
-    selectedCwd.value = savedCwd;
-  }
-
-  // Hook foreground-reconnect listeners. `pageshow` fires both on initial
-  // navigation and when iOS restores a frozen WebView from the back/forward
-  // cache, so it complements `visibilitychange` on Safari/iOS.
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-  }
-  if (typeof window !== 'undefined') {
-    window.addEventListener('pageshow', scheduleReconnect);
-    window.addEventListener('online', handleOnline);
-  }
-
-  // Listen for bot commands (from Telegram/Feishu/App WebSocket)
-  const unlistenBot = await listen('bot-command', (event) => {
-    handleBotCommand(event.payload as Record<string, unknown>);
-  });
-
-  // Store unlisten function for cleanup
-  window._unlistenBotCommand = unlistenBot;
-});
-
-// Handle bot commands from Telegram/Feishu/App WebSocket
-async function handleBotCommand(payload: Record<string, unknown>) {
-  const type = payload.type as string;
-  const prompt = payload.prompt as string;
-
-  console.log('[Bot Command Received]', payload);
-
-  const cwd = configStore.getDefaultCwd();
-
-  if (type === 'agent') {
-    // Single agent task
-    const agentName = (payload.agent_name as string) || configStore.agentNames[0] || 'Claude Code';
-    await teamRuntime.runTeamTask({
-      title: prompt.substring(0, 50),
-      prompt,
-      source: 'bot',
-      routing: 'single',
-      agents: [{ agentName, cwd }],
-    });
-    trackBehavior('bot-task-created', { type: 'agent', agentName });
-  } else if (type === 'team') {
-    // Multi-agent task
-    const agentsPayload = payload.agents as string[] | undefined;
-    const routing = (payload.routing as string) || 'single';
-
-    const agents = agentsPayload?.length
-      ? agentsPayload.map(name => ({ agentName: name, cwd }))
-      : [{ agentName: configStore.agentNames[0] || 'Claude Code', cwd }];
-
-    await teamRuntime.runTeamTask({
-      title: prompt.substring(0, 50),
-      prompt,
-      source: 'bot',
-      routing: routing as 'single' | 'broadcast' | 'round-robin' | 'load-balanced',
-      agents,
-    });
-    trackBehavior('bot-task-created', { type: 'team', agentCount: agents.length });
-  }
-}
+  trackBehavior('app-started', { agentCount: configStore.hasAgents ? 'yes' : 'no' })
+})
 
 async function handleAgentSelect(agentName: string) {
-  selectedAgent.value = agentName;
-}
-
-async function handleSelectFolder() {
-  const folder = await pickFolder('Select Working Directory');
-  if (folder) {
-    selectedCwd.value = folder;
-    // Persist the selection
-    if (prefsStore) {
-      await prefsStore.set('lastCwd', folder);
-      await prefsStore.save();
-    }
-  }
-}
-
-/** Persist a typed cwd as the user edits it (mobile / web field). */
-async function handleCwdInput(event: Event) {
-  const value = (event.target as HTMLInputElement).value;
-  selectedCwd.value = value;
-  if (prefsStore) {
-    await prefsStore.set('lastCwd', value);
-    await prefsStore.save();
-  }
+  selectedAgent.value = agentName
 }
 
 async function handleNewSession() {
-  if (!selectedAgent.value) return;
+  if (!selectedAgent.value) return
 
   // ACP requires an absolute working directory; passing '.' is rejected by
   // most agents. On desktop the folder picker always returns an absolute
   // path, but on mobile the user types it, so validate up-front and surface
   // a helpful error rather than letting the agent reject `session/new`.
-  const cwd = selectedCwd.value.trim();
+  const cwd = selectedCwd.value.trim()
   if (!cwd) {
-    sessionStore.error = t('errors.workingDirectoryRequired');
-    return;
+    sessionStore.error = t('errors.workingDirectoryRequired')
+    return
   }
-  const isAbsolute = cwd.startsWith('/') || /^[A-Za-z]:[\\/]/.test(cwd);
+  const isAbsolute = cwd.startsWith('/') || /^[A-Za-z]:[\\/]/.test(cwd)
   if (!isAbsolute) {
-    sessionStore.error = t('errors.workingDirectoryNotAbsolute', { path: cwd });
-    return;
+    sessionStore.error = t('errors.workingDirectoryNotAbsolute', { path: cwd })
+    return
   }
 
   try {
-    await sessionStore.createSession(selectedAgent.value, cwd);
+    await sessionStore.createSession(selectedAgent.value, cwd)
+    // Navigate to chat view after successful connection
+    router.push('/chat')
   } catch (e) {
-    console.error('Failed to create session:', e);
+    console.error('Failed to create session:', e)
   }
 }
 
 async function handleResumeSession(session: SavedSession) {
-  selectedAgent.value = session.agentName;
+  selectedAgent.value = session.agentName
   try {
-    await sessionStore.resumeSession(session);
+    await sessionStore.resumeSession(session)
+    // Navigate to chat view after resuming
+    router.push('/chat')
   } catch (e) {
-    console.error('Failed to resume session:', e);
+    console.error('Failed to resume session:', e)
   }
 }
 
 async function handleDeleteSession(sessionId: string) {
-  await sessionStore.deleteSession(sessionId);
+  await sessionStore.deleteSession(sessionId)
 }
 
 async function handleDisconnect() {
-  await sessionStore.disconnect();
+  await sessionStore.disconnect()
 }
 
 async function handleCancelConnection() {
-  await sessionStore.cancelConnection();
+  await sessionStore.cancelConnection()
 }
 
 function handlePermissionSelect(optionId: string) {
-  sessionStore.resolvePermission(optionId);
+  sessionStore.resolvePermission(optionId)
 }
 
 function handlePermissionCancel() {
-  sessionStore.cancelPermission();
+  sessionStore.cancelPermission()
 }
 
 function handleAuthMethodSelect(methodId: string) {
-  sessionStore.selectAuthMethod(methodId);
+  sessionStore.selectAuthMethod(methodId)
 }
 
 function handleAuthMethodCancel() {
-  sessionStore.cancelAuthSelection();
+  sessionStore.cancelAuthSelection()
 }
-
-function toggleSidebar() {
-  showSidebar.value = !showSidebar.value;
-}
-
-function navigateToFeature(featureId: string) {
-  currentView.value = featureId as typeof currentView.value
-  trackBehavior(`feature-${featureId}`, { from: currentView.value })
-}
-
-/** Close the drawer when the user taps the backdrop on a narrow viewport. */
-function handleBackdropClick() {
-  if (isNarrowLayout.value) showSidebar.value = false;
-}
-
-onBeforeUnmount(() => {
-  if (narrowMql) {
-    narrowMql.removeEventListener('change', syncNarrowLayout);
-    narrowMql = null;
-  }
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('pageshow', scheduleReconnect);
-    window.removeEventListener('online', handleOnline);
-  }
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-});
 
 function clearError() {
-  sessionStore.clearError();
-  configStore.clearError();
+  sessionStore.clearError()
+  configStore.clearError()
 }
 </script>
 
 <template>
   <div class="app-container" :class="{ 'narrow-layout': isNarrowLayout }">
     <!-- Sidebar (slides in as a drawer on narrow viewports) -->
-    <aside
-      v-show="showSidebar"
-      class="sidebar"
-      :class="{ 'is-drawer': isNarrowLayout }"
-    >
-      <div class="sidebar-header">
-        <h1>ACP UI</h1>
-        <div class="header-actions">
-          <button
-            class="settings-btn"
-            :class="{ active: showLogStream }"
-            @click="showLogStream = !showLogStream"
-            title="Agent Log Stream"
-          >📋</button>
-          <button
-            class="settings-btn"
-            :class="{ active: showTrafficMonitor }"
-            @click="showTrafficMonitor = !showTrafficMonitor"
-            title="ACP Traffic Monitor"
-          >📡</button>
-          <button class="settings-btn" @click="showSettings = true" title="Settings">⚙</button>
-          <button class="toggle-btn" @click="toggleSidebar">◀</button>
-        </div>
-      </div>
-      
-      <div class="sidebar-content">
-        <!-- Agent Selection -->
-        <div class="section">
-          <AgentSelector 
-            v-model:selected="selectedAgent"
-            @select="handleAgentSelect"
-          />
-          
-          <!-- Working Directory Picker -->
-          <div class="cwd-picker">
-            <label>{{ t('common.workingDirectory') }}</label>
-            <!-- Desktop: read-only display + folder picker. -->
-            <div v-if="folderPickerAvailable" class="cwd-row">
-              <span class="cwd-path" :title="selectedCwd || 'Current directory'">
-                {{ selectedCwd ? selectedCwd.split(/[\\/]/).pop() : '.' }}
-              </span>
-              <button
-                class="cwd-btn"
-                @click="handleSelectFolder"
-                :title="t('common.selectFolder')"
-                :disabled="isConnecting || isConnected"
-              >
-                📁
-              </button>
-            </div>
-            <!-- Mobile / web: free-text input. The cwd is interpreted by
-                 the remote agent, so the path must exist on the agent's
-                 machine. -->
-            <input
-              v-else
-              class="cwd-input"
-              type="text"
-              :value="selectedCwd"
-              @input="handleCwdInput"
-              :disabled="isConnecting || isConnected"
-              :placeholder="t('common.inputPlaceholder')"
-              autocapitalize="none"
-              autocorrect="off"
-              spellcheck="false"
-            />
-          </div>
-
-          <button
-            v-if="hasAgents && !isConnected && !isConnecting"
-            class="new-session-btn"
-            :disabled="!selectedAgent || isLoading"
-            @click="handleNewSession"
-          >
-            {{ isLoading ? t('common.connecting') : t('common.newSession') }}
-          </button>
-          
-          <!-- Startup Progress -->
-          <StartupProgress 
-            v-if="isConnecting"
-            :agent-name="selectedAgent"
-            :phase="sessionStore.startupPhase"
-            :logs="sessionStore.startupLogs"
-            :elapsed-seconds="sessionStore.startupElapsed"
-            :show-details="showStartupDetails"
-            @cancel="handleCancelConnection"
-            @toggle-details="showStartupDetails = !showStartupDetails"
-          />
-          
-          <button 
-            v-if="isConnected"
-            class="disconnect-btn"
-            @click="handleDisconnect"
-          >
-            {{ t('common.disconnect') }}
-          </button>
-        </div>
-
-        <!-- Session List -->
-        <div class="section">
-          <SessionList
-            @resume="handleResumeSession"
-            @delete="handleDeleteSession"
-          />
-        </div>
-
-        <!-- View Navigation -->
-        <div class="section view-nav">
-          <h3 class="nav-title">{{ t('common.featureNavigation') }}</h3>
-          <nav class="nav-buttons">
-            <!-- Core features (always visible) -->
-            <button
-              v-for="feature in coreFeatures"
-              :key="feature.id"
-              :class="['nav-btn', { active: currentView === feature.id }]"
-              @click="navigateToFeature(feature.id)"
-              :title="feature.description"
-            >
-              <span class="nav-icon">{{ feature.icon }}</span>
-              <span class="nav-text">{{ feature.label }}</span>
-            </button>
-
-            <!-- More menu for advanced features -->
-            <div class="more-menu">
-              <button
-                class="nav-btn more-btn"
-                @click="showAdvancedMenu = !showAdvancedMenu"
-                :title="t('common.moreFeatures')"
-              >
-                <span class="nav-icon">⚙️</span>
-                <span class="nav-text">{{ t('common.moreFeatures') }} {{ showAdvancedMenu ? '▼' : '▶' }}</span>
-              </button>
-
-              <!-- Advanced features (collapsible) -->
-              <div v-if="showAdvancedMenu" class="advanced-features">
-                <button
-                  v-for="feature in advancedFeatures"
-                  :key="feature.id"
-                  :class="['nav-btn advanced-btn', { active: currentView === feature.id }]"
-                  @click="navigateToFeature(feature.id)"
-                  :title="feature.description"
-                >
-                  <span class="nav-icon">{{ feature.icon }}</span>
-                  <span class="nav-text">{{ feature.label }}</span>
-                </button>
-              </div>
-            </div>
-          </nav>
-        </div>
-
-        <!-- Language Selector -->
-        <div class="section language-section">
-          <LanguageSelector />
-        </div>
-      </div>
-    </aside>
+    <AppSidebar
+      v-model:selectedAgent="selectedAgent"
+      :show-sidebar="showSidebar"
+      :is-narrow-layout="isNarrowLayout"
+      :is-drawer="isNarrowLayout"
+      :selected-cwd="selectedCwd"
+      :folder-picker-available="folderPickerAvailable"
+      :is-connected="isConnected"
+      :is-connecting="isConnecting"
+      :is-loading="isLoading"
+      :has-agents="hasAgents"
+      :show-log-stream="showLogStream"
+      :show-traffic-monitor="showTrafficMonitor"
+      :startup-phase="sessionStore.startupPhase"
+      :startup-logs="sessionStore.startupLogs"
+      :startup-elapsed="sessionStore.startupElapsed"
+      @toggle-sidebar="toggleSidebar"
+      @toggle-log-stream="showLogStream = !showLogStream"
+      @toggle-traffic-monitor="showTrafficMonitor = !showTrafficMonitor"
+      @open-settings="showSettings = true"
+      @agent-select="handleAgentSelect"
+      @select-folder="handleSelectFolder"
+      @cwd-input="handleCwdInput"
+      @new-session="handleNewSession"
+      @cancel-connection="handleCancelConnection"
+      @toggle-startup-details="showStartupDetails = !showStartupDetails"
+      @disconnect="handleDisconnect"
+      @resume-session="handleResumeSession"
+      @delete-session="handleDeleteSession"
+    />
     
     <!-- Backdrop behind the drawer on narrow viewports. Only intercepts
          taps when the layout is narrow; on desktop it's display:none. -->
@@ -624,208 +244,25 @@ function clearError() {
     <!-- Main Content Area -->
     <div class="main-area">
       <main class="main-content">
-        <!-- Reconnect banner takes priority over the error banner: while a
-             reconnect is in progress we don't want a contradictory red
-             "Connection lost" pill. -->
-        <div v-if="isReconnecting" class="reconnect-banner">
-          <span class="reconnect-spinner" aria-hidden="true"></span>
-          <span class="reconnect-text">
-            Reconnecting to <strong>{{ reconnectingAgentName }}</strong>…
-          </span>
-        </div>
-
-        <!-- Error display (suppressed while reconnecting). -->
-        <div v-else-if="error" class="error-banner">
-          <span class="error-icon">⚠</span>
-          <span class="error-text">{{ error }}</span>
-          <button
-            v-if="canManuallyReconnect"
-            class="error-action"
-            @click="handleManualReconnect"
-            title="Reconnect"
-          >Reconnect</button>
-          <button class="error-close" @click="clearError" title="Dismiss">×</button>
-        </div>
+        <!-- Connection banners (reconnect / error) -->
+        <ConnectionBanner
+          :is-reconnecting="isReconnecting"
+          :reconnecting-agent-name="reconnectingAgentName"
+          :error="error"
+          :can-manually-reconnect="canManuallyReconnect"
+          @manual-reconnect="handleManualReconnect"
+          @clear-error="clearError"
+        />
         
-        <!-- Chat View when connected (single agent) -->
-        <ChatView v-if="isConnected && currentView === 'chat'" />
-
-        <!-- Multi-Agent Chat View -->
-        <MultiAgentChat v-else-if="currentView === 'multi-agent'" />
-
-        <!-- Multi-Session View -->
-        <MultiSessionChat v-else-if="currentView === 'multi-session'" />
-
-        <!-- Agent Status Panel -->
-        <div v-else-if="currentView === 'status'" class="view-container">
-          <h3>{{ t('navigation.status') }}</h3>
-          <div class="status-stats">
-            <div class="stat-card">
-              <span class="stat-value">{{ teamRuntime.activeTaskCount }}</span>
-              <span class="stat-label">{{ t('common.runningTasks') }}</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ teamRuntime.completedTaskCount }}</span>
-              <span class="stat-label">{{ t('common.completedTasks') }}</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ teamRuntime.taskList.length }}</span>
-              <span class="stat-label">{{ t('common.totalTasks') }}</span>
-            </div>
-          </div>
-          <div v-if="teamRuntime.taskList.length > 0" class="task-list">
-            <div v-for="task in teamRuntime.taskList.slice(0, 10)" :key="task.id" class="task-item" :class="task.status">
-              <span class="task-name">{{ task.title }}</span>
-              <span class="task-source">{{ task.source }}</span>
-              <span class="task-status">{{ task.status }}</span>
-            </div>
-          </div>
-          <div v-else class="empty-state">
-            <p>{{ t('common.noTasks') }}</p>
-          </div>
-        </div>
-
-        <!-- Realtime Monitor -->
-        <div v-else-if="currentView === 'monitor'" class="view-container">
-          <h3>{{ t('navigation.monitor') }}</h3>
-          <div v-if="teamRuntime.events.length > 0" class="event-list">
-            <div v-for="event in teamRuntime.events.slice(0, 50)" :key="event.id" class="event-item">
-              <span class="event-type">{{ event.type }}</span>
-              <span class="event-message">{{ event.message }}</span>
-              <span class="event-time">{{ new Date(event.timestamp).toLocaleTimeString() }}</span>
-            </div>
-          </div>
-          <div v-else class="empty-state">
-            <p>{{ t('common.noEvents') }}</p>
-          </div>
-          <TrafficMonitor />
-        </div>
-
-        <!-- History View -->
-        <HistoryView v-else-if="currentView === 'history'" />
-
-        <!-- Workflow View -->
-        <WorkflowView v-else-if="currentView === 'workflow'" />
-
-        <!-- Team Orchestration View (实时可视化编排) -->
-        <TeamOrchestrationView v-else-if="currentView === 'orchestration'" />
-
-        <!-- Bot Settings View -->
-        <BotSettings v-else-if="currentView === 'bot'" />
-
-        <!-- Gateway Settings View -->
-        <GatewaySettings v-else-if="currentView === 'gateway'" />
-
-        <!-- Memory View -->
-        <MemoryView v-else-if="currentView === 'memory'" />
-
-        <!-- Error View -->
-        <ErrorView v-else-if="currentView === 'error'" />
-
-        <!-- Evolution View -->
-        <EvolutionView v-else-if="currentView === 'evolution'" />
-
-        <!-- Pattern View -->
-        <PatternView v-else-if="currentView === 'pattern'" />
-
-        <!-- Hermes Dashboard (Agent Progress Monitor) -->
-        <HermesDashboard v-else-if="currentView === 'hermes'" />
-
-        <!-- Skills Management View -->
-        <SkillManager v-else-if="currentView === 'skills'" />
-
-        <!-- Collaboration Network View (Network Visualization) -->
-        <EnhancedHermesDashboard v-else-if="currentView === 'collaboration'" />
-
-        <!-- Agent Teams Platform Dashboard (Phase 2-4: 实时进度 + 类人宠物 + 三端同步) -->
-        <AgentTeamsDashboard v-else-if="currentView === 'agent-teams'" />
-
-        <!-- Executive Session View (会话记录和执行详情) -->
-        <ExecutiveSessionView v-else-if="currentView === 'executive-session'" />
-
-        <!-- Agent Config View (Agent 配置管理) -->
-        <AgentConfigView v-else-if="currentView === 'agent-config'" />
-
-        <!-- Task Graph View (DAG Visualization) -->
-        <TaskGraphView v-else-if="currentView === 'task-graph'" :dag="mockTaskDag" :show-agents="true" orientation="vertical" />
-
-        <!-- Welcome screen when not connected in chat view -->
-        <div v-else-if="currentView === 'chat' && !isConnected" class="welcome-screen">
-          <div class="welcome-header">
-            <h2>{{ t('common.welcomeTitle') }}</h2>
-            <p class="welcome-subtitle">{{ t('common.welcomeSubtitle') }}</p>
-          </div>
-
-          <!-- Quick Start Guide -->
-          <div class="quick-start-guide">
-            <h3>🚀 {{ t('common.quickStart') }}</h3>
-            <div class="steps">
-              <div class="step">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                  <h4>{{ t('common.step1Title') }}</h4>
-                  <p>{{ t('common.step1Desc') }}</p>
-                </div>
-              </div>
-              <div class="step">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                  <h4>{{ t('common.step2Title') }}</h4>
-                  <p>{{ t('common.step2Desc') }}</p>
-                </div>
-              </div>
-              <div class="step">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                  <h4>{{ t('common.step3Title') }}</h4>
-                  <p>{{ t('common.step3Desc') }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Feature Highlights -->
-          <div class="feature-highlights">
-            <h3>✨ {{ t('common.coreFeatures') }}</h3>
-            <div class="features-grid">
-              <div class="feature-card">
-                <div class="feature-icon">💬</div>
-                <h4>{{ t('common.featureChat') }}</h4>
-                <p>{{ t('common.featureChatDesc') }}</p>
-              </div>
-              <div class="feature-card">
-                <div class="feature-icon">🤖</div>
-                <h4>{{ t('common.featureMultiAgent') }}</h4>
-                <p>{{ t('common.featureMultiAgentDesc') }}</p>
-              </div>
-              <div class="feature-card">
-                <div class="feature-icon">🕸️</div>
-                <h4>{{ t('common.featureNetwork') }}</h4>
-                <p>{{ t('common.featureNetworkDesc') }}</p>
-              </div>
-              <div class="feature-card">
-                <div class="feature-icon">🤖</div>
-                <h4>{{ t('common.featureBot') }}</h4>
-                <p>{{ t('common.featureBotDesc') }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="!hasAgents" class="hint-section">
-            <p class="hint">
-              💡 <strong>{{ t('common.tip') }}：</strong>{{ t('common.welcomeHint') }}
-            </p>
-            <button class="config-agents-btn" @click="showSettings = true">
-              ⚙️ {{ t('common.configureAgents') }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Default state for other views -->
-        <div v-else class="welcome-screen">
-          <h2>{{ t('navigation.agentTeams') }}</h2>
-          <p>{{ t('common.pleaseConnect') }}</p>
-        </div>
+        <!-- Special handling for chat view when not connected (show welcome screen) -->
+        <WelcomeScreen
+          v-if="isChatView && !isConnected"
+          :has-agents="hasAgents"
+          @open-settings="showSettings = true"
+        />
+        
+        <!-- Default router view for all other routes -->
+        <router-view v-else />
       </main>
 
       <!-- Traffic Monitor Panel -->
@@ -929,269 +366,12 @@ html, body, #app {
   overflow: hidden;
 }
 
-.sidebar {
-  width: 320px;
-  min-width: 320px;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
+.drawer-backdrop {
+  display: none;
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(135deg, rgba(0, 102, 204, 0.05), rgba(99, 102, 241, 0.05));
-}
-
-.sidebar-header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.settings-btn,
-.toggle-btn {
-  padding: 0.25rem 0.5rem;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-}
-
-.settings-btn:hover,
-.toggle-btn:hover {
-  color: var(--text-primary);
-}
-
-.settings-btn.active {
-  color: var(--text-accent);
-  background: var(--bg-hover);
-  border-radius: 4px;
-}
-
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.section {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.language-section {
-  padding: 0.5rem 1rem;
-  border-bottom: none;
-  margin-top: auto;
-}
-
-.new-session-btn,
-.disconnect-btn {
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.625rem 1rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.new-session-btn {
-  background: var(--bg-primary);
-  color: white;
-}
-
-.new-session-btn:hover:not(:disabled) {
-  background: var(--bg-primary-hover);
-}
-
-.new-session-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cwd-picker {
-  margin-top: 0.75rem;
-}
-
-.cwd-picker label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.25rem;
-}
-
-.cwd-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.cwd-path {
-  flex: 1;
-  padding: 0.375rem 0.5rem;
-  background: var(--bg-main);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cwd-btn {
-  padding: 0.375rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.cwd-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-}
-
-.cwd-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Mobile-only free-text cwd input. */
-.cwd-input {
-  width: 100%;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--bg-main);
-  color: var(--text-primary);
-  font-size: 16px; /* 16px = no iOS auto-zoom */
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.cwd-input:disabled {
-  opacity: 0.5;
-}
-
-.view-nav {
-  padding-top: 12px;
-}
-
-.nav-title {
-  margin: 0 0 12px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-}
-
-.nav-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nav-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-/* Core features - slightly larger and more prominent */
-.nav-btn.core-feature {
-  font-weight: 500;
-}
-
-/* More menu button */
-.more-btn {
-  border-top: 1px solid var(--border-color);
-  margin-top: 8px;
-  padding-top: 12px;
-  font-weight: 500;
-}
-
-/* Advanced features container */
-.advanced-features {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
-  padding-left: 12px;
-  border-left: 2px solid var(--border-color);
-}
-
-.advanced-btn {
-  font-size: 13px;
-  padding: 8px 12px;
-  opacity: 0.85;
-}
-
-.advanced-btn:hover {
-  opacity: 1;
-}
-
-.nav-icon {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
-}
-
-.nav-text {
-  flex: 1;
-}
-
-.nav-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.nav-btn.active {
-  background: linear-gradient(135deg, var(--bg-primary), var(--bg-primary-hover));
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
-}
-
-.nav-btn.highlight {
-  border: 1px solid var(--bg-primary);
-}
-
-.nav-btn.highlight:hover {
-  background: rgba(0, 102, 204, 0.1);
-}
-
-.nav-btn.highlight.active {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  border: none;
-}
-
-.disconnect-btn {
-  background: var(--bg-danger);
-  color: white;
-}
-
-.disconnect-btn:hover {
-  background: #c82333;
+.mobile-hamburger {
+  display: none;
 }
 
 .sidebar-toggle-collapsed {
@@ -1227,453 +407,12 @@ html, body, #app {
   border-top: 2px solid var(--border-color);
 }
 
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #fee;
-  color: #c00;
-  border-bottom: 1px solid #fcc;
-}
-
-.error-icon {
-  flex-shrink: 0;
-}
-
-.error-text {
-  flex: 1;
-}
-
-.error-close {
-  flex-shrink: 0;
-  padding: 0.25rem 0.5rem;
-  border: none;
-  background: transparent;
-  color: #c00;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.6;
-  border-radius: 4px;
-}
-
-.error-close:hover {
-  opacity: 1;
-  background: rgba(204, 0, 0, 0.1);
-}
-
-/* Inline "Reconnect" affordance shown next to a stale error when we have a
-   saved session we could reattach to. */
-.error-action {
-  flex-shrink: 0;
-  padding: 0.25rem 0.6rem;
-  margin-right: 0.25rem;
-  border: 1px solid #c00;
-  border-radius: 4px;
-  background: transparent;
-  color: #c00;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.error-action:hover {
-  background: rgba(204, 0, 0, 0.1);
-}
-
-/* Foreground-reconnect banner. Distinct visual style from the red error
-   banner so users immediately read it as transient progress, not failure. */
-.reconnect-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.75rem 1rem;
-  background: #e0f2fe;
-  color: #0369a1;
-  border-bottom: 1px solid #bae6fd;
-}
-
-.reconnect-text {
-  flex: 1;
-  font-size: 0.9rem;
-}
-
-.reconnect-text strong {
-  font-weight: 600;
-}
-
-.reconnect-spinner {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: reconnect-spin 0.9s linear infinite;
-}
-
-@keyframes reconnect-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-color-scheme: dark) {
-  .reconnect-banner {
-    background: #082f49;
-    color: #7dd3fc;
-    border-bottom-color: #0c4a6e;
-  }
-}
-
-.welcome-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 2rem;
-  color: var(--text-secondary);
-  overflow-y: auto;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.welcome-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.welcome-screen h2 {
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-  font-size: 2rem;
-}
-
-.welcome-subtitle {
-  font-size: 1.1rem;
-  color: var(--text-muted);
-}
-
-/* Quick Start Guide */
-.quick-start-guide {
-  width: 100%;
-  margin-bottom: 2rem;
-  background: var(--bg-surface);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-color);
-}
-
-.quick-start-guide h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.steps {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  border-left: 3px solid var(--primary);
-}
-
-.step-number {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.step-content {
-  flex: 1;
-}
-
-.step-content h4 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1rem;
-  color: var(--text-primary);
-}
-
-.step-content p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-/* Feature Highlights */
-.feature-highlights {
-  width: 100%;
-  margin-bottom: 2rem;
-}
-
-.feature-highlights h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.feature-card {
-  background: var(--bg-surface);
-  border-radius: 8px;
-  padding: 1.25rem;
-  border: 1px solid var(--border-color);
-  transition: all 0.2s ease;
-}
-
-.feature-card:hover {
-  border-color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.feature-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.feature-card h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  color: var(--text-primary);
-}
-
-.feature-card p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-/* Hint Section */
-.hint-section {
-  width: 100%;
-  text-align: center;
-  padding: 1.5rem;
-  background: rgba(var(--primary-rgb), 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(var(--primary-rgb), 0.2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.welcome-screen .hint {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.config-agents-btn {
-  padding: 0.75rem 1.5rem;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.config-agents-btn:hover {
-  background: var(--primary-dark, #0056b3);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.config-agents-btn:active {
-  transform: translateY(0);
-}
-
-/* ---------- Inline View Containers (status, monitor, bot) ---------- */
-
-.view-container {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.status-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-}
-
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-surface);
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.task-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-surface);
-  font-size: 13px;
-}
-
-.task-item.running { border-left: 3px solid #3b82f6; }
-.task-item.completed { border-left: 3px solid #22c55e; }
-.task-item.failed { border-left: 3px solid #ef4444; }
-
-.task-name { flex: 1; font-weight: 500; }
-.task-source { color: var(--text-muted); font-size: 11px; }
-.task-status {
-  font-size: 11px;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-subtle);
-}
-
-.event-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.event-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-}
-
-.event-type {
-  font-weight: 600;
-  color: var(--primary);
-  min-width: 100px;
-  font-size: 11px;
-}
-
-.event-message { flex: 1; }
-.event-time { color: var(--text-muted); min-width: 80px; text-align: right; }
-
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: var(--text-muted);
-}
-
-.empty-state .hint {
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-/* ---------- Multi-Session View ---------- */
-
-.multi-session-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.session-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 /* ---------- Mobile / narrow-viewport layout ---------- */
-
-.drawer-backdrop {
-  display: none;
-}
-
-.mobile-hamburger {
-  display: none;
-}
 
 @media (max-width: 800px) {
   .app-container {
     /* Prevent the off-screen drawer from causing horizontal scroll. */
     overflow-x: hidden;
-  }
-
-  /* Banners sit at the very top of the main area, where the OS status bar
-     / camera notch overlap on phones. Extend the banner colour through the
-     safe-area inset and push the text below it so the status bar reads as
-     a tinted continuation of the banner instead of clipping its content. */
-  .reconnect-banner,
-  .error-banner {
-    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
-  }
-
-  .sidebar.is-drawer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 85vw;
-    max-width: 360px;
-    z-index: 100;
-    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3);
-    /* Honour iOS notch / Android status bar. */
-    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .drawer-backdrop {
@@ -1706,14 +445,6 @@ html, body, #app {
     font-size: 1.25rem;
     cursor: pointer;
     color: var(--text-primary);
-  }
-
-  /* Tap-target sizing for the icon buttons inside the sidebar header. */
-  .settings-btn,
-  .toggle-btn {
-    min-width: 40px;
-    min-height: 40px;
-    font-size: 1rem;
   }
 
   /* Honour the iOS home indicator at the bottom of the main area. */

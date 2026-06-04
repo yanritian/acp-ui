@@ -59,14 +59,16 @@ Desktop.ini
 *.deb
 *.rpm
 
-# Screenshots and images (keep _screenshots/ if organized)
+# Screenshots and images (keep assets/ and docs/screenshots/ only)
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.bmp
 !src/assets/
+!docs/screenshots/*.png
 !docs/test-reports/screenshots/*.png
+!assets/
 
 # Temp test directories
 test_demo/
@@ -77,10 +79,17 @@ test_output/
 test_result/
 test-workspace/
 
-# Python scripts and batch files
-*.py
-*.bat
-*.cmd
+# Temp / dev directories in project root
+_cleanup/
+workspace/
+flutter/
+hermes/
+screen_base64.txt
+
+# Python scripts and batch files (root-level only)
+/*.py
+/*.bat
+/*.cmd
 
 # Agent result files
 agent_result.txt
@@ -94,6 +103,11 @@ acp_ui_flutter/lib/**/*.g.dart
 acp_ui_flutter/.dart_tool/
 acp_ui_flutter/build/
 acp_ui_flutter/android/.gradle/
+acp_ui_flutter/windows_bak/
+acp_ui_flutter/*.py
+acp_ui_flutter/*.txt
+acp_ui_flutter/*.json
+acp_ui_flutter/*.png
 acp_ui_flutter_new/
 
 # Playwright MCP output
@@ -102,9 +116,6 @@ acp_ui_flutter_new/
 # Claude Code plans (keep only committed ones)
 .claude/plans/
 
-# OS files
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Cargo / tool caches
 .cargo/
 .tauri-tools/

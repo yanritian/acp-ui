@@ -4,7 +4,7 @@
 //! Uses reqwest to poll Telegram API for updates.
 
 use crate::bot_adapters::{BotAdapter, BotCommand, BotResponse, format_response};
-use crate::TelegramConfig;
+use crate::commands::gateway::TelegramConfig;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

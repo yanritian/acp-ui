@@ -4,6 +4,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -787,23 +788,194 @@ async fn handle_remote_command(
                 }
             }
         },
+        "list_executive_sessions" => {
+            // Query executive sessions from database
+            let db_guard = state.database.lock().ok();
+            if let Some(guard) = db_guard {
+                if let Some(database) = guard.as_ref() {
+                    let limit = request.payload.as_ref()
+                        .and_then(|p| p.get("limit").and_then(|v| v.as_u64()))
+                        .map(|l| Some(l))
+                        .unwrap_or(Some(50));
+
+                    match database.load_executive_sessions(limit) {
+                        Ok(sessions) => {
+                            // Convert to JSON format expected by frontend
+                            let session_list: Vec<serde_json::Value> = sessions.iter().map(|s| {
+                                serde_json::json!({
+                                    "id": s.id,
+                                    "request": s.request,
+                                    "workspace": s.workspace,
+                                    "status": s.status,
+                                    "summary": s.summary,
+                                    "files_json": s.files_json,
+                                    "logs_json": s.logs_json,
+                                    "created_at": s.created_at,
+                                    "completed_at": s.completed_at
+                                })
+                            }).collect();
+
+                            RemoteResponse {
+                                id: request.id.clone(),
+                                ok: true,
+                                data: Some(serde_json::json!({
+                                    "sessions": session_list,
+                                    "count": session_list.len()
+                                })),
+                                error: None,
+                            }
+                        }
+                        Err(e) => {
+                            RemoteResponse {
+                                id: request.id.clone(),
+                                ok: false,
+                                data: None,
+                                error: Some(format!("Failed to load sessions: {}", e)),
+                            }
+                        }
+                    }
+                } else {
+                    RemoteResponse {
+                        id: request.id.clone(),
+                        ok: false,
+                        data: None,
+                        error: Some("Database not initialized".to_string()),
+                    }
+                }
+            } else {
+                RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some("Failed to lock database".to_string()),
+                }
+            }
+        },
         "execute_development_task" => {
-            // Forward to frontend for async execution
+            // Directly execute the task using Hermes Native (not just forward to frontend)
+            // Convert to owned values for async spawn
             let request_text = request.payload.as_ref()
                 .and_then(|p| p.get("request").and_then(|v| v.as_str()))
-                .unwrap_or("");
+                .unwrap_or("")
+                .to_string();  // Convert to owned String
 
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "execute_development_task",
+            // Get workspace from manager
+            let workspace_path = {
+                let manager_guard = state.executive_agent_manager.lock().unwrap();
+                match manager_guard.as_ref() {
+                    Some(mgr) => mgr.workspace.clone(),
+                    None => PathBuf::from("D:/dingsun/test_workspace")
+                }
+            };
+
+            // Create a new manager for this execution
+            let manager = crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
+
+            // Emit task started event
+            let _ = app_handle.emit("remote-task-started", serde_json::json!({
                 "request_id": request.id,
-                "client_id": client_id,
+                "client_id": client_id.to_string(),
                 "request": request_text,
             }));
+
+            // Execute asynchronously and send result back
+            let app_handle_clone = app_handle.clone();
+            let request_id = request.id.clone();
+            let client_id_owned = client_id.to_string();  // Convert to owned String
+
+            // Get database reference for saving records
+            let db_ref = state.database.clone();
+
+            tokio::spawn(async move {
+                let result = manager.execute_workflow(request_text.clone(), app_handle_clone.clone()).await;
+
+                match result {
+                    Ok(task_result) => {
+                        // Save execution record to database for persistence and traceability
+                        let session_record = crate::database::ExecutiveSessionRecord {
+                            id: task_result.task_id.clone(),
+                            request: task_result.request.clone(),
+                            workspace: task_result.workspace.clone(),
+                            status: "completed".to_string(),
+                            summary: Some(task_result.summary.clone()),
+                            files_json: Some(serde_json::to_string(&task_result.files).unwrap_or_default()),
+                            logs_json: Some(serde_json::to_string(&task_result.logs).unwrap_or_default()),
+                            created_at: chrono::Utc::now().to_rfc3339(),
+                            completed_at: Some(task_result.completed_at.to_rfc3339()),
+                        };
+
+                        // Save session record to database
+                        if let Some(db) = db_ref.lock().unwrap().as_ref() {
+                            if let Err(e) = db.save_executive_session(&session_record) {
+                                eprintln!("Failed to save executive session: {}", e);
+                            }
+
+                            // Save thinking chunks separately for traceability
+                            for chunk in manager.get_thinking_chunks() {
+                                if let Err(e) = db.save_thinking_chunk(&chunk) {
+                                    eprintln!("Failed to save thinking chunk: {}", e);
+                                }
+                            }
+
+                            // Save tool calls separately for traceability
+                            for tool_call in manager.get_tool_calls() {
+                                if let Err(e) = db.save_tool_call(&tool_call) {
+                                    eprintln!("Failed to save tool call: {}", e);
+                                }
+                            }
+                        }
+
+                        // Send success response with full result
+                        let _ = app_handle_clone.emit("remote-task-completed", serde_json::json!({
+                            "request_id": request_id,
+                            "client_id": client_id_owned,
+                            "result": task_result,
+                            "thinking_chunks": manager.get_thinking_chunks(),
+                            "tool_calls": manager.get_tool_calls(),
+                            "success": true,
+                            "saved_to_db": true,
+                        }));
+                    }
+                    Err(e) => {
+                        // Save error record to database
+                        let session_record = crate::database::ExecutiveSessionRecord {
+                            id: request_id.clone(),
+                            request: request_text,
+                            workspace: "unknown".to_string(),
+                            status: "error".to_string(),
+                            summary: None,
+                            files_json: None,
+                            logs_json: None,
+                            created_at: chrono::Utc::now().to_rfc3339(),
+                            completed_at: None,
+                        };
+
+                        if let Some(db) = db_ref.lock().unwrap().as_ref() {
+                            if let Err(save_err) = db.save_executive_session(&session_record) {
+                                eprintln!("Failed to save error session: {}", save_err);
+                            }
+                        }
+
+                        // Send error response
+                        let _ = app_handle_clone.emit("remote-task-error", serde_json::json!({
+                            "request_id": request_id,
+                            "client_id": client_id_owned,
+                            "error": e,
+                            "success": false,
+                            "saved_to_db": true,
+                        }));
+                    }
+                }
+            });
 
             RemoteResponse {
                 id: request.id.clone(),
                 ok: true,
-                data: Some(serde_json::json!({ "forwarded": true, "message": "任务已提交，请监听事件获取结果" })),
+                data: Some(serde_json::json!({
+                    "forwarded": true,
+                    "executing": true,
+                    "message": "任务已开始执行，请监听 remote-task-completed 事件获取结果"
+                })),
                 error: None,
             }
         },

@@ -757,6 +757,53 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
         [],
     ).map_err(|e| e.to_string())?;
 
+    // Thinking Chunks table for Agent thinking process tracking
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS thinking_chunks (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            depth INTEGER DEFAULT 1,
+            duration_ms INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (task_id) REFERENCES executive_sessions(id) ON DELETE CASCADE
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_thinking_chunks_task ON thinking_chunks(task_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    // Tool Calls table for Agent tool execution tracking
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS tool_calls (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            arguments_json TEXT,
+            result TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            duration_ms INTEGER,
+            error TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (task_id) REFERENCES executive_sessions(id) ON DELETE CASCADE
+        )",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tool_calls_task ON tool_calls(task_id)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status)",
+        [],
+    ).map_err(|e| e.to_string())?;
+
     // ===== Architecture Optimization Tables (Phase 1) =====
 
     // Agent Registry tables
@@ -1169,6 +1216,52 @@ impl DatabaseManager {
                 session.logs_json,
                 session.created_at,
                 session.completed_at,
+            ],
+        ).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    /// Save a thinking chunk to database for traceability
+    pub fn save_thinking_chunk(&self, chunk: &ThinkingChunkRecord) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+
+        conn.execute(
+            "INSERT INTO thinking_chunks (
+                id, task_id, content, depth, duration_ms, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                chunk.id,
+                chunk.task_id,
+                chunk.content,
+                chunk.depth,
+                chunk.duration_ms,
+                chunk.created_at.to_rfc3339(),
+            ],
+        ).map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+
+    /// Save a tool call to database for traceability
+    pub fn save_tool_call(&self, tool_call: &ToolCallRecord) -> Result<(), String> {
+        let conn = self.conn.lock().unwrap();
+
+        conn.execute(
+            "INSERT INTO tool_calls (
+                id, task_id, tool_name, arguments_json, result, status, duration_ms, error, created_at, completed_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                tool_call.id,
+                tool_call.task_id,
+                tool_call.tool_name,
+                tool_call.arguments_json,
+                tool_call.result,
+                tool_call.status,
+                tool_call.duration_ms,
+                tool_call.error,
+                tool_call.created_at.to_rfc3339(),
+                tool_call.completed_at.map(|t| t.to_rfc3339()),
             ],
         ).map_err(|e| e.to_string())?;
 

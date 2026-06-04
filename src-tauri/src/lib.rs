@@ -392,6 +392,31 @@ pub fn run() {
                 }
             }
 
+            // Auto-start WebSocket server on port 1421 for remote control testing
+            let app_handle_for_ws = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let server = websocket::WebSocketServer::new(1421);
+                match server.start(app_handle_for_ws.clone(), false).await {
+                    Ok(url) => {
+                        println!("✅ WebSocket server auto-started: {}", url);
+
+                        // Get state from app_handle and store server
+                        let state = app_handle_for_ws.state::<AppState>();
+                        let mut ws = state.ws_server.lock().unwrap();
+                        *ws = Some(server);
+
+                        // Emit event to notify frontend
+                        let _ = app_handle_for_ws.emit("ws-server-auto-started", serde_json::json!({
+                            "url": url,
+                            "port": 1421
+                        }));
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Failed to auto-start WebSocket server: {}", e);
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

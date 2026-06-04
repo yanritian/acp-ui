@@ -66,6 +66,10 @@ const sessions = ref<ExecutiveSession[]>([]);
 const currentSession = ref<ExecutiveSession | null>(null);
 const selectedFile = ref<GeneratedFile | null>(null);
 const isLoading = ref(false);
+const newRequest = ref('');
+
+// 初始化工作目录
+const WORKSPACE_PATH = 'D:/dingsun/acp-ui/workspace';
 
 // 计算属性
 const totalFiles = computed(() =>
@@ -83,40 +87,102 @@ let unlisteners: (() => void)[] = [];
 
 // 加载持久化的会话记录
 async function loadPersistedSessions() {
-  if (!invoke) {
-    console.log('[ExecutiveSessionView] invoke not available, skipping persistence load');
-    return;
+  // Try Tauri invoke first (if in Tauri environment)
+  if (invoke) {
+    try {
+      const records = await invoke('load_executive_sessions', { limit: 50 });
+
+      for (const record of records as any[]) {
+        const session: ExecutiveSession = {
+          taskId: record.id,
+          request: record.request,
+          workspace: record.workspace,
+          status: record.status as 'running' | 'completed' | 'error',
+          files: record.files_json ? JSON.parse(record.files_json) : [],
+          logs: record.logs_json ? JSON.parse(record.logs_json) : [],
+          summary: record.summary,
+          startTime: record.created_at,
+          endTime: record.completed_at,
+        };
+        // Only add if not already in list
+        if (!sessions.value.find(s => s.taskId === session.taskId)) {
+          sessions.value.push(session);
+        }
+      }
+
+      // Sort by start time (newest first)
+      sessions.value.sort((a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
+
+      console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} persisted sessions from Tauri`);
+      return;
+    } catch (e) {
+      console.error('[ExecutiveSessionView] Failed to load from Tauri:', e);
+    }
   }
 
+  // Fallback: Use WebSocket to query database (works in web mode)
+  console.log('[ExecutiveSessionView] Using WebSocket fallback to load sessions');
   try {
-    const records = await invoke('load_executive_sessions', { limit: 50 });
+    const ws = new WebSocket('ws://localhost:1421');
 
-    for (const record of records as any[]) {
-      const session: ExecutiveSession = {
-        taskId: record.id,
-        request: record.request,
-        workspace: record.workspace,
-        status: record.status as 'running' | 'completed' | 'error',
-        files: record.files_json ? JSON.parse(record.files_json) : [],
-        logs: record.logs_json ? JSON.parse(record.logs_json) : [],
-        summary: record.summary,
-        startTime: record.created_at,
-        endTime: record.completed_at,
-      };
-      // Only add if not already in list
-      if (!sessions.value.find(s => s.taskId === session.taskId)) {
-        sessions.value.push(session);
+    ws.onopen = () => {
+      console.log('[ExecutiveSessionView] WebSocket connected');
+      // Send list_executive_sessions command
+      ws.send(JSON.stringify({
+        id: 'load-sessions-' + Date.now(),
+        type: 'command',  // Use 'type' not 'request_type' (server expects 'type')
+        command: 'list_executive_sessions',
+        token: null,  // No auth token needed when server has no token set
+        payload: { limit: 50 }
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const response = JSON.parse(event.data);
+        console.log('[ExecutiveSessionView] WebSocket response:', response);
+
+        if (response.ok && response.data?.sessions) {
+          for (const record of response.data.sessions as any[]) {
+            const session: ExecutiveSession = {
+              taskId: record.id,
+              request: record.request,
+              workspace: record.workspace,
+              status: record.status as 'running' | 'completed' | 'error',
+              files: record.files_json ? JSON.parse(record.files_json) : [],
+              logs: record.logs_json ? JSON.parse(record.logs_json) : [],
+              summary: record.summary,
+              startTime: record.created_at,
+              endTime: record.completed_at,
+            };
+            if (!sessions.value.find(s => s.taskId === session.taskId)) {
+              sessions.value.push(session);
+            }
+          }
+
+          sessions.value.sort((a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          );
+
+          console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} sessions from WebSocket`);
+        }
+        ws.close();
+      } catch (e) {
+        console.error('[ExecutiveSessionView] Failed to parse WebSocket response:', e);
       }
-    }
+    };
 
-    // Sort by start time (newest first)
-    sessions.value.sort((a, b) =>
-      new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-    );
+    ws.onerror = (error) => {
+      console.error('[ExecutiveSessionView] WebSocket error:', error);
+    };
 
-    console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} persisted sessions`);
+    ws.onclose = () => {
+      console.log('[ExecutiveSessionView] WebSocket closed');
+    };
   } catch (e) {
-    console.error('[ExecutiveSessionView] Failed to load persisted sessions:', e);
+    console.error('[ExecutiveSessionView] Failed to connect WebSocket:', e);
   }
 }
 
@@ -151,7 +217,17 @@ async function saveSessionToDatabase(session: ExecutiveSession) {
 // 事件监听 - 初始化Tauri API并监听事件
 onMounted(async () => {
   // 先初始化Tauri API
-  await initTauriAPI();
+  const tauriReady = await initTauriAPI();
+
+  // 初始化 Executive Agent（设置工作目录）
+  if (tauriReady && invoke) {
+    try {
+      await invoke('init_executive_agent', { workspace: WORKSPACE_PATH });
+      console.log('[ExecutiveSessionView] Executive Agent initialized with workspace:', WORKSPACE_PATH);
+    } catch (e) {
+      console.error('[ExecutiveSessionView] Failed to initialize Executive Agent:', e);
+    }
+  }
 
   // 加载持久化的会话
   await loadPersistedSessions();
@@ -386,6 +462,36 @@ function addTestSession() {
   // 保存到数据库
   saveSessionToDatabase(testSession);
 }
+
+// 执行新任务
+async function executeTask() {
+  if (!newRequest.value.trim() || !invoke) {
+    console.log('[ExecutiveSessionView] No request or invoke not available');
+    return;
+  }
+
+  const request = newRequest.value.trim();
+  newRequest.value = '';
+  isLoading.value = true;
+
+  try {
+    console.log('[ExecutiveSessionView] Executing task:', request);
+    const result = await invoke('execute_development_task', { request });
+    console.log('[ExecutiveSessionView] Task result:', result);
+  } catch (e) {
+    console.error('[ExecutiveSessionView] Task execution failed:', e);
+    if (currentSession.value) {
+      currentSession.value.logs.push({
+        timestamp: new Date().toISOString(),
+        agentType: 'System',
+        action: 'error',
+        error: String(e),
+      });
+      currentSession.value.status = 'error';
+    }
+    isLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -408,6 +514,28 @@ function addTestSession() {
         </span>
       </div>
       <button class="test-btn" @click="addTestSession">+ 添加测试会话</button>
+    </div>
+
+    <!-- 任务输入区 -->
+    <div class="task-input-section">
+      <div class="input-row">
+        <input
+          v-model="newRequest"
+          type="text"
+          placeholder="输入开发需求，例如：做一个简单的计算器..."
+          class="task-input"
+          :disabled="isLoading"
+          @keyup.enter="executeTask"
+        />
+        <button
+          class="execute-btn"
+          :disabled="isLoading || !newRequest.trim()"
+          @click="executeTask"
+        >
+          {{ isLoading ? '执行中...' : '执行' }}
+        </button>
+      </div>
+      <p class="input-hint">Agent 将使用阿里百炼云 qwen3.6-plus 模型执行任务</p>
     </div>
 
     <!-- 主内容区 -->
@@ -581,6 +709,60 @@ function addTestSession() {
 .test-btn:hover {
   background: var(--primary-color, #0066cc);
   color: white;
+}
+
+.task-input-section {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.task-input:focus {
+  border-color: var(--primary-color, #0066cc);
+}
+
+.task-input:disabled {
+  background: var(--bg-disabled, #e0e0e0);
+}
+
+.execute-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary-color, #0066cc);
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.execute-btn:hover:not(:disabled) {
+  background: var(--primary-dark, #0052a3);
+}
+
+.execute-btn:disabled {
+  background: var(--bg-disabled, #e0e0e0);
+  color: var(--text-muted, #999);
+  cursor: not-allowed;
+}
+
+.input-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted, #999);
 }
 
 .main-content {

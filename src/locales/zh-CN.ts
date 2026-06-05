@@ -171,6 +171,9 @@ export const zhCN: MessageSchema = {
     agentManagement: '代理管理',
     noActiveTasks: '暂无活动任务',
     noRegisteredAgents: '暂无注册代理',
+    disconnected: '未连接',
+    connectionError: '连接错误',
+    webModeNotice: 'Web模式下Hermes数据不可用',
   },
   taskGraph: {
     title: '任务图',

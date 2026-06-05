@@ -2,8 +2,7 @@
 // 通过 Tauri WebSocket 和 events 获取实时数据
 
 import { ref, computed } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { isTauriHost } from './platform'
 
 // Hermes Status Types
 export interface HermesAgentStatus {
@@ -57,16 +56,33 @@ const taskHistory = ref<HermesTaskStatus[]>([])
 const isHermesConnected = ref(false)
 
 // Event listeners (stored for cleanup)
+type UnlistenFn = () => void
 let unlisteners: UnlistenFn[] = []
+
+// Tauri API references (loaded conditionally)
+let tauriListen: ((event: string, handler: (event: unknown) => void) => Promise<UnlistenFn>) | null = null
+let tauriInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null
 
 /**
  * Initialize Hermes API connection
  */
 export async function initHermesApi(): Promise<void> {
+  // Only initialize in Tauri environment
+  if (!isTauriHost()) {
+    console.log('[HermesAPI] Not in Tauri environment, skipping initialization')
+    return
+  }
+
   try {
+    // Dynamically import Tauri APIs
+    const eventModule = await import('@tauri-apps/api/event')
+    const coreModule = await import('@tauri-apps/api/core')
+    tauriListen = eventModule.listen
+    tauriInvoke = coreModule.invoke
+
     // Listen to Tauri events from Executive Agent
-    const unlistenStarted = await listen('task-started', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenStarted = await tauriListen('task-started', (event) => {
+      const payload = (event as any).payload as Record<string, unknown>
       currentTask.value = {
         taskId: payload.taskId as string,
         request: payload.request as string,
@@ -85,8 +101,8 @@ export async function initHermesApi(): Promise<void> {
       }
     })
 
-    const unlistenCompleted = await listen('task-completed', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenCompleted = await tauriListen('task-completed', (event) => {
+      const payload = (event as any).payload as Record<string, unknown>
       if (currentTask.value) {
         currentTask.value.status = 'completed'
         currentTask.value.completedAt = Date.now()
@@ -111,8 +127,8 @@ export async function initHermesApi(): Promise<void> {
       }
     })
 
-    const unlistenFailed = await listen('task-failed', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenFailed = await tauriListen('task-failed', (event) => {
+      const payload = (event as any).payload as Record<string, unknown>
       if (currentTask.value) {
         currentTask.value.status = 'failed'
         currentTask.value.completedAt = Date.now()
@@ -121,20 +137,18 @@ export async function initHermesApi(): Promise<void> {
       agentStatus.value.status = 'error'
     })
 
-    const unlistenThinking = await listen('thinking-chunk', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenThinking = await tauriListen('thinking-chunk', (event) => {
       agentStatus.value.thinkingCount++
       metrics.value.totalThinkingChunks++
     })
 
-    const unlistenToolCall = await listen('tool-call', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenToolCall = await tauriListen('tool-call', (event) => {
       agentStatus.value.toolCallCount++
       metrics.value.totalToolCalls++
     })
 
-    const unlistenAgentStatus = await listen('agent-status-update', (event) => {
-      const payload = event.payload as Record<string, unknown>
+    const unlistenAgentStatus = await tauriListen('agent-status-update', (event) => {
+      const payload = (event as any).payload as Record<string, unknown>
       agentStatus.value.agentType = payload.agentType as string
       agentStatus.value.status = payload.status as 'idle' | 'busy' | 'error'
     })
@@ -149,6 +163,7 @@ export async function initHermesApi(): Promise<void> {
     ]
 
     isHermesConnected.value = true
+    console.log('[HermesAPI] Initialized successfully')
   } catch (error) {
     console.error('Failed to initialize Hermes API:', error)
     isHermesConnected.value = false
@@ -181,9 +196,12 @@ export function getHermesStatus() {
  * Fetch Hermes metrics from backend (if available)
  */
 export async function fetchHermesMetrics(): Promise<HermesMetrics> {
+  if (!tauriInvoke) {
+    return metrics.value
+  }
   try {
     // Try to invoke backend command for metrics
-    const result = await invoke<HermesMetrics>('get_hermes_metrics')
+    const result = await tauriInvoke<HermesMetrics>('get_hermes_metrics')
     metrics.value = result
     return result
   } catch {
@@ -196,8 +214,11 @@ export async function fetchHermesMetrics(): Promise<HermesMetrics> {
  * Get task history from database
  */
 export async function fetchTaskHistory(limit: number = 20): Promise<HermesTaskStatus[]> {
+  if (!tauriInvoke) {
+    return taskHistory.value
+  }
   try {
-    const result = await invoke<HermesTaskStatus[]>('get_task_history', { limit })
+    const result = await tauriInvoke<HermesTaskStatus[]>('get_task_history', { limit })
     taskHistory.value = result
     return result
   } catch {

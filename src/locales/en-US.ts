@@ -171,6 +171,9 @@ export const enUS: MessageSchema = {
     agentManagement: 'Agent Management',
     noActiveTasks: 'No active tasks',
     noRegisteredAgents: 'No registered agents',
+    disconnected: 'Disconnected',
+    connectionError: 'Connection Error',
+    webModeNotice: 'Hermes data not available in web mode',
   },
   taskGraph: {
     title: 'Task Graph',

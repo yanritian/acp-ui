@@ -10,8 +10,8 @@
  * - sessionPermissions: Permission requests and authentication
  * - sessionCapabilities: Modes, commands, and models management
  */
-import { defineStore, storeToRefs } from 'pinia';
-import { ref, computed, watch } from 'vue';
+import { defineStore } from 'pinia';
+import { computed, watch } from 'vue';
 import { useSessionLifecycleStore } from './session-lifecycle';
 import { useSessionMessagesStore } from './session-messages';
 import { useSessionPermissionsStore } from './session-permissions';
@@ -33,52 +33,85 @@ export { useSessionCapabilitiesStore } from './session-capabilities';
  * Delegates to individual stores while coordinating cross-store interactions.
  */
 export const useSessionStore = defineStore('session', () => {
-  // Get individual stores
+  // Get individual stores - these are safe to call inside setup
   const lifecycleStore = useSessionLifecycleStore();
   const messagesStore = useSessionMessagesStore();
   const permissionsStore = useSessionPermissionsStore();
   const capabilitiesStore = useSessionCapabilitiesStore();
 
-  // Reactive refs from stores
-  const {
-    savedSessions,
-    currentSession,
-    isConnected,
-    isLoading,
-    isConnecting,
-    isReconnecting,
-    error,
-    startupPhase,
-    startupLogs,
-    startupElapsed,
-  } = storeToRefs(lifecycleStore);
+  // Direct computed wrappers for store properties (avoiding storeToRefs in setup)
+  // Lifecycle store properties - unwrap the ref by accessing .value in computed
+  const savedSessions = computed(() => lifecycleStore.savedSessions);
+  const currentSession = computed({
+    get: () => lifecycleStore.currentSession,
+    set: (val) => { lifecycleStore.currentSession = val; }
+  });
+  const isConnected = computed({
+    get: () => lifecycleStore.isConnected,
+    set: (val) => { lifecycleStore.isConnected = val; }
+  });
+  const isLoading = computed({
+    get: () => lifecycleStore.isLoading,
+    set: (val) => { lifecycleStore.isLoading = val; }
+  });
+  const isConnecting = computed({
+    get: () => lifecycleStore.isConnecting,
+    set: (val) => { lifecycleStore.isConnecting = val; }
+  });
+  const isReconnecting = computed({
+    get: () => lifecycleStore.isReconnecting,
+    set: (val) => { lifecycleStore.isReconnecting = val; }
+  });
+  const error = computed({
+    get: () => lifecycleStore.error,
+    set: (val) => { lifecycleStore.error = val; }
+  });
+  const startupPhase = computed(() => lifecycleStore.startupPhase);
+  const startupLogs = computed(() => lifecycleStore.startupLogs);
+  const startupElapsed = computed(() => lifecycleStore.startupElapsed);
 
-  const {
-    messages,
-    toolCalls,
-  } = storeToRefs(messagesStore);
+  // Messages store properties - unwrap refs
+  const messages = computed({
+    get: () => messagesStore.messages,
+    set: (val) => { messagesStore.messages = val; }
+  });
+  const toolCalls = computed(() => messagesStore.toolCalls);
 
-  const {
-    pendingPermission,
-    pendingPermissions,
-    pendingAuthMethods,
-    pendingAuthAgentName,
-  } = storeToRefs(permissionsStore);
+  // Permissions store properties
+  // pendingPermission is a read-only computed from pendingPermissions[0]
+  const pendingPermission = computed(() => permissionsStore.pendingPermission);
+  const pendingPermissions = computed({
+    get: () => permissionsStore.pendingPermissions,
+    set: (val) => { permissionsStore.pendingPermissions = val; }
+  });
+  const pendingAuthMethods = computed({
+    get: () => permissionsStore.pendingAuthMethods,
+    set: (val) => { permissionsStore.pendingAuthMethods = val; }
+  });
+  const pendingAuthAgentName = computed({
+    get: () => permissionsStore.pendingAuthAgentName,
+    set: (val) => { permissionsStore.pendingAuthAgentName = val; }
+  });
 
-  const {
-    availableModes,
-    currentModeId,
-    availableCommands,
-    availableModels,
-    currentModelId,
-  } = storeToRefs(capabilitiesStore);
+  // Capabilities store properties
+  const availableModes = computed(() => capabilitiesStore.availableModes);
+  const currentModeId = computed({
+    get: () => capabilitiesStore.currentModeId,
+    set: (val) => { capabilitiesStore.currentModeId = val; }
+  });
+  const availableCommands = computed(() => capabilitiesStore.availableCommands);
+  const availableModels = computed(() => capabilitiesStore.availableModels);
+  const currentModelId = computed({
+    get: () => capabilitiesStore.currentModelId,
+    set: (val) => { capabilitiesStore.currentModelId = val; }
+  });
 
-  // Computed
-  const hasActiveSession = computed(() => currentSession.value !== null);
-  const messageList = computed(() => messages.value);
-  const toolCallList = computed(() => Array.from(toolCalls.value.values()));
+  // Computed - use direct store access for consistency
+  const hasActiveSession = computed(() => lifecycleStore.currentSession !== null);
+  const messageList = computed(() => messagesStore.messages);
+  const toolCallList = computed(() => Array.from(messagesStore.toolCalls.values()));
   const resumableSessions = computed(() =>
-    savedSessions.value.filter(s => s.supportsLoadSession === true)
+    lifecycleStore.savedSessions.filter(s => s.supportsLoadSession === true)
   );
 
   // Permission watch cleanup
@@ -158,8 +191,8 @@ export const useSessionStore = defineStore('session', () => {
     }
 
     // Update messages store session ID
-    if (currentSession.value) {
-      messagesStore.setCurrentSessionId(currentSession.value.sessionId);
+    if (lifecycleStore.currentSession) {
+      messagesStore.setCurrentSessionId(lifecycleStore.currentSession.sessionId);
     }
 
     // Clear previous state
@@ -172,15 +205,15 @@ export const useSessionStore = defineStore('session', () => {
     await lifecycleStore.resumeSession(savedSession);
 
     // Update messages store session ID
-    if (currentSession.value) {
-      messagesStore.setCurrentSessionId(currentSession.value.sessionId);
+    if (lifecycleStore.currentSession) {
+      messagesStore.setCurrentSessionId(lifecycleStore.currentSession.sessionId);
     }
 
     // If no messages were replayed by the agent, try to load saved messages
-    if (messages.value.length === 0 && currentSession.value) {
-      const savedMessages = await messagesStore.loadMessages(currentSession.value.sessionId);
+    if (messagesStore.messages.length === 0 && lifecycleStore.currentSession) {
+      const savedMessages = await messagesStore.loadMessages(lifecycleStore.currentSession.sessionId);
       if (savedMessages.length > 0) {
-        messages.value = savedMessages;
+        messagesStore.messages = savedMessages;
       }
     }
   }
@@ -188,21 +221,21 @@ export const useSessionStore = defineStore('session', () => {
   // Send prompt using direct client call
   async function sendPrompt(text: string): Promise<void> {
     const client = lifecycleStore.acpClient;
-    const sessionId = currentSession.value?.sessionId;
+    const sessionId = lifecycleStore.currentSession?.sessionId;
 
     if (!client || !sessionId) {
       throw new Error('No active session');
     }
 
     // Add user message
-    messages.value.push({
+    messagesStore.messages.push({
       id: crypto.randomUUID(),
       role: 'user',
       content: text,
       timestamp: Date.now(),
     });
 
-    isLoading.value = true;
+    lifecycleStore.isLoading = true;
     try {
       const response = await client.prompt({
         sessionId,
@@ -217,14 +250,14 @@ export const useSessionStore = defineStore('session', () => {
       console.log('Prompt completed:', response.stopReason);
 
       // Update session title on first message (take first 30 characters)
-      if (messages.value.length === 1 && currentSession.value) {
+      if (messagesStore.messages.length === 1 && lifecycleStore.currentSession) {
         const newTitle = text.slice(0, 30) + (text.length > 30 ? '...' : '');
-        currentSession.value.title = newTitle;
-        currentSession.value.lastUpdated = Date.now();
+        lifecycleStore.currentSession.title = newTitle;
+        lifecycleStore.currentSession.lastUpdated = Date.now();
         await lifecycleStore.saveSessionsToStore();
       }
     } finally {
-      isLoading.value = false;
+      lifecycleStore.isLoading = false;
     }
   }
 
@@ -307,7 +340,7 @@ export const useSessionStore = defineStore('session', () => {
     messagesStore.stopMessageWatch();
 
     // Save messages before disconnecting
-    if (currentSession.value && messages.value.length > 0) {
+    if (lifecycleStore.currentSession && messagesStore.messages.length > 0) {
       try {
         await messagesStore.saveMessages();
       } catch (e) {
@@ -336,7 +369,7 @@ export const useSessionStore = defineStore('session', () => {
   // Set mode
   async function setMode(modeId: string): Promise<void> {
     const client = lifecycleStore.acpClient;
-    const sessionId = currentSession.value?.sessionId;
+    const sessionId = lifecycleStore.currentSession?.sessionId;
 
     if (!client || !sessionId) {
       throw new Error('No active session');
@@ -348,13 +381,13 @@ export const useSessionStore = defineStore('session', () => {
     });
 
     // Optimistically update the current mode
-    currentModeId.value = modeId;
+    capabilitiesStore.updateCurrentMode(modeId);
   }
 
   // Set model
   async function setModel(modelId: string): Promise<void> {
     const client = lifecycleStore.acpClient;
-    const sessionId = currentSession.value?.sessionId;
+    const sessionId = lifecycleStore.currentSession?.sessionId;
 
     if (!client || !sessionId) {
       throw new Error('No active session');
@@ -365,8 +398,13 @@ export const useSessionStore = defineStore('session', () => {
       modelId,
     });
 
-    // Optimistically update the current model
-    currentModelId.value = modelId;
+    // Optimistically update the current model - need to find method in capabilitiesStore
+    // capabilitiesStore doesn't have updateCurrentModel method, use setModels with current
+    const currentModels = capabilitiesStore.availableModels;
+    capabilitiesStore.setModels({
+      availableModels: currentModels,
+      currentModelId: modelId,
+    });
   }
 
   // Clear error

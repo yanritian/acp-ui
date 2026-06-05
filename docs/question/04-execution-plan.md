@@ -1,7 +1,7 @@
 # ACP-UI 分阶段执行计划
 
 > 日期: 2026-06-05
-> 更新: 2026-06-05 (Phase 1-3 完成，Phase 4 测试体系建立)
+> 更新: 2026-06-05 (Phase 1-4 完成，Web/Tauri 运行问题修复)
 > 基于三份问题文档分析，综合考虑依赖关系、风险和资源投入。
 
 ---
@@ -61,6 +61,21 @@
 | P4.3 Rust测试引入 | ✅ | 51 tests |
 
 **总计: 272 tests passed**
+
+---
+
+## ✅ Phase 5: 运行修复 (已完成 - 2026-06-05)
+
+**目标**: 修复 Web/Tauri 运行时的初始化问题
+
+| 任务 | 状态 | 修复内容 |
+|------|------|---------|
+| P5.1 Session Store初始化 | ✅ | 移除 setup 内的 storeToRefs，改用 computed 包装 |
+| P5.2 Tauri API平台检测 | ✅ | useBotCommand.ts 添加 isDesktop 检测 |
+
+**问题原因分析**:
+1. `storeToRefs(otherStore)` 在 setup store 的 setup 函数内部调用时，子 store 可能还未完全绑定到 Pinia 实例
+2. `@tauri-apps/api/event` 的 `listen` 函数在 Web 浏览器中不可用，需要平台检测
 
 #### P0.1 数据持久化验证与修复
 

@@ -266,9 +266,5 @@ export const useSessionPermissionsStore = defineStore('sessionPermissions', () =
     cancelAuthSelection,
     cancelPendingAuth,
     clearPendingState,
-
-    // Legacy aliases for backward compatibility
-    resolvePermission: createResolvePermission,
-    cancelPermission: createCancelPermission,
   };
 });

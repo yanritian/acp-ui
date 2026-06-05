@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, computed, nextTick, watch, onMounted } from 'vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useSessionStore } from '@/stores/session';
@@ -16,6 +16,25 @@ const sessionStore = useSessionStore();
 const inputText = ref('');
 const messagesContainer = ref<HTMLElement | null>(null);
 const commandPaletteRef = ref<InstanceType<typeof CommandPalette> | null>(null);
+
+// First time chat guidance
+const showSuggestions = ref(false);
+const hasSentMessage = ref(false);
+
+onMounted(() => {
+  // Check if user has sent any messages before
+  const sentBefore = localStorage.getItem('acp-ui:has-sent-message');
+  if (!sentBefore) {
+    showSuggestions.value = true;
+  }
+});
+
+// Suggested prompts for first-time users
+const suggestedPrompts = computed(() => [
+  t('onboarding.suggestedPromptCreate'),
+  t('onboarding.suggestedPromptExplain'),
+  t('onboarding.suggestedPromptCommands')
+]);
 
 // On mobile (iOS/Android) the soft-keyboard's Return key should insert a
 // newline like every other native chat app; submitting is the dedicated
@@ -62,13 +81,25 @@ watch(messages, async () => {
 async function handleSend() {
   const text = inputText.value.trim();
   if (!text || isLoading.value) return;
-  
+
+  // Mark that user has sent a message
+  if (!hasSentMessage.value) {
+    hasSentMessage.value = true;
+    showSuggestions.value = false;
+    localStorage.setItem('acp-ui:has-sent-message', 'true');
+  }
+
   inputText.value = '';
   try {
     await sessionStore.sendPrompt(text);
   } catch (e) {
     console.error('Failed to send prompt:', e);
   }
+}
+
+function useSuggestion(suggestion: string) {
+  inputText.value = suggestion;
+  showSuggestions.value = false;
 }
 
 function handleKeyDown(event: KeyboardEvent) {
@@ -243,6 +274,27 @@ function getStatusIcon(status: string): string {
     </div>
 
     <div class="input-container">
+      <!-- First-time suggestions -->
+      <div v-if="showSuggestions && messages.length === 0 && !isLoading" class="suggestions-section">
+        <div class="suggestions-header">
+          <span class="suggestions-icon">💡</span>
+          <span class="suggestions-title">{{ t('onboarding.suggestedPromptsTitle') }}</span>
+        </div>
+        <div class="suggestions-grid">
+          <button
+            v-for="(suggestion, index) in suggestedPrompts"
+            :key="index"
+            class="suggestion-btn"
+            @click="useSuggestion(suggestion)"
+          >
+            {{ suggestion }}
+          </button>
+        </div>
+        <p class="suggestions-hint">
+          {{ t('onboarding.clickToUse') }} · {{ t('onboarding.orTypeSlash') }}
+        </p>
+      </div>
+
       <CommandPalette
         ref="commandPaletteRef"
         :commands="availableCommands"
@@ -626,5 +678,63 @@ textarea:focus {
   padding: 0.125rem 0.25rem;
   border-radius: 3px;
   font-size: 0.85em;
+}
+
+/* Suggestions Section */
+.suggestions-section {
+  width: 100%;
+  padding: 1rem;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.suggestions-icon {
+  font-size: 1.25rem;
+}
+
+.suggestions-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.suggestions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.suggestion-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.suggestion-btn:hover {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.05);
+  color: var(--primary);
+}
+
+.suggestions-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 </style>

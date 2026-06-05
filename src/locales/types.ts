@@ -129,6 +129,13 @@ export type MessageSchema = {
     workflowEditor: string
     tokenOptimizer: string
   }
+  navigationGroup: {
+    chat: string
+    agent: string
+    workflow: string
+    monitor: string
+    lab: string
+  }
   navigationDescriptions: {
     chat: string
     multiAgent: string
@@ -166,6 +173,7 @@ export type MessageSchema = {
   }
   taskGraph: {
     title: string
+    demoWarning: string
     noTaskGraph: string
     startTaskHint: string
     taskDetails: string
@@ -849,6 +857,9 @@ export type MessageSchema = {
     agentNamePlaceholder: string
     connectionType: string
     stdioOption: string
+    desktopOnly: string
+    stdioNotAvailable: string
+    platformRestriction: string
     startCommand: string
     commandHelp: string
     cancel: string
@@ -857,5 +868,39 @@ export type MessageSchema = {
     saveFailed: string
     deleteConfirm: string
     deleteFailed: string
+  }
+  onboarding: {
+    quickStart: string
+    importConfig: string
+    demoExperience: string
+    quickStartDesc: string
+    importConfigDesc: string
+    demoExperienceDesc: string
+    firstTimeWelcome: string
+    firstTimeSubtitle: string
+    alreadyConfigured: string
+    agentWizardTitle: string
+    wizardStep1Title: string
+    wizardStep2Title: string
+    wizardStep3Title: string
+    wizardSelectType: string
+    wizardConfigureParams: string
+    wizardTestConnection: string
+    wizardTemplateName: string
+    wizardTemplateDesc: string
+    wizardTemplateNamePlaceholder: string
+    wizardBack: string
+    wizardNext: string
+    wizardFinish: string
+    wizardTesting: string
+    wizardTestSuccess: string
+    wizardTestFailed: string
+    wizardRetest: string
+    suggestedPromptsTitle: string
+    suggestedPromptCreate: string
+    suggestedPromptExplain: string
+    suggestedPromptCommands: string
+    clickToUse: string
+    orTypeSlash: string
   }
 }

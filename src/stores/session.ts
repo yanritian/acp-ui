@@ -215,9 +215,10 @@ export const useSessionStore = defineStore('session', () => {
 
       console.log('Prompt completed:', response.stopReason);
 
-      // Update session title if it's the first message
-      if (messages.value.length === 2 && currentSession.value) {
-        currentSession.value.title = text.slice(0, 50) + (text.length > 50 ? '...' : '');
+      // Update session title on first message (take first 30 characters)
+      if (messages.value.length === 1 && currentSession.value) {
+        const newTitle = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+        currentSession.value.title = newTitle;
         currentSession.value.lastUpdated = Date.now();
         await lifecycleStore.saveSessionsToStore();
       }

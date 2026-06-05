@@ -84,7 +84,7 @@ const groupedSessions = computed(() => {
 // Get groups that have sessions
 const activeGroups = computed(() => {
   const groups: TimeGroup[] = ['pinned', 'today', 'yesterday', 'thisWeek', 'older'];
-  return groups.filter(g => groupedSessions.value.get(g)?.length > 0);
+  return groups.filter(g => (groupedSessions.value.get(g)?.length ?? 0) > 0);
 });
 
 // Format date for display

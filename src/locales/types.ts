@@ -541,6 +541,19 @@ export type MessageSchema = {
     headersHint: string
     duplicateName: string
     numericName: string
+    general: string
+    agent: string
+    gateway: string
+    bot: string
+    permissions: string
+    advanced: string
+    language: string
+    theme: string
+    themeLight: string
+    themeDark: string
+    themeAuto: string
+    tokenBudget: string
+    logLevel: string
   }
   logStream: {
     title: string
@@ -975,5 +988,18 @@ export type MessageSchema = {
     noRules: string
     ruleApplied: string
     ruleCreated: string
+  }
+  permissionRules: {
+    title: string
+    addRule: string
+    editRule: string
+    noRules: string
+    noRulesHint: string
+    pattern: string
+    patternHelp: string
+    action: string
+    allow: string
+    deny: string
+    ask: string
   }
 }

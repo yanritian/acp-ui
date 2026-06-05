@@ -2,6 +2,16 @@ import type { AgentConfig, ChatMessage, PermissionRequest, ToolCallInfo } from '
 import type { BudgetLimits, BudgetConsumption } from './budget-tracker'
 import type { CompactionSummary, RehydrationArtifacts } from './context-compactor'
 
+// Re-export token-optimizer types for convenience
+export type {
+  ContextMessage,
+  CacheState,
+  SessionContextEntry,
+  CompressionResult,
+  ArchivedChunk,
+  TokenOptimizerConfig,
+} from './token-optimizer'
+
 export type RuntimeTransportKind = 'stdio' | 'websocket' | 'http'
 export type RuntimeConnectionStatus = 'idle' | 'connecting' | 'connected' | 'busy' | 'paused' | 'error' | 'disconnected'
 export type RuntimeTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'stopped_budget_exceeded'

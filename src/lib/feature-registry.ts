@@ -1,5 +1,5 @@
 export interface FeatureEntry {
-  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills' | 'agent-config'
+  id: 'chat' | 'multi-agent' | 'multi-session' | 'status' | 'monitor' | 'history' | 'workflow' | 'gateway' | 'orchestration' | 'bot' | 'memory' | 'error' | 'evolution' | 'pattern' | 'hermes' | 'task-graph' | 'collaboration' | 'agent-teams' | 'executive-session' | 'skills' | 'agent-config' | 'plugins' | 'swarm-dashboard' | 'workflow-editor' | 'token-optimizer'
   labelKey: string
   icon: string
   requiresAgent?: boolean
@@ -32,6 +32,10 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'monitor', labelKey: 'navigation.monitor', icon: '📡', requiresAgent: false, descriptionKey: 'navigationDescriptions.monitor' },
   { id: 'history', labelKey: 'navigation.history', icon: '📚', requiresAgent: false, descriptionKey: 'navigationDescriptions.history' },
   { id: 'skills', labelKey: 'navigation.skills', icon: '🧩', requiresAgent: false, descriptionKey: 'navigationDescriptions.skills' },
+  { id: 'plugins', labelKey: 'navigation.plugins', icon: '🔌', requiresAgent: false, descriptionKey: 'navigationDescriptions.plugins' },
+  { id: 'swarm-dashboard', labelKey: 'navigation.swarmDashboard', icon: '🐝', requiresAgent: false, descriptionKey: 'navigationDescriptions.swarmDashboard' },
+  { id: 'workflow-editor', labelKey: 'navigation.workflowEditor', icon: '🔧', requiresAgent: false, descriptionKey: 'navigationDescriptions.workflowEditor' },
+  { id: 'token-optimizer', labelKey: 'navigation.tokenOptimizer', icon: '🪙', requiresAgent: false, descriptionKey: 'navigationDescriptions.tokenOptimizer' },
 ]
 
 export const CORE_FEATURES = FEATURES.filter(f => f.isCore)

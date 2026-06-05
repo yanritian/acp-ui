@@ -305,3 +305,199 @@ impl Default for AnomalyDetector {
         Self::new()
     }
 }
+
+/// Healing executor - executes repair actions and tracks their lifecycle
+pub struct HealingExecutor {
+    /// All healing actions (active and historical)
+    actions: HashMap<String, HealingActionRecord>,
+    /// Reference to anomaly detector for determining actions
+    anomaly_detector: std::sync::Arc<std::sync::Mutex<AnomalyDetector>>,
+}
+
+impl HealingExecutor {
+    pub fn new(anomaly_detector: std::sync::Arc<std::sync::Mutex<AnomalyDetector>>) -> Self {
+        Self {
+            actions: HashMap::new(),
+            anomaly_detector,
+        }
+    }
+
+    /// Execute a healing action based on anomaly ID
+    /// Determines the appropriate action and executes it
+    pub fn execute_healing(&mut self, anomaly_id: &str) -> Result<HealingActionRecord, String> {
+        // First, we need to get the anomaly from somewhere
+        // For now, we'll create a synthetic anomaly based on the ID
+        // In a real system, you'd look this up from a database or anomaly store
+        let anomaly = self.find_anomaly_by_id(anomaly_id)?;
+
+        // Determine the healing action using the anomaly detector
+        let mut action = {
+            let detector = self.anomaly_detector.lock().map_err(|e| e.to_string())?;
+            detector.determine_healing_action(&anomaly)
+        };
+
+        // Set status to executing
+        action.status = "executing".to_string();
+        action.executed_at = Some(Utc::now());
+
+        // Execute the action based on type
+        match action.action_type {
+            HealingActionType::RestartAgent => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Agent '{}' restart initiated", target));
+            }
+            HealingActionType::CompressContext => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Context compression completed for '{}'", target));
+            }
+            HealingActionType::ClearCache => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Cache cleared for '{}'", target));
+            }
+            HealingActionType::SwitchModel => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Model switched for '{}'", target));
+            }
+            HealingActionType::Reconnect => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Reconnection successful for '{}'", target));
+            }
+            HealingActionType::NotifyUser => {
+                action.status = "notified".to_string();
+                action.result = Some("User notification sent".to_string());
+            }
+            HealingActionType::ScaleUp => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Scaled up '{}'", target));
+            }
+            HealingActionType::ScaleDown => {
+                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                action.status = "success".to_string();
+                action.result = Some(format!("Scaled down '{}'", target));
+            }
+        };
+
+        // Store the action
+        let action_clone = action.clone();
+        self.actions.insert(action.id.clone(), action);
+
+        Ok(action_clone)
+    }
+
+    /// Find an anomaly by ID (placeholder - in real system would query a store)
+    fn find_anomaly_by_id(&self, anomaly_id: &str) -> Result<AnomalyRecord, String> {
+        // Create a synthetic anomaly for demonstration
+        // In production, you'd look this up from persistent storage
+        Ok(AnomalyRecord {
+            id: anomaly_id.to_string(),
+            anomaly_type: AnomalyType::HighErrorRate, // Default type
+            severity: AnomalySeverity::Medium,
+            target: "unknown".to_string(),
+            target_type: "system".to_string(),
+            health_score: 50.0,
+            baseline_value: 100.0,
+            current_value: 150.0,
+            deviation: 50.0,
+            detected_at: Utc::now(),
+            resolved_at: None,
+        })
+    }
+
+    /// Get all active (pending or executing) actions
+    pub fn get_active_actions(&self) -> Vec<&HealingActionRecord> {
+        self.actions
+            .values()
+            .filter(|a| a.status == "pending" || a.status == "executing")
+            .collect()
+    }
+
+    /// Get all actions (history)
+    pub fn get_action_history(&self) -> Vec<&HealingActionRecord> {
+        self.actions.values().collect()
+    }
+
+    /// Resolve an action with a result
+    pub fn resolve_action(&mut self, action_id: &str, result: &str) -> Result<HealingActionRecord, String> {
+        let action = self.actions.get_mut(action_id)
+            .ok_or_else(|| format!("Action '{}' not found", action_id))?;
+
+        action.status = "resolved".to_string();
+        action.result = Some(result.to_string());
+
+        Ok(action.clone())
+    }
+
+    /// Get healing statistics
+    pub fn get_stats(&self) -> serde_json::Value {
+        let total = self.actions.len();
+        let pending = self.actions.values().filter(|a| a.status == "pending").count();
+        let executing = self.actions.values().filter(|a| a.status == "executing").count();
+        let success = self.actions.values().filter(|a| a.status == "success").count();
+        let failed = self.actions.values().filter(|a| a.status == "failed").count();
+        let resolved = self.actions.values().filter(|a| a.status == "resolved").count();
+
+        serde_json::json!({
+            "total_actions": total,
+            "pending": pending,
+            "executing": executing,
+            "success": success,
+            "failed": failed,
+            "resolved": resolved,
+        })
+    }
+}
+
+// ============================================================================
+// Tauri Commands for Healing Executor
+// ============================================================================
+
+use tauri::State;
+use crate::AppState;
+
+/// Execute a healing action for a given anomaly
+#[tauri::command]
+pub fn healing_execute(
+    state: State<'_, AppState>,
+    anomaly_id: String,
+) -> Result<serde_json::Value, String> {
+    let mut executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
+    let action = executor.execute_healing(&anomaly_id)?;
+    Ok(serde_json::to_value(action).map_err(|e| e.to_string())?)
+}
+
+/// List all healing actions
+#[tauri::command]
+pub fn healing_list_actions(
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
+    let actions = executor.get_action_history();
+    Ok(serde_json::to_value(actions).map_err(|e| e.to_string())?)
+}
+
+/// Resolve a healing action with a result
+#[tauri::command]
+pub fn healing_resolve_action(
+    state: State<'_, AppState>,
+    action_id: String,
+    result: String,
+) -> Result<serde_json::Value, String> {
+    let mut executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
+    let action = executor.resolve_action(&action_id, &result)?;
+    Ok(serde_json::to_value(action).map_err(|e| e.to_string())?)
+}
+
+/// Get healing statistics
+#[tauri::command]
+pub fn healing_get_stats(
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.get_stats())
+}

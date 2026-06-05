@@ -1,7 +1,7 @@
 //! Hook Executor Module (Claw Code inspired)
 //!
 //! Handles hook execution with timeout, abort signals, and structured output parsing.
-//! NOTE: Module is imported but commands not yet registered in lib.rs - marked for future use.
+//! Provides Tauri commands for hook registration, execution, and management.
 
 #![allow(dead_code)]
 
@@ -10,6 +10,9 @@ use std::collections::HashMap;
 use std::process::{Command, Output, Stdio};
 use std::path::PathBuf;
 use std::io::Read;
+use tauri::State;
+
+use crate::AppState;
 
 /// Hook execution result (Claw Code inspired)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -570,4 +573,107 @@ pub fn get_example_hooks() -> Vec<HookConfig> {
             block_on_failure: Some(false),
         },
     ]
+}
+
+// ---------------------------------------------------------------------------
+// Tauri Commands
+// ---------------------------------------------------------------------------
+
+/// Register a new hook
+#[tauri::command]
+pub fn hook_register(
+    state: State<'_, AppState>,
+    name: String,
+    script_path: String,
+    hook_type: HookType,
+    timeout_ms: Option<u64>,
+    block_on_failure: Option<bool>,
+) -> Result<String, String> {
+    let config = HookConfig {
+        name: name.clone(),
+        script_path,
+        hook_type,
+        timeout_ms,
+        block_on_failure,
+    };
+    state.hooks_executor.lock().map_err(|e| e.to_string())?.register_hook(config);
+    Ok(format!("Hook '{}' registered", name))
+}
+
+/// Register hooks for a specific agent
+#[tauri::command]
+pub fn hook_register_for_agent(
+    state: State<'_, AppState>,
+    agent_id: String,
+    hook_names: Vec<String>,
+) -> Result<String, String> {
+    state.hooks_executor.lock().map_err(|e| e.to_string())?.register_agent_hooks(&agent_id, &hook_names);
+    Ok(format!("Registered {} hooks for agent '{}'", hook_names.len(), agent_id))
+}
+
+/// Unregister all hooks for an agent
+#[tauri::command]
+pub fn hook_unregister_agent(
+    state: State<'_, AppState>,
+    agent_id: String,
+) -> Result<String, String> {
+    state.hooks_executor.lock().map_err(|e| e.to_string())?.unregister_agent_hooks(&agent_id);
+    Ok(format!("Unregistered all hooks for agent '{}'", agent_id))
+}
+
+/// Execute PreToolUse hooks for a tool invocation
+#[tauri::command]
+pub fn hook_execute_pre_tool(
+    state: State<'_, AppState>,
+    agent_id: String,
+    tool_name: String,
+    tool_args: String,
+) -> Result<HookResult, String> {
+    let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.execute_pre_tool_use(&agent_id, &tool_name, &tool_args))
+}
+
+/// Execute PostToolUse hooks after a tool invocation
+#[tauri::command]
+pub fn hook_execute_post_tool(
+    state: State<'_, AppState>,
+    agent_id: String,
+    tool_name: String,
+    tool_args: String,
+    tool_result: String,
+) -> Result<HookResult, String> {
+    let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.execute_post_tool_use(&agent_id, &tool_name, &tool_args, &tool_result))
+}
+
+/// Execute PostToolUseFailure hooks when a tool fails
+#[tauri::command]
+pub fn hook_execute_post_tool_failure(
+    state: State<'_, AppState>,
+    agent_id: String,
+    tool_name: String,
+    tool_args: String,
+    tool_error: String,
+) -> Result<HookResult, String> {
+    let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.execute_post_tool_use_failure(&agent_id, &tool_name, &tool_args, &tool_error))
+}
+
+/// List all registered hooks
+#[tauri::command]
+pub fn hook_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<HookConfig>, String> {
+    let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.list_hooks().into_iter().cloned().collect())
+}
+
+/// Get hooks registered for a specific agent
+#[tauri::command]
+pub fn hook_get_agent_hooks(
+    state: State<'_, AppState>,
+    agent_id: String,
+) -> Result<Vec<HookConfig>, String> {
+    let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+    Ok(executor.get_agent_hooks(&agent_id).into_iter().cloned().collect())
 }

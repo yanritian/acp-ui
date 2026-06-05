@@ -25,6 +25,8 @@ mod commands;         // Refactored Tauri command handlers organized by domain
 mod plugin_registry;  // NEW: Unified Plugin Registry - Skills/MCP/Hooks/CLI/Adapters
 mod swarm_orchestrator; // NEW: Agent Swarm Orchestrator - top-level Codex/Claude Code coordination
 mod workflow_engine;  // NEW: Ultra Workflow Engine - multi-stage orchestrated workflows
+mod mcp_client;       // NEW: MCP JSON-RPC Client - tool discovery and invocation
+mod agent_bus;        // NEW: Agent Communication Bus - agent-to-agent messaging + pub/sub
 
 use agent::{AgentManager};
 use config::ConfigManager;
@@ -47,6 +49,7 @@ pub struct AppState {
     pub circuit_breaker_manager: Arc<Mutex<circuit_breaker::CircuitBreakerManager>>,
     pub dag_engine: Arc<Mutex<team_dag::DAGEngine>>,
     pub anomaly_detector: Arc<Mutex<self_healing::AnomalyDetector>>,
+    pub healing_executor: Arc<Mutex<self_healing::HealingExecutor>>,
     // Bot Adapters
     pub telegram_adapter: Arc<Mutex<Option<bot_adapters::TelegramAdapter>>>,
     pub feishu_adapter: Arc<Mutex<Option<bot_adapters::FeishuAdapter>>>,
@@ -54,10 +57,18 @@ pub struct AppState {
     pub plugin_registry: Arc<Mutex<plugin_registry::PluginRegistry>>,
     pub swarm_orchestrator: Arc<Mutex<swarm_orchestrator::SwarmOrchestrator>>,
     pub workflow_engine: Arc<Mutex<workflow_engine::WorkflowEngine>>,
+    pub hooks_executor: Arc<Mutex<hooks_executor::HooksExecutor>>,
+    // MCP & Agent Communication
+    pub mcp_client: Arc<Mutex<mcp_client::McpClient>>,
+    pub agent_bus: Arc<Mutex<agent_bus::AgentBus>>,
 }
 
 impl AppState {
     fn new(agent_manager: AgentManager) -> Self {
+        // Create anomaly_detector Arc first so we can share it with HealingExecutor
+        let anomaly_detector = Arc::new(Mutex::new(self_healing::AnomalyDetector::new()));
+        let healing_executor = Arc::new(Mutex::new(self_healing::HealingExecutor::new(anomaly_detector.clone())));
+
         Self {
             config_manager: Arc::new(RwLock::new(None)),
             agent_manager,
@@ -69,7 +80,8 @@ impl AppState {
             // Agent Teams Platform
             circuit_breaker_manager: Arc::new(Mutex::new(circuit_breaker::CircuitBreakerManager::new())),
             dag_engine: Arc::new(Mutex::new(team_dag::DAGEngine::new())),
-            anomaly_detector: Arc::new(Mutex::new(self_healing::AnomalyDetector::new())),
+            anomaly_detector,
+            healing_executor,
             // Bot Adapters
             telegram_adapter: Arc::new(Mutex::new(None)),
             feishu_adapter: Arc::new(Mutex::new(None)),
@@ -77,6 +89,10 @@ impl AppState {
             plugin_registry: Arc::new(Mutex::new(plugin_registry::PluginRegistry::new())),
             swarm_orchestrator: Arc::new(Mutex::new(swarm_orchestrator::SwarmOrchestrator::new())),
             workflow_engine: Arc::new(Mutex::new(workflow_engine::WorkflowEngine::new())),
+            hooks_executor: Arc::new(Mutex::new(hooks_executor::HooksExecutor::new())),
+            // MCP & Agent Communication
+            mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
+            agent_bus: Arc::new(Mutex::new(agent_bus::AgentBus::new())),
         }
     }
 }
@@ -297,6 +313,11 @@ pub fn run() {
             get_dag_plan_progress,
             check_anomaly,
             update_anomaly_baseline,
+            // Self-Healing Executor commands
+            crate::self_healing::healing_execute,
+            crate::self_healing::healing_list_actions,
+            crate::self_healing::healing_resolve_action,
+            crate::self_healing::healing_get_stats,
             // Skill System Commands (OpenClacky pattern)
             skill_commands::skills_list,
             skill_commands::skill_view,
@@ -332,7 +353,39 @@ pub fn run() {
             workflow_engine::workflow_submit_result,
             workflow_engine::workflow_generate_from_task,
             workflow_engine::workflow_cancel,
-            workflow_engine::workflow_save
+            workflow_engine::workflow_save,
+            // Hooks Executor commands
+            hooks_executor::hook_register,
+            hooks_executor::hook_register_for_agent,
+            hooks_executor::hook_unregister_agent,
+            hooks_executor::hook_execute_pre_tool,
+            hooks_executor::hook_execute_post_tool,
+            hooks_executor::hook_execute_post_tool_failure,
+            hooks_executor::hook_list,
+            hooks_executor::hook_get_agent_hooks,
+            // MCP Client commands
+            mcp_client::mcp_list_tools,
+            mcp_client::mcp_list_server_tools,
+            mcp_client::mcp_call_tool,
+            mcp_client::mcp_connected_servers,
+            mcp_client::mcp_is_connected,
+            mcp_client::mcp_connect,
+            mcp_client::mcp_disconnect,
+            mcp_client::mcp_get_stats,
+            // Agent Bus commands
+            agent_bus::agent_bus_register,
+            agent_bus::agent_bus_unregister,
+            agent_bus::agent_bus_send,
+            agent_bus::agent_bus_receive,
+            agent_bus::agent_bus_peek,
+            agent_bus::agent_bus_inbox_count,
+            agent_bus::agent_bus_subscribe,
+            agent_bus::agent_bus_publish,
+            agent_bus::agent_bus_stats,
+            agent_bus::agent_bus_history,
+            agent_bus::agent_bus_list_agents,
+            agent_bus::agent_bus_list_topics,
+            agent_bus::agent_bus_is_registered
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

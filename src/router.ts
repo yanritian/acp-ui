@@ -30,6 +30,10 @@ const routes = [
   { path: '/executive-session', name: 'executive-session', component: () => import('./components/ExecutiveSessionView.vue') },
   { path: '/skills', name: 'skills', component: () => import('./components/skills/SkillManager.vue') },
   { path: '/agent-config', name: 'agent-config', component: () => import('./views/AgentConfigView.vue') },
+  { path: '/plugins', name: 'plugins', component: () => import('./components/PluginManagerView.vue') },
+  { path: '/swarm-dashboard', name: 'swarm-dashboard', component: () => import('./components/SwarmDashboard.vue') },
+  { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./components/WorkflowEditor.vue') },
+  { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./components/TokenOptimizerPanel.vue') },
 ]
 
 export const router = createRouter({

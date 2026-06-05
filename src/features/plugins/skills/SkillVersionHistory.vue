@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeOrProxy } from '@/lib/host';
 import type { SkillVersionSnapshot } from '@/lib/skill-system/types';
 
 const props = defineProps<{ skillName: string }>();
@@ -14,7 +14,7 @@ async function loadVersions() {
   loading.value = true;
   error.value = null;
   try {
-    const history = await invoke<{ skill: string; versions: SkillVersionSnapshot[] }>(
+    const history = await invokeOrProxy<{ skill: string; versions: SkillVersionSnapshot[] }>(
       'skill_manage',
       { action: 'version_list', name: props.skillName }
     );
@@ -29,7 +29,7 @@ async function loadVersions() {
 async function rollback(semver: string) {
   if (!confirm(`Rollback ${props.skillName} to v${semver}?`)) return;
   try {
-    const result = await invoke<{ message: string }>(
+    const result = await invokeOrProxy<{ message: string }>(
       'skill_manage',
       { action: 'version_rollback', name: props.skillName, version: semver }
     );

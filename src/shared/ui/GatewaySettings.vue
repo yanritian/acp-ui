@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { invokeOrProxy } from '@/lib/host'
+import { isDesktop } from '@/lib/platform'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useI18n } from '@/locales'
 
@@ -214,15 +215,24 @@ async function stopGateway() {
 onMounted(async () => {
   await loadConfig()
 
-  const u1 = await listen('gateway-started', () => {
-    gatewayStatus.value = 'running'
-  })
-  eventUnlisteners.push(u1)
+  // Only listen for Tauri events in desktop environment
+  if (!isDesktop) {
+    return
+  }
 
-  const u2 = await listen('gateway-stopped', () => {
-    gatewayStatus.value = 'stopped'
-  })
-  eventUnlisteners.push(u2)
+  try {
+    const u1 = await listen('gateway-started', () => {
+      gatewayStatus.value = 'running'
+    })
+    eventUnlisteners.push(u1)
+
+    const u2 = await listen('gateway-stopped', () => {
+      gatewayStatus.value = 'stopped'
+    })
+    eventUnlisteners.push(u2)
+  } catch (e) {
+    console.warn('[GatewaySettings] Failed to setup event listeners:', e)
+  }
 })
 
 onBeforeUnmount(() => {

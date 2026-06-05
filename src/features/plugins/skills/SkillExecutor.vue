@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeOrProxy } from '@/lib/host';
 import type { SkillExecutionResult } from '@/lib/skill-system/types';
 
 const props = defineProps<{ skillName: string }>();
@@ -19,7 +19,7 @@ async function execute() {
   result.value = null;
   try {
     const parsedParams = JSON.parse(params.value);
-    result.value = await invoke<SkillExecutionResult>('skill_invoke', {
+    result.value = await invokeOrProxy<SkillExecutionResult>('skill_invoke', {
       skillName: props.skillName,
       parameters: parsedParams,
       context: { cwd: '.' },

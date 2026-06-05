@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { invokeOrProxy } from '@/lib/host';
+import { isDesktop } from '@/lib/platform';
 import { listen } from '@tauri-apps/api/event';
 import { useI18n } from '@/locales';
 
@@ -199,15 +200,25 @@ let unlisten: (() => void) | null = null;
 
 onMounted(async () => {
   await loadLogs();
-  unlisten = await listen<LogEntry[]>('log-batch', (event) => {
-    if (!isPaused.value) {
-      logs.value.push(...event.payload);
-      // Keep only last 1000 logs in memory
-      if (logs.value.length > 1000) {
-        logs.value = logs.value.slice(-1000);
+
+  // Only listen for Tauri events in desktop environment
+  if (!isDesktop) {
+    return
+  }
+
+  try {
+    unlisten = await listen<LogEntry[]>('log-batch', (event) => {
+      if (!isPaused.value) {
+        logs.value.push(...event.payload);
+        // Keep only last 1000 logs in memory
+        if (logs.value.length > 1000) {
+          logs.value = logs.value.slice(-1000);
+        }
       }
-    }
-  });
+    });
+  } catch (e) {
+    console.warn('[LogStreamView] Failed to setup event listener:', e)
+  }
 });
 
 onUnmounted(() => {

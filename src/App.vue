@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useConfigStore } from './stores/config'
 import { useSessionStore } from './stores/session'
 import { useMultiSessionStore } from './stores/multi-session'
+import { usePermissionRulesStore } from './stores/permission-rules'
 import { useI18n } from './locales'
 import { trackBehavior } from './lib/self-improvement'
 import { startEvolutionEngine } from './lib/self-improvement'
@@ -21,6 +22,7 @@ import AppSidebar from './shared/layout/AppSidebar.vue'
 import ConnectionBanner from './shared/layout/ConnectionBanner.vue'
 import WelcomeScreen from './shared/layout/WelcomeScreen.vue'
 import PermissionDialog from './shared/dialogs/PermissionDialog.vue'
+import PermissionRulesManager from './shared/dialogs/PermissionRulesManager.vue'
 import SettingsView from './shared/ui/SettingsView.vue'
 import AuthMethodDialog from './shared/dialogs/AuthMethodDialog.vue'
 import TrafficMonitor from './features/monitoring/TrafficMonitor.vue'
@@ -75,7 +77,7 @@ const canManuallyReconnect = computed(
 )
 
 // Watch for permission requests from session store
-const pendingPermission = computed(() => sessionStore.pendingPermission)
+const pendingPermissions = computed(() => sessionStore.pendingPermissions)
 
 // Watch for auth method selection requests
 const pendingAuthMethods = computed(() => sessionStore.pendingAuthMethods)
@@ -158,13 +160,29 @@ async function handleCancelConnection() {
   await sessionStore.cancelConnection()
 }
 
-function handlePermissionSelect(optionId: string) {
-  sessionStore.resolvePermission(optionId)
+function handlePermissionSelect(requestId: string, optionId: string) {
+  sessionStore.resolvePermission(requestId, optionId)
+}
+
+function handlePermissionBatchSelect(items: { requestId: string; optionId: string }[]) {
+  // Convert requestId to sessionId since PermissionRequest uses sessionId as identifier
+  const sessionItems = items.map(item => ({
+    sessionId: item.requestId,
+    optionId: item.optionId,
+  }));
+  sessionStore.resolveBatchPermissions(sessionItems);
 }
 
 function handlePermissionCancel() {
-  sessionStore.cancelPermission()
+  sessionStore.cancelAllPermissions()
 }
+
+function handlePermissionCreateRule(toolKind: string, toolTitle: string, action: 'allow' | 'reject', locations?: { path: string }[]) {
+  const rulesStore = usePermissionRulesStore()
+  rulesStore.createRuleFromRequest(toolKind, toolTitle, action, locations)
+}
+
+const showPermissionRuleManager = ref(false)
 
 function handleAuthMethodSelect(methodId: string) {
   sessionStore.selectAuthMethod(methodId)
@@ -273,10 +291,19 @@ function clearError() {
 
     <!-- Permission Dialog -->
     <PermissionDialog
-      v-if="pendingPermission"
-      :request="pendingPermission"
+      v-if="pendingPermissions.length > 0"
+      :requests="pendingPermissions"
       @select="handlePermissionSelect"
+      @batch-select="handlePermissionBatchSelect"
       @cancel="handlePermissionCancel"
+      @create-rule="handlePermissionCreateRule"
+      @open-rule-manager="showPermissionRuleManager = true"
+    />
+
+    <!-- Permission Rules Manager -->
+    <PermissionRulesManager
+      v-if="showPermissionRuleManager"
+      @close="showPermissionRuleManager = false"
     />
 
     <!-- Auth Method Dialog -->

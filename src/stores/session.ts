@@ -60,6 +60,7 @@ export const useSessionStore = defineStore('session', () => {
 
   const {
     pendingPermission,
+    pendingPermissions,
     pendingAuthMethods,
     pendingAuthAgentName,
   } = storeToRefs(permissionsStore);
@@ -246,19 +247,40 @@ export const useSessionStore = defineStore('session', () => {
     await lifecycleStore.cancelConnection();
   }
 
-  // Resolve permission
-  function resolvePermission(optionId: string): void {
-    const client = lifecycleStore.acpClient;
-    if (client) {
-      client.resolvePermission(optionId);
+  // Resolve permission (delegates to permissionsStore for batch support)
+  function resolvePermission(sessionIdOrOptionId: string, optionId?: string): void {
+    if (optionId !== undefined) {
+      // New batch mode: sessionId + optionId
+      permissionsStore.resolvePermission(sessionIdOrOptionId, optionId);
+    } else {
+      // Legacy single mode: just optionId
+      const client = lifecycleStore.acpClient;
+      if (client) {
+        client.resolvePermission(sessionIdOrOptionId);
+      }
     }
   }
 
+  // Resolve batch permissions
+  function resolveBatchPermissions(items: { sessionId: string; optionId: string }[]): void {
+    permissionsStore.resolveBatchPermissions(items);
+  }
+
+  // Cancel all permissions
+  function cancelAllPermissions(): void {
+    permissionsStore.cancelAllPermissions();
+  }
+
   // Cancel permission
-  function cancelPermission(): void {
-    const client = lifecycleStore.acpClient;
-    if (client) {
-      client.cancelPermission();
+  function cancelPermission(sessionId?: string): void {
+    if (sessionId !== undefined) {
+      permissionsStore.cancelPermission(sessionId);
+    } else {
+      // Legacy single mode
+      const client = lifecycleStore.acpClient;
+      if (client) {
+        client.cancelPermission();
+      }
     }
   }
 
@@ -376,6 +398,7 @@ export const useSessionStore = defineStore('session', () => {
 
     // State (from permissions)
     pendingPermission,
+    pendingPermissions,
     pendingAuthMethods,
     pendingAuthAgentName,
 
@@ -408,7 +431,9 @@ export const useSessionStore = defineStore('session', () => {
 
     // Actions (permissions)
     resolvePermission,
+    resolveBatchPermissions,
     cancelPermission,
+    cancelAllPermissions,
     selectAuthMethod,
     cancelAuthSelection,
 

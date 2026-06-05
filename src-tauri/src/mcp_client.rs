@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, ChildStdout};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use tauri::State;
 
 use crate::AppState;
@@ -613,23 +613,51 @@ pub fn mcp_connected_servers(state: State<'_, AppState>) -> Result<Vec<String>, 
         .collect())
 }
 
-/// Connect to an MCP server by name
-/// NOTE: This assumes the process has already been spawned via mcp_manager.
-/// In practice, you would coordinate with McpProcessManager to get the Child process.
+/// Connect to an MCP server by spawning it as a child process and performing JSON-RPC handshake.
+/// Accepts the command and optional args to spawn the MCP server process.
 #[tauri::command]
 pub fn mcp_connect(
     state: State<'_, AppState>,
     server_name: String,
+    command: String,
+    args: Option<Vec<String>>,
+    env_vars: Option<HashMap<String, String>>,
 ) -> Result<Vec<McpTool>, String> {
-    // This command is a placeholder for the full integration.
-    // In production, the process would be spawned by mcp_manager and passed to the client.
-    // For now, we return an error indicating manual process spawning is needed.
-    let _client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+    // Spawn the MCP server process with stdin/stdout piped for JSON-RPC communication
+    #[cfg(desktop)]
+    {
+        let mut cmd = Command::new(&command);
+        if let Some(ref a) = args {
+            cmd.args(a);
+        }
+        if let Some(ref envs) = env_vars {
+            for (k, v) in envs {
+                cmd.env(k, v);
+            }
+        }
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
 
-    Err(format!(
-        "Auto-connect for '{}' not available - use programmatic connect() with a spawned Child process",
-        server_name
-    ))
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        let child = cmd.spawn()
+            .map_err(|e| format!("Failed to spawn MCP server '{}': {}", server_name, e))?;
+
+        let mut client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+        client.connect(&server_name, child)
+    }
+
+    #[cfg(not(desktop))]
+    {
+        let _ = (state, server_name, command, args, env_vars);
+        Err("MCP connections are only supported on desktop platforms".to_string())
+    }
 }
 
 /// Disconnect from an MCP server

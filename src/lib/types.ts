@@ -77,6 +77,7 @@ export interface SavedSession {
   lastUpdated: number;
   cwd: string;
   supportsLoadSession?: boolean; // Whether the agent supports session/load
+  pinned?: boolean; // Whether the session is pinned to the top
 }
 
 export interface ChatMessage {

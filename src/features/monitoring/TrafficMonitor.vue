@@ -94,6 +94,24 @@ function getTypeLabel(entry: TrafficEntry): string {
   return '';
 }
 
+function getPerformanceMetrics(entry: TrafficEntry): string {
+  const parts: string[] = [];
+  if (entry.ttft !== undefined) {
+    parts.push(`TTFT: ${entry.ttft}ms`);
+  }
+  if (entry.totalTokens !== undefined) {
+    parts.push(`Tokens: ${entry.totalTokens}`);
+  }
+  if (entry.responseTime !== undefined) {
+    parts.push(`Time: ${entry.responseTime}ms`);
+  }
+  return parts.join(' | ');
+}
+
+function hasPerformanceMetrics(entry: TrafficEntry): boolean {
+  return entry.ttft !== undefined || entry.totalTokens !== undefined || entry.responseTime !== undefined;
+}
+
 // Auto-scroll when new entries arrive
 watch(() => trafficStore.entries.length, async () => {
   if (autoScroll.value && logContainer.value && !trafficStore.isPaused) {
@@ -167,7 +185,7 @@ function handleCopy(entry: TrafficEntry) {
           {{ trafficStore.filteredEntries.length }} match{{ trafficStore.filteredEntries.length === 1 ? '' : 'es' }}
         </span>
         
-        <select 
+        <select
           class="filter-select"
           :value="trafficStore.filter"
           @change="trafficStore.setFilter(($event.target as HTMLSelectElement).value as any)"
@@ -176,6 +194,17 @@ function handleCopy(entry: TrafficEntry) {
           <option value="requests">Requests</option>
           <option value="responses">Responses</option>
           <option value="notifications">Notifications</option>
+        </select>
+
+        <select
+          class="filter-select method-filter"
+          :value="trafficStore.methodFilter"
+          @change="trafficStore.setMethodFilter(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="all">All Methods</option>
+          <option v-for="method in trafficStore.uniqueMethods" :key="method" :value="method">
+            {{ method }}
+          </option>
         </select>
       </div>
       
@@ -191,8 +220,8 @@ function handleCopy(entry: TrafficEntry) {
         No traffic captured yet. Connect to an agent to see ACP messages.
       </div>
       
-      <div 
-        v-for="entry in trafficStore.filteredEntries" 
+      <div
+        v-for="entry in trafficStore.filteredEntries"
         :key="entry.id"
         :class="getEntryClass(entry)"
       >
@@ -203,15 +232,26 @@ function handleCopy(entry: TrafficEntry) {
           <span class="method">{{ entry.method }}</span>
           <span class="type-label">{{ getTypeLabel(entry) }}</span>
           <span v-if="entry.requestId !== undefined" class="request-id">#{{ entry.requestId }}</span>
-          <button 
-            class="copy-btn" 
+
+          <!-- Performance metrics badge -->
+          <span v-if="hasPerformanceMetrics(entry)" class="performance-badge">
+            {{ getPerformanceMetrics(entry) }}
+          </span>
+
+          <!-- Error message summary -->
+          <span v-if="entry.errorMessage" class="error-summary">
+            {{ entry.errorMessage }}
+          </span>
+
+          <button
+            class="copy-btn"
             @click.stop="handleCopy(entry)"
             title="Copy JSON"
           >
             📋
           </button>
         </div>
-        
+
         <div v-if="expandedIds.has(entry.id)" class="entry-payload">
           <pre>{{ formatJson(entry.payload) }}</pre>
         </div>
@@ -347,6 +387,11 @@ function handleCopy(entry: TrafficEntry) {
   cursor: pointer;
 }
 
+.method-filter {
+  max-width: 150px;
+  text-overflow: ellipsis;
+}
+
 .close-btn {
   padding: 0.25rem 0.5rem;
   border: none;
@@ -416,18 +461,55 @@ function handleCopy(entry: TrafficEntry) {
   color: #dc3545;
 }
 
+.entry.error {
+  background: rgba(220, 53, 69, 0.1);
+  border-left: 3px solid #dc3545;
+}
+
+.error-summary {
+  color: #dc3545;
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background: rgba(220, 53, 69, 0.15);
+  border-radius: 3px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.performance-badge {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  background: var(--bg-code);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  margin-left: 0.5rem;
+}
+
 @media (prefers-color-scheme: dark) {
   .entry.out .direction-icon {
     color: #4da6ff;
   }
-  
+
   .entry.in .direction-icon {
     color: #5cb85c;
   }
-  
+
   .entry.error .direction-icon,
   .entry.error .method {
     color: #ff6b6b;
+  }
+
+  .entry.error {
+    background: rgba(255, 107, 107, 0.1);
+    border-left: 3px solid #ff6b6b;
+  }
+
+  .error-summary {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.15);
   }
 }
 

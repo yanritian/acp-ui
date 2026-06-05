@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { invokeOrProxy } from '@/lib/host';
-import type { SkillMeta, SkillExecutionResult, SkillVersionHistory } from '@/lib/skill-system/types';
+import type { SkillMeta, SkillExecutionResult } from '@/lib/skill-system/types';
+import type { SkillVersionHistory as SkillVersionHistoryType } from '@/lib/skill-system/types';
 import { CORE_SKILLS } from '@/lib/skill-system/types';
+import SkillExecutor from './SkillExecutor.vue';
+import SkillVersionHistory from './SkillVersionHistory.vue';
 
 const skills = ref<SkillMeta[]>([]);
 const selectedSkill = ref<string | null>(null);

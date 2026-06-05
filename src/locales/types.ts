@@ -868,6 +868,9 @@ export type MessageSchema = {
     saveFailed: string
     deleteConfirm: string
     deleteFailed: string
+    fromTemplate: string
+    selectTemplate: string
+    allTemplates: string
   }
   onboarding: {
     quickStart: string

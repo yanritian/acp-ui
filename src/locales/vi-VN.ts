@@ -869,6 +869,9 @@ agentConfig: {
     saveFailed: 'Failed to save',
     deleteConfirm: 'Are you sure you want to delete "{name}"?',
     deleteFailed: 'Failed to delete',
+    fromTemplate: 'From Template',
+    selectTemplate: 'Select Template',
+    allTemplates: 'All Templates',
   },
   onboarding: {
     quickStart: 'Quick Start',

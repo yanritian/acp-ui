@@ -869,6 +869,9 @@ export const zhCN: MessageSchema = {
     saveFailed: '保存失败',
     deleteConfirm: '确定要删除 "{name}" 吗？',
     deleteFailed: '删除失败',
+    fromTemplate: '从模板添加',
+    selectTemplate: '选择模板',
+    allTemplates: '全部模板',
   },
   onboarding: {
     quickStart: '快速开始',

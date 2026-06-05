@@ -2,9 +2,14 @@
   <div class="agent-config-view view-container">
     <div class="config-header">
       <h2>🤖 {{ t('agentConfig.title') }}</h2>
-      <button class="add-btn" @click="showAddForm = true">
-        ➕ {{ t('agentConfig.addAgent') }}
-      </button>
+      <div class="header-actions">
+        <button class="template-btn" @click="showTemplatePanel = true">
+          📦 {{ t('agentConfig.fromTemplate') }}
+        </button>
+        <button class="add-btn" @click="showAddForm = true">
+          ➕ {{ t('agentConfig.addAgent') }}
+        </button>
+      </div>
     </div>
 
     <!-- Agent List -->
@@ -134,6 +139,59 @@
         </div>
       </div>
     </div>
+
+    <!-- Template Selection Modal -->
+    <div v-if="showTemplatePanel" class="modal-overlay" @click.self="showTemplatePanel = false">
+      <div class="modal-content template-panel">
+        <div class="template-panel-header">
+          <h3>📦 {{ t('agentConfig.selectTemplate') }}</h3>
+          <button class="close-btn" @click="showTemplatePanel = false">✕</button>
+        </div>
+
+        <!-- Tag filter -->
+        <div class="tag-filter">
+          <button
+            class="tag-btn"
+            :class="{ active: selectedTag === '' }"
+            @click="selectedTag = ''"
+          >
+            {{ t('agentConfig.allTemplates') }}
+          </button>
+          <button
+            v-for="tag in allTags"
+            :key="tag"
+            class="tag-btn"
+            :class="{ active: selectedTag === tag }"
+            @click="selectedTag = tag"
+          >
+            {{ tag }}
+          </button>
+        </div>
+
+        <!-- Template grid -->
+        <div class="template-grid">
+          <div
+            v-for="template in filteredTemplates"
+            :key="template.id"
+            class="template-card"
+            :class="{ disabled: !isTemplateCompatible(template) }"
+            @click="selectTemplate(template)"
+          >
+            <div class="template-icon">{{ template.icon }}</div>
+            <div class="template-info">
+              <div class="template-name">{{ template.name }}</div>
+              <div class="template-desc">{{ template.description }}</div>
+              <div class="template-tags">
+                <span v-for="tag in template.tags" :key="tag" class="tag">{{ tag }}</span>
+              </div>
+            </div>
+            <div v-if="!isTemplateCompatible(template)" class="template-warning">
+              {{ t('agentConfig.desktopOnly') }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -151,6 +209,12 @@ import {
   listRunningAgents
 } from '@/lib/host';
 import type { AgentConfig } from '@/lib/types';
+import {
+  AGENT_TEMPLATES,
+  getAllTags,
+  isTemplateCompatible as checkTemplateCompatible,
+  type AgentTemplate
+} from '@/lib/agent-templates';
 
 const { t } = useI18n();
 const isRestrictedPlatform = restrictedTransports();
@@ -176,6 +240,48 @@ const form = ref({
   command: 'acp-server --port 8080',
   autoConnect: false
 });
+
+// Template state
+const showTemplatePanel = ref(false);
+const selectedTag = ref('');
+const allTags = getAllTags();
+
+// Filter templates by tag and platform compatibility
+const filteredTemplates = computed(() => {
+  let templates = AGENT_TEMPLATES;
+  if (selectedTag.value) {
+    templates = templates.filter(t => t.tags.includes(selectedTag.value));
+  }
+  return templates;
+});
+
+// Check if template is compatible with current platform
+function isTemplateCompatible(template: AgentTemplate): boolean {
+  return checkTemplateCompatible(template, isDesktopPlatform);
+}
+
+// Select a template and pre-fill the form
+function selectTemplate(template: AgentTemplate) {
+  if (!isTemplateCompatible(template)) {
+    return;
+  }
+
+  showTemplatePanel.value = false;
+  showAddForm.value = true;
+
+  // Pre-fill form with template data
+  form.value.name = template.name;
+  form.value.type = template.transport || 'stdio';
+  form.value.url = template.url || 'ws://localhost:8080/ws';
+
+  // Build command string from command and args
+  if (template.command) {
+    const fullCommand = [template.command, ...template.args].join(' ');
+    form.value.command = fullCommand;
+  } else {
+    form.value.command = '';
+  }
+}
 
 // Get all configured agents with their status
 const agents = computed<AgentWithStatus[]>(() => {
@@ -571,5 +677,176 @@ onMounted(async () => {
 .save-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+/* Header actions */
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.template-btn {
+  padding: 10px 20px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.template-btn:hover {
+  background: #1976D2;
+}
+
+/* Template Panel */
+.template-panel {
+  min-width: 600px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.template-panel-header h3 {
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+  padding: 4px 8px;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+/* Tag filter */
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.tag-btn {
+  padding: 6px 14px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.tag-btn:hover {
+  background: #e0e0e0;
+}
+
+.tag-btn.active {
+  background: #2196F3;
+  color: white;
+  border-color: #2196F3;
+}
+
+/* Template grid */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.template-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-surface, #fafafa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.template-card:hover {
+  border-color: #2196F3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+}
+
+.template-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.template-card.disabled:hover {
+  border-color: var(--border-color, #e0e0e0);
+  box-shadow: none;
+}
+
+.template-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.template-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.template-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.template-desc {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.template-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.template-tags .tag {
+  padding: 2px 8px;
+  background: #e3f2fd;
+  color: #1565C0;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.template-warning {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 11px;
+  color: #f44336;
+  background: #ffebee;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 </style>

@@ -696,7 +696,6 @@ mod tests {
             deny: vec![],
             deny_by_default: false,
             ask_override: false,
-            autonomy_level: None,
             is_planning_mode: false,
         };
         let checker = PermissionChecker::new(config).unwrap();

@@ -462,7 +462,7 @@ onBeforeUnmount(() => {
         <div class="help-box">
           <h4>{{ t('gateway.configStepsTitle') }}</h4>
           <ol>
-            <li>{{ t('gateway.telegramStep1') }} <code>@BotFather</code></li>
+            <li>{{ t('gateway.telegramStep1', { bot: '@BotFather' }) }} <code>@BotFather</code></li>
             <li>{{ t('gateway.telegramStep2') }}</li>
             <li>{{ t('gateway.telegramStep3') }}</li>
           </ol>

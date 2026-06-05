@@ -179,7 +179,16 @@ class WsCommandProxy {
         return;
       }
 
+      // Connection timeout: reject if not connected within 5 seconds
+      const connectTimeout = setTimeout(() => {
+        cleanup();
+        this.connecting = false;
+        try { ws.close(); } catch { /* ignore */ }
+        reject(new Error(`WebSocket connection to ${url} timed out after 5000ms`));
+      }, 5000);
+
       const onOpen = () => {
+        clearTimeout(connectTimeout);
         cleanup();
         this.ws = ws;
         this.connecting = false;
@@ -189,8 +198,10 @@ class WsCommandProxy {
       };
 
       const onError = (ev: Event) => {
+        clearTimeout(connectTimeout);
         cleanup();
         this.connecting = false;
+        try { ws.close(); } catch { /* ignore */ }
         reject(new Error(`WebSocket connection to ${url} failed: ${ev.type}`));
       };
 

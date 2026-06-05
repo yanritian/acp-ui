@@ -235,7 +235,7 @@ onMounted(loadConfig)
       <div class="config-section">
         <h3>{{ t('botSettings.telegramConfig') }}</h3>
         <p class="help-text">
-          {{ t('botSettings.telegramHelp') }}
+          {{ t('botSettings.telegramHelp', { bot: '@BotFather' }) }}
           <a href="https://t.me/BotFather" target="_blank">{{ t('botSettings.telegramBotFather') }}</a>
         </p>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useSessionStore } from '@/stores/session';
+import { useSessionLifecycleStore } from '@/stores/session-lifecycle';
 import { useConfigStore } from '@/stores/config';
 import type { SavedSession, ChatMessage } from '@/lib/types';
 import { useI18n } from '@/locales';
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const sessionStore = useSessionStore();
+const lifecycleStore = useSessionLifecycleStore();
 const configStore = useConfigStore();
 const messagesStore = useSessionMessagesStore();
 
@@ -33,6 +35,9 @@ const selectedAgentFilter = ref('');
 // Export menu state
 const showExportMenu = ref<string | null>(null); // session.id when menu is open
 
+// Click outside handler reference
+let clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+
 // Get unique agent names for filter dropdown
 const agentNames = computed(() => {
   const agents = new Set<string>();
@@ -40,8 +45,11 @@ const agentNames = computed(() => {
     agents.add(session.agentName);
   }
   // Also add agents from config that might not have sessions yet
-  for (const agent of configStore.agents) {
-    agents.add(agent.name);
+  const configAgents = configStore.config?.agents;
+  if (configAgents) {
+    for (const name of Object.keys(configAgents)) {
+      agents.add(name);
+    }
   }
   return Array.from(agents).sort();
 });
@@ -122,17 +130,17 @@ async function handlePin(session: SavedSession, event: Event) {
   event.stopPropagation();
   closeExportMenu();
 
-  const updatedSession = {
+  const updatedSession: SavedSession = {
     ...session,
     pinned: !session.pinned,
   };
 
-  // Update session in store
-  const sessions = sessionStore.savedSessions;
+  // Update session in lifecycle store
+  const sessions = lifecycleStore.savedSessions;
   const index = sessions.findIndex(s => s.id === session.id);
   if (index >= 0) {
     sessions[index] = updatedSession;
-    await sessionStore.saveSessionsToStore?.();
+    await lifecycleStore.saveSessionsToStore();
   }
 }
 

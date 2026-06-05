@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { invokeOrProxy } from '@/lib/host'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useTokenOptimizerStore } from '@/stores/token-optimizer'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ interface CompressionStats {
   avgTokensPerCompression: number
 }
 
-interface ArchivedChunk {
+interface ArchivedChunkDisplay {
   id: string
   tokenCount: number
   createdAt: string
@@ -34,34 +34,72 @@ interface ArchivedChunk {
 
 interface IdleTimerStatus {
   active: boolean
-  nextCompressionIn: number // seconds
-  idleThreshold: number // seconds
+  nextCompressionIn: number
+  idleThreshold: number
 }
 
 interface TokenStats {
   systemPrompt: SystemPromptInfo
   cache: CacheStats
   compression: CompressionStats
-  archivedChunks: ArchivedChunk[]
+  archivedChunks: ArchivedChunkDisplay[]
   idleTimer: IdleTimerStatus
   totalTokensUsed: number
   contextWindowLimit: number
 }
 
-// ── Reactive state ────────────────────────────────────────────────────
+// ── Store ────────────────────────────────────────────────────────────
 
+const store = useTokenOptimizerStore()
+
+// ── Local state ──────────────────────────────────────────────────────
+
+const budgetInputValue = ref(store.tokenBudgetLimit)
+const showBudgetInput = ref(false)
 const stats = ref<TokenStats | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
-const compressing = ref(false)
-let countdownInterval: ReturnType<typeof setInterval> | null = null
+
+// ── Computed from store ──────────────────────────────────────────────
+
+const loading = computed(() => store.loading)
+const error = computed(() => store.error)
+const compressing = computed(() => store.compressing)
+const clearingCache = computed(() => store.clearingCache)
+const contextUsagePercent = computed(() => store.contextUsagePercent)
+const trendData = computed(() => store.trendData)
+const trendTimeRange = computed(() => store.trendTimeRange)
+
+// Sync store state to local stats ref
+watch(
+  () => store.currentState,
+  (newState) => {
+    if (newState) {
+      stats.value = {
+        systemPrompt: newState.systemPrompt,
+        cache: newState.cache,
+        compression: newState.compression,
+        archivedChunks: newState.archivedChunks.map(chunk => ({
+          id: chunk.id,
+          tokenCount: estimateTokens(chunk.compressedSummary),
+          createdAt: chunk.timestamp,
+          summary: chunk.compressedSummary,
+        })),
+        idleTimer: newState.idleTimer,
+        totalTokensUsed: newState.totalTokensUsed,
+        contextWindowLimit: newState.contextWindowLimit,
+      }
+    }
+  },
+  { immediate: true }
+)
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
+import { estimateTokens } from '@/lib/agent-runtime/token-optimizer'
+
 function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M tokens`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K tokens`
-  return `${n} tokens`
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return `${n}`
 }
 
 function formatBytes(n: number): string {
@@ -76,131 +114,67 @@ function hitRate(hits: number, misses: number): string {
   return `${((hits / total) * 100).toFixed(1)}%`
 }
 
-const contextUsagePercent = computed(() => {
-  if (!stats.value) return 0
-  const { totalTokensUsed, contextWindowLimit } = stats.value
-  if (contextWindowLimit === 0) return 0
-  return Math.min(100, (totalTokensUsed / contextWindowLimit) * 100)
-})
-
-// ── Data fetching ─────────────────────────────────────────────────────
-
-async function fetchStats() {
-  try {
-    loading.value = true
-    error.value = null
-    // Attempt to call backend; fall back to mock data if unavailable
-    const result = await invokeOrProxy<TokenStats>('plugin_get_stats')
-    stats.value = result
-  } catch {
-    // Backend token optimizer not yet available -- use placeholder data
-    stats.value = getMockStats()
-  } finally {
-    loading.value = false
-  }
+// Chart helpers
+function getTrendLabels(): string[] {
+  return trendData.value.map(d => {
+    if ('hour' in d) return d.hour
+    if ('date' in d) return d.date.slice(5)
+    return ''
+  })
 }
 
-function getMockStats(): TokenStats {
-  return {
-    systemPrompt: {
-      frozen: true,
-      hash: 'a3f8c2e1b9d04567',
-      sizeBytes: 4820,
-      tokenCount: 1280,
-    },
-    cache: {
-      systemCacheHits: 342,
-      systemCacheMisses: 18,
-      contextCacheHits: 156,
-      contextCacheMisses: 44,
-    },
-    compression: {
-      totalTokensSaved: 12480,
-      compressionRatio: 0.63,
-      totalCompressions: 47,
-      avgTokensPerCompression: 265,
-    },
-    archivedChunks: [
-      {
-        id: 'chunk_001',
-        tokenCount: 820,
-        createdAt: '2026-06-04T10:23:00Z',
-        summary: 'Earlier conversation about project setup and dependency configuration.',
-      },
-      {
-        id: 'chunk_002',
-        tokenCount: 1340,
-        createdAt: '2026-06-04T11:45:00Z',
-        summary: 'Discussion of authentication flow and token refresh logic.',
-      },
-      {
-        id: 'chunk_003',
-        tokenCount: 560,
-        createdAt: '2026-06-04T14:10:00Z',
-        summary: 'Code review of database migration scripts.',
-      },
-      {
-        id: 'chunk_004',
-        tokenCount: 980,
-        createdAt: '2026-06-05T09:00:00Z',
-        summary: 'Refactoring suggestions for the API layer and error handling.',
-      },
-    ],
-    idleTimer: {
-      active: true,
-      nextCompressionIn: 42,
-      idleThreshold: 60,
-    },
-    totalTokensUsed: 28400,
-    contextWindowLimit: 128000,
-  }
+function getTrendValues(): number[] {
+  return trendData.value.map(d => d.totalTokens)
 }
 
-// ── Manual compression ───────────────────────────────────────────────
+function getMaxTrendValue(): number {
+  return Math.max(...getTrendValues(), 1)
+}
+
+// ── Actions ───────────────────────────────────────────────────────────
 
 async function compressNow() {
-  compressing.value = true
-  try {
-    await invokeOrProxy('plugin_compress_now')
-    // Refresh stats after compression
-    await fetchStats()
-  } catch {
-    // Simulate a small delay and refresh with updated mock data
-    await new Promise((r) => setTimeout(r, 600))
-    if (stats.value) {
-      stats.value.compression.totalCompressions += 1
-      stats.value.compression.totalTokensSaved += 180
-      stats.value.archivedChunks.unshift({
-        id: `chunk_${String(stats.value.compression.totalCompressions).padStart(3, '0')}`,
-        tokenCount: 180,
-        createdAt: new Date().toISOString(),
-        summary: 'Manually compressed context block.',
-      })
-    }
-  } finally {
-    compressing.value = false
-  }
+  await store.compressNow()
 }
 
-// ── Countdown timer for idle compression ──────────────────────────────
+async function clearCache() {
+  await store.clearCache()
+}
 
-function startCountdown() {
-  countdownInterval = setInterval(() => {
-    if (stats.value?.idleTimer.active && stats.value.idleTimer.nextCompressionIn > 0) {
-      stats.value.idleTimer.nextCompressionIn -= 1
-    }
-  }, 1000)
+function toggleTrendRange() {
+  store.toggleTrendTimeRange()
+}
+
+function showBudgetEdit() {
+  showBudgetInput.value = true
+  budgetInputValue.value = store.tokenBudgetLimit
+}
+
+async function saveBudget() {
+  const newLimit = parseInt(budgetInputValue.value.toString(), 10)
+  if (newLimit > 0 && newLimit <= 500_000) {
+    await store.updateBudgetLimit(newLimit)
+  }
+  showBudgetInput.value = false
+}
+
+function cancelBudgetEdit() {
+  showBudgetInput.value = false
+  budgetInputValue.value = store.tokenBudgetLimit
+}
+
+function retryFetch() {
+  store.fetchStats()
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────
 
 onMounted(() => {
-  fetchStats()
-  startCountdown()
+  store.startCountdown()
 })
 
 onUnmounted(() => {
-  if (countdownInterval) clearInterval(countdownInterval)
+  store.stopCountdown()
 })
 </script>
 
@@ -208,31 +182,54 @@ onUnmounted(() => {
   <div class="view-container">
     <div class="view-header">
       <h3>Token Optimizer</h3>
-      <button class="btn-compress" :disabled="compressing" @click="compressNow">
-        <span v-if="compressing" class="spinner" />
-        {{ compressing ? 'Compressing...' : 'Compress Now' }}
-      </button>
+      <div class="header-actions">
+        <button class="btn-compress" :disabled="compressing" @click="compressNow">
+          <span v-if="compressing" class="spinner" />
+          {{ compressing ? '压缩中...' : '压缩当前上下文' }}
+        </button>
+        <button class="btn-clear" :disabled="clearingCache" @click="clearCache">
+          <span v-if="clearingCache" class="spinner" />
+          {{ clearingCache ? '清除中...' : '清除缓存' }}
+        </button>
+      </div>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
       <span class="spinner large" />
-      <p>Loading statistics...</p>
+      <p>加载统计数据...</p>
     </div>
 
     <!-- Error -->
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn-retry" @click="fetchStats">Retry</button>
+      <button class="btn-retry" @click="retryFetch">重试</button>
     </div>
 
     <!-- Stats -->
     <template v-else-if="stats">
-      <!-- Context usage bar -->
+      <!-- Context usage bar with budget setting -->
       <div class="section context-usage">
         <div class="section-header">
-          <span class="section-title">Context Window</span>
-          <span class="section-badge">{{ formatTokens(stats.totalTokensUsed) }} / {{ formatTokens(stats.contextWindowLimit) }}</span>
+          <span class="section-title">上下文窗口</span>
+          <div class="budget-control">
+            <span v-if="!showBudgetInput" class="section-badge" @click="showBudgetEdit">
+              {{ formatTokens(stats.totalTokensUsed) }} / {{ formatTokens(stats.contextWindowLimit) }}
+              <span class="edit-icon">✎</span>
+            </span>
+            <div v-else class="budget-input-group">
+              <input
+                v-model.number="budgetInputValue"
+                type="number"
+                class="budget-input"
+                min="1000"
+                max="500000"
+                step="10000"
+              />
+              <button class="btn-save-budget" @click="saveBudget">保存</button>
+              <button class="btn-cancel-budget" @click="cancelBudgetEdit">取消</button>
+            </div>
+          </div>
         </div>
         <div class="progress-bar">
           <div
@@ -241,17 +238,62 @@ onUnmounted(() => {
             :style="{ width: contextUsagePercent + '%' }"
           />
         </div>
-        <span class="progress-label">{{ contextUsagePercent.toFixed(1) }}% used</span>
+        <span class="progress-label">{{ contextUsagePercent.toFixed(1) }}% 已使用</span>
+      </div>
+
+      <!-- Token Usage Trend Chart -->
+      <div class="card trend-card">
+        <div class="card-title-row">
+          <span class="card-title">Token 用量趋势</span>
+          <button class="btn-toggle-range" @click="toggleTrendRange">
+            {{ trendTimeRange === 'hour' ? '按小时' : '按天' }}
+          </button>
+        </div>
+        <div class="trend-chart">
+          <div class="chart-container">
+            <div class="chart-y-axis">
+              <span>{{ formatTokens(getMaxTrendValue()) }}</span>
+              <span>0</span>
+            </div>
+            <div class="chart-bars">
+              <div
+                v-for="(value, idx) in getTrendValues()"
+                :key="idx"
+                class="bar"
+                :style="{ height: (value / getMaxTrendValue() * 100) + '%' }"
+              >
+                <span class="bar-tooltip">{{ formatTokens(value) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-x-axis">
+            <span v-for="(label, idx) in getTrendLabels()" :key="idx">{{ label }}</span>
+          </div>
+        </div>
+        <div class="trend-stats">
+          <div class="trend-stat-item">
+            <span class="trend-label">输入</span>
+            <span class="trend-value input">{{ formatTokens(trendData.reduce((sum, d) => sum + d.inputTokens, 0)) }}</span>
+          </div>
+          <div class="trend-stat-item">
+            <span class="trend-label">输出</span>
+            <span class="trend-value output">{{ formatTokens(trendData.reduce((sum, d) => sum + d.outputTokens, 0)) }}</span>
+          </div>
+          <div class="trend-stat-item">
+            <span class="trend-label">缓存</span>
+            <span class="trend-value cached">{{ formatTokens(trendData.reduce((sum, d) => sum + d.cachedTokens, 0)) }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- System Prompt -->
       <div class="card">
-        <div class="card-title">System Prompt</div>
+        <div class="card-title">系统提示</div>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Status</span>
+            <span class="info-label">状态</span>
             <span class="badge" :class="stats.systemPrompt.frozen ? 'badge-frozen' : 'badge-unfrozen'">
-              {{ stats.systemPrompt.frozen ? 'Frozen' : 'Unfrozen' }}
+              {{ stats.systemPrompt.frozen ? '已冻结' : '未冻结' }}
             </span>
           </div>
           <div class="info-row">
@@ -259,7 +301,7 @@ onUnmounted(() => {
             <code class="mono">{{ stats.systemPrompt.hash }}</code>
           </div>
           <div class="info-row">
-            <span class="info-label">Size</span>
+            <span class="info-label">大小</span>
             <span>{{ formatBytes(stats.systemPrompt.sizeBytes) }}</span>
           </div>
           <div class="info-row">
@@ -271,33 +313,33 @@ onUnmounted(() => {
 
       <!-- Dual-Cache Stats -->
       <div class="card">
-        <div class="card-title">Dual-Cache Statistics</div>
+        <div class="card-title">双缓存统计</div>
         <div class="cache-grid">
           <div class="cache-box">
-            <div class="cache-label">System Cache</div>
+            <div class="cache-label">系统缓存</div>
             <div class="cache-numbers">
-              <span class="hit">{{ stats.cache.systemCacheHits }} hits</span>
-              <span class="miss">{{ stats.cache.systemCacheMisses }} misses</span>
+              <span class="hit">{{ stats.cache.systemCacheHits }} 命中</span>
+              <span class="miss">{{ stats.cache.systemCacheMisses }} 未命中</span>
             </div>
-            <div class="cache-rate">Hit rate: {{ hitRate(stats.cache.systemCacheHits, stats.cache.systemCacheMisses) }}</div>
+            <div class="cache-rate">命中率: {{ hitRate(stats.cache.systemCacheHits, stats.cache.systemCacheMisses) }}</div>
             <div class="mini-bar">
               <div
                 class="mini-fill hit-fill"
-                :style="{ width: hitRate(stats.cache.systemCacheHits, stats.cache.systemCacheMisses).replace('%','') + '%' }"
+                :style="{ width: hitRate(stats.cache.systemCacheHits, stats.cache.systemCacheMisses).replace('%','').replace('N/A','0') + '%' }"
               />
             </div>
           </div>
           <div class="cache-box">
-            <div class="cache-label">Context Cache</div>
+            <div class="cache-label">上下文缓存</div>
             <div class="cache-numbers">
-              <span class="hit">{{ stats.cache.contextCacheHits }} hits</span>
-              <span class="miss">{{ stats.cache.contextCacheMisses }} misses</span>
+              <span class="hit">{{ stats.cache.contextCacheHits }} 命中</span>
+              <span class="miss">{{ stats.cache.contextCacheMisses }} 未命中</span>
             </div>
-            <div class="cache-rate">Hit rate: {{ hitRate(stats.cache.contextCacheHits, stats.cache.contextCacheMisses) }}</div>
+            <div class="cache-rate">命中率: {{ hitRate(stats.cache.contextCacheHits, stats.cache.contextCacheMisses) }}</div>
             <div class="mini-bar">
               <div
                 class="mini-fill hit-fill"
-                :style="{ width: hitRate(stats.cache.contextCacheHits, stats.cache.contextCacheMisses).replace('%','') + '%' }"
+                :style="{ width: hitRate(stats.cache.contextCacheHits, stats.cache.contextCacheMisses).replace('%','').replace('N/A','0') + '%' }"
               />
             </div>
           </div>
@@ -306,43 +348,43 @@ onUnmounted(() => {
 
       <!-- Compression Stats -->
       <div class="card">
-        <div class="card-title">Compression</div>
+        <div class="card-title">压缩统计</div>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Total Tokens Saved</span>
-            <span class="highlight">{{ formatTokens(stats.compression.totalTokensSaved) }}</span>
+            <span class="info-label">总共节省</span>
+            <span class="highlight">{{ formatTokens(stats.compression.totalTokensSaved) }} tokens</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Compression Ratio</span>
+            <span class="info-label">压缩率</span>
             <span>{{ (stats.compression.compressionRatio * 100).toFixed(1) }}%</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Total Compressions</span>
+            <span class="info-label">压缩次数</span>
             <span>{{ stats.compression.totalCompressions }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Avg Tokens / Compression</span>
-            <span>{{ formatTokens(stats.compression.avgTokensPerCompression) }}</span>
+            <span class="info-label">平均节省</span>
+            <span>{{ formatTokens(stats.compression.avgTokensPerCompression) }}/次</span>
           </div>
         </div>
       </div>
 
       <!-- Idle Compression Timer -->
       <div class="card">
-        <div class="card-title">Idle Compression Timer</div>
+        <div class="card-title">空闲压缩计时器</div>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Status</span>
+            <span class="info-label">状态</span>
             <span class="badge" :class="stats.idleTimer.active ? 'badge-active' : 'badge-paused'">
-              {{ stats.idleTimer.active ? 'Active' : 'Paused' }}
+              {{ stats.idleTimer.active ? '活动' : '暂停' }}
             </span>
           </div>
           <div class="info-row">
-            <span class="info-label">Next Compression In</span>
+            <span class="info-label">下次压缩</span>
             <span class="countdown">{{ stats.idleTimer.nextCompressionIn }}s</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Idle Threshold</span>
+            <span class="info-label">空闲阈值</span>
             <span>{{ stats.idleTimer.idleThreshold }}s</span>
           </div>
         </div>
@@ -350,15 +392,15 @@ onUnmounted(() => {
 
       <!-- Archived Chunks -->
       <div class="card">
-        <div class="card-title">Archived Chunks</div>
+        <div class="card-title">已归档块</div>
         <div v-if="stats.archivedChunks.length === 0" class="empty-hint">
-          No archived chunks yet.
+          暂无已归档的上下文块。
         </div>
         <div v-else class="chunk-list">
           <div v-for="chunk in stats.archivedChunks" :key="chunk.id" class="chunk-item">
             <div class="chunk-header">
               <code class="chunk-id">{{ chunk.id }}</code>
-              <span class="chunk-tokens">{{ formatTokens(chunk.tokenCount) }}</span>
+              <span class="chunk-tokens">{{ formatTokens(chunk.tokenCount) }} tokens</span>
             </div>
             <div class="chunk-summary">{{ chunk.summary }}</div>
             <div class="chunk-date">{{ new Date(chunk.createdAt).toLocaleString() }}</div>
@@ -385,6 +427,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .view-header h3 {
@@ -393,11 +437,16 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .btn-compress {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border: none;
   border-radius: 6px;
   background: var(--primary, #3b82f6);
@@ -413,6 +462,28 @@ onUnmounted(() => {
 }
 .btn-compress:hover:not(:disabled) {
   opacity: 0.85;
+}
+
+.btn-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-color, #374151);
+  border-radius: 6px;
+  background: var(--bg-surface, #1f2937);
+  color: var(--text-primary, #f3f4f6);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-clear:hover:not(:disabled) {
+  background: var(--bg-subtle, #111827);
 }
 
 /* ── Loading / Error ────────────────────────────────────── */
@@ -485,6 +556,57 @@ onUnmounted(() => {
 .section-badge {
   font-size: 12px;
   color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-icon {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.budget-control {
+  display: flex;
+  align-items: center;
+}
+
+.budget-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.budget-input {
+  width: 100px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color, #374151);
+  border-radius: 4px;
+  background: var(--bg-subtle, #111827);
+  color: var(--text-primary, #f3f4f6);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.btn-save-budget,
+.btn-cancel-budget {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-save-budget {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+}
+
+.btn-cancel-budget {
+  background: var(--bg-subtle, #111827);
+  color: var(--text-muted, #9ca3af);
+  border: 1px solid var(--border-color, #374151);
 }
 
 .progress-bar {
@@ -509,6 +631,127 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--text-muted, #9ca3af);
 }
+
+/* ── Trend Chart ────────────────────────────────────────── */
+
+.trend-card {
+  padding: 14px 16px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #374151);
+}
+
+.btn-toggle-range {
+  padding: 4px 12px;
+  border: 1px solid var(--border-color, #374151);
+  border-radius: 4px;
+  background: var(--bg-subtle, #111827);
+  color: var(--text-muted, #9ca3af);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.trend-chart {
+  margin-bottom: 12px;
+}
+
+.chart-container {
+  display: flex;
+  height: 80px;
+  gap: 8px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted, #9ca3af);
+  width: 50px;
+}
+
+.chart-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  background: var(--bg-subtle, #111827);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 8px;
+  background: var(--primary, #3b82f6);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease;
+  position: relative;
+}
+
+.bar:hover {
+  background: #60a5fa;
+}
+
+.bar-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface, #1f2937);
+  border: 1px solid var(--border-color, #374151);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--text-primary, #f3f4f6);
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.bar:hover .bar-tooltip {
+  opacity: 1;
+}
+
+.chart-x-axis {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--text-muted, #9ca3af);
+}
+
+.trend-stats {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.trend-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trend-label {
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+}
+
+.trend-value {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.trend-value.input { color: #60a5fa; }
+.trend-value.output { color: #4ade80; }
+.trend-value.cached { color: #fbbf24; }
 
 /* ── Card ───────────────────────────────────────────────── */
 

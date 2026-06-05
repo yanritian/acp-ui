@@ -595,6 +595,26 @@ export type MessageSchema = {
     createSessionHint: string
     deleteConfirm: string
     deleteSession: string
+    searchPlaceholder: string
+    allAgents: string
+    clearFilter: string
+    noMatchingSessions: string
+    tryDifferentSearch: string
+    groupPinned: string
+    groupToday: string
+    groupYesterday: string
+    groupThisWeek: string
+    groupOlder: string
+    justNow: string
+    minutesAgo: string
+    hoursAgo: string
+    pinSession: string
+    unpinSession: string
+    exportSession: string
+    exportMarkdown: string
+    exportJson: string
+    copyToClipboard: string
+    copyFailed: string
   }
   agentSelector: {
     label: string
@@ -905,5 +925,55 @@ export type MessageSchema = {
     suggestedPromptCommands: string
     clickToUse: string
     orTypeSlash: string
+  }
+  permission: {
+    title: string
+    batchTitle: string
+    batchMode: string
+    singleMode: string
+    batchHint: string
+    allowOnce: string
+    allowAlways: string
+    rejectOnce: string
+    rejectAlways: string
+    approveSelected: string
+    rejectAll: string
+    moreFiles: string
+    ruleWarning: string
+    createAllowRule: string
+    createRejectRule: string
+    rulesTitle: string
+    totalRules: string
+    enabledRules: string
+    disabledRules: string
+    addRule: string
+    editRule: string
+    ruleName: string
+    ruleDescription: string
+    ruleScope: string
+    ruleAction: string
+    rulePattern: string
+    ruleEnabled: string
+    scopeTool: string
+    scopePath: string
+    scopePattern: string
+    actionAllow: string
+    actionReject: string
+    toolKind: string
+    patternHint: string
+    toolKindHint: string
+    patternRequired: string
+    ruleNameRequired: string
+    invalidPattern: string
+    deleteRuleConfirm: string
+    resetDefaultsConfirm: string
+    resetDefaults: string
+    allScopes: string
+    allActions: string
+    allStatus: string
+    updatedAt: string
+    noRules: string
+    ruleApplied: string
+    ruleCreated: string
   }
 }

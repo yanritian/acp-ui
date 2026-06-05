@@ -34,6 +34,7 @@ const routes = [
   { path: '/swarm-dashboard', name: 'swarm-dashboard', component: () => import('./features/plugins/SwarmDashboard.vue') },
   { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./features/workflow/WorkflowEditor.vue') },
   { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue') },
+  { path: '/settings', name: 'settings', component: () => import('./shared/ui/UnifiedSettingsView.vue') },
 ]
 
 export const router = createRouter({

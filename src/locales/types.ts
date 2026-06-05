@@ -97,6 +97,9 @@ export type MessageSchema = {
     tip: string
     configureAgents: string
     noMockData: string
+    collapse: string
+    submitting: string
+    submit: string
     startCollaborationHint: string
   }
   navigation: {
@@ -121,6 +124,10 @@ export type MessageSchema = {
     executiveSession: string
     skills: string
     agentConfig: string
+    plugins: string
+    swarmDashboard: string
+    workflowEditor: string
+    tokenOptimizer: string
   }
   navigationDescriptions: {
     chat: string
@@ -144,6 +151,10 @@ export type MessageSchema = {
     executiveSession: string
     skills: string
     agentConfig: string
+    plugins: string
+    swarmDashboard: string
+    workflowEditor: string
+    tokenOptimizer: string
   }
   hermes: {
     title: string
@@ -441,6 +452,54 @@ export type MessageSchema = {
     defaultAgent: string
     addStep: string
     unnamed: string
+    selectWorkflow: string
+    stages: string
+    noResults: string
+    createNew: string
+    name: string
+    description: string
+    descPlaceholder: string
+    generateFromTask: string
+    generating: string
+    orManual: string
+    stageName: string
+    agentsComma: string
+    dependsOnComma: string
+    addStage: string
+    maxConcurrent: string
+    failurePolicy: string
+    submit: string
+  }
+  pluginManager: {
+    title: string
+    searchPlaceholder: string
+    plugins: string
+    enabled: string
+    healthy: string
+    details: string
+    capabilities: string
+    noCapabilities: string
+    executionStats: string
+    successRate: string
+    avgDuration: string
+    tokens: string
+    config: string
+    recentHistory: string
+    noPlugins: string
+  }
+  swarm: {
+    title: string
+    agents: string
+    active: string
+    tasksRunning: string
+    agentList: string
+    noAgents: string
+    taskList: string
+    noTasks: string
+    cancel: string
+    createTask: string
+    taskDescPlaceholder: string
+    submit: string
   }
   settings: {
     title: string

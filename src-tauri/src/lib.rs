@@ -1,32 +1,60 @@
-mod agent;
+// ============================================================================
+// ACP-UI Rust Module Organization
+// ============================================================================
+// Modules are grouped by domain for better navigation and maintainability.
+// Future: Each group may become a subdirectory with mod.rs aggregation.
+// ============================================================================
+
+// ---- Core Infrastructure ----
 mod config;
 mod database;
-mod gateway_config;
-mod websocket;
-mod finance;  // ERP Finance Module
-mod tunnel;
 mod log_stream;
-mod permission_checker;
+
+// ---- ACP Transport Layer ----
+mod websocket;
+mod tunnel;
+
+// ---- Agent Management ----
+mod agent;
+mod agent_registry;
 mod agent_config_parser;
-mod mcp_manager;
+mod agent_bus;
+mod session_manager;  // Claw Code Session Management
+
+// ---- Security & Permissions ----
+mod permission_checker;
+mod circuit_breaker;  // Three-state failure protection
+
+// ---- Workflow & Orchestration ----
+mod team_dag;         // Team DAG execution engine
+mod workflow_engine;  // Multi-stage orchestrated workflows
+mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
+
+// ---- Smart Routing & Self-Healing ----
+mod smart_router;     // Three-layer complexity evaluation
+mod self_healing;     // EWMA anomaly detection
+mod event_router;     // Claw Code Event Router (clawhip layer)
+
+// ---- Plugin System ----
+mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters
 mod hooks_executor;
-mod session_manager;  // NEW: Claw Code Session Management
-mod event_router;     // NEW: Claw Code Event Router (clawhip layer)
-mod feishu_rich_message;  // NEW: Feishu rich message support (images, files, cards)
-mod executive_agent;  // NEW: Executive Agent - executes actual development tasks
-mod agent_registry;   // NEW: Agent Registry - Docker-like Base/Template/Instance system
-mod smart_router;     // NEW: Smart Router - three-layer complexity evaluation
-mod circuit_breaker;  // NEW: Circuit Breaker - three-state failure protection
-mod self_healing;     // NEW: Self-Healing - EWMA anomaly detection
-mod team_dag;         // NEW: Team DAG execution engine with SyncPoints
-mod skill_commands;   // NEW: Skill System Tauri Commands (OpenClacky pattern)
-mod bot_adapters;     // NEW: Bot Adapters - Telegram, Feishu, Discord, App WebSocket
-mod commands;         // Refactored Tauri command handlers organized by domain
-mod plugin_registry;  // NEW: Unified Plugin Registry - Skills/MCP/Hooks/CLI/Adapters
-mod swarm_orchestrator; // NEW: Agent Swarm Orchestrator - top-level Codex/Claude Code coordination
-mod workflow_engine;  // NEW: Ultra Workflow Engine - multi-stage orchestrated workflows
-mod mcp_client;       // NEW: MCP JSON-RPC Client - tool discovery and invocation
-mod agent_bus;        // NEW: Agent Communication Bus - agent-to-agent messaging + pub/sub
+mod skill_commands;   // Skill System Tauri Commands
+mod mcp_manager;
+mod mcp_client;       // MCP JSON-RPC Client
+
+// ---- Bot Adapters ----
+mod bot_adapters;     // Telegram, Feishu, Discord, App WebSocket
+mod feishu_rich_message;
+
+// ---- Executive Agent ----
+mod executive_agent;  // Executes actual development tasks
+
+// ---- Pluggable Modules ----
+mod finance;          // ERP Finance (example domain module)
+mod gateway_config;
+
+// ---- Tauri Commands ----
+mod commands;         // Refactored command handlers organized by domain
 
 use agent::{AgentManager};
 use config::ConfigManager;

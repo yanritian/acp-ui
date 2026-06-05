@@ -71,6 +71,12 @@
       <div class="modal-content">
         <h3>{{ editingAgent ? t('agentConfig.editAgent') : t('agentConfig.addAgent') }}</h3>
 
+        <!-- Platform restriction warning -->
+        <div v-if="isRestrictedPlatform" class="platform-warning">
+          <span class="warning-icon">⚠️</span>
+          <span class="warning-text">{{ t('agentConfig.platformRestriction') }}</span>
+        </div>
+
         <div class="form-group">
           <label>{{ t('agentConfig.agentName') }}</label>
           <input
@@ -85,8 +91,14 @@
           <label>{{ t('agentConfig.connectionType') }}</label>
           <select v-model="form.type" class="form-select">
             <option value="websocket">WebSocket</option>
-            <option value="stdio">{{ t('agentConfig.stdioOption') }}</option>
+            <option value="stdio" :disabled="isRestrictedPlatform">
+              {{ t('agentConfig.stdioOption') }}
+              {{ isRestrictedPlatform ? `(${t('agentConfig.desktopOnly')})` : '' }}
+            </option>
           </select>
+          <small v-if="form.type === 'stdio' && isRestrictedPlatform" class="form-warning">
+            {{ t('agentConfig.stdioNotAvailable') }}
+          </small>
         </div>
 
         <div v-if="form.type === 'websocket'" class="form-group">
@@ -129,6 +141,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useConfigStore } from '@/stores/config';
 import { useI18n } from '@/locales';
+import { restrictedTransports, isDesktop } from '@/lib/platform';
 import {
   addAgent,
   updateAgent,
@@ -140,6 +153,8 @@ import {
 import type { AgentConfig } from '@/lib/types';
 
 const { t } = useI18n();
+const isRestrictedPlatform = restrictedTransports();
+const isDesktopPlatform = isDesktop();
 
 interface AgentWithStatus {
   name: string;
@@ -497,6 +512,35 @@ onMounted(async () => {
   margin-top: 4px;
   font-size: 12px;
   color: #666;
+}
+
+.form-warning {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.platform-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #FEF3C7 0%, #FDE68A 100%);
+  border-radius: 8px;
+  border: 1px solid #F59E0B;
+}
+
+.warning-icon {
+  font-size: 18px;
+}
+
+.warning-text {
+  font-size: 14px;
+  color: #92400E;
+  font-weight: 500;
 }
 
 .form-actions {

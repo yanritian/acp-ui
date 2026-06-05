@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 
 export type SwarmTopology = 'hierarchical' | 'mesh' | 'pipeline' | 'star' | 'adaptive'
 export type ConsensusStrategy = 'first_wins' | 'majority' | 'best_score' | 'merge' | 'adversarial'
@@ -53,30 +53,30 @@ export interface SwarmHealth {
 
 export class SwarmService {
   static async registerAgent(agent: SwarmAgent): Promise<void> {
-    return invoke('swarm_register_agent', { agent })
+    return invokeOrProxy('swarm_register_agent', { agent })
   }
 
   static async listAgents(): Promise<SwarmAgent[]> {
-    return invoke('swarm_list_agents')
+    return invokeOrProxy('swarm_list_agents')
   }
 
   static async createTask(description: string, topology?: SwarmTopology, consensus?: ConsensusStrategy): Promise<SwarmTask> {
-    return invoke('swarm_create_task', { description, topology, consensus })
+    return invokeOrProxy('swarm_create_task', { description, topology, consensus })
   }
 
   static async submitResult(taskId: string, agentId: string, result: AgentResult): Promise<string> {
-    return invoke('swarm_submit_result', { taskId, agentId, result })
+    return invokeOrProxy('swarm_submit_result', { taskId, agentId, result })
   }
 
   static async getTask(taskId: string): Promise<SwarmTask> {
-    return invoke('swarm_get_task', { taskId })
+    return invokeOrProxy('swarm_get_task', { taskId })
   }
 
   static async getHealth(): Promise<SwarmHealth> {
-    return invoke('swarm_get_health')
+    return invokeOrProxy('swarm_get_health')
   }
 
   static async cancelTask(taskId: string): Promise<void> {
-    return invoke('swarm_cancel_task', { taskId })
+    return invokeOrProxy('swarm_cancel_task', { taskId })
   }
 }

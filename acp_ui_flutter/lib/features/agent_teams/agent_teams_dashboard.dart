@@ -10,6 +10,7 @@ import '../../data/stores/agent_realtime/agent_pet_store.dart';
 import '../../data/models/agent_realtime/agent_realtime_types.dart';
 import '../../data/models/agent_pet/agent_pet_types.dart';
 import '../../data/services/websocket_service.dart';
+import '../../data/services/server_config_service.dart';
 import '../../core/router/smart_router.dart';
 import '../../core/circuit/circuit_breaker.dart';
 import '../../core/dag/team_dag.dart';
@@ -58,7 +59,6 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
 
   // 配置状态
   String _workspacePath = 'D:/dingsun/acp-ui/erp_system';
-  String _wsUrl = 'ws://10.0.2.2:1421';
   bool _isExecutiveAgentInitialized = false;
   StreamSubscription<String>? _messageSubscription;
 
@@ -115,8 +115,9 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
   }
 
   Future<void> _connectWebSocket() async {
+    final serverConfig = ref.read(serverConfigProvider);
     final wsService = ref.read(webSocketServiceProvider);
-    wsService.configureUrl(_wsUrl);
+    wsService.configureUrl(serverConfig.serverUrl);
     try {
       await wsService.connect();
       ref.read(connectionStatusProvider.notifier).state = true;
@@ -1628,7 +1629,7 @@ class _AgentTeamsDashboardState extends ConsumerState<AgentTeamsDashboard> {
                         color: Colors.grey.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(_wsUrl, style: const TextStyle(fontSize: 13)),
+                      child: Text(ref.read(serverConfigProvider).serverUrl, style: const TextStyle(fontSize: 13)),
                     ),
                     const SizedBox(height: 24),
                     // 工作目录

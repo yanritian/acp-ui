@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '../lib/host'
 import { isTauriHost } from '../lib/platform'
 import { useI18n } from '@/locales'
 
@@ -51,7 +51,7 @@ const activeTab = ref<'feishu' | 'telegram' | 'discord'>('feishu')
 async function loadConfig() {
   if (isTauriHost()) {
     try {
-      const gatewayConfig = await invoke<Record<string, unknown>>('get_gateway_config')
+      const gatewayConfig = await invokeOrProxy<Record<string, unknown>>('get_gateway_config')
       if (gatewayConfig) {
         // Extract bot-related config from gateway config
         if (gatewayConfig.feishu) {
@@ -103,7 +103,7 @@ async function saveConfig() {
   try {
     if (isTauriHost()) {
       // Save via gateway config command
-      await invoke('save_gateway_config', {
+      await invokeOrProxy('save_gateway_config', {
         config: {
           feishu: config.value.feishu,
           telegram: config.value.telegram,

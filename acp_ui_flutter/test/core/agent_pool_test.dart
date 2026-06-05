@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:acp_ui_flutter/core/agent/agent_pool.dart';
-import 'package:acp_ui_flutter/data/models/agent.dart';
 
 void main() {
   group('AgentPool', () {

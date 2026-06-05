@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useI18n } from '@/locales'
 
@@ -50,7 +50,7 @@ const eventUnlisteners: UnlistenFn[] = []
 // 加载配置
 async function loadConfig() {
   try {
-    const config = await invoke<Record<string, unknown>>('get_gateway_config')
+    const config = await invokeOrProxy<Record<string, unknown>>('get_gateway_config')
     if (config) {
       // Deep merge: only update fields that actually exist in response
       // IMPORTANT: do NOT overwrite non-empty secrets with masked values (****)
@@ -97,7 +97,7 @@ async function loadConfig() {
 async function saveConfig() {
   saving.value = true
   try {
-    await invoke('save_gateway_config', { config: gatewayConfig.value })
+    await invokeOrProxy('save_gateway_config', { config: gatewayConfig.value })
     // Reload config to confirm persistence and get masked secrets
     await loadConfig()
     saved.value = true
@@ -112,8 +112,8 @@ async function saveConfig() {
 // 生成二维码
 async function generateQRCode() {
   try {
-    const url = await invoke('generate_app_qrcode')
-    qrCodeUrl.value = url as string
+    const url = await invokeOrProxy<string>('generate_app_qrcode')
+    qrCodeUrl.value = url
   } catch (error) {
     console.error('Failed to generate QR code:', error)
   }
@@ -139,13 +139,13 @@ async function copyPublicUrl() {
 async function startTunnel() {
   try {
     gatewayConfig.value.tunnel.status = 'starting'
-    const result = await invoke('start_tunnel', {
+    const result = await invokeOrProxy<string>('start_tunnel', {
       provider: gatewayConfig.value.tunnel.provider,
       token: gatewayConfig.value.tunnel.ngrokToken,
       port: gatewayConfig.value.app.websocketPort,
       region: gatewayConfig.value.tunnel.ngrokRegion,
     })
-    gatewayConfig.value.tunnel.publicUrl = result as string
+    gatewayConfig.value.tunnel.publicUrl = result
     gatewayConfig.value.tunnel.status = 'running'
 
     // Auto-generate QR code with tunnel URL
@@ -160,7 +160,7 @@ async function startTunnel() {
 // 停止内网穿透
 async function stopTunnel() {
   try {
-    await invoke('stop_tunnel')
+    await invokeOrProxy('stop_tunnel')
     gatewayConfig.value.tunnel.status = 'stopped'
     gatewayConfig.value.tunnel.publicUrl = ''
   } catch (error) {
@@ -175,13 +175,13 @@ async function startGateway() {
 
     // Start WebSocket server (bind to all interfaces if tunnel is enabled)
     const bindExternal = gatewayConfig.value.tunnel.enabled
-    await invoke('start_ws_server', {
+    await invokeOrProxy('start_ws_server', {
       port: gatewayConfig.value.app.websocketPort,
       bindExternal: bindExternal,
     })
 
     // Start gateway config
-    await invoke('start_gateway', { config: gatewayConfig.value })
+    await invokeOrProxy('start_gateway', { config: gatewayConfig.value })
 
     gatewayStatus.value = 'running'
   } catch (error) {
@@ -195,7 +195,7 @@ async function startGateway() {
 async function stopGateway() {
   try {
     // Stop WebSocket server
-    await invoke('stop_ws_server')
+    await invokeOrProxy('stop_ws_server')
 
     // Stop tunnel if running
     if (gatewayConfig.value.tunnel.status === 'running') {
@@ -203,7 +203,7 @@ async function stopGateway() {
     }
 
     // Stop gateway
-    await invoke('stop_gateway')
+    await invokeOrProxy('stop_gateway')
     gatewayStatus.value = 'stopped'
   } catch (error) {
     console.error('Failed to stop gateway:', error)

@@ -12,6 +12,9 @@ import 'features/evolution/evolution_dashboard.dart';
 import 'features/hermes/hermes_dashboard.dart';
 import 'features/collaboration/collaboration_network_view.dart';
 import 'features/agent_teams/agent_teams_dashboard.dart';
+import 'features/plugins/plugin_manager_screen.dart';
+import 'features/swarm/swarm_dashboard_screen.dart';
+import 'features/server_config/server_config_screen.dart';
 
 // Router configuration with ShellRoute for persistent sidebar
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -51,6 +54,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/agent-teams',
             builder: (context, state) => const AgentTeamsDashboard(),
+          ),
+          GoRoute(
+            path: '/plugins',
+            builder: (context, state) => const PluginManagerScreen(),
+          ),
+          GoRoute(
+            path: '/swarm',
+            builder: (context, state) => const SwarmDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/server-config',
+            builder: (context, state) => const ServerConfigScreen(),
           ),
         ],
       ),

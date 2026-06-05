@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:acp_ui_flutter/core/orchestrator/orchestrator.dart';
 import 'package:acp_ui_flutter/core/agent/agent_pool.dart';
 import 'package:acp_ui_flutter/core/session/session_manager.dart';
-import 'package:acp_ui_flutter/data/models/agent.dart';
 
 void main() {
   group('Orchestrator', () {

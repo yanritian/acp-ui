@@ -1,30 +1,28 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useI18n } from '@/locales';
+import { invokeOrProxy } from '@/lib/host';
 
-// Tauri API imports (conditionally available)
-let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
+// Tauri event API (conditionally available)
 let listen: ((event: string, handler: (event: unknown) => void) => Promise<() => void>) | null = null;
 
 // 检测是否在Tauri环境中
 const isTauriEnv = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-// 初始化Tauri API
-async function initTauriAPI(): Promise<boolean> {
+// 初始化Tauri event API (invoke handled by invokeOrProxy)
+async function initTauriEventAPI(): Promise<boolean> {
   if (!isTauriEnv) {
-    console.log('[ExecutiveSessionView] Not in Tauri environment');
+    console.log('[ExecutiveSessionView] Not in Tauri environment, using WebSocket proxy');
     return false;
   }
 
   try {
-    const core = await import('@tauri-apps/api/core');
     const event = await import('@tauri-apps/api/event');
-    invoke = core.invoke;
     listen = event.listen;
-    console.log('[ExecutiveSessionView] Tauri API initialized successfully');
+    console.log('[ExecutiveSessionView] Tauri event API initialized successfully');
     return true;
   } catch (e) {
-    console.log('[ExecutiveSessionView] Tauri API import failed:', e);
+    console.log('[ExecutiveSessionView] Tauri event API import failed:', e);
     return false;
   }
 }
@@ -87,114 +85,41 @@ let unlisteners: (() => void)[] = [];
 
 // 加载持久化的会话记录
 async function loadPersistedSessions() {
-  // Try Tauri invoke first (if in Tauri environment)
-  if (invoke) {
-    try {
-      const records = await invoke('load_executive_sessions', { limit: 50 });
-
-      for (const record of records as any[]) {
-        const session: ExecutiveSession = {
-          taskId: record.id,
-          request: record.request,
-          workspace: record.workspace,
-          status: record.status as 'running' | 'completed' | 'error',
-          files: record.files_json ? JSON.parse(record.files_json) : [],
-          logs: record.logs_json ? JSON.parse(record.logs_json) : [],
-          summary: record.summary,
-          startTime: record.created_at,
-          endTime: record.completed_at,
-        };
-        // Only add if not already in list
-        if (!sessions.value.find(s => s.taskId === session.taskId)) {
-          sessions.value.push(session);
-        }
-      }
-
-      // Sort by start time (newest first)
-      sessions.value.sort((a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-      );
-
-      console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} persisted sessions from Tauri`);
-      return;
-    } catch (e) {
-      console.error('[ExecutiveSessionView] Failed to load from Tauri:', e);
-    }
-  }
-
-  // Fallback: Use WebSocket to query database (works in web mode)
-  console.log('[ExecutiveSessionView] Using WebSocket fallback to load sessions');
   try {
-    const ws = new WebSocket('ws://localhost:1421');
+    const records = await invokeOrProxy<any[]>('load_executive_sessions', { limit: 50 });
 
-    ws.onopen = () => {
-      console.log('[ExecutiveSessionView] WebSocket connected');
-      // Send list_executive_sessions command
-      ws.send(JSON.stringify({
-        id: 'load-sessions-' + Date.now(),
-        type: 'command',  // Use 'type' not 'request_type' (server expects 'type')
-        command: 'list_executive_sessions',
-        token: null,  // No auth token needed when server has no token set
-        payload: { limit: 50 }
-      }));
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const response = JSON.parse(event.data);
-        console.log('[ExecutiveSessionView] WebSocket response:', response);
-
-        if (response.ok && response.data?.sessions) {
-          for (const record of response.data.sessions as any[]) {
-            const session: ExecutiveSession = {
-              taskId: record.id,
-              request: record.request,
-              workspace: record.workspace,
-              status: record.status as 'running' | 'completed' | 'error',
-              files: record.files_json ? JSON.parse(record.files_json) : [],
-              logs: record.logs_json ? JSON.parse(record.logs_json) : [],
-              summary: record.summary,
-              startTime: record.created_at,
-              endTime: record.completed_at,
-            };
-            if (!sessions.value.find(s => s.taskId === session.taskId)) {
-              sessions.value.push(session);
-            }
-          }
-
-          sessions.value.sort((a, b) =>
-            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-          );
-
-          console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} sessions from WebSocket`);
-        }
-        ws.close();
-      } catch (e) {
-        console.error('[ExecutiveSessionView] Failed to parse WebSocket response:', e);
+    for (const record of records) {
+      const session: ExecutiveSession = {
+        taskId: record.id,
+        request: record.request,
+        workspace: record.workspace,
+        status: record.status as 'running' | 'completed' | 'error',
+        files: record.files_json ? JSON.parse(record.files_json) : [],
+        logs: record.logs_json ? JSON.parse(record.logs_json) : [],
+        summary: record.summary,
+        startTime: record.created_at,
+        endTime: record.completed_at,
+      };
+      // Only add if not already in list
+      if (!sessions.value.find(s => s.taskId === session.taskId)) {
+        sessions.value.push(session);
       }
-    };
+    }
 
-    ws.onerror = (error) => {
-      console.error('[ExecutiveSessionView] WebSocket error:', error);
-    };
+    // Sort by start time (newest first)
+    sessions.value.sort((a, b) =>
+      new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    );
 
-    ws.onclose = () => {
-      console.log('[ExecutiveSessionView] WebSocket closed');
-    };
+    console.log(`[ExecutiveSessionView] Loaded ${sessions.value.length} persisted sessions`);
   } catch (e) {
-    console.error('[ExecutiveSessionView] Failed to connect WebSocket:', e);
+    console.error('[ExecutiveSessionView] Failed to load sessions:', e);
   }
 }
 
 // 保存会话到数据库
 async function saveSessionToDatabase(session: ExecutiveSession) {
-  if (!invoke) {
-    console.log('[ExecutiveSessionView] invoke not available, skipping save');
-    return;
-  }
-
   try {
-
     const record = {
       id: session.taskId,
       request: session.request,
@@ -207,7 +132,7 @@ async function saveSessionToDatabase(session: ExecutiveSession) {
       completed_at: session.endTime,
     };
 
-    await invoke('save_executive_session_record', { session: record });
+    await invokeOrProxy('save_executive_session_record', { session: record });
     console.log(`[ExecutiveSessionView] Saved session ${session.taskId} to database`);
   } catch (e) {
     console.error('[ExecutiveSessionView] Failed to save session to database:', e);
@@ -216,13 +141,13 @@ async function saveSessionToDatabase(session: ExecutiveSession) {
 
 // 事件监听 - 初始化Tauri API并监听事件
 onMounted(async () => {
-  // 先初始化Tauri API
-  const tauriReady = await initTauriAPI();
+  // 先初始化Tauri event API
+  const tauriReady = await initTauriEventAPI();
 
   // 初始化 Executive Agent（设置工作目录）
-  if (tauriReady && invoke) {
+  if (tauriReady) {
     try {
-      await invoke('init_executive_agent', { workspace: WORKSPACE_PATH });
+      await invokeOrProxy('init_executive_agent', { workspace: WORKSPACE_PATH });
       console.log('[ExecutiveSessionView] Executive Agent initialized with workspace:', WORKSPACE_PATH);
     } catch (e) {
       console.error('[ExecutiveSessionView] Failed to initialize Executive Agent:', e);
@@ -346,11 +271,10 @@ onMounted(async () => {
         console.log('[ExecutiveSessionView] Received remote-command:', data);
 
         if (data.type === 'execute_development_task' && data.request) {
-          if (!invoke) return;
-          // 调用真正的Tauri command执行任务
+          // 调用 invokeOrProxy 执行任务
           try {
             isLoading.value = true;
-            const result = await invoke('execute_development_task', { request: data.request });
+            const result = await invokeOrProxy('execute_development_task', { request: data.request });
             console.log('[ExecutiveSessionView] Task executed successfully:', result);
           } catch (e) {
             console.error('[ExecutiveSessionView] Task execution failed:', e);
@@ -466,8 +390,8 @@ function addTestSession() {
 
 // 执行新任务
 async function executeTask() {
-  if (!newRequest.value.trim() || !invoke) {
-    console.log('[ExecutiveSessionView] No request or invoke not available');
+  if (!newRequest.value.trim()) {
+    console.log('[ExecutiveSessionView] No request');
     return;
   }
 
@@ -477,7 +401,7 @@ async function executeTask() {
 
   try {
     console.log('[ExecutiveSessionView] Executing task:', request);
-    const result = await invoke('execute_development_task', { request });
+    const result = await invokeOrProxy('execute_development_task', { request });
     console.log('[ExecutiveSessionView] Task result:', result);
   } catch (e) {
     console.error('[ExecutiveSessionView] Task execution failed:', e);

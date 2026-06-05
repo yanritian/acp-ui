@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'server_config_service.dart';
 
 /// WebSocket Service Provider - connects to Rust Tauri Backend
+/// Uses ServerConfigProvider for dynamic server URL resolution.
 final webSocketServiceProvider = Provider<WebSocketService>((ref) {
-  // Default to WebSocket server port (1421)
-  // Use 10.0.2.2 for Android emulator to access host machine
-  return WebSocketService(url: 'ws://10.0.2.2:1421');
+  final serverConfig = ref.watch(serverConfigProvider);
+  return WebSocketService(url: serverConfig.serverUrl, authToken: serverConfig.authToken);
 });
 
 /// Connection Status Provider
@@ -34,7 +35,12 @@ class WebSocketService {
   String? _authToken;
   String? _clientId;
 
-  WebSocketService({required String url}) : _url = url;
+  /// Pending request completers for request/response pattern
+  final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
+
+  WebSocketService({required String url, String? authToken})
+      : _url = url,
+        _authToken = authToken;
 
   Stream<String> get messageStream => _messageController.stream;
   bool isConnected() => _isConnected;
@@ -74,9 +80,11 @@ class WebSocketService {
         onError: (error) {
           print('[WS] Error: $error');
           _isConnected = false;
+          _failAllPending('WebSocket error: $error');
         },
         onDone: () {
           _isConnected = false;
+          _failAllPending('WebSocket connection closed');
           print('[WS] Connection closed');
         },
       );
@@ -89,6 +97,7 @@ class WebSocketService {
       }
     } catch (e) {
       _isConnected = false;
+      _failAllPending('Connection failed: $e');
       throw Exception('WebSocket connection failed: $e');
     }
   }
@@ -97,6 +106,14 @@ class WebSocketService {
   void _handleMessage(String data) {
     try {
       final msg = jsonDecode(data) as Map<String, dynamic>;
+
+      // Resolve pending request if the message has a matching 'id'
+      final msgId = msg['id'] as String?;
+      if (msgId != null && _pendingRequests.containsKey(msgId)) {
+        final completer = _pendingRequests.remove(msgId)!;
+        completer.complete(msg);
+        return;
+      }
 
       // Handle auth response
       if (msg['ok'] == true && msg['data'] != null) {
@@ -111,6 +128,16 @@ class WebSocketService {
     }
   }
 
+  /// Fail all pending requests (on disconnect / error)
+  void _failAllPending(String reason) {
+    for (final completer in _pendingRequests.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(Exception(reason));
+      }
+    }
+    _pendingRequests.clear();
+  }
+
   /// Authenticate with token
   Future<void> authenticate(String token) async {
     await sendJson({
@@ -123,6 +150,7 @@ class WebSocketService {
   /// Disconnect from WebSocket server
   Future<void> disconnect() async {
     if (!_isConnected) return;
+    _failAllPending('Disconnected by user');
     await _channel?.sink.close();
     _isConnected = false;
   }
@@ -140,12 +168,55 @@ class WebSocketService {
     send(jsonEncode(message));
   }
 
+  /// Send a request and wait for the response (matched by request id).
+  /// Returns the full response message as a Map.
+  Future<Map<String, dynamic>> sendRequest(
+    String command,
+    Map<String, dynamic> payload,
+  ) async {
+    final id = _generateRequestId();
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingRequests[id] = completer;
+
+    await sendJson({
+      'id': id,
+      'type': 'request',
+      'command': command,
+      'payload': payload,
+    });
+
+    // Timeout after 30 seconds to avoid leaked completers
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        _pendingRequests.remove(id);
+        throw TimeoutException('Request $command timed out');
+      },
+    );
+  }
+
+  /// Generic proxy command - forwards commands through the WebSocket
+  /// to the Tauri backend's pluggable architecture.
+  ///
+  /// Example:
+  ///   await proxyCommand('plugin_list', {});
+  ///   await proxyCommand('swarm_status', {'verbose': true});
+  Future<Map<String, dynamic>> proxyCommand(
+    String command,
+    Map<String, dynamic> params,
+  ) async {
+    return await sendRequest('proxy', {
+      'command': command,
+      'params': params,
+    });
+  }
+
   /// Generate unique request ID
   String _generateRequestId() {
     return 'req-${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Initialize Executive Agent (新功能)
+  /// Initialize Executive Agent
   Future<void> initExecutiveAgent(String workspace) async {
     await sendJson({
       'id': _generateRequestId(),
@@ -155,7 +226,7 @@ class WebSocketService {
     });
   }
 
-  /// Execute development task (新功能)
+  /// Execute development task
   Future<void> executeDevelopmentTask(String request) async {
     await sendJson({
       'id': _generateRequestId(),

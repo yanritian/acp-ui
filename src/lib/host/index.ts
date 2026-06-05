@@ -22,6 +22,7 @@ import type {
 } from '../types';
 import { getTransportKind } from '../types';
 import { isTauriHost, isDesktop } from '../platform';
+import { getWsCommandProxy } from './ws-command-proxy';
 
 export type Unlisten = () => void;
 
@@ -323,6 +324,31 @@ export async function writeTextFile(path: string, content: string): Promise<void
   }
   const { writeTextFile: wtf } = await import('@tauri-apps/plugin-fs');
   await wtf(path, content);
+}
+
+// ---------------------------------------------------------------------------
+// Universal invoke — Tauri native or WebSocket proxy
+// ---------------------------------------------------------------------------
+
+/**
+ * Invoke a Tauri backend command regardless of the runtime host.
+ *
+ * When running inside a Tauri webview the call is forwarded via the native
+ * `@tauri-apps/api/core` `invoke()`. In a plain browser it is proxied over
+ * a WebSocket connection to the Tauri backend's WS server (port 1421).
+ *
+ * Service modules that previously imported `invoke` from `@tauri-apps/api/core`
+ * directly should use this function instead to remain platform-agnostic.
+ */
+export async function invokeOrProxy<T = unknown>(
+  command: string,
+  params?: Record<string, unknown>,
+): Promise<T> {
+  if (isTauriHost()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<T>(command, params);
+  }
+  return getWsCommandProxy().invoke<T>(command, params);
 }
 
 // ---------------------------------------------------------------------------

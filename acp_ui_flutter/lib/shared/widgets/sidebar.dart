@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/services/websocket_service.dart';
 
 /// Sidebar navigation widget
 class Sidebar extends ConsumerWidget {
@@ -9,6 +10,7 @@ class Sidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentPath = GoRouterState.of(context).path;
+    final isConnected = ref.watch(connectionStatusProvider);
 
     return Container(
       width: 240,
@@ -85,6 +87,25 @@ class Sidebar extends ConsumerWidget {
                 ),
                 const Divider(),
                 _NavItem(
+                  icon: Icons.extension_outlined,
+                  label: 'Plugins',
+                  path: '/plugins',
+                  isSelected: currentPath == '/plugins',
+                ),
+                _NavItem(
+                  icon: Icons.hub_outlined,
+                  label: 'Swarm',
+                  path: '/swarm',
+                  isSelected: currentPath == '/swarm',
+                ),
+                const Divider(),
+                _NavItem(
+                  icon: Icons.dns_outlined,
+                  label: 'Server',
+                  path: '/server-config',
+                  isSelected: currentPath == '/server-config',
+                ),
+                _NavItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
                   path: '/settings',
@@ -98,10 +119,14 @@ class Sidebar extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(Icons.circle, color: Colors.green, size: 12),
+                Icon(
+                  Icons.circle,
+                  color: isConnected ? Colors.green : Colors.red,
+                  size: 12,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  'Connected',
+                  isConnected ? 'Connected' : 'Disconnected',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

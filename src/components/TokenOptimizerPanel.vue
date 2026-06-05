@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ async function fetchStats() {
     loading.value = true
     error.value = null
     // Attempt to call backend; fall back to mock data if unavailable
-    const result = await invoke<TokenStats>('plugin_get_stats')
+    const result = await invokeOrProxy<TokenStats>('plugin_get_stats')
     stats.value = result
   } catch {
     // Backend token optimizer not yet available -- use placeholder data
@@ -161,7 +161,7 @@ function getMockStats(): TokenStats {
 async function compressNow() {
   compressing.value = true
   try {
-    await invoke('plugin_compress_now')
+    await invokeOrProxy('plugin_compress_now')
     // Refresh stats after compression
     await fetchStats()
   } catch {

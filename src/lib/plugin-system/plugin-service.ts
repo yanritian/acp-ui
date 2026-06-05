@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 
 // Re-export types from backend
 export interface PluginMeta {
@@ -57,38 +57,38 @@ export interface PluginResponse {
 
 export class PluginService {
   static async list(kind?: PluginKind): Promise<PluginMeta[]> {
-    return invoke('plugin_list', { kind })
+    return invokeOrProxy('plugin_list', { kind })
   }
 
   static async register(meta: PluginMeta): Promise<void> {
-    return invoke('plugin_register', { meta })
+    return invokeOrProxy('plugin_register', { meta })
   }
 
   static async unregister(id: string): Promise<PluginMeta> {
-    return invoke('plugin_unregister', { id })
+    return invokeOrProxy('plugin_unregister', { id })
   }
 
   static async get(id: string): Promise<PluginMeta> {
-    return invoke('plugin_get', { id })
+    return invokeOrProxy('plugin_get', { id })
   }
 
   static async setEnabled(id: string, enabled: boolean): Promise<void> {
-    return invoke('plugin_set_enabled', { id, enabled })
+    return invokeOrProxy('plugin_set_enabled', { id, enabled })
   }
 
   static async updateConfig(id: string, config: Record<string, unknown>): Promise<void> {
-    return invoke('plugin_update_config', { id, config })
+    return invokeOrProxy('plugin_update_config', { id, config })
   }
 
   static async search(query: string): Promise<PluginMeta[]> {
-    return invoke('plugin_search', { query })
+    return invokeOrProxy('plugin_search', { query })
   }
 
   static async getStats(id: string): Promise<PluginStats> {
-    return invoke('plugin_get_stats', { id })
+    return invokeOrProxy('plugin_get_stats', { id })
   }
 
   static async getHistory(id: string, limit?: number): Promise<PluginExecutionRecord[]> {
-    return invoke('plugin_get_history', { id, limit: limit ?? 50 })
+    return invokeOrProxy('plugin_get_history', { id, limit: limit ?? 50 })
   }
 }

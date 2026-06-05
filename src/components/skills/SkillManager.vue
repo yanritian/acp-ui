@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeOrProxy } from '@/lib/host';
 import type { SkillMeta, SkillExecutionResult, SkillVersionHistory } from '@/lib/skill-system/types';
 import { CORE_SKILLS } from '@/lib/skill-system/types';
 
@@ -34,7 +34,7 @@ async function loadSkills() {
   loading.value = true;
   error.value = null;
   try {
-    skills.value = await invoke<SkillMeta[]>('skills_list');
+    skills.value = await invokeOrProxy<SkillMeta[]>('skills_list');
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -63,7 +63,7 @@ function openVersionHistory() {
 async function installBuiltins() {
   loading.value = true;
   try {
-    await invoke('skill_manage', { action: 'install_builtins', name: '_all_' });
+    await invokeOrProxy('skill_manage', { action: 'install_builtins', name: '_all_' });
     await loadSkills();
   } catch (e) {
     error.value = String(e);
@@ -75,7 +75,7 @@ async function installBuiltins() {
 async function deleteSkill(name: string) {
   if (!confirm(`Delete skill '${name}'?`)) return;
   try {
-    await invoke('skill_manage', { action: 'delete', name });
+    await invokeOrProxy('skill_manage', { action: 'delete', name });
     if (selectedSkill.value === name) selectedSkill.value = null;
     await loadSkills();
   } catch (e) {

@@ -75,6 +75,10 @@ pub enum RemoteCommand {
     GetExecutiveAgentStatus {},
     GetGeneratedFiles {},
     ClearExecutiveAgent {},
+    // Proxy command - dispatch to any registered backend module
+    Proxy { cmd: String, params: serde_json::Value },
+    // Discovery - list all available proxy commands
+    ListProxyCommands {},
 }
 
 /// Client connection state (stored per-connection)
@@ -441,6 +445,421 @@ fn send_response(connections: &RwLock<HashMap<String, ConnectionState>>, client_
         if let Ok(json) = serde_json::to_string(response) {
             let _ = cs.sender.send(Message::Text(json.into()));
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Proxy Command Infrastructure
+// ---------------------------------------------------------------------------
+
+/// Proxy command descriptor for capability discovery
+struct ProxyCommandInfo {
+    name: &'static str,
+    description: &'static str,
+    module: &'static str,
+}
+
+/// Return the list of all available proxy commands with descriptions
+fn get_proxy_command_list() -> Vec<serde_json::Value> {
+    let commands = vec![
+        // Plugin Registry
+        ProxyCommandInfo { name: "plugin_list", description: "List all plugins, optionally filtered by kind", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_get", description: "Get a specific plugin by ID", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_search", description: "Search plugins by name or capability", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_get_stats", description: "Get aggregated execution statistics for a plugin", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_get_history", description: "Get execution history for a plugin", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_register", description: "Register a new plugin", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_unregister", description: "Unregister a plugin by ID", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_set_enabled", description: "Enable or disable a plugin", module: "plugin_registry" },
+        ProxyCommandInfo { name: "plugin_update_config", description: "Update a plugin configuration", module: "plugin_registry" },
+        // Swarm Orchestrator
+        ProxyCommandInfo { name: "swarm_list_agents", description: "List all agents in the swarm", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_get_health", description: "Get swarm health summary", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_get_task", description: "Get task status and progress", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_list_tasks", description: "List all swarm tasks", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_register_agent", description: "Register an agent in the swarm", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_create_task", description: "Create a new swarm task", module: "swarm_orchestrator" },
+        ProxyCommandInfo { name: "swarm_cancel_task", description: "Cancel a running swarm task", module: "swarm_orchestrator" },
+        // Workflow Engine
+        ProxyCommandInfo { name: "workflow_list", description: "List all workflows", module: "workflow_engine" },
+        ProxyCommandInfo { name: "workflow_get", description: "Get a specific workflow by ID", module: "workflow_engine" },
+        ProxyCommandInfo { name: "workflow_get_progress", description: "Get workflow execution progress", module: "workflow_engine" },
+        ProxyCommandInfo { name: "workflow_cancel", description: "Cancel a workflow", module: "workflow_engine" },
+        // MCP Client
+        ProxyCommandInfo { name: "mcp_connected_servers", description: "Get list of connected MCP server names", module: "mcp_client" },
+        ProxyCommandInfo { name: "mcp_list_tools", description: "List all MCP tools from all connected servers", module: "mcp_client" },
+        ProxyCommandInfo { name: "mcp_get_stats", description: "Get MCP client statistics", module: "mcp_client" },
+        ProxyCommandInfo { name: "mcp_is_connected", description: "Check if a specific MCP server is connected", module: "mcp_client" },
+        // Agent Bus
+        ProxyCommandInfo { name: "agent_bus_list_agents", description: "List all registered agents on the bus", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_list_topics", description: "List all active pub/sub topics", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_stats", description: "Get agent bus statistics", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_history", description: "Get message history for audit", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_inbox_count", description: "Get message count for an agent inbox", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_is_registered", description: "Check if an agent is registered", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_register", description: "Register an agent with the bus", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_unregister", description: "Unregister an agent from the bus", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_subscribe", description: "Subscribe an agent to a topic", module: "agent_bus" },
+        ProxyCommandInfo { name: "agent_bus_publish", description: "Publish a message to a topic", module: "agent_bus" },
+        // Healing Executor
+        ProxyCommandInfo { name: "healing_list_actions", description: "List all healing actions", module: "self_healing" },
+        ProxyCommandInfo { name: "healing_get_stats", description: "Get healing statistics", module: "self_healing" },
+        // Hooks Executor
+        ProxyCommandInfo { name: "hook_list", description: "List all registered hooks", module: "hooks_executor" },
+        ProxyCommandInfo { name: "hook_get_agent_hooks", description: "Get hooks for a specific agent", module: "hooks_executor" },
+        // Circuit Breaker
+        ProxyCommandInfo { name: "circuit_breaker_get_all", description: "Get all circuit breaker states", module: "circuit_breaker" },
+        ProxyCommandInfo { name: "circuit_breaker_get_status", description: "Get circuit breaker status for a target", module: "circuit_breaker" },
+        ProxyCommandInfo { name: "circuit_breaker_reset", description: "Reset a circuit breaker", module: "circuit_breaker" },
+        // DAG Engine
+        ProxyCommandInfo { name: "dag_get_plan", description: "Get a DAG execution plan by ID", module: "team_dag" },
+    ];
+
+    commands.iter().map(|cmd| {
+        serde_json::json!({
+            "name": cmd.name,
+            "description": cmd.description,
+            "module": cmd.module,
+        })
+    }).collect()
+}
+
+/// Handle a proxy command by dispatching to the appropriate backend module
+fn handle_proxy_command(
+    state: &crate::AppState,
+    command: &str,
+    params: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    match command {
+        // =====================================================================
+        // Plugin Registry
+        // =====================================================================
+        "plugin_list" => {
+            let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let kind = params.get("kind").and_then(|v| v.as_str())
+                .map(|k| k.parse::<crate::plugin_registry::PluginKind>())
+                .transpose()?;
+            let plugins: Vec<_> = registry.list(kind).into_iter().cloned().collect();
+            serde_json::to_value(plugins).map_err(|e| e.to_string())
+        }
+        "plugin_get" => {
+            let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let plugin = registry.get(id)
+                .cloned()
+                .ok_or_else(|| format!("Plugin '{}' not found", id))?;
+            serde_json::to_value(plugin).map_err(|e| e.to_string())
+        }
+        "plugin_search" => {
+            let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let query = params.get("query").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'query'")?;
+            let plugins: Vec<_> = registry.search(query).into_iter().cloned().collect();
+            serde_json::to_value(plugins).map_err(|e| e.to_string())
+        }
+        "plugin_get_stats" => {
+            let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            if registry.get(id).is_none() {
+                return Err(format!("Plugin '{}' not found", id));
+            }
+            let stats = registry.get_stats(id);
+            serde_json::to_value(stats).map_err(|e| e.to_string())
+        }
+        "plugin_get_history" => {
+            let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            if registry.get(id).is_none() {
+                return Err(format!("Plugin '{}' not found", id));
+            }
+            let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+            let history: Vec<_> = registry.get_history(id, limit).into_iter().cloned().collect();
+            serde_json::to_value(history).map_err(|e| e.to_string())
+        }
+        "plugin_register" => {
+            let meta: crate::plugin_registry::PluginMeta = serde_json::from_value(params.clone())
+                .map_err(|e| format!("Invalid PluginMeta: {}", e))?;
+            let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            registry.register(meta)?;
+            Ok(serde_json::json!({ "registered": true }))
+        }
+        "plugin_unregister" => {
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            let removed = registry.unregister(id)?;
+            serde_json::to_value(removed).map_err(|e| e.to_string())
+        }
+        "plugin_set_enabled" => {
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let enabled = params.get("enabled").and_then(|v| v.as_bool())
+                .ok_or("Missing required param: 'enabled'")?;
+            let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            registry.set_enabled(id, enabled)?;
+            Ok(serde_json::json!({ "id": id, "enabled": enabled }))
+        }
+        "plugin_update_config" => {
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let config = params.get("config").cloned()
+                .ok_or("Missing required param: 'config'")?;
+            let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
+            registry.update_config(id, config)?;
+            Ok(serde_json::json!({ "id": id, "updated": true }))
+        }
+
+        // =====================================================================
+        // Swarm Orchestrator
+        // =====================================================================
+        "swarm_list_agents" => {
+            let swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            let agents: Vec<_> = swarm.list_agents().into_iter().cloned().collect();
+            serde_json::to_value(agents).map_err(|e| e.to_string())
+        }
+        "swarm_get_health" => {
+            let swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            let health = swarm.get_health();
+            serde_json::to_value(health).map_err(|e| e.to_string())
+        }
+        "swarm_get_task" => {
+            let swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            let task_id = params.get("task_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'task_id'")?;
+            let task = swarm.get_task(task_id)
+                .cloned()
+                .ok_or_else(|| format!("Task '{}' not found", task_id))?;
+            serde_json::to_value(task).map_err(|e| e.to_string())
+        }
+        "swarm_list_tasks" => {
+            let swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            let tasks: Vec<_> = swarm.list_tasks().into_iter().cloned().collect();
+            serde_json::to_value(tasks).map_err(|e| e.to_string())
+        }
+        "swarm_register_agent" => {
+            let agent: crate::swarm_orchestrator::SwarmAgent = serde_json::from_value(params.clone())
+                .map_err(|e| format!("Invalid SwarmAgent: {}", e))?;
+            let mut swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            swarm.register_agent(agent)?;
+            Ok(serde_json::json!({ "registered": true }))
+        }
+        "swarm_create_task" => {
+            let description = params.get("description").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'description'")?.to_string();
+            let topology = params.get("topology").and_then(|v| v.as_str())
+                .map(|t| t.parse::<crate::swarm_orchestrator::SwarmTopology>())
+                .transpose()?;
+            let consensus = params.get("consensus").and_then(|v| v.as_str())
+                .map(|c| c.parse::<crate::swarm_orchestrator::ConsensusStrategy>())
+                .transpose()?;
+            let mut swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            let task = swarm.create_task(description, topology, consensus)?;
+            serde_json::to_value(task).map_err(|e| e.to_string())
+        }
+        "swarm_cancel_task" => {
+            let task_id = params.get("task_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'task_id'")?;
+            let mut swarm = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+            swarm.cancel_task(task_id)?;
+            Ok(serde_json::json!({ "task_id": task_id, "cancelled": true }))
+        }
+
+        // =====================================================================
+        // Workflow Engine
+        // =====================================================================
+        "workflow_list" => {
+            let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+            let workflows: Vec<_> = engine.list_workflows().into_iter().cloned().collect();
+            serde_json::to_value(workflows).map_err(|e| e.to_string())
+        }
+        "workflow_get" => {
+            let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let workflow = engine.get_workflow(id)
+                .cloned()
+                .ok_or_else(|| format!("Workflow '{}' not found", id))?;
+            serde_json::to_value(workflow).map_err(|e| e.to_string())
+        }
+        "workflow_get_progress" => {
+            let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let progress = engine.get_progress(id)?;
+            serde_json::to_value(progress).map_err(|e| e.to_string())
+        }
+        "workflow_cancel" => {
+            let id = params.get("id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'id'")?;
+            let mut engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+            engine.cancel_workflow(id)?;
+            Ok(serde_json::json!({ "id": id, "cancelled": true }))
+        }
+
+        // =====================================================================
+        // MCP Client
+        // =====================================================================
+        "mcp_connected_servers" => {
+            let client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+            let servers: Vec<String> = client.connected_servers().into_iter().map(|s| s.to_string()).collect();
+            serde_json::to_value(servers).map_err(|e| e.to_string())
+        }
+        "mcp_list_tools" => {
+            let client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+            let tools: Vec<_> = client.list_tools().into_iter().cloned().collect();
+            serde_json::to_value(tools).map_err(|e| e.to_string())
+        }
+        "mcp_get_stats" => {
+            let client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+            let stats = client.get_stats();
+            serde_json::to_value(stats).map_err(|e| e.to_string())
+        }
+        "mcp_is_connected" => {
+            let client = state.mcp_client.lock().map_err(|e| e.to_string())?;
+            let server_name = params.get("server_name").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'server_name'")?;
+            Ok(serde_json::json!({ "server_name": server_name, "connected": client.is_connected(server_name) }))
+        }
+
+        // =====================================================================
+        // Agent Bus
+        // =====================================================================
+        "agent_bus_list_agents" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let agents = bus.list_agents();
+            serde_json::to_value(agents).map_err(|e| e.to_string())
+        }
+        "agent_bus_list_topics" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let topics = bus.list_topics();
+            serde_json::to_value(topics).map_err(|e| e.to_string())
+        }
+        "agent_bus_stats" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let stats = bus.get_stats();
+            serde_json::to_value(stats).map_err(|e| e.to_string())
+        }
+        "agent_bus_history" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let limit = params.get("limit").and_then(|v| v.as_u64()).map(|n| n as usize);
+            let history: Vec<_> = bus.get_history(limit).into_iter().cloned().collect();
+            serde_json::to_value(history).map_err(|e| e.to_string())
+        }
+        "agent_bus_inbox_count" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            Ok(serde_json::json!({ "agent_id": agent_id, "count": bus.inbox_count(agent_id) }))
+        }
+        "agent_bus_is_registered" => {
+            let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            Ok(serde_json::json!({ "agent_id": agent_id, "registered": bus.is_registered(agent_id) }))
+        }
+        "agent_bus_register" => {
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            let mut bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            bus.register_agent(agent_id)?;
+            Ok(serde_json::json!({ "agent_id": agent_id, "registered": true }))
+        }
+        "agent_bus_unregister" => {
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            let mut bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            bus.unregister_agent(agent_id)?;
+            Ok(serde_json::json!({ "agent_id": agent_id, "unregistered": true }))
+        }
+        "agent_bus_subscribe" => {
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            let topic = params.get("topic").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'topic'")?;
+            let mut bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            bus.subscribe(agent_id, topic)?;
+            Ok(serde_json::json!({ "agent_id": agent_id, "topic": topic, "subscribed": true }))
+        }
+        "agent_bus_publish" => {
+            let from_agent = params.get("from_agent").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'from_agent'")?;
+            let topic = params.get("topic").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'topic'")?;
+            let payload = params.get("payload").cloned().unwrap_or(serde_json::json!({}));
+            let mut bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
+            let count = bus.publish(from_agent, topic, payload)?;
+            Ok(serde_json::json!({ "topic": topic, "recipients": count }))
+        }
+
+        // =====================================================================
+        // Healing Executor
+        // =====================================================================
+        "healing_list_actions" => {
+            let healer = state.healing_executor.lock().map_err(|e| e.to_string())?;
+            let actions = healer.get_action_history();
+            serde_json::to_value(actions).map_err(|e| e.to_string())
+        }
+        "healing_get_stats" => {
+            let healer = state.healing_executor.lock().map_err(|e| e.to_string())?;
+            Ok(healer.get_stats())
+        }
+
+        // =====================================================================
+        // Hooks Executor
+        // =====================================================================
+        "hook_list" => {
+            let hooks = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+            let hook_list: Vec<_> = hooks.list_hooks().into_iter().cloned().collect();
+            serde_json::to_value(hook_list).map_err(|e| e.to_string())
+        }
+        "hook_get_agent_hooks" => {
+            let hooks = state.hooks_executor.lock().map_err(|e| e.to_string())?;
+            let agent_id = params.get("agent_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'agent_id'")?;
+            let agent_hooks: Vec<_> = hooks.get_agent_hooks(agent_id).into_iter().cloned().collect();
+            serde_json::to_value(agent_hooks).map_err(|e| e.to_string())
+        }
+
+        // =====================================================================
+        // Circuit Breaker
+        // =====================================================================
+        "circuit_breaker_get_all" => {
+            let cb = state.circuit_breaker_manager.lock().map_err(|e| e.to_string())?;
+            let all = cb.get_all_states();
+            serde_json::to_value(all).map_err(|e| e.to_string())
+        }
+        "circuit_breaker_get_status" => {
+            let cb = state.circuit_breaker_manager.lock().map_err(|e| e.to_string())?;
+            let target = params.get("target").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'target'")?;
+            let record = cb.get_breaker(target);
+            serde_json::to_value(record).map_err(|e| e.to_string())
+        }
+        "circuit_breaker_reset" => {
+            let target = params.get("target").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'target'")?;
+            let cb = state.circuit_breaker_manager.lock().map_err(|e| e.to_string())?;
+            cb.reset(target);
+            Ok(serde_json::json!({ "target": target, "reset": true }))
+        }
+
+        // =====================================================================
+        // DAG Engine
+        // =====================================================================
+        "dag_get_plan" => {
+            let dag = state.dag_engine.lock().map_err(|e| e.to_string())?;
+            let plan_id = params.get("plan_id").and_then(|v| v.as_str())
+                .ok_or("Missing required param: 'plan_id'")?;
+            let plan = dag.get_plan(plan_id)
+                .cloned()
+                .ok_or_else(|| format!("Plan '{}' not found", plan_id))?;
+            serde_json::to_value(plan).map_err(|e| e.to_string())
+        }
+
+        _ => Err(format!("Unknown proxy command: '{}'. Use 'list_proxy_commands' to discover available commands.", command)),
     }
 }
 
@@ -1029,6 +1448,39 @@ async fn handle_remote_command(
                 error: None,
             }
         },
+        "proxy" => {
+            // Generic command proxy - dispatch to any registered backend module
+            let proxy_command = request.payload.as_ref()
+                .and_then(|p| p.get("command").and_then(|v| v.as_str()))
+                .unwrap_or("");
+            let proxy_params = request.payload.as_ref()
+                .and_then(|p| p.get("params").cloned())
+                .unwrap_or(serde_json::json!({}));
+
+            match handle_proxy_command(&state, proxy_command, &proxy_params) {
+                Ok(data) => RemoteResponse {
+                    id: request.id.clone(),
+                    ok: true,
+                    data: Some(data),
+                    error: None,
+                },
+                Err(e) => RemoteResponse {
+                    id: request.id.clone(),
+                    ok: false,
+                    data: None,
+                    error: Some(e),
+                },
+            }
+        },
+        "list_proxy_commands" => {
+            let commands = get_proxy_command_list();
+            RemoteResponse {
+                id: request.id.clone(),
+                ok: true,
+                data: Some(serde_json::json!({ "commands": commands })),
+                error: None,
+            }
+        },
         unknown => RemoteResponse {
             id: request.id.clone(),
             ok: false,
@@ -1135,6 +1587,16 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
         RemoteCommand::ClearExecutiveAgent {} => {
             let _ = app_handle.emit("remote-command", serde_json::json!({
                 "type": "clear_executive_agent", "client_id": client_id,
+            }));
+        }
+        RemoteCommand::Proxy { cmd, params } => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "proxy", "command": cmd, "params": params, "client_id": client_id,
+            }));
+        }
+        RemoteCommand::ListProxyCommands {} => {
+            let _ = app_handle.emit("remote-command", serde_json::json!({
+                "type": "list_proxy_commands", "client_id": client_id,
             }));
         }
     }

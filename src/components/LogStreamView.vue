@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { invokeOrProxy } from '@/lib/host';
 import { listen } from '@tauri-apps/api/event';
 import { useI18n } from '@/locales';
 
@@ -141,7 +141,7 @@ function handleScroll() {
 
 async function loadLogs() {
   try {
-    const result = await invoke<LogEntry[]>('get_logs', { limit: 500 });
+    const result = await invokeOrProxy<LogEntry[]>('get_logs', { limit: 500 });
     logs.value = result;
   } catch (e) {
     console.error('Failed to load logs:', e);
@@ -154,7 +154,7 @@ async function searchLogsInDb() {
     return;
   }
   try {
-    const result = await invoke<LogEntry[]>('search_logs', {
+    const result = await invokeOrProxy<LogEntry[]>('search_logs', {
       keyword: searchKeyword.value,
       limit: 200
     });
@@ -166,7 +166,7 @@ async function searchLogsInDb() {
 
 async function clearLogs() {
   try {
-    await invoke('clear_log_buffer');
+    await invokeOrProxy('clear_log_buffer');
     logs.value = [];
   } catch (e) {
     console.error('Failed to clear logs:', e);

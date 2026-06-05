@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/stores/agent_store.dart';
 import '../../data/services/config_service.dart';
-import '../../core/gateway/im_gateway.dart';
 
 /// Settings view - agent and gateway configuration
 class SettingsView extends ConsumerWidget {

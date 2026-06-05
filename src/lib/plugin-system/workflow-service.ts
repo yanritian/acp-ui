@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 
 export type WorkflowStatus = 'draft' | 'validating' | 'ready' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
 export type StageStrategy = 'parallel' | 'sequential' | 'map_reduce' | 'competitive' | 'adversarial_review'
@@ -76,42 +76,42 @@ export interface WorkflowProgress {
 
 export class WorkflowService {
   static async create(name: string, description: string, stages: WorkflowStage[], maxConcurrent?: number): Promise<WorkflowDefinition> {
-    return invoke('workflow_create', { name, description, stages, maxConcurrent })
+    return invokeOrProxy('workflow_create', { name, description, stages, maxConcurrent })
   }
 
   static async validate(workflowId: string): Promise<boolean> {
-    return invoke('workflow_validate', { workflowId })
+    return invokeOrProxy('workflow_validate', { workflowId })
   }
 
   static async list(): Promise<WorkflowDefinition[]> {
-    return invoke('workflow_list')
+    return invokeOrProxy('workflow_list')
   }
 
   static async get(id: string): Promise<WorkflowDefinition> {
-    return invoke('workflow_get', { id })
+    return invokeOrProxy('workflow_get', { id })
   }
 
   static async getProgress(id: string): Promise<WorkflowProgress> {
-    return invoke('workflow_get_progress', { id })
+    return invokeOrProxy('workflow_get_progress', { id })
   }
 
   static async updateStatus(id: string, status: WorkflowStatus): Promise<void> {
-    return invoke('workflow_update_status', { id, status })
+    return invokeOrProxy('workflow_update_status', { id, status })
   }
 
   static async submitResult(workflowId: string, stageId: string, result: StageResult): Promise<void> {
-    return invoke('workflow_submit_result', { workflowId, stageId, result })
+    return invokeOrProxy('workflow_submit_result', { workflowId, stageId, result })
   }
 
   static async generateFromTask(taskDescription: string, availableAgents: string[]): Promise<WorkflowDefinition> {
-    return invoke('workflow_generate_from_task', { taskDescription, availableAgents })
+    return invokeOrProxy('workflow_generate_from_task', { taskDescription, availableAgents })
   }
 
   static async cancel(id: string): Promise<void> {
-    return invoke('workflow_cancel', { id })
+    return invokeOrProxy('workflow_cancel', { id })
   }
 
   static async save(id: string): Promise<Record<string, unknown>> {
-    return invoke('workflow_save', { id })
+    return invokeOrProxy('workflow_save', { id })
   }
 }

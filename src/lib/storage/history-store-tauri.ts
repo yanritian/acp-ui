@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '../host'
 import type { HistoryFilter, TaskRecord, TaskStatistics } from './history-store'
 
 export interface BackendTaskRecord {
@@ -95,11 +95,11 @@ export class TauriHistoryStore {
         output: null,
       })),
     }
-    await invoke('save_task_history', { task: backendRecord })
+    await invokeOrProxy('save_task_history', { task: backendRecord })
   }
 
   async queryTasks(filter: HistoryFilter): Promise<TaskRecord[]> {
-    const records = await invoke<BackendTaskRecord[]>('get_task_history', {
+    const records = await invokeOrProxy<BackendTaskRecord[]>('get_task_history', {
       status: filter.status,
       source: filter.source?.[0],
       limit: filter.limit,
@@ -108,12 +108,12 @@ export class TauriHistoryStore {
   }
 
   async getTaskDetail(taskId: string): Promise<TaskRecord | undefined> {
-    const record = await invoke<BackendTaskRecord | null>('get_task_detail', { taskId })
+    const record = await invokeOrProxy<BackendTaskRecord | null>('get_task_detail', { taskId })
     return record ? toFrontendRecord(record) : undefined
   }
 
   async search(keyword: string): Promise<TaskRecord[]> {
-    const records = await invoke<BackendTaskRecord[]>('search_tasks', {
+    const records = await invokeOrProxy<BackendTaskRecord[]>('search_tasks', {
       keyword,
       limit: 20,
     })
@@ -121,12 +121,12 @@ export class TauriHistoryStore {
   }
 
   async getStatistics(): Promise<TaskStatistics> {
-    const stats = await invoke<BackendTaskStatistics>('get_task_statistics')
+    const stats = await invokeOrProxy<BackendTaskStatistics>('get_task_statistics')
     return toFrontendStatistics(stats)
   }
 
   async export(format: 'json' | 'csv' | 'markdown'): Promise<string> {
-    const records = await invoke<BackendTaskRecord[]>('get_task_history', { limit: 1000 })
+    const records = await invokeOrProxy<BackendTaskRecord[]>('get_task_history', { limit: 1000 })
     const frontendRecords = records.map(toFrontendRecord)
 
     if (format === 'json') {
@@ -160,7 +160,7 @@ export class TauriHistoryStore {
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    await invoke('delete_task_history', { taskId })
+    await invokeOrProxy('delete_task_history', { taskId })
   }
 
   async clear(): Promise<void> {

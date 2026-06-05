@@ -25,6 +25,7 @@ const props = defineProps<{
   dag?: TaskDAG | null;
   showAgents?: boolean;
   orientation?: 'horizontal' | 'vertical';
+  isDemo?: boolean;  // 标识是否为演示数据
 }>();
 
 // State
@@ -255,6 +256,12 @@ onMounted(() => {
 
 <template>
   <div class="task-graph-container">
+    <!-- Demo warning banner -->
+    <div v-if="isDemo" class="demo-banner">
+      <span class="demo-icon">⚠️</span>
+      <span class="demo-text">{{ t('taskGraph.demoWarning') }}</span>
+    </div>
+
     <!-- Header with legend -->
     <div class="graph-header">
       <h3 class="graph-title">{{ t('taskGraph.title') }}</h3>
@@ -465,6 +472,26 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #FEF3C7 0%, #FDE68A 100%);
+  border-bottom: 1px solid #F59E0B;
+  font-size: 14px;
+  color: #92400E;
+}
+
+.demo-icon {
+  font-size: 16px;
+}
+
+.demo-text {
+  font-weight: 500;
 }
 
 .graph-header {

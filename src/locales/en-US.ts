@@ -167,6 +167,7 @@ export const enUS: MessageSchema = {
   },
   taskGraph: {
     title: 'Task Graph',
+    demoWarning: 'This is a demo visualization with sample data. Not connected to actual tasks.',
     noTaskGraph: 'No task graph to display',
     startTaskHint: 'Start a task to see the DAG visualization',
     taskDetails: 'Task Details',

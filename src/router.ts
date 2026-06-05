@@ -19,11 +19,11 @@ const routes = [
   { path: '/evolution', name: 'evolution', component: () => import('./components/EvolutionView.vue') },
   { path: '/pattern', name: 'pattern', component: () => import('./components/PatternView.vue') },
   { path: '/hermes', name: 'hermes', component: () => import('./components/HermesDashboard.vue') },
-  { 
-    path: '/task-graph', 
-    name: 'task-graph', 
+  {
+    path: '/task-graph',
+    name: 'task-graph',
     component: () => import('./components/TaskGraphView.vue'),
-    props: () => ({ dag: createMockTaskDag(), showAgents: true, orientation: 'vertical' })
+    props: () => ({ dag: createMockTaskDag(), showAgents: true, orientation: 'vertical', isDemo: true })
   },
   { path: '/collaboration', name: 'collaboration', component: () => import('./components/EnhancedHermesDashboard.vue') },
   { path: '/agent-teams', name: 'agent-teams', component: () => import('./views/AgentTeamsDashboard.vue') },

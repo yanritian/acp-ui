@@ -13,7 +13,22 @@ import { useConfigStore } from './config';
 import type { SessionNotification, AuthMethod } from '@agentclientprotocol/sdk';
 
 const STORE_PATH = 'sessions.json';
+const MESSAGES_STORE_PATH = 'messages.json';
 const PROTOCOL_VERSION = 1;
+
+// Debounce timer for message persistence
+let messageSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const MESSAGE_SAVE_DEBOUNCE_MS = 500;
+
+// Auto reconnect configuration
+const AUTO_RECONNECT_CONFIG = {
+  enabled: true,
+  maxRetries: 5,
+  baseDelayMs: 1000,    // 1s, 2s, 4s, 8s, 16s
+  maxDelayMs: 30000,
+};
+let reconnectAttemptCount = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 // App version (loaded once at startup)
 let appVersion = '0.1.0';
@@ -79,6 +94,7 @@ export const useSessionStore = defineStore('session', () => {
   let startupTimer: ReturnType<typeof setInterval> | null = null;
   let stderrUnlisten: (() => void) | null = null;
   let permissionWatchStop: (() => void) | null = null;
+  let messageWatchStop: (() => void) | null = null;
   
   // Current ACP client
   let acpClient: AcpClientBridge | null = null;
@@ -100,13 +116,81 @@ export const useSessionStore = defineStore('session', () => {
     if (saved) {
       savedSessions.value = saved;
     }
-    
+
     // Load app version (Tauri API on desktop/mobile, build-time inject on web)
     try {
       appVersion = await getAppVersion();
     } catch (e) {
       console.warn('Failed to get app version:', e);
     }
+
+    // Set up beforeunload handler for emergency message save
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        // Synchronous save attempt - use localStorage directly for web
+        if (currentSession.value && messages.value.length > 0) {
+          try {
+            const key = `acp-ui:messages:${currentSession.value.sessionId}`;
+            localStorage.setItem(key, JSON.stringify(messages.value));
+          } catch (e) {
+            console.warn('Emergency message save failed:', e);
+          }
+        }
+      });
+
+      // Auto reconnect triggers
+      window.addEventListener('online', () => {
+        // Network came back online - try reconnect if disconnected
+        if (!isConnected.value && currentSession.value?.supportsLoadSession) {
+          cancelAutoReconnect();
+          reconnectAttemptCount = 0;
+          tryReconnect().catch(e => console.warn('Online reconnect failed:', e));
+        }
+      });
+
+      window.addEventListener('focus', () => {
+        // Window focused - try reconnect if disconnected (desktop)
+        if (!isConnected.value && !isReconnecting.value && currentSession.value?.supportsLoadSession) {
+          // Reset reconnect counter on user focus
+          cancelAutoReconnect();
+          reconnectAttemptCount = 0;
+          tryReconnect().catch(e => console.warn('Focus reconnect failed:', e));
+        }
+      });
+    }
+  }
+
+  // Save messages for current session (debounced)
+  async function saveMessages(): Promise<void> {
+    if (!currentSession.value || !store) return;
+
+    const messageStore = await loadKvStore(MESSAGES_STORE_PATH);
+    await messageStore.set(currentSession.value.sessionId, messages.value);
+    await messageStore.save();
+  }
+
+  // Debounced message save - prevents excessive writes during rapid updates
+  function debouncedSaveMessages(): void {
+    if (messageSaveTimer) {
+      clearTimeout(messageSaveTimer);
+    }
+    messageSaveTimer = setTimeout(() => {
+      saveMessages().catch(e => console.warn('Message save failed:', e));
+    }, MESSAGE_SAVE_DEBOUNCE_MS);
+  }
+
+  // Load messages for a session
+  async function loadMessages(sessionId: string): Promise<ChatMessage[]> {
+    const messageStore = await loadKvStore(MESSAGES_STORE_PATH);
+    const saved = await messageStore.get<ChatMessage[]>(sessionId);
+    return saved || [];
+  }
+
+  // Delete messages for a session (when session is deleted)
+  async function deleteMessages(sessionId: string): Promise<void> {
+    const messageStore = await loadKvStore(MESSAGES_STORE_PATH);
+    await messageStore.set(sessionId, null);
+    await messageStore.save();
   }
 
   async function saveSessionsToStore() {
@@ -129,6 +213,66 @@ export const useSessionStore = defineStore('session', () => {
     isLoading.value = false;
     pendingPermission.value = null;
     error.value = `Connection lost: ${reason ?? 'transport closed'}`;
+
+    // Trigger auto reconnect if enabled and session supports it
+    if (AUTO_RECONNECT_CONFIG.enabled && currentSession.value?.supportsLoadSession) {
+      scheduleAutoReconnect();
+    }
+  }
+
+  // Schedule auto reconnect with exponential backoff
+  function scheduleAutoReconnect(): void {
+    // Clear any existing reconnect timer
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    // Check if we've exceeded max retries
+    if (reconnectAttemptCount >= AUTO_RECONNECT_CONFIG.maxRetries) {
+      error.value = `Connection lost. Auto reconnect failed after ${AUTO_RECONNECT_CONFIG.maxRetries} attempts. Click reconnect to try manually.`;
+      reconnectAttemptCount = 0;
+      return;
+    }
+
+    // Calculate delay with exponential backoff
+    const delay = Math.min(
+      AUTO_RECONNECT_CONFIG.baseDelayMs * Math.pow(2, reconnectAttemptCount),
+      AUTO_RECONNECT_CONFIG.maxDelayMs
+    );
+    reconnectAttemptCount++;
+
+    error.value = `Connection lost. Reconnecting in ${Math.round(delay / 1000)}s (attempt ${reconnectAttemptCount}/${AUTO_RECONNECT_CONFIG.maxRetries})...`;
+
+    reconnectTimer = setTimeout(async () => {
+      reconnectTimer = null;
+      const success = await tryReconnect();
+      if (!success) {
+        // tryReconnect returned false - either connected or no session
+        // If we're still disconnected, schedule another attempt
+        if (!isConnected.value && currentSession.value?.supportsLoadSession) {
+          scheduleAutoReconnect();
+        }
+      } else {
+        // Reconnect attempt completed (may have succeeded or failed)
+        if (isConnected.value) {
+          // Success - reset counter
+          reconnectAttemptCount = 0;
+        } else {
+          // Failed - schedule another attempt
+          scheduleAutoReconnect();
+        }
+      }
+    }, delay);
+  }
+
+  // Cancel any pending auto reconnect
+  function cancelAutoReconnect(): void {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    reconnectAttemptCount = 0;
   }
 
   // Session update handler
@@ -497,6 +641,16 @@ export const useSessionStore = defineStore('session', () => {
       isConnected.value = true;
       messages.value = [];
       toolCalls.value.clear();
+
+      // Set up message persistence watch
+      if (messageWatchStop) messageWatchStop();
+      messageWatchStop = watch(
+        () => messages.value,
+        () => {
+          debouncedSaveMessages();
+        },
+        { deep: true }
+      );
       
       // Track successful session creation
       trackEvent('SessionCreated', { agentName, success: 'true' });
@@ -640,18 +794,33 @@ export const useSessionStore = defineStore('session', () => {
         const errorMessage = sessionError instanceof Error ? sessionError.message : String(sessionError);
         const isAuthRequired = errorMessage.toLowerCase().includes('authentication required') ||
                                errorMessage.includes('-32000');
-        
+
+        // Check if session not found (common error codes: -32001, session_not_found)
+        const isSessionNotFound = errorMessage.toLowerCase().includes('session not found') ||
+                                  errorMessage.includes('not found') ||
+                                  errorMessage.includes('-32001');
+
+        if (isSessionNotFound) {
+          // Session has expired on the agent side - mark it and throw a friendly error
+          await acpClient.disconnect();
+          acpClient = null;
+          // Remove from saved sessions list
+          savedSessions.value = savedSessions.value.filter(s => s.id !== savedSession.id);
+          await saveSessionsToStore();
+          throw new Error(`Session "${savedSession.title}" has expired. The agent no longer has this session.`);
+        }
+
         if (isAuthRequired && availableAuthMethods.length > 0) {
           console.log('Authentication required, available methods:', availableAuthMethods);
-          
+
           // Prompt user to select auth method
           const selectedMethodId = await promptForAuthMethod(availableAuthMethods, savedSession.agentName);
-          
+
           if (!selectedMethodId) {
             await acpClient.disconnect();
             throw new Error('Authentication cancelled by user');
           }
-          
+
           console.log('Authenticating with method:', selectedMethodId);
           const authResponse = await acpClient.authenticate({
             methodId: selectedMethodId,
@@ -672,6 +841,24 @@ export const useSessionStore = defineStore('session', () => {
       currentSession.value = savedSession;
       isConnected.value = true;
       // Messages already populated by session/update notifications during loadSession
+
+      // Set up message persistence watch
+      if (messageWatchStop) messageWatchStop();
+      messageWatchStop = watch(
+        () => messages.value,
+        () => {
+          debouncedSaveMessages();
+        },
+        { deep: true }
+      );
+
+      // If no messages were replayed by the agent, try to load saved messages
+      if (messages.value.length === 0) {
+        const savedMessages = await loadMessages(savedSession.sessionId);
+        if (savedMessages.length > 0) {
+          messages.value = savedMessages;
+        }
+      }
 
       // Track successful session resume
       trackEvent('SessionResumed', { agentName: savedSession.agentName, success: 'true' });
@@ -798,27 +985,49 @@ export const useSessionStore = defineStore('session', () => {
 
   // Disconnect current session
   async function disconnect(): Promise<void> {
+    // Stop all watches
+    cancelAutoReconnect();  // Cancel any pending auto reconnect
+
     if (permissionWatchStop) {
       permissionWatchStop();
       permissionWatchStop = null;
+    }
+    if (messageWatchStop) {
+      messageWatchStop();
+      messageWatchStop = null;
+    }
+
+    // Clear any pending message save timer
+    if (messageSaveTimer) {
+      clearTimeout(messageSaveTimer);
+      messageSaveTimer = null;
     }
 
     const agentName = currentSession.value?.agentName || 'unknown';
     const sessionStart = currentSession.value?.lastUpdated || Date.now();
     const sessionDuration = Math.round((Date.now() - sessionStart) / 1000);
-    
+
+    // Save messages before disconnecting
+    if (currentSession.value && messages.value.length > 0) {
+      try {
+        await saveMessages();
+      } catch (e) {
+        console.warn('Failed to save messages on disconnect:', e);
+      }
+    }
+
     if (acpClient) {
       await acpClient.disconnect();
       acpClient = null;
     }
-    
+
     // Track session disconnect
-    trackEvent('SessionDisconnected', { 
+    trackEvent('SessionDisconnected', {
       agentName,
       sessionDurationSeconds: String(sessionDuration),
       messageCount: String(messages.value.length),
     });
-    
+
     currentSession.value = null;
     isConnected.value = false;
     messages.value = [];
@@ -831,8 +1040,14 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   // Delete saved session
-  async function deleteSession(sessionId: string): Promise<void> {
-    savedSessions.value = savedSessions.value.filter(s => s.id !== sessionId);
+  async function deleteSession(sessionStoreId: string): Promise<void> {
+    // Find the session to get its sessionId for message deletion
+    const session = savedSessions.value.find(s => s.id === sessionStoreId);
+    if (session) {
+      // Delete messages for this session
+      await deleteMessages(session.sessionId);
+    }
+    savedSessions.value = savedSessions.value.filter(s => s.id !== sessionStoreId);
     await saveSessionsToStore();
   }
 
@@ -912,6 +1127,8 @@ export const useSessionStore = defineStore('session', () => {
     isReconnecting.value = true;
     try {
       await resumeSession(session);
+      // Success - reset reconnect counter
+      reconnectAttemptCount = 0;
       return true;
     } catch (e) {
       // `resumeSession`'s own catch already wrote `error.value`; nothing

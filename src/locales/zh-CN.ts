@@ -167,6 +167,7 @@ export const zhCN: MessageSchema = {
   },
   taskGraph: {
     title: '任务图',
+    demoWarning: '这是演示数据可视化，未连接实际任务。',
     noTaskGraph: '暂无任务图',
     startTaskHint: '启动任务查看 DAG 可视化',
     taskDetails: '任务详情',

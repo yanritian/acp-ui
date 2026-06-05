@@ -5,6 +5,7 @@ import { OutputBuffer } from './output-buffer'
 import { RuntimeError, assertAbsoluteCwd, toRuntimeError } from './runtime-errors'
 import { BudgetTracker, DEFAULT_BUDGET_LIMITS, createBudgetStopStatus } from './budget-tracker'
 import { ContextCompactor, createContextCompactor } from './context-compactor'
+import { TokenOptimizer, toContextMessages, estimateTokens } from './token-optimizer'
 import type { RuntimeOutput, RuntimePromptOptions, RuntimeSession, RuntimeConnectionStatus, RuntimeBudgetState, RuntimeCompactionState } from './types'
 
 export interface AcpSessionRunnerOptions {
@@ -21,6 +22,7 @@ export class AcpSessionRunner {
   private runtimeSession: RuntimeSession | null = null
   private budgetTracker: BudgetTracker | null = null
   private contextCompactor: ContextCompactor | null = null
+  private tokenOptimizer: TokenOptimizer | null = null
 
   constructor(private readonly options: AcpSessionRunnerOptions) {}
 
@@ -59,6 +61,10 @@ export class AcpSessionRunner {
       rehydrationArtifacts: null,
       pendingCompaction: false,
     }
+  }
+
+  getTokenStats() {
+    return this.tokenOptimizer?.getCacheStats() ?? null
   }
 
   async create(): Promise<RuntimeSession> {
@@ -122,6 +128,7 @@ export class AcpSessionRunner {
     // Initialize budget tracker for this task
     this.budgetTracker = new BudgetTracker(options.budgetLimits || {})
     this.contextCompactor = createContextCompactor()
+    this.tokenOptimizer = new TokenOptimizer()
 
     const objective = options.objective || options.prompt.slice(0, 100)
 
@@ -129,6 +136,11 @@ export class AcpSessionRunner {
     let promptText = options.prompt
     if (options.memories?.length) {
       promptText = ['以下是相关记忆：', ...options.memories.map((m) => `- ${m}`), '', options.prompt].join('\n')
+    }
+
+    // Freeze system prompt for dual-cache optimization
+    if (this.tokenOptimizer) {
+      this.tokenOptimizer.freezeSystemPrompt(objective || '')
     }
 
     // Check budget before starting
@@ -167,6 +179,16 @@ export class AcpSessionRunner {
         // In a full implementation, we would pause and compact here
         // For MVP, we just log and continue
         console.warn('Context approaching limit, compaction recommended')
+      }
+
+      // Token optimization check
+      if (this.tokenOptimizer) {
+        const currentTokens = estimateTokens(messages.map(m => m.content || '').join(' '))
+        if (this.tokenOptimizer.needsCompression(currentTokens)) {
+          const ctxMessages = toContextMessages(messages)
+          const result = this.tokenOptimizer.compressContext(ctxMessages)
+          console.log(`Token optimization: saved ${result.savedTokens} tokens (${(result.compressionRatio * 100).toFixed(1)}% reduction)`)
+        }
       }
 
       this.options.onOutput?.(output)
@@ -242,6 +264,9 @@ export class AcpSessionRunner {
     if (this.runtimeSession) {
       this.runtimeSession.status = 'disconnected'
     }
+    // Clean up token optimizer
+    this.tokenOptimizer?.destroy()
+    this.tokenOptimizer = null
   }
 
   private async connectAndInitialize(): Promise<InitializeResponse> {

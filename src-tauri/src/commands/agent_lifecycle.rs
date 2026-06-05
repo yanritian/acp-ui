@@ -20,9 +20,25 @@ pub fn spawn_agent(
         .get(&name)
         .ok_or_else(|| format!("Agent '{}' not found in config", name))?;
 
-    state
+    let hooks = agent_config.hooks.clone();
+
+    let instance = state
         .agent_manager
-        .spawn_agent(name, agent_config, app_handle)
+        .spawn_agent(name, agent_config, app_handle)?;
+
+    // Register agent in the communication bus
+    if let Ok(mut bus) = state.agent_bus.lock() {
+        let _ = bus.register_agent(&instance.id);
+    }
+
+    // Register hooks for the agent if any are configured
+    if !hooks.is_empty() {
+        if let Ok(mut executor) = state.hooks_executor.lock() {
+            executor.register_agent_hooks(&instance.id, &hooks);
+        }
+    }
+
+    Ok(instance)
 }
 
 #[tauri::command]
@@ -32,6 +48,16 @@ pub fn send_to_agent(agent_id: String, message: String, state: State<AppState>) 
 
 #[tauri::command]
 pub fn kill_agent(agent_id: String, state: State<AppState>) -> Result<(), String> {
+    // Unregister hooks for this agent before killing
+    if let Ok(mut executor) = state.hooks_executor.lock() {
+        executor.unregister_agent_hooks(&agent_id);
+    }
+
+    // Unregister agent from the communication bus
+    if let Ok(mut bus) = state.agent_bus.lock() {
+        let _ = bus.unregister_agent(&agent_id);
+    }
+
     state.agent_manager.kill_agent(&agent_id)
 }
 

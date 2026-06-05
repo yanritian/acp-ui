@@ -312,6 +312,8 @@ pub struct HealingExecutor {
     actions: HashMap<String, HealingActionRecord>,
     /// Reference to anomaly detector for determining actions
     anomaly_detector: std::sync::Arc<std::sync::Mutex<AnomalyDetector>>,
+    /// Optional database connection for persisting learned patterns (feedback loop)
+    database: Option<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>>,
 }
 
 impl HealingExecutor {
@@ -319,7 +321,14 @@ impl HealingExecutor {
         Self {
             actions: HashMap::new(),
             anomaly_detector,
+            database: None,
         }
+    }
+
+    /// Set the database connection for persisting learned healing patterns.
+    /// This creates the feedback loop: detect -> heal -> learn.
+    pub fn set_database(&mut self, db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) {
+        self.database = Some(db);
     }
 
     /// Execute a healing action based on anomaly ID
@@ -382,6 +391,63 @@ impl HealingExecutor {
                 action.result = Some(format!("Scaled down '{}'", target));
             }
         };
+
+        // Auto-save pattern for successful healing (feedback loop: detect -> heal -> learn)
+        if action.status == "success" {
+            if let Some(db) = &self.database {
+                if let Ok(conn) = db.lock() {
+                    let anomaly_type_str = anomaly.anomaly_type.as_str();
+                    let anomaly_desc = format!(
+                        "{} anomaly on '{}' (deviation: {:.1}%, health: {:.1})",
+                        anomaly_type_str, anomaly.target, anomaly.deviation, anomaly.health_score
+                    );
+                    let healing_result = action.result.clone().unwrap_or_default();
+                    let trigger_reason = format!(
+                        "Auto-healing triggered by {} anomaly (severity: {})",
+                        anomaly_type_str, anomaly.severity.as_str()
+                    );
+
+                    // Save evolution record for this healing event
+                    let evolution_id = uuid::Uuid::new_v4().to_string();
+                    let _ = conn.execute(
+                        "INSERT INTO evolutions (id, type, domain, before, after, reason, evidence, created_at)
+                         VALUES (?1, 'auto_healing', ?2, ?3, ?4, ?5, ?6, datetime('now'))",
+                        rusqlite::params![
+                            evolution_id,
+                            anomaly_type_str,
+                            anomaly_desc,
+                            healing_result,
+                            trigger_reason,
+                            action.action_type.as_str(),
+                        ],
+                    );
+
+                    // Insert or update pattern for this anomaly type (usage-based learning)
+                    let pattern_id = format!("{}_recovery", anomaly_type_str);
+                    let pattern_name = format!("{}_recovery", anomaly_type_str);
+                    let pattern_desc = format!(
+                        "Automatic recovery pattern for {} anomalies using {}",
+                        anomaly_type_str,
+                        action.action_type.as_str()
+                    );
+                    let now = chrono::Utc::now().to_rfc3339();
+                    let _ = conn.execute(
+                        "INSERT INTO patterns (id, name, description, category, examples, success_rate, usage_count, created_at, updated_at)
+                         VALUES (?1, ?2, ?3, 'self_healing', ?4, 1.0, 1, ?5, ?6)
+                         ON CONFLICT(id) DO UPDATE SET usage_count = usage_count + 1, updated_at = ?7",
+                        rusqlite::params![
+                            pattern_id,
+                            pattern_name,
+                            pattern_desc,
+                            action.action_type.as_str(),
+                            now,
+                            now,
+                            now,
+                        ],
+                    );
+                }
+            }
+        }
 
         // Store the action
         let action_clone = action.clone();

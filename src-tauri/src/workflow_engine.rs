@@ -1122,12 +1122,103 @@ pub fn workflow_cancel(
     engine.cancel_workflow(&id)
 }
 
-/// Save a workflow as JSON for replay
+/// Save a workflow as JSON for replay, also persisting to the database
 #[tauri::command]
 pub fn workflow_save(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<serde_json::Value, String> {
-    let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
-    engine.save_workflow(&id)
+    // First serialize the workflow from the engine
+    let workflow_json = {
+        let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+        engine.save_workflow(&id)?
+    };
+
+    // Also persist to database
+    let db_guard = state.database.lock().map_err(|e| e.to_string())?;
+    if let Some(db) = db_guard.as_ref() {
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+        // Extract name and description from the serialized JSON
+        let name = workflow_json.get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let description = workflow_json.get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let created_at = workflow_json.get("created_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO workflows (id, name, description, definition_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))",
+            rusqlite::params![
+                id,
+                name,
+                description,
+                serde_json::to_string(&workflow_json).unwrap_or_default(),
+                created_at,
+            ],
+        ).map_err(|e| format!("Failed to persist workflow to database: {}", e))?;
+
+        println!("[WorkflowEngine] Workflow '{}' persisted to database", id);
+    }
+
+    Ok(workflow_json)
+}
+
+/// Load all persisted workflows from the database into the engine
+#[tauri::command]
+pub fn workflow_load_all(
+    state: State<'_, AppState>,
+) -> Result<Vec<WorkflowDefinition>, String> {
+    // First, collect all definition JSON strings from the database
+    let definition_jsons: Vec<String> = {
+        let db_guard = state.database.lock().map_err(|e| e.to_string())?;
+        let db = db_guard.as_ref().ok_or("Database not initialized")?;
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+        let mut stmt = conn.prepare(
+            "SELECT definition_json FROM workflows ORDER BY created_at DESC"
+        ).map_err(|e| e.to_string())?;
+
+        let workflow_rows = stmt.query_map([], |row| {
+            row.get::<_, String>(0)
+        }).map_err(|e| e.to_string())?;
+
+        let mut results = Vec::new();
+        for row in workflow_rows {
+            results.push(row.map_err(|e| e.to_string())?);
+        }
+        results
+        // db_guard and conn are dropped here, releasing the locks
+    };
+
+    // Now load them into the engine (separate lock scope)
+    let mut loaded_workflows = Vec::new();
+    let mut engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
+
+    for definition_json in definition_jsons {
+        let json_value: serde_json::Value = serde_json::from_str(&definition_json)
+            .map_err(|e| format!("Failed to parse workflow JSON: {}", e))?;
+
+        match engine.load_workflow(json_value) {
+            Ok(workflow) => {
+                loaded_workflows.push(workflow);
+            }
+            Err(e) => {
+                println!("[WorkflowEngine] Warning: failed to load workflow from database: {}", e);
+            }
+        }
+    }
+
+    println!(
+        "[WorkflowEngine] Loaded {} workflows from database",
+        loaded_workflows.len()
+    );
+    Ok(loaded_workflows)
 }

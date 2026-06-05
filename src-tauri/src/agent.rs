@@ -50,6 +50,11 @@ pub struct AgentStderr {
     pub line: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentClosedEvent {
+    pub agent_id: String,
+}
+
 #[cfg(desktop)]
 struct RunningAgent {
     #[allow(dead_code)]
@@ -209,7 +214,7 @@ impl AgentManager {
             }
             // Agent process ended, remove from map
             agents_clone.write().remove(&agent_id_clone);
-            let _ = app_handle_clone.emit("agent-closed", agent_id_clone);
+            let _ = app_handle_clone.emit("agent-closed", AgentClosedEvent { agent_id: agent_id_clone });
         });
 
         // Spawn a thread to read stderr and emit events (for startup progress)

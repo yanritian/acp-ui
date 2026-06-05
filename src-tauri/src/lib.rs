@@ -129,6 +129,13 @@ pub fn run() {
                 Ok(db) => {
                     // Clone connection before moving db
                     let conn_clone = db.conn.clone();
+
+                    // Wire database into HealingExecutor for auto-learning feedback loop
+                    {
+                        let mut healer = state.healing_executor.lock().unwrap();
+                        healer.set_database(conn_clone.clone());
+                    }
+
                     *state.database.lock().unwrap() = Some(db);
 
                     // Initialize LogStreamManager with database connection
@@ -175,6 +182,26 @@ pub fn run() {
                     eprintln!("Failed to initialize database manager: {}", e);
                 }
             }
+
+            // Listen to agent-closed events for bus/hooks cleanup
+            // When an agent process exits naturally (stdout thread ends), the
+            // AgentManager removes it from its map but doesn't know about bus/hooks.
+            // This listener ensures those registrations are cleaned up too.
+            let bus_clone = state.agent_bus.clone();
+            let hooks_clone = state.hooks_executor.clone();
+            app.listen("agent-closed", move |event| {
+                let payload = event.payload();
+                if let Ok(msg) = serde_json::from_str::<serde_json::Value>(payload) {
+                    if let Some(agent_id) = msg.get("agent_id").and_then(|v| v.as_str()) {
+                        if let Ok(mut bus) = bus_clone.lock() {
+                            let _ = bus.unregister_agent(agent_id);
+                        }
+                        if let Ok(mut hooks) = hooks_clone.lock() {
+                            hooks.unregister_agent_hooks(agent_id);
+                        }
+                    }
+                }
+            });
 
             // Auto-start WebSocket server on port 1421 for remote control testing
             let app_handle_for_ws = app.handle().clone();
@@ -354,6 +381,7 @@ pub fn run() {
             workflow_engine::workflow_generate_from_task,
             workflow_engine::workflow_cancel,
             workflow_engine::workflow_save,
+            workflow_engine::workflow_load_all,
             // Hooks Executor commands
             hooks_executor::hook_register,
             hooks_executor::hook_register_for_agent,

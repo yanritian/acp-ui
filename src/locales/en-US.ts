@@ -130,6 +130,13 @@ export const enUS: MessageSchema = {
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
   },
+  navigationGroup: {
+    chat: 'Chat',
+    agent: 'Agent Management',
+    workflow: 'Workflow',
+    monitor: 'Monitor',
+    lab: 'Lab',
+  },
   navigationDescriptions: {
     chat: 'Single Agent session',
     multiAgent: 'Broadcast, route and compare multiple Agent outputs',

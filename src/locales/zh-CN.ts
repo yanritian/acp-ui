@@ -130,6 +130,13 @@ export const zhCN: MessageSchema = {
     workflowEditor: '工作流编辑器',
     tokenOptimizer: 'Token 优化',
   },
+  navigationGroup: {
+    chat: '对话',
+    agent: 'Agent 管理',
+    workflow: '工作流',
+    monitor: '监控',
+    lab: '实验室',
+  },
   navigationDescriptions: {
     chat: '单 Agent 会话',
     multiAgent: '广播、路由和对比多个 Agent 输出',

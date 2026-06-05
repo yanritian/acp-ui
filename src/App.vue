@@ -17,14 +17,14 @@ import { usePreferences } from './composables/usePreferences'
 import { useBotCommand } from './composables/useBotCommand'
 
 // Components
-import AppSidebar from './components/AppSidebar.vue'
-import ConnectionBanner from './components/ConnectionBanner.vue'
-import WelcomeScreen from './components/WelcomeScreen.vue'
-import PermissionDialog from './components/PermissionDialog.vue'
-import SettingsView from './components/SettingsView.vue'
-import AuthMethodDialog from './components/AuthMethodDialog.vue'
-import TrafficMonitor from './components/TrafficMonitor.vue'
-import LogStreamView from './components/LogStreamView.vue'
+import AppSidebar from './shared/layout/AppSidebar.vue'
+import ConnectionBanner from './shared/layout/ConnectionBanner.vue'
+import WelcomeScreen from './shared/layout/WelcomeScreen.vue'
+import PermissionDialog from './shared/dialogs/PermissionDialog.vue'
+import SettingsView from './shared/ui/SettingsView.vue'
+import AuthMethodDialog from './shared/dialogs/AuthMethodDialog.vue'
+import TrafficMonitor from './features/monitoring/TrafficMonitor.vue'
+import LogStreamView from './features/monitoring/LogStreamView.vue'
 
 const { t } = useI18n()
 const router = useRouter()

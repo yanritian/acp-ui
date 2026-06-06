@@ -29,6 +29,7 @@ mod circuit_breaker;  // Three-state failure protection
 mod team_dag;         // Team DAG execution engine
 mod workflow_engine;  // Multi-stage orchestrated workflows
 mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
+mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
 
 // ---- Smart Routing & Self-Healing ----
 mod smart_router;     // Three-layer complexity evaluation
@@ -86,6 +87,8 @@ pub struct AppState {
     pub swarm_orchestrator: Arc<Mutex<swarm_orchestrator::SwarmOrchestrator>>,
     pub workflow_engine: Arc<Mutex<workflow_engine::WorkflowEngine>>,
     pub hooks_executor: Arc<Mutex<hooks_executor::HooksExecutor>>,
+    // Hermes Flow - Development Flow Orchestrator (Phase 2)
+    pub hermes_flow: Arc<Mutex<hermes_flow::HermesFlowOrchestrator>>,
     // MCP & Agent Communication
     pub mcp_client: Arc<Mutex<mcp_client::McpClient>>,
     pub agent_bus: Arc<Mutex<agent_bus::AgentBus>>,
@@ -118,6 +121,8 @@ impl AppState {
             swarm_orchestrator: Arc::new(Mutex::new(swarm_orchestrator::SwarmOrchestrator::new())),
             workflow_engine: Arc::new(Mutex::new(workflow_engine::WorkflowEngine::new())),
             hooks_executor: Arc::new(Mutex::new(hooks_executor::HooksExecutor::new())),
+            // Hermes Flow (Phase 2)
+            hermes_flow: Arc::new(Mutex::new(hermes_flow::HermesFlowOrchestrator::new())),
             // MCP & Agent Communication
             mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
             agent_bus: Arc::new(Mutex::new(agent_bus::AgentBus::new())),
@@ -410,6 +415,14 @@ pub fn run() {
             workflow_engine::workflow_cancel,
             workflow_engine::workflow_save,
             workflow_engine::workflow_load_all,
+            // Hermes Flow commands (Phase 2)
+            hermes_flow::hermes_flow_create,
+            hermes_flow::hermes_flow_get_context,
+            hermes_flow::hermes_flow_get_status,
+            hermes_flow::hermes_flow_execute,
+            hermes_flow::hermes_flow_cancel,
+            hermes_flow::hermes_flow_list,
+            hermes_flow::hermes_flow_update_result,
             // Hooks Executor commands
             hooks_executor::hook_register,
             hooks_executor::hook_register_for_agent,

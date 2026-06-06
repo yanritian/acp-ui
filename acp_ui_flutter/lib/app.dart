@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'shared/theme/app_theme.dart';
 import 'shared/widgets/sidebar.dart';
-import 'features/chat/chat_view.dart';
+import 'screens/main_screen.dart';
 import 'features/multi_agent/multi_agent_view.dart';
 import 'features/history/history_view.dart';
 import 'features/settings/settings_view.dart';
@@ -20,6 +20,10 @@ import 'features/server_config/server_config_screen.dart';
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     routes: [
+      GoRoute(
+        path: '/mobile',
+        builder: (context, state) => const MainScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => MainLayout(child: child),
         routes: [
@@ -91,7 +95,7 @@ class AcpUiApp extends ConsumerWidget {
   }
 }
 
-// Main layout with sidebar
+// Main layout with sidebar (desktop) or mobile bottom-nav shell
 class MainLayout extends ConsumerWidget {
   const MainLayout({super.key, required this.child});
 
@@ -103,8 +107,8 @@ class MainLayout extends ConsumerWidget {
     final isMobile = screenWidth < 600;
 
     if (isMobile) {
-      // On mobile, just show the child directly (full screen)
-      return child;
+      // On mobile, redirect to the mobile shell
+      return const MainScreen();
     }
 
     return Scaffold(

@@ -731,6 +731,9 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
     // Logs table for LogStream system
     crate::log_stream::init_logs_table(conn)?;
 
+    // Approval Requests table for human-in-the-loop workflow approvals
+    crate::approval_engine::init_approval_table(conn)?;
+
     // Executive Sessions table for Executive Agent persistence
     conn.execute(
         "CREATE TABLE IF NOT EXISTS executive_sessions (

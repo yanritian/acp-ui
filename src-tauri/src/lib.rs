@@ -31,6 +31,8 @@ mod workflow_engine;  // Multi-stage orchestrated workflows
 mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
 mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
 mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
+mod agent_orchestration; // Agent Orchestration Layer - "驾驭层"
+mod approval_engine;     // Approval protocol for workflow stages
 
 // ---- Smart Routing & Self-Healing ----
 mod smart_router;     // Three-layer complexity evaluation
@@ -96,6 +98,10 @@ pub struct AppState {
     // MCP & Agent Communication
     pub mcp_client: Arc<Mutex<mcp_client::McpClient>>,
     pub agent_bus: Arc<Mutex<agent_bus::AgentBus>>,
+    // Agent Orchestration Layer
+    pub agent_orchestrator: Arc<Mutex<agent_orchestration::AgentOrchestrator>>,
+    // Approval Engine
+    pub approval_engine: Arc<Mutex<approval_engine::ApprovalEngine>>,
 }
 
 impl AppState {
@@ -132,6 +138,10 @@ impl AppState {
             // MCP & Agent Communication
             mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
             agent_bus: Arc::new(Mutex::new(agent_bus::AgentBus::new())),
+            // Agent Orchestration Layer
+            agent_orchestrator: Arc::new(Mutex::new(agent_orchestration::AgentOrchestrator::new())),
+            // Approval Engine
+            approval_engine: Arc::new(Mutex::new(approval_engine::ApprovalEngine::new())),
         }
     }
 }
@@ -250,6 +260,13 @@ pub fn run() {
                 let mut registry = state.plugin_registry.lock().unwrap();
                 registry.seed_defaults();
                 println!("✅ Plugin registry seeded with {} plugins", registry.list(None).len());
+            }
+
+            // Wire workflow engine into agent orchestrator
+            {
+                let mut orchestrator = state.agent_orchestrator.lock().unwrap();
+                orchestrator.set_workflow_engine(state.workflow_engine.clone());
+                println!("✅ Agent orchestrator wired to workflow engine");
             }
 
             tauri::async_runtime::spawn(async move {
@@ -468,7 +485,25 @@ pub fn run() {
             agent_bus::agent_bus_history,
             agent_bus::agent_bus_list_agents,
             agent_bus::agent_bus_list_topics,
-            agent_bus::agent_bus_is_registered
+            agent_bus::agent_bus_is_registered,
+            // Agent Orchestration commands
+            agent_orchestration::orchestration_register_agent,
+            agent_orchestration::orchestration_list_agents,
+            agent_orchestration::orchestration_select_agent,
+            agent_orchestration::orchestration_execute_task,
+            agent_orchestration::orchestration_execute_task_auto,
+            agent_orchestration::orchestration_get_task_status,
+            agent_orchestration::orchestration_cancel_task,
+            agent_orchestration::orchestration_list_active_tasks,
+            agent_orchestration::orchestration_list_task_history,
+            agent_orchestration::orchestration_execute_workflow_stage,
+            agent_orchestration::orchestration_execute_full_workflow,
+            agent_orchestration::orchestration_seed_default_agents,
+            // Approval Engine commands
+            approval_engine::approval_get_pending,
+            approval_engine::approval_get_request,
+            approval_engine::approval_decide,
+            approval_engine::approval_get_stats
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

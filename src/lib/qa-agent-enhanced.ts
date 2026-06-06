@@ -2,7 +2,7 @@
 // Phase 2 enhancement for complete development cycle QA
 
 import { invokeSkill } from './skill-system/skill-invoker'
-import { trackEvent } from './self-improvement/telemetry'
+import { trackEvent, trackError } from './self-improvement/telemetry'
 import type { ReviewResult, ReviewError, ReviewWarning } from './code-review-agent'
 
 // ---------------------------------------------------------------------------
@@ -197,8 +197,11 @@ export class QAAgentEnhanced {
             suggestions.push(suggestion)
           }
         }
-      } catch {
-        // Skip this error if fix suggestion fails
+      } catch (err: unknown) {
+        // Track error via telemetry per project coding standards
+        trackError(err instanceof Error ? err : new Error(String(err)), {
+          context: 'qa-auto-fix-suggestion',
+        })
       }
     }
 

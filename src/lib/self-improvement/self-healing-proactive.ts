@@ -127,7 +127,9 @@ export async function runProactiveCheck(): Promise<ProactiveCheckResult> {
   let autoFixed = 0
   let manualRequired = 0
 
-  const fixableIssues = issues.filter(i => i.fixAvailable && i.severity !== 'critical' || !proactiveConfig.criticalRequiresApproval)
+  const fixableIssues = issues.filter(i =>
+  i.fixAvailable && (i.severity !== 'critical' || !proactiveConfig.criticalRequiresApproval)
+)
   const toFix = fixableIssues.slice(0, proactiveConfig.maxAutoFixPerRun)
 
   for (const issue of toFix) {

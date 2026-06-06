@@ -3,6 +3,9 @@
 //! Phase 4 enhancement: Deep integration with MCP + Skill system
 //! These traits extend Hermes Core with self-improvement capabilities.
 
+// Debug prints are intentional for development phase
+#![allow(clippy::print_stdout)]
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -361,7 +364,7 @@ impl SelfEvolving for EnhancedHermes {
                     result.skill_name.clone()
                 },
                 priority: EvolutionPriority::High,
-                description: format!("Fix failure pattern: {}", result.error.unwrap_or_default()),
+                description: format!("Fix failure pattern: {}", result.error.clone().unwrap_or_default()),
                 evidence: serde_json::to_value(result).unwrap_or(serde_json::Value::Null),
                 auto_applicable: false, // Needs manual review for failures
                 created_at: chrono::Utc::now().timestamp_millis(),

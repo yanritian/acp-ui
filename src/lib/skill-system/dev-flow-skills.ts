@@ -4,6 +4,13 @@
 import type { SkillExecutionResult, SkillContext } from './types'
 import { invokeSkill } from './skill-invoker'
 
+// Debug logging helper (no-op in production)
+const debugLog = (msg: string) => {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log(msg)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Development Flow Skills Definition
 // ---------------------------------------------------------------------------
@@ -248,12 +255,12 @@ export class DevelopmentFlowOrchestrator {
    * Execute the complete development flow
    */
   async execute(): Promise<FlowContext> {
-    console.log(`[DevFlow] Starting flow for task: ${this.context.taskId}`)
+    debugLog(`[DevFlow] Starting flow for task: ${this.context.taskId}`)
 
     for (const stage of DEVELOPMENT_FLOW_STAGES) {
       // Check condition
       if (stage.condition && !stage.condition(this.context)) {
-        console.log(`[DevFlow] Skipping stage ${stage.name} (condition not met)`)
+        debugLog(`[DevFlow] Skipping stage ${stage.name} (condition not met)`)
         continue
       }
 
@@ -274,7 +281,7 @@ export class DevelopmentFlowOrchestrator {
         // Store result in context
         this.storeStageResult(stage.name, result)
 
-        console.log(`[DevFlow] Stage ${stage.name} completed successfully`)
+        debugLog(`[DevFlow] Stage ${stage.name} completed successfully`)
       } catch (error) {
         execution.completedAt = Date.now()
         execution.output = error instanceof Error ? error.message : String(error)
@@ -289,7 +296,7 @@ export class DevelopmentFlowOrchestrator {
             retryCount: 0,
           })
           this.context.stageHistory.push(execution)
-          console.log(`[DevFlow] Flow stopped at stage ${stage.name}`)
+          debugLog(`[DevFlow] Flow stopped at stage ${stage.name}`)
           return this.context
         }
       }
@@ -297,7 +304,7 @@ export class DevelopmentFlowOrchestrator {
       this.context.stageHistory.push(execution)
     }
 
-    console.log(`[DevFlow] Flow completed successfully`)
+    debugLog(`[DevFlow] Flow completed successfully`)
     return this.context
   }
 
@@ -372,13 +379,13 @@ export class DevelopmentFlowOrchestrator {
     const errorMsg = error instanceof Error ? error.message : String(error)
 
     if (stage.onFailure === 'skip') {
-      console.log(`[DevFlow] Skipping failed stage ${stage.name}`)
+      debugLog(`[DevFlow] Skipping failed stage ${stage.name}`)
       return true
     }
 
     if (stage.onFailure === 'retry' && stage.maxRetries > 0) {
       for (let attempt = 1; attempt <= stage.maxRetries; attempt++) {
-        console.log(`[DevFlow] Retrying stage ${stage.name} (attempt ${attempt}/${stage.maxRetries})`)
+        debugLog(`[DevFlow] Retrying stage ${stage.name} (attempt ${attempt}/${stage.maxRetries})`)
 
         try {
           await new Promise(r => setTimeout(r, 1000 * attempt)) // Exponential backoff
@@ -398,7 +405,7 @@ export class DevelopmentFlowOrchestrator {
 
     if (stage.onFailure === 'fallback') {
       // Try fallback approach (simpler/safer method)
-      console.log(`[DevFlow] Attempting fallback for stage ${stage.name}`)
+      debugLog(`[DevFlow] Attempting fallback for stage ${stage.name}`)
       // TODO: Implement fallback logic
     }
 

@@ -1,6 +1,9 @@
 // Sync Engine - Multi-platform data synchronization (Phase 3)
 // App / Tauri / Web data real-time sync with Local-First strategy
 
+// Debug prints are intentional for development phase
+#![allow(clippy::print_stdout)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};

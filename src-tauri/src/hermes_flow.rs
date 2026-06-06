@@ -3,6 +3,9 @@
 //! Integrates frontend dev-flow-skills.ts with Rust backend workflow engine.
 //! Provides complete development cycle: 需求分析 → 计划撰写 → 写代码 → 代码调整 → 功能测试
 
+// Debug prints are intentional for development phase
+#![allow(clippy::print_stdout)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::State;
@@ -258,6 +261,7 @@ impl HermesFlowOrchestrator {
 
         self.active_flows.insert(workflow_id.clone(), context);
 
+        #[cfg(debug_assertions)]
         println!("[HermesFlow] Created dev flow '{}' for request: {}", workflow_id, request);
         Ok((workflow_id, workflow))
     }

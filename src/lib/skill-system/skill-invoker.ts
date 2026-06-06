@@ -14,6 +14,7 @@ import type {
   SkillInvocation,
   SkillExecutionResult,
   SkillMeta,
+  SkillContext,
   CreateSkillRequest,
   CreateSkillResult,
   SkillRatingRequest,
@@ -157,15 +158,17 @@ export const skillInvoker = new SkillInvoker();
 
 /**
  * Quick invoke a skill by name
+ * Supports both simple and context-aware invocations
  */
 export async function invokeSkill(
   name: string,
   params?: Record<string, unknown>,
+  context?: SkillContext,
 ): Promise<SkillExecutionResult> {
   return skillInvoker.invokeSkill({
     skillName: name,
     parameters: params || {},
-    context: { cwd: '.' },
+    context: context || { cwd: '.' },
   });
 }
 

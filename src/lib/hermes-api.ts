@@ -201,7 +201,7 @@ export async function fetchHermesMetrics(): Promise<HermesMetrics> {
   }
   try {
     // Try to invoke backend command for metrics
-    const result = await tauriInvoke<HermesMetrics>('get_hermes_metrics')
+    const result = await tauriInvoke('get_hermes_metrics') as HermesMetrics
     metrics.value = result
     return result
   } catch {
@@ -218,7 +218,7 @@ export async function fetchTaskHistory(limit: number = 20): Promise<HermesTaskSt
     return taskHistory.value
   }
   try {
-    const result = await tauriInvoke<HermesTaskStatus[]>('get_task_history', { limit })
+    const result = await tauriInvoke('get_task_history', { limit }) as HermesTaskStatus[]
     taskHistory.value = result
     return result
   } catch {

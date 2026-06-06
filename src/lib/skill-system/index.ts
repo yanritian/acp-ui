@@ -6,6 +6,7 @@
  * - Self-evolving skills based on execution feedback
  * - Natural language skill creation
  * - Version history and rollback
+ * - Development flow skill chain (Phase 2)
  *
  * Architecture inspired by OpenClacky:
  * - 12-16 immutable core tools
@@ -15,6 +16,7 @@
 
 export * from './types';
 export * from './skill-invoker';
+export * from './dev-flow-skills';
 
 // Re-export convenience functions
 export {
@@ -26,3 +28,23 @@ export {
 
 // Re-export core skills list
 export { CORE_SKILLS } from './types';
+
+// Re-export development flow
+export {
+  DEVELOPMENT_FLOW_SKILLS,
+  DEVELOPMENT_FLOW_STAGES,
+  DevelopmentFlowOrchestrator,
+  executeDevelopmentFlow,
+  getFlowStatus,
+  type FlowStage,
+  type FlowContext,
+  type FlowError,
+  type StageExecution,
+  type AnalysisResult,
+  type PlanResult,
+  type CodeResult,
+  type ReviewResult,
+  type AdjustmentsResult,
+  type TestResult,
+  type DocumentationResult,
+} from './dev-flow-skills';

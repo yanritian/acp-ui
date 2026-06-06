@@ -1,13 +1,16 @@
 <template>
   <div class="agent-config-view view-container">
     <div class="config-header">
-      <h2>🤖 {{ t('agentConfig.title') }}</h2>
+      <h2>
+        <span class="header-icon" v-html="icon.robot"></span>
+        {{ t('agentConfig.title') }}
+      </h2>
       <div class="header-actions">
         <button class="template-btn" @click="showTemplatePanel = true">
-          📦 {{ t('agentConfig.fromTemplate') }}
+          <span v-html="icon.package"></span> {{ t('agentConfig.fromTemplate') }}
         </button>
         <button class="add-btn" @click="showAddForm = true">
-          ➕ {{ t('agentConfig.addAgent') }}
+          <span v-html="icon.plus"></span> {{ t('agentConfig.addAgent') }}
         </button>
       </div>
     </div>
@@ -15,7 +18,7 @@
     <!-- Agent List -->
     <div class="agent-list">
       <div v-if="agents.length === 0" class="empty-state">
-        <div class="empty-icon">🤖</div>
+        <span class="empty-icon" v-html="icon.robot"></span>
         <h3>{{ t('agentConfig.noAgents') }}</h3>
         <p>{{ t('agentConfig.noAgentsHint') }}</p>
       </div>
@@ -144,8 +147,10 @@
     <div v-if="showTemplatePanel" class="modal-overlay" @click.self="showTemplatePanel = false">
       <div class="modal-content template-panel">
         <div class="template-panel-header">
-          <h3>📦 {{ t('agentConfig.selectTemplate') }}</h3>
-          <button class="close-btn" @click="showTemplatePanel = false">✕</button>
+          <h3><span v-html="icon.package"></span> {{ t('agentConfig.selectTemplate') }}</h3>
+          <button class="close-btn" @click="showTemplatePanel = false">
+            <span v-html="icon.x"></span>
+          </button>
         </div>
 
         <!-- Tag filter -->
@@ -215,10 +220,12 @@ import {
   isTemplateCompatible as checkTemplateCompatible,
   type AgentTemplate
 } from '@/lib/agent-templates';
+import { icons } from '@/shared/icons';
 
 const { t } = useI18n();
 const isRestrictedPlatform = restrictedTransports();
 const isDesktopPlatform = isDesktop();
+const icon = icons;
 
 interface AgentWithStatus {
   name: string;
@@ -433,14 +440,24 @@ onMounted(async () => {
 }
 
 .config-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0;
   font-size: 24px;
 }
 
+.header-icon {
+  color: var(--primary);
+}
+
 .add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 20px;
-  background: #4CAF50;
-  color: white;
+  background: var(--success);
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -448,7 +465,7 @@ onMounted(async () => {
 }
 
 .add-btn:hover {
-  background: var(--success-hover, #059669);
+  background: var(--success-hover);
 }
 
 .agents-grid {
@@ -566,8 +583,10 @@ onMounted(async () => {
 }
 
 .empty-icon {
-  font-size: 64px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 16px;
+  color: var(--text-muted);
 }
 
 /* Modal styles */
@@ -687,6 +706,9 @@ onMounted(async () => {
 }
 
 .template-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 20px;
   background: var(--accent, var(--primary));
   color: var(--text-inverse);

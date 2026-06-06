@@ -8,6 +8,7 @@ import AgentSelector from '@/features/config/AgentSelector.vue'
 import SessionList from '@/features/chat/SessionList.vue'
 import StartupProgress from '@/shared/ui/StartupProgress.vue'
 import LanguageSelector from '@/shared/ui/LanguageSelector.vue'
+import { icons } from '@/shared/icons'
 import type { SavedSession } from '@/lib/types'
 
 const props = defineProps<{
@@ -27,6 +28,8 @@ const props = defineProps<{
   startupLogs?: string[]
   startupElapsed?: number
 }>()
+
+const icon = icons
 
 const emit = defineEmits<{
   (e: 'toggle-sidebar'): void
@@ -96,15 +99,23 @@ function handleAgentSelect(agentName: string) {
           :class="{ active: showLogStream }"
           @click="emit('toggle-log-stream')"
           title="Agent Log Stream"
-        >📋</button>
+        >
+          <span v-html="icon.fileText"></span>
+        </button>
         <button
           class="settings-btn"
           :class="{ active: showTrafficMonitor }"
           @click="emit('toggle-traffic-monitor')"
           title="ACP Traffic Monitor"
-        >📡</button>
-        <button class="settings-btn" @click="emit('open-settings')" title="Settings">⚙</button>
-        <button class="toggle-btn" @click="emit('toggle-sidebar')">◀</button>
+        >
+          <span v-html="icon.activity"></span>
+        </button>
+        <button class="settings-btn" @click="emit('open-settings')" title="Settings">
+          <span v-html="icon.settings"></span>
+        </button>
+        <button class="toggle-btn" @click="emit('toggle-sidebar')">
+          <span class="toggle-icon" v-html="icon.arrowRight"></span>
+        </button>
       </div>
     </div>
     
@@ -212,7 +223,7 @@ function handleAgentSelect(agentName: string) {
               @click="showAdvancedMenu = !showAdvancedMenu"
               :title="t('common.moreFeatures')"
             >
-              <span class="nav-icon">⚙️</span>
+              <span class="nav-icon" v-html="icon.settings"></span>
               <span class="nav-text">{{ t('common.moreFeatures') }} {{ showAdvancedMenu ? '▼' : '▶' }}</span>
             </button>
 

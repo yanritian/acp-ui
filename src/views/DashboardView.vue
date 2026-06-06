@@ -9,11 +9,15 @@ import AgentStatusCard from '@/features/agents/AgentStatusCard.vue'
 import QuickTaskInput from '@/features/tasks/QuickTaskInput.vue'
 import RecentTasks from '@/features/tasks/RecentTasks.vue'
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow.vue'
+import { icons } from '@/shared/icons'
 
 const { t } = useI18n()
 const router = useRouter()
 const configStore = useConfigStore()
 const sessionStore = useSessionStore()
+
+// Expose icons to template
+const icon = icons
 
 // State
 const showOnboarding = ref(false)
@@ -115,7 +119,7 @@ function navigateToHistory() {
       <!-- Agent Status Section -->
       <section class="dashboard-section">
         <h2 class="section-title">
-          <span class="section-icon">🤖</span>
+          <span class="section-icon" v-html="icon.robot"></span>
           {{ t('dashboard.agentStatus') }}
         </h2>
         <AgentStatusCard
@@ -130,7 +134,7 @@ function navigateToHistory() {
       <!-- Quick Task Section -->
       <section v-if="hasAgents" class="dashboard-section">
         <h2 class="section-title">
-          <span class="section-icon">📝</span>
+          <span class="section-icon" v-html="icon.fileText"></span>
           {{ t('dashboard.quickTask') }}
         </h2>
         <QuickTaskInput
@@ -144,7 +148,7 @@ function navigateToHistory() {
       <!-- Recent Tasks Section -->
       <section v-if="hasAgents" class="dashboard-section">
         <h2 class="section-title">
-          <span class="section-icon">📊</span>
+          <span class="section-icon" v-html="icon.barChart"></span>
           {{ t('dashboard.recentTasks') }}
         </h2>
         <RecentTasks @view-all="navigateToHistory" />
@@ -245,7 +249,19 @@ function navigateToHistory() {
 }
 
 .section-icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+}
+
+.section-icon :deep(svg) {
+  width: 24px;
+  height: 24px;
+}
+
+.section-icon :deep(svg) {
+  width: 24px;
+  height: 24px;
 }
 
 .empty-prompt {

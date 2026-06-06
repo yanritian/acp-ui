@@ -102,7 +102,35 @@ export type MessageSchema = {
     submit: string
     startCollaborationHint: string
   }
+  dashboard: {
+    title: string
+    agentStatus: string
+    quickTask: string
+    recentTasks: string
+    loadingAgents: string
+    noAgents: string
+    noAgentsHint: string
+    addFirstAgent: string
+    running: string
+    stopped: string
+    addAgent: string
+    selectAgent: string
+    noAgentsAvailable: string
+    taskDescription: string
+    taskPlaceholder: string
+    quickSuggestions: string
+    executeTask: string
+    submitting: string
+    ctrlEnterHint: string
+    noRecentTasks: string
+    startFirstTask: string
+    viewAllTasks: string
+    selectAgentPrompt: string
+    viewHistory: string
+    manageAgents: string
+  }
   navigation: {
+    dashboard: string
     chat: string
     multiAgent: string
     multiSession: string
@@ -137,6 +165,7 @@ export type MessageSchema = {
     lab: string
   }
   navigationDescriptions: {
+    dashboard: string
     chat: string
     multiAgent: string
     multiSession: string
@@ -170,6 +199,9 @@ export type MessageSchema = {
     agentManagement: string
     noActiveTasks: string
     noRegisteredAgents: string
+    disconnected: string
+    connectionError: string
+    webModeNotice: string
   }
   taskGraph: {
     title: string
@@ -906,6 +938,32 @@ export type MessageSchema = {
     allTemplates: string
   }
   onboarding: {
+    welcome: string
+    selectTemplate: string
+    configure: string
+    testConnection: string
+    welcomeTitle: string
+    welcomeDesc: string
+    getStarted: string
+    skip: string
+    customConfig: string
+    selectTemplateTitle: string
+    selectTemplateDesc: string
+    configureTitle: string
+    configureDesc: string
+    agentName: string
+    agentNamePlaceholder: string
+    templatePreview: string
+    addAgent: string
+    adding: string
+    testTitle: string
+    testDesc: string
+    testing: string
+    testSuccess: string
+    testFailed: string
+    complete: string
+    addFailed: string
+    back: string
     quickStart: string
     importConfig: string
     demoExperience: string
@@ -921,7 +979,6 @@ export type MessageSchema = {
     wizardStep3Title: string
     wizardSelectType: string
     wizardConfigureParams: string
-    wizardTestConnection: string
     wizardTemplateName: string
     wizardTemplateDesc: string
     wizardTemplateNamePlaceholder: string
@@ -929,6 +986,7 @@ export type MessageSchema = {
     wizardNext: string
     wizardFinish: string
     wizardTesting: string
+    wizardTestConnection: string
     wizardTestSuccess: string
     wizardTestFailed: string
     wizardRetest: string

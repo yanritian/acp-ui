@@ -3,7 +3,8 @@ import { createMockTaskDag } from './lib/mock-task-dag'
 
 // Use lazy loading for code splitting
 const routes = [
-  { path: '/', redirect: '/chat' },
+  { path: '/', redirect: '/dashboard' },
+  { path: '/dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
   { path: '/chat', name: 'chat', component: () => import('./features/chat/ChatView.vue') },
   { path: '/multi-agent', name: 'multi-agent', component: () => import('./features/chat/MultiAgentChat.vue') },
   { path: '/multi-session', name: 'multi-session', component: () => import('./features/chat/MultiSessionChat.vue') },

@@ -1,0 +1,251 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useConfigStore } from '@/stores/config'
+import { useSessionStore } from '@/stores/session'
+import { useI18n } from '@/locales'
+import { trackBehavior } from '@/lib/self-improvement'
+import AgentStatusCard from '@/features/agents/AgentStatusCard.vue'
+import QuickTaskInput from '@/features/tasks/QuickTaskInput.vue'
+import RecentTasks from '@/features/tasks/RecentTasks.vue'
+import OnboardingFlow from '@/features/onboarding/OnboardingFlow.vue'
+
+const { t } = useI18n()
+const router = useRouter()
+const configStore = useConfigStore()
+const sessionStore = useSessionStore()
+
+// State
+const showOnboarding = ref(false)
+const selectedAgent = ref<string | null>(null)
+const loadingAgents = ref(false)
+
+// Computed
+const hasAgents = computed(() => configStore.agentNames.length > 0)
+const agents = computed(() => configStore.agentNames)
+const hasActiveSession = computed(() => sessionStore.isConnected)
+
+// Check if we need to show onboarding
+const needsOnboarding = computed(() => !hasAgents.value && !loadingAgents.value)
+
+onMounted(async () => {
+  loadingAgents.value = true
+  await configStore.loadConfig()
+  loadingAgents.value = false
+
+  // Track dashboard view
+  trackBehavior('dashboard-viewed', { agentCount: agents.value.length })
+
+  // Auto-select first agent if available
+  if (agents.value.length > 0) {
+    selectedAgent.value = agents.value[0]
+  }
+
+  // Show onboarding if no agents
+  if (needsOnboarding.value) {
+    showOnboarding.value = true
+  }
+})
+
+function handleAgentSelect(agentName: string) {
+  selectedAgent.value = agentName
+  trackBehavior('dashboard-agent-selected', { agent: agentName })
+}
+
+function handleTaskSubmit(task: string) {
+  if (!selectedAgent.value) {
+    showOnboarding.value = true
+    return
+  }
+
+  // Navigate to chat with task pre-filled
+  router.push({
+    path: '/chat',
+    query: { task, agent: selectedAgent.value }
+  })
+
+  trackBehavior('dashboard-task-submitted', {
+    agent: selectedAgent.value,
+    taskLength: task.length
+  })
+}
+
+function handleOnboardingComplete() {
+  showOnboarding.value = false
+  if (configStore.agentNames.length > 0) {
+    selectedAgent.value = configStore.agentNames[0]
+  }
+}
+
+function navigateToAgentConfig() {
+  router.push('/agent-config')
+  trackBehavior('dashboard-nav-agent-config', {})
+}
+
+function navigateToHistory() {
+  router.push('/history')
+  trackBehavior('dashboard-nav-history', {})
+}
+</script>
+
+<template>
+  <div class="dashboard-view">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1>{{ t('dashboard.title') }}</h1>
+      <div class="header-actions">
+        <button class="action-btn" @click="navigateToHistory">
+          {{ t('dashboard.viewHistory') }}
+        </button>
+        <button class="action-btn primary" @click="navigateToAgentConfig">
+          {{ t('dashboard.manageAgents') }}
+        </button>
+      </div>
+    </header>
+
+    <!-- Onboarding Flow (shown when no agents) -->
+    <OnboardingFlow
+      v-if="showOnboarding"
+      @complete="handleOnboardingComplete"
+      @skip="showOnboarding = false"
+    />
+
+    <!-- Main Dashboard Content -->
+    <div v-else class="dashboard-content">
+      <!-- Agent Status Section -->
+      <section class="dashboard-section">
+        <h2 class="section-title">
+          <span class="section-icon">🤖</span>
+          {{ t('dashboard.agentStatus') }}
+        </h2>
+        <AgentStatusCard
+          :agents="agents"
+          :selected-agent="selectedAgent"
+          :loading="loadingAgents"
+          @select="handleAgentSelect"
+          @add="navigateToAgentConfig"
+        />
+      </section>
+
+      <!-- Quick Task Section -->
+      <section v-if="hasAgents" class="dashboard-section">
+        <h2 class="section-title">
+          <span class="section-icon">📝</span>
+          {{ t('dashboard.quickTask') }}
+        </h2>
+        <QuickTaskInput
+          :selected-agent="selectedAgent"
+          :agents="agents"
+          @submit="handleTaskSubmit"
+          @agent-change="handleAgentSelect"
+        />
+      </section>
+
+      <!-- Recent Tasks Section -->
+      <section v-if="hasAgents" class="dashboard-section">
+        <h2 class="section-title">
+          <span class="section-icon">📊</span>
+          {{ t('dashboard.recentTasks') }}
+        </h2>
+        <RecentTasks @view-all="navigateToHistory" />
+      </section>
+
+      <!-- Empty State (when agents exist but none selected) -->
+      <div v-if="hasAgents && !selectedAgent" class="empty-prompt">
+        <p>{{ t('dashboard.selectAgentPrompt') }}</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.dashboard-view {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.dashboard-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #333);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  padding: 10px 20px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: var(--bg-hover, #f0f0f0);
+  color: var(--text-primary, #333);
+}
+
+.action-btn.primary {
+  background: var(--bg-primary, #0066cc);
+  color: white;
+  border-color: var(--bg-primary, #0066cc);
+}
+
+.action-btn.primary:hover {
+  background: var(--bg-primary-hover, #0052a3);
+}
+
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-section {
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin: 0 0 16px 0;
+}
+
+.section-icon {
+  font-size: 24px;
+}
+
+.empty-prompt {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted, #999);
+}
+
+.empty-prompt p {
+  font-size: 16px;
+}
+</style>

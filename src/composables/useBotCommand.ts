@@ -62,7 +62,7 @@ export function useBotCommand() {
 
   onMounted(async () => {
     // Only listen for bot commands in Tauri desktop environment
-    if (!isDesktop) {
+    if (!isDesktop()) {
       return
     }
 

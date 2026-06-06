@@ -202,7 +202,7 @@ onMounted(async () => {
   await loadLogs();
 
   // Only listen for Tauri events in desktop environment
-  if (!isDesktop) {
+  if (!isDesktop()) {
     return
   }
 

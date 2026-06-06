@@ -18,6 +18,9 @@ export const FEATURE_GROUPS = {
 }
 
 export const FEATURES: FeatureEntry[] = [
+  // === Dashboard (Home) ===
+  { id: 'dashboard', labelKey: 'navigation.dashboard', icon: '🏠', requiresAgent: false, descriptionKey: 'navigationDescriptions.dashboard', group: 'chat', isCore: true },
+
   // === Chat Group ===
   { id: 'chat', labelKey: 'navigation.chat', icon: '💬', requiresAgent: true, descriptionKey: 'navigationDescriptions.chat', group: 'chat', isCore: true },
   { id: 'multi-agent', labelKey: 'navigation.multiAgent', icon: '🤖', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiAgent', group: 'chat', isCore: true },

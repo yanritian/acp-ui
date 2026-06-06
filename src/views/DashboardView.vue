@@ -164,7 +164,16 @@ function navigateToHistory() {
   max-width: 1200px;
   margin: 0 auto;
   min-height: 100vh;
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.dashboard-section {
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.dashboard-section:nth-child(2) { animation-delay: 0.05s; }
+.dashboard-section:nth-child(3) { animation-delay: 0.1s; }
 
 .dashboard-header {
   display: flex;
@@ -172,13 +181,13 @@ function navigateToHistory() {
   align-items: center;
   margin-bottom: 32px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .dashboard-header h1 {
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -191,25 +200,25 @@ function navigateToHistory() {
   border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-  background: var(--bg-hover, #f0f0f0);
-  color: var(--text-primary, #333);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .action-btn.primary {
-  background: var(--bg-primary, #0066cc);
-  color: white;
-  border-color: var(--bg-primary, #0066cc);
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: var(--primary);
 }
 
 .action-btn.primary:hover {
-  background: var(--bg-primary-hover, #0052a3);
+  background: var(--primary-hover);
 }
 
 .dashboard-content {
@@ -219,8 +228,8 @@ function navigateToHistory() {
 }
 
 .dashboard-section {
-  background: var(--bg-surface, #fff);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
 }
@@ -231,7 +240,7 @@ function navigateToHistory() {
   gap: 12px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary, #333);
+  color: var(--text-primary);
   margin: 0 0 16px 0;
 }
 
@@ -242,10 +251,60 @@ function navigateToHistory() {
 .empty-prompt {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-muted, #999);
+  color: var(--text-muted);
 }
 
 .empty-prompt p {
   font-size: 16px;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .dashboard-view {
+    padding: 16px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 22px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .action-btn {
+    flex: 1;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .dashboard-section {
+    padding: 16px;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .section-icon {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dashboard-view {
+    padding: 20px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 24px;
+  }
 }
 </style>

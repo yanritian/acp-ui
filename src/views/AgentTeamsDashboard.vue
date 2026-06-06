@@ -352,15 +352,16 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
-  color: #e0e0e0;
-  font-family: 'Monaco', 'Menlo', monospace;
+  background: linear-gradient(135deg, var(--bg-base-dark, #0f172a) 0%, var(--bg-dark-mid, #1e293b) 50%, var(--bg-dark-deep, #0f172a) 100%);
+  color: var(--text-primary);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-header {
   padding: 16px 24px;
-  background: rgba(26, 26, 46, 0.9);
-  border-bottom: 1px solid #3a3a5a;
+  background: rgba(30, 41, 59, 0.9);
+  border-bottom: 1px solid var(--border-dark);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -376,7 +377,7 @@ onUnmounted(() => {
   gap: 12px;
   font-size: 24px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
@@ -386,7 +387,7 @@ onUnmounted(() => {
 
 .dashboard-subtitle {
   font-size: 13px;
-  color: #8b8b9b;
+  color: var(--text-muted);
 }
 
 .header-right {
@@ -405,9 +406,9 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: rgba(58, 58, 90, 0.3);
+  background: rgba(51, 65, 85, 0.3);
   border-radius: 8px;
-  border: 1px solid #3a3a5a;
+  border: 1px solid var(--border-dark);
 }
 
 .stat-icon {
@@ -417,16 +418,16 @@ onUnmounted(() => {
 .stat-value {
   font-size: 16px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .stat-label {
   font-size: 11px;
-  color: #8b8b9b;
+  color: var(--text-muted);
 }
 
 .stat-badge.success .stat-value {
-  color: #10b981;
+  color: var(--success);
 }
 
 .view-selector {
@@ -436,24 +437,24 @@ onUnmounted(() => {
 
 .view-btn {
   padding: 8px 16px;
-  background: rgba(58, 58, 90, 0.2);
-  border: 1px solid #3a3a5a;
+  background: rgba(51, 65, 85, 0.2);
+  border: 1px solid var(--border-dark);
   border-radius: 8px;
-  color: #8b8b9b;
+  color: var(--text-muted);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .view-btn:hover {
-  background: rgba(58, 58, 90, 0.4);
-  color: #e0e0e0;
+  background: rgba(51, 65, 85, 0.4);
+  color: var(--text-primary);
 }
 
 .view-btn.active {
   background: rgba(139, 92, 246, 0.2);
-  border-color: #8b5cf6;
-  color: #8b5cf6;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .sync-status {
@@ -478,7 +479,7 @@ onUnmounted(() => {
 
 .sync-text {
   font-size: 12px;
-  color: #10b981;
+  color: var(--success);
 }
 
 .sync-badge {
@@ -490,7 +491,7 @@ onUnmounted(() => {
 
 .sync-badge.connected {
   background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  color: var(--success);
 }
 
 .dashboard-content {
@@ -517,7 +518,7 @@ onUnmounted(() => {
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .agents-grid {
@@ -529,8 +530,8 @@ onUnmounted(() => {
 
 .agent-card {
   padding: 16px;
-  background: rgba(26, 26, 46, 0.6);
-  border: 2px solid #3a3a5a;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid var(--border-dark);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -542,13 +543,13 @@ onUnmounted(() => {
 }
 
 .agent-card:hover {
-  background: rgba(58, 58, 90, 0.4);
-  border-color: #8b5cf6;
+  background: rgba(51, 65, 85, 0.4);
+  border-color: var(--primary);
 }
 
 .agent-card.selected {
   background: rgba(139, 92, 246, 0.2);
-  border-color: #8b5cf6;
+  border-color: var(--primary);
 }
 
 .mini-progress {
@@ -563,7 +564,7 @@ onUnmounted(() => {
 
 .activity-text {
   font-size: 12px;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .split-view {
@@ -711,11 +712,44 @@ onUnmounted(() => {
 
 .info-label {
   font-size: 12px;
-  color: #8b8b9b;
+  color: var(--text-muted);
 }
 
 .info-value {
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-primary);
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .header-right {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .global-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .view-selector {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .split-view {
+    grid-template-columns: 1fr;
+  }
+
+  .pets-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -422,6 +422,7 @@ onMounted(async () => {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .config-header {
@@ -447,7 +448,7 @@ onMounted(async () => {
 }
 
 .add-btn:hover {
-  background: #45a049;
+  background: var(--success-hover, #059669);
 }
 
 .agents-grid {
@@ -457,15 +458,15 @@ onMounted(async () => {
 }
 
 .agent-card {
-  background: var(--bg-surface, #fff);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
 }
 
 .agent-card.connected {
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+  border-color: var(--success);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
 }
 
 .agent-header {
@@ -488,13 +489,13 @@ onMounted(async () => {
 }
 
 .status-connected {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--success-light);
+  color: var(--success-dark, #059669);
 }
 
 .status-disconnected {
-  background: #ffebee;
-  color: #c62828;
+  background: var(--error-light);
+  color: var(--error-dark, #dc2626);
 }
 
 .agent-info {
@@ -509,12 +510,12 @@ onMounted(async () => {
 }
 
 .info-row .label {
-  color: #666;
+  color: var(--text-secondary);
   min-width: 60px;
 }
 
 .info-row .value {
-  color: #333;
+  color: var(--text-primary);
   word-break: break-all;
 }
 
@@ -534,34 +535,34 @@ onMounted(async () => {
 }
 
 .connect-btn {
-  background: #2196F3;
-  color: white;
+  background: var(--primary);
+  color: var(--text-inverse);
 }
 
 .disconnect-btn {
-  background: #FF9800;
-  color: white;
+  background: var(--warning);
+  color: var(--text-inverse);
 }
 
 .edit-btn {
-  background: #9E9E9E;
-  color: white;
+  background: var(--text-subtle);
+  color: var(--text-inverse);
 }
 
 .delete-btn {
-  background: #f44336;
-  color: white;
+  background: var(--error);
+  color: var(--text-inverse);
 }
 
-.connect-btn:hover { background: #0b7dda; }
-.disconnect-btn:hover { background: #e68900; }
-.edit-btn:hover { background: #757575; }
-.delete-btn:hover { background: #da190b; }
+.connect-btn:hover { background: var(--primary-hover); }
+.disconnect-btn:hover { background: var(--warning-hover, #d97706); }
+.edit-btn:hover { background: var(--text-muted); }
+.delete-btn:hover { background: var(--error-hover, #dc2626); }
 
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-icon {
@@ -617,14 +618,14 @@ onMounted(async () => {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .form-warning {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--error);
   font-weight: 500;
 }
 
@@ -634,9 +635,9 @@ onMounted(async () => {
   gap: 8px;
   padding: 12px 16px;
   margin-bottom: 20px;
-  background: linear-gradient(90deg, #FEF3C7 0%, #FDE68A 100%);
+  background: linear-gradient(90deg, var(--warning-light) 0%, var(--warning-light-hover, #fde68a) 100%);
   border-radius: 8px;
-  border: 1px solid #F59E0B;
+  border: 1px solid var(--warning);
 }
 
 .warning-icon {
@@ -645,7 +646,7 @@ onMounted(async () => {
 
 .warning-text {
   font-size: 14px;
-  color: #92400E;
+  color: var(--warning-dark, #92400e);
   font-weight: 500;
 }
 
@@ -658,8 +659,8 @@ onMounted(async () => {
 
 .cancel-btn {
   padding: 10px 20px;
-  background: #9E9E9E;
-  color: white;
+  background: var(--text-subtle);
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -667,15 +668,15 @@ onMounted(async () => {
 
 .save-btn {
   padding: 10px 20px;
-  background: #4CAF50;
-  color: white;
+  background: var(--success);
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .save-btn:disabled {
-  background: #ccc;
+  background: var(--bg-muted);
   cursor: not-allowed;
 }
 
@@ -687,8 +688,8 @@ onMounted(async () => {
 
 .template-btn {
   padding: 10px 20px;
-  background: #2196F3;
-  color: white;
+  background: var(--accent, var(--primary));
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -696,7 +697,7 @@ onMounted(async () => {
 }
 
 .template-btn:hover {
-  background: #1976D2;
+  background: var(--accent-hover, var(--primary-hover));
 }
 
 /* Template Panel */
@@ -725,12 +726,12 @@ onMounted(async () => {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 4px 8px;
 }
 
 .close-btn:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Tag filter */
@@ -740,13 +741,13 @@ onMounted(async () => {
   gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tag-btn {
   padding: 6px 14px;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
   border-radius: 16px;
   cursor: pointer;
   font-size: 13px;
@@ -754,13 +755,13 @@ onMounted(async () => {
 }
 
 .tag-btn:hover {
-  background: #e0e0e0;
+  background: var(--bg-muted);
 }
 
 .tag-btn.active {
-  background: #2196F3;
-  color: white;
-  border-color: #2196F3;
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: var(--primary);
 }
 
 /* Template grid */
@@ -776,8 +777,8 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   padding: 16px;
-  background: var(--bg-surface, #fafafa);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
@@ -785,8 +786,8 @@ onMounted(async () => {
 }
 
 .template-card:hover {
-  border-color: #2196F3;
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 .template-card.disabled {
@@ -795,7 +796,7 @@ onMounted(async () => {
 }
 
 .template-card.disabled:hover {
-  border-color: var(--border-color, #e0e0e0);
+  border-color: var(--border-color);
   box-shadow: none;
 }
 
@@ -817,7 +818,7 @@ onMounted(async () => {
 
 .template-desc {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -833,8 +834,8 @@ onMounted(async () => {
 
 .template-tags .tag {
   padding: 2px 8px;
-  background: #e3f2fd;
-  color: #1565C0;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary);
   border-radius: 10px;
   font-size: 11px;
 }
@@ -844,9 +845,59 @@ onMounted(async () => {
   bottom: 8px;
   right: 8px;
   font-size: 11px;
-  color: #f44336;
-  background: #ffebee;
+  color: var(--error);
+  background: var(--error-light);
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .agent-config-view {
+    padding: 16px;
+  }
+
+  .config-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .config-header h2 {
+    font-size: 20px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions button {
+    flex: 1;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .agents-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    min-width: auto;
+    width: calc(100vw - 32px);
+    margin: 16px;
+  }
+
+  .template-panel {
+    min-width: auto;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .agents-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .template-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
 }
 </style>

@@ -12,11 +12,18 @@
 
   /* Success/Error/Warning */
   --success: #10b981;
+  --success-hover: #059669;
+  --success-dark: #047857;
   --success-light: #d1fae5;
   --error: #ef4444;
+  --error-hover: #dc2626;
+  --error-dark: #b91c1c;
   --error-light: #fee2e2;
   --warning: #f59e0b;
+  --warning-hover: #d97706;
+  --warning-dark: #b45309;
   --warning-light: #fef3c7;
+  --warning-light-hover: #fde68a;
 
   /* Background */
   --bg-base: #f8fafc;
@@ -83,6 +90,10 @@
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
   --transition-slow: 300ms ease;
+
+  /* Animation */
+  --animation-duration: 0.3s;
+  --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Dark Mode */
@@ -405,4 +416,133 @@ html, body, #app {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
+/* Animation utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-muted) 50%, var(--bg-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-text { height: 1em; margin-bottom: 0.5em; }
+.skeleton-title { height: 1.25em; width: 60%; margin-bottom: 0.75em; }
+.skeleton-avatar { width: 40px; height: 40px; border-radius: var(--radius-full); }
+.skeleton-card { height: 120px; border-radius: var(--radius-lg); }
+
+/* Toast notification system */
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 280px;
+  max-width: 400px;
+}
+
+.toast.toast-exit { animation: toastSlideOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--error); }
+.toast.warning { border-left: 3px solid var(--warning); }
+.toast.info { border-left: 3px solid var(--primary); }
+
+.toast-content { flex: 1; }
+.toast-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.toast-message { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.toast-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; }
+
+/* Micro-interactions */
+.btn:active { transform: scale(0.98); }
+
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Page transition wrapper */
+.page-transition {
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

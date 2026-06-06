@@ -109,14 +109,14 @@ const logLevel = ref('info');
   display: flex;
   gap: 8px;
   padding: 16px;
-  background: var(--bg-secondary, #f5f5f5);
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tab-btn {
   padding: 8px 16px;
-  background: var(--bg-surface, #fff);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
@@ -124,13 +124,13 @@ const logLevel = ref('info');
 }
 
 .tab-btn:hover {
-  background: var(--bg-hover, #e8e8e8);
+  background: var(--bg-hover);
 }
 
 .tab-btn.active {
-  background: var(--primary-color, #3b82f6);
-  color: white;
-  border-color: var(--primary-color, #3b82f6);
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: var(--primary);
 }
 
 .settings-content {
@@ -145,7 +145,7 @@ const logLevel = ref('info');
 
 .settings-section h3 {
   margin-bottom: 16px;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .setting-row {
@@ -153,7 +153,7 @@ const logLevel = ref('info');
   align-items: center;
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .setting-row label {
@@ -163,7 +163,7 @@ const logLevel = ref('info');
 
 .form-select, .form-input {
   padding: 8px 12px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   min-width: 200px;

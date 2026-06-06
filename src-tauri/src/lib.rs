@@ -30,6 +30,7 @@ mod team_dag;         // Team DAG execution engine
 mod workflow_engine;  // Multi-stage orchestrated workflows
 mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
 mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
+mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 
 // ---- Smart Routing & Self-Healing ----
 mod smart_router;     // Three-layer complexity evaluation
@@ -89,6 +90,8 @@ pub struct AppState {
     pub hooks_executor: Arc<Mutex<hooks_executor::HooksExecutor>>,
     // Hermes Flow - Development Flow Orchestrator (Phase 2)
     pub hermes_flow: Arc<Mutex<hermes_flow::HermesFlowOrchestrator>>,
+    // Sync Engine - Multi-platform data synchronization (Phase 3)
+    pub sync_engine: Arc<Mutex<sync_engine::SyncEngine>>,
     // MCP & Agent Communication
     pub mcp_client: Arc<Mutex<mcp_client::McpClient>>,
     pub agent_bus: Arc<Mutex<agent_bus::AgentBus>>,
@@ -123,6 +126,8 @@ impl AppState {
             hooks_executor: Arc::new(Mutex::new(hooks_executor::HooksExecutor::new())),
             // Hermes Flow (Phase 2)
             hermes_flow: Arc::new(Mutex::new(hermes_flow::HermesFlowOrchestrator::new())),
+            // Sync Engine (Phase 3)
+            sync_engine: Arc::new(Mutex::new(sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop))),
             // MCP & Agent Communication
             mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
             agent_bus: Arc::new(Mutex::new(agent_bus::AgentBus::new())),
@@ -423,6 +428,14 @@ pub fn run() {
             hermes_flow::hermes_flow_cancel,
             hermes_flow::hermes_flow_list,
             hermes_flow::hermes_flow_update_result,
+            // Sync Engine commands (Phase 3)
+            sync_engine::sync_put_entity,
+            sync_engine::sync_get_entity,
+            sync_engine::sync_delete_entity,
+            sync_engine::sync_list_entities,
+            sync_engine::sync_get_stats,
+            sync_engine::sync_receive_event,
+            sync_engine::sync_flush_offline,
             // Hooks Executor commands
             hooks_executor::hook_register,
             hooks_executor::hook_register_for_agent,

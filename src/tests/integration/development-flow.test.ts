@@ -382,7 +382,7 @@ describe('Full Integration: Development Flow + QA + Evolution', () => {
         priority: 'medium' as const,
         title: 'Pattern: consistent code style',
         description: 'Code follows consistent patterns',
-        evidence: qaReport.performanceValidation,
+        evidence: JSON.parse(JSON.stringify(qaReport.performanceValidation)),
         autoApplied: false,
         timestamp: Date.now(),
       },

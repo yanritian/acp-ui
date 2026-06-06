@@ -144,6 +144,7 @@ describe('SessionCapabilitiesStore', () => {
 
       store.setModes({
         availableModes: [{ id: 'mode-1', name: 'Test' }],
+        currentModeId: '',
       });
 
       expect(store.availableModes.length).toBe(1);

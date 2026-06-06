@@ -85,7 +85,7 @@ describe('TrafficStore', () => {
 
       expect(store.entries.length).toBeLessThanOrEqual(500);
       // Should keep most recent entries
-      expect(store.entries[store.entries.length - 1].payload.index).toBe(549);
+      expect((store.entries[store.entries.length - 1].payload as { index: number }).index).toBe(549);
     });
 
     it('should add performance metrics', () => {

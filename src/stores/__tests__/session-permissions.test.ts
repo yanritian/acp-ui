@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useSessionPermissionsStore } from '../session-permissions';
-import type { PermissionRequest, AuthMethod } from '@/lib/types';
+import type { PermissionRequest } from '@/lib/types';
+
+interface AuthMethod {
+  id: string;
+  name: string;
+  description: string;
+}
 
 describe('SessionPermissionsStore', () => {
   beforeEach(() => {
@@ -24,6 +30,8 @@ describe('SessionPermissionsStore', () => {
           kind: 'read',
           title: 'Read file',
           locations: [{ path: '/test/file.txt' }],
+          toolCallId: 'tc-1',
+          status: 'pending',
         },
         options: [
           { kind: 'allow_once', name: 'Allow', optionId: 'opt-1' },
@@ -41,12 +49,12 @@ describe('SessionPermissionsStore', () => {
       const store = useSessionPermissionsStore();
       const request1: PermissionRequest = {
         sessionId: 'session-1',
-        toolCall: { kind: 'read', title: 'Read', locations: [] },
+        toolCall: { kind: 'read', title: 'Read', locations: [], toolCallId: 'tc-1', status: 'pending' },
         options: [{ kind: 'allow_once', name: 'Allow', optionId: 'opt-1' }],
       };
       const request2: PermissionRequest = {
         sessionId: 'session-1', // Same sessionId
-        toolCall: { kind: 'write', title: 'Write', locations: [] },
+        toolCall: { kind: 'write', title: 'Write', locations: [], toolCallId: 'tc-2', status: 'pending' },
         options: [{ kind: 'deny_once', name: 'Deny', optionId: 'opt-2' }],
       };
 
@@ -61,12 +69,12 @@ describe('SessionPermissionsStore', () => {
       const store = useSessionPermissionsStore();
       const request1: PermissionRequest = {
         sessionId: 'session-1',
-        toolCall: { kind: 'read', title: 'Read', locations: [] },
+        toolCall: { kind: 'read', title: 'Read', locations: [], toolCallId: 'tc-1', status: 'pending' },
         options: [{ kind: 'allow_once', name: 'Allow', optionId: 'opt-1' }],
       };
       const request2: PermissionRequest = {
         sessionId: 'session-2',
-        toolCall: { kind: 'write', title: 'Write', locations: [] },
+        toolCall: { kind: 'write', title: 'Write', locations: [], toolCallId: 'tc-2', status: 'pending' },
         options: [{ kind: 'deny_once', name: 'Deny', optionId: 'opt-2' }],
       };
 
@@ -81,7 +89,7 @@ describe('SessionPermissionsStore', () => {
       const store = useSessionPermissionsStore();
       store.setPendingPermission({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R', locations: [] },
+        toolCall: { kind: 'read', title: 'R', locations: [], toolCallId: 'tc-r', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o1' }],
       });
 
@@ -98,7 +106,7 @@ describe('SessionPermissionsStore', () => {
       // Use setPendingPermission for synchronous testing
       store.setPendingPermission({
         sessionId: 'test-session',
-        toolCall: { kind: 'read', title: 'Read', locations: [] },
+        toolCall: { kind: 'read', title: 'Read', locations: [], toolCallId: 'tc-1', status: 'pending' },
         options: [{ kind: 'allow_once', name: 'Allow', optionId: 'opt-1' }],
       });
 
@@ -118,12 +126,12 @@ describe('SessionPermissionsStore', () => {
 
       store.setPendingPermission({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R1', locations: [] },
+        toolCall: { kind: 'read', title: 'R1', locations: [], toolCallId: 'tc-r1', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o1' }],
       });
       store.setPendingPermission({
         sessionId: 's2',
-        toolCall: { kind: 'write', title: 'W', locations: [] },
+        toolCall: { kind: 'write', title: 'W', locations: [], toolCallId: 'tc-w', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o2' }],
       });
 
@@ -142,7 +150,7 @@ describe('SessionPermissionsStore', () => {
 
       const promise = store.addPermissionRequest({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R', locations: [] },
+        toolCall: { kind: 'read', title: 'R', locations: [], toolCallId: 'tc-r', status: 'pending' },
         options: [
           { kind: 'allow_once', name: 'Allow', optionId: 'o-allow' },
           { kind: 'reject_once', name: 'Reject', optionId: 'o-reject' },
@@ -164,7 +172,7 @@ describe('SessionPermissionsStore', () => {
 
       store.addPermissionRequest({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R', locations: [] },
+        toolCall: { kind: 'read', title: 'R', locations: [], toolCallId: 'tc-r', status: 'pending' },
         options: [
           { kind: 'allow', name: 'A', optionId: 'o1' },
           { kind: 'reject_once', name: 'R', optionId: 'o-reject1' },
@@ -172,7 +180,7 @@ describe('SessionPermissionsStore', () => {
       });
       store.addPermissionRequest({
         sessionId: 's2',
-        toolCall: { kind: 'write', title: 'W', locations: [] },
+        toolCall: { kind: 'write', title: 'W', locations: [], toolCallId: 'tc-w', status: 'pending' },
         options: [
           { kind: 'allow', name: 'A', optionId: 'o2' },
           { kind: 'reject_once', name: 'R', optionId: 'o-reject2' },
@@ -227,12 +235,12 @@ describe('SessionPermissionsStore', () => {
       const store = useSessionPermissionsStore();
       store.setPendingPermission({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R', locations: [] },
+        toolCall: { kind: 'read', title: 'R', locations: [], toolCallId: 'tc-r', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o1' }],
       });
       store.setPendingPermission({
         sessionId: 's2',
-        toolCall: { kind: 'write', title: 'W', locations: [] },
+        toolCall: { kind: 'write', title: 'W', locations: [], toolCallId: 'tc-w', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o2' }],
       });
 
@@ -248,7 +256,7 @@ describe('SessionPermissionsStore', () => {
       const store = useSessionPermissionsStore();
       store.setPendingPermission({
         sessionId: 's1',
-        toolCall: { kind: 'read', title: 'R', locations: [] },
+        toolCall: { kind: 'read', title: 'R', locations: [], toolCallId: 'tc-r', status: 'pending' },
         options: [{ kind: 'allow', name: 'A', optionId: 'o1' }],
       });
       store.promptForAuthMethod(

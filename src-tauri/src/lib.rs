@@ -36,6 +36,7 @@ mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 mod smart_router;     // Three-layer complexity evaluation
 mod self_healing;     // EWMA anomaly detection
 mod event_router;     // Claw Code Event Router (clawhip layer)
+mod hermes_traits;    // Hermes Traits - Self-Evolving, Self-Healing, MCP-Integrated, Skill-Capable (Phase 4)
 
 // ---- Plugin System ----
 mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters

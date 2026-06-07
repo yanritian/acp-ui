@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/providers/approval_state.dart';
 import 'progress_screen.dart';
 import 'approval_screen.dart';
 import 'instruction_screen.dart';
@@ -16,12 +17,31 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  int _pendingApprovalCount = 0;
 
   final List<Widget> _screens = const [
     ProgressScreen(),
     ApprovalScreen(),
     InstructionScreen(),
   ];
+
+  void _updateApprovalCount() {
+    setState(() {
+      _pendingApprovalCount = ApprovalStateNotifier.pendingApprovals;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ApprovalStateNotifier.addListener(_updateApprovalCount);
+  }
+
+  @override
+  void dispose() {
+    ApprovalStateNotifier.removeListener(_updateApprovalCount);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,8 +81,8 @@ class _MainScreenState extends State<MainScreen> {
                       minWidth: 14,
                       minHeight: 14,
                     ),
-                    child: const Text(
-                      '3',
+                    child: Text(
+                      '$_pendingApprovalCount',
                       style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),

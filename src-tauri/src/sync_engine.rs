@@ -643,11 +643,17 @@ fn query_entity(conn: &Connection, id: &str) -> Result<Option<SyncEntity>, Strin
 // ---------------------------------------------------------------------------
 
 /// Calculate checksum for data integrity
+/// Uses FNV-1a hash (64-bit) which is order-sensitive and collision-resistant
+/// for JSON data without requiring external crates.
 fn calculate_checksum(data: &serde_json::Value) -> String {
-    // Simple hash using serde_json serialization
     let serialized = serde_json::to_string(data).unwrap_or_default();
-    let hash = serialized.as_bytes().iter().fold(0u64, |acc, b| acc + *b as u64);
-    format!("crc-{:016x}", hash)
+    // FNV-1a 64-bit
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in serialized.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x1000000000000043);
+    }
+    format!("fnv1a-{:016x}", hash)
 }
 
 /// Resolve conflict between local and incoming entity

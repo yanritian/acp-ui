@@ -125,7 +125,7 @@ class TaskCard extends StatelessWidget {
       case TaskStatus.completed:
         return 1.0;
       case TaskStatus.failed:
-        return 1.0;
+        return 0.0; // Failed tasks show empty progress, not 100%
       case TaskStatus.paused:
         return 0.3;
     }

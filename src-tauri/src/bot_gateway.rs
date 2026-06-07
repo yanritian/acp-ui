@@ -414,9 +414,10 @@ impl BotAdapter for DingtalkGatewayAdapter {
         Ok(())
     }
 
-    fn supports_cards(&self) -> bool { true }
-    fn supports_buttons(&self) -> bool { true }
-    fn supports_attachments(&self) -> bool { true }
+    // TODO: Implement DingTalk webhook integration — cards, buttons, attachments
+    fn supports_cards(&self) -> bool { false }
+    fn supports_buttons(&self) -> bool { false }
+    fn supports_attachments(&self) -> bool { false }
 }
 
 // ---- WeChat Adapter (Stub) ----
@@ -526,9 +527,10 @@ impl BotAdapter for WecomGatewayAdapter {
         Ok(())
     }
 
-    fn supports_cards(&self) -> bool { true }
+    // TODO: Implement WeCom webhook integration
+    fn supports_cards(&self) -> bool { false }
     fn supports_buttons(&self) -> bool { false }
-    fn supports_attachments(&self) -> bool { true }
+    fn supports_attachments(&self) -> bool { false }
 }
 
 // ---- Telegram Adapter (Stub with structure) ----
@@ -700,9 +702,10 @@ impl BotAdapter for DiscordGatewayAdapter {
         Ok(())
     }
 
-    fn supports_cards(&self) -> bool { true } // Discord embeds
-    fn supports_buttons(&self) -> bool { true } // Discord message components
-    fn supports_attachments(&self) -> bool { true }
+    // TODO: Implement Discord webhook integration
+    fn supports_cards(&self) -> bool { false }
+    fn supports_buttons(&self) -> bool { false }
+    fn supports_attachments(&self) -> bool { false }
 }
 
 // ============================================================================

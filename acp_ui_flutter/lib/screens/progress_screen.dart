@@ -41,7 +41,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           slivers: [
             _buildAppBar(context),
             SliverToBoxAdapter(
-              child: _buildSummary(context, tasks),
+              child: _buildSummaryCounts(
+                context,
+                total: tasks.length,
+                active: activeTasks.length,
+                done: completedTasks.length,
+                failed: tasks.where((t) => t.status == TaskStatus.failed).length,
+              ),
             ),
             if (activeTasks.isNotEmpty) ...[
               SliverToBoxAdapter(
@@ -137,12 +143,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     );
   }
 
-  Widget _buildSummary(BuildContext context, List<Task> tasks) {
-    final total = tasks.length;
-    final active = tasks.where((t) => t.status == TaskStatus.running).length;
-    final done = tasks.where((t) => t.status == TaskStatus.completed).length;
-    final failed = tasks.where((t) => t.status == TaskStatus.failed).length;
-
+  Widget _buildSummaryCounts(
+    BuildContext context, {
+    required int total,
+    required int active,
+    required int done,
+    required int failed,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
@@ -159,6 +166,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               color: Theme.of(context).colorScheme.error),
         ],
       ),
+    );
+  }
+
+  // Kept for backward compatibility if needed elsewhere
+  Widget _buildSummary(BuildContext context, List<Task> tasks) {
+    return _buildSummaryCounts(
+      context,
+      total: tasks.length,
+      active: tasks.where((t) => t.status == TaskStatus.running).length,
+      done: tasks.where((t) => t.status == TaskStatus.completed).length,
+      failed: tasks.where((t) => t.status == TaskStatus.failed).length,
     );
   }
 

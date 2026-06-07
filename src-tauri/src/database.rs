@@ -623,11 +623,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
 
     // Add scope and task_id columns to memories table (migration with error tolerance)
     // These columns may already exist if the database was created with them
-    let _ = conn.execute("ALTER TABLE memories ADD COLUMN scope TEXT DEFAULT 'global'", []);
-    let _ = conn.execute("ALTER TABLE memories ADD COLUMN task_id TEXT", []);
-    let _ = conn.execute("ALTER TABLE memories ADD COLUMN type TEXT DEFAULT 'fact'", []);
-    let _ = conn.execute("ALTER TABLE memories ADD COLUMN access_count INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE memories ADD COLUMN expires_at TEXT", []);
+    for sql in [
+        "ALTER TABLE memories ADD COLUMN scope TEXT DEFAULT 'global'",
+        "ALTER TABLE memories ADD COLUMN task_id TEXT",
+        "ALTER TABLE memories ADD COLUMN type TEXT DEFAULT 'fact'",
+        "ALTER TABLE memories ADD COLUMN access_count INTEGER DEFAULT 0",
+        "ALTER TABLE memories ADD COLUMN expires_at TEXT",
+    ] {
+        if let Err(e) = conn.execute(sql, []) {
+            let err_msg = e.to_string();
+            if !err_msg.contains("duplicate") && !err_msg.contains("already exists") {
+                eprintln!("[db] Migration warning: {} (SQL: {})", err_msg, sql);
+            }
+        }
+    }
 
     // Errors table for self-healing system
     conn.execute(
@@ -779,7 +788,7 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
         [],
     ).map_err(|e| e.to_string())?;
 
-    // Tool Calls table for Agent tool execution tracking
+    // Tool Calls table for Agent tool execution tracking (executive sessions)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tool_calls (
             id TEXT PRIMARY KEY,
@@ -981,6 +990,7 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
         [],
     ).map_err(|e| e.to_string())?;
 
+    // Tool Calls detail for Agent flows (separate from tool_calls above — this one tracks flow-level executions)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tool_calls_detail (
             id TEXT PRIMARY KEY,

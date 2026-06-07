@@ -316,7 +316,27 @@ class _InstructionTextFieldState extends State<_InstructionTextField> {
   final TextEditingController _controller = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
+    _controller.removeListener(() => setState(() {}));
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(() => setState(() {}));
     _controller.dispose();
     super.dispose();
   }

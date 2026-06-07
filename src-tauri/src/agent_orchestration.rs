@@ -484,9 +484,12 @@ impl AgentOrchestrator {
         self.active_tasks.values().cloned().collect()
     }
 
-    /// List all task history records
-    pub fn get_task_history(&self) -> Vec<TaskRecord> {
-        self.task_history.clone()
+    /// List task history records with pagination (most recent first).
+    /// Default: last 50 records. Set limit=0 for all records.
+    pub fn get_task_history(&self, limit: usize, offset: usize) -> Vec<TaskRecord> {
+        let end = self.task_history.len().saturating_sub(offset);
+        let start = end.saturating_sub(limit.max(50));
+        self.task_history[start..end].to_vec()
     }
 
     /// Get all registered agent capabilities
@@ -1089,7 +1092,7 @@ pub fn orchestration_list_task_history(
     state: State<'_, AppState>,
 ) -> Result<Vec<TaskRecord>, String> {
     let orchestrator = state.agent_orchestrator.lock().map_err(|e| e.to_string())?;
-    Ok(orchestrator.get_task_history())
+    Ok(orchestrator.get_task_history(50, 0))
 }
 
 /// Execute a workflow stage

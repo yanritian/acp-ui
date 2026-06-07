@@ -81,6 +81,15 @@ class _ApprovalCardState extends State<ApprovalCard>
   }
 
   @override
+  void didUpdateWidget(ApprovalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request.id != widget.request.id) {
+      _feedbackController.clear();
+      _expanded = widget.request.expanded;
+    }
+  }
+
+  @override
   void dispose() {
     _feedbackController.dispose();
     super.dispose();

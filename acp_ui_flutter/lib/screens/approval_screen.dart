@@ -59,6 +59,7 @@ class ApprovalNotifier extends StateNotifier<ApprovalState> {
         ),
       ],
     );
+    ApprovalStateNotifier.updateCount(state.pending.length);
   }
 
   static ApprovalState _initialState() => const ApprovalState();
@@ -73,6 +74,25 @@ class ApprovalNotifier extends StateNotifier<ApprovalState> {
       pending: updatedPending,
       processed: processed,
     );
+    ApprovalStateNotifier.updateCount(updatedPending.length);
+  }
+}
+
+/// Global accessor for main screen badge
+class ApprovalStateNotifier {
+  static int get pendingApprovals => _currentCount;
+  static int _currentCount = 0;
+  static final List<VoidCallback> _listeners = [];
+
+  static void addListener(VoidCallback cb) => _listeners.add(cb);
+  static void removeListener(VoidCallback cb) => _listeners.remove(cb);
+  static void notify() {
+    for (final cb in _listeners) cb();
+  }
+
+  static void updateCount(int count) {
+    _currentCount = count;
+    notify();
   }
 }
 

@@ -1,0 +1,114 @@
+# generated: 2026-06-07
+# last_updated: 2026-06-07
+# project: ACP-UI
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-07
+last_updated: 2026-06-07
+project: ACP-UI
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Local Core Services (Phase 1)
+  epic-1: in-progress
+  1-1-multi-agent-bridge: done
+  1-2-agent-teams-service: done
+  1-3-task-queue: done
+  1-4-agent-pool-store: done
+  epic-1-retrospective: optional
+
+  # Epic 2: IM Gateway (Phase 2)
+  epic-2: in-progress
+  2-1-gateway-types: done
+  2-2-im-gateway: done
+  2-3-session-sync: done
+  epic-2-retrospective: optional
+
+  # Epic 3: Intelligent Orchestration (Phase 3)
+  epic-3: in-progress
+  3-1-orchestration-types: done
+  3-2-orchestrator: done
+  epic-3-retrospective: optional
+
+  # Epic 4: Multi-Agent Collaboration (Phase 4)
+  epic-4: in-progress
+  4-1-supervisor-agent: done
+  4-2-agent-monitor: done
+  4-3-realtime-sync: done
+  4-4-result-integrator: done
+  epic-4-retrospective: optional
+
+  # Epic 5: Discord + History System (Phase 5)
+  epic-5: in-progress
+  5-1-history-store: done
+  5-2-history-pinia-store: done
+  5-3-history-command: done
+  epic-5-retrospective: optional
+
+  # Epic 6: Workflow Engine (Phase 6)
+  epic-6: in-progress
+  6-1-skill-engine: done
+  6-2-bmad-integration: done
+  epic-6-retrospective: optional
+
+  # Epic 7: UI Components (Phase 7)
+  epic-7: in-progress
+  7-1-multi-agent-chat: done
+  7-2-agent-status-panel: done
+  7-3-realtime-monitor: done
+  7-4-history-view: done
+  7-5-workflow-view: done
+  7-6-app-integration: done
+  epic-7-retrospective: optional
+
+  # Epic 8: Tauri Desktop (Phase 8)
+  epic-8: in-progress
+  8-1-sqlite-persistence: done
+  8-2-team-orchestrator: done
+  8-3-tauri-lib-integration: done
+  epic-8-retrospective: optional
+
+  # Epic 9: Architecture Refactor - Async Controller (Phase 9 - NEW)
+  epic-9: in-progress
+  9-1-sqlite-sync-engine: done
+  9-2-approval-protocol: done
+  9-3-bot-gateway: done
+  9-4-agent-orchestration: done
+  9-5-workflow-dsl: done
+  9-6-push-notifications: done
+  9-7-acp-protocol: done
+  9-8-flutter-mobile-redesign: done
+  epic-9-retrospective: optional

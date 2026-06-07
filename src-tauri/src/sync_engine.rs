@@ -147,10 +147,10 @@ impl SyncEngine {
     /// Create a new sync engine with a default SQLite database path.
     ///
     /// Database is stored in the OS data directory under `acp-ui/sync.db`.
-    pub fn new(source: SyncSource) -> Self {
+    /// Returns an error if the database cannot be opened or initialized.
+    pub fn new(source: SyncSource) -> Result<Self, String> {
         let db_path = default_db_path();
         Self::with_db_path(source, db_path)
-            .unwrap_or_else(|e| panic!("[SyncEngine] Failed to initialize SQLite: {}", e))
     }
 
     /// Create a new sync engine with an explicit database path.

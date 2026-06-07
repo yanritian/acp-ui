@@ -47,6 +47,33 @@ function generateIV(): Uint8Array {
 }
 
 /**
+ * Convert Uint8Array to base64 safely (avoids stack overflow on large payloads).
+ * JavaScript engines limit the number of function arguments (~65536), so
+ * spreading large arrays into String.fromCharCode crashes.
+ */
+function uint8ToBase64(data: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Convert base64 string to Uint8Array.
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
  * Encrypt the message payload in-place.
  *
  * The returned message has `encrypted = true` and the payload field replaced
@@ -70,8 +97,8 @@ export async function encryptMessage(
   return {
     ...msg,
     payload: {
-      iv: btoa(String.fromCharCode(...iv)),
-      ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+      iv: uint8ToBase64(iv),
+      ciphertext: uint8ToBase64(new Uint8Array(ciphertext)),
     },
     encrypted: true,
   };
@@ -94,9 +121,9 @@ export async function decryptMessage(
   const cryptoKey = await importKey(key);
 
   const payload = msg.payload as { iv?: string; ciphertext?: string };
-  const iv = payload.iv ? Uint8Array.from(atob(payload.iv), (c) => c.charCodeAt(0)) : null;
+  const iv = payload.iv ? base64ToUint8Array(payload.iv) : null;
   const ciphertext = payload.ciphertext
-    ? Uint8Array.from(atob(payload.ciphertext), (c) => c.charCodeAt(0))
+    ? base64ToUint8Array(payload.ciphertext)
     : null;
 
   if (!iv || !ciphertext) {

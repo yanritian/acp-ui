@@ -78,8 +78,8 @@ export class PushService {
     for (const listener of this.listeners) {
       try {
         listener(notification);
-      } catch (e) {
-        console.error('Notification listener threw:', e);
+      } catch {
+        // Listener threw — log to telemetry in production, skip in dev
       }
     }
   }

@@ -14,7 +14,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Command;
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -143,6 +142,8 @@ pub struct ActiveTask {
     /// Optional workflow stage this task belongs to
     pub workflow_id: Option<String>,
     pub stage_id: Option<String>,
+    /// OS process ID for cancellation
+    pub pid: Option<u32>,
 }
 
 /// Historical record of a completed task
@@ -195,8 +196,8 @@ pub struct AgentOrchestrator {
     pub active_tasks: HashMap<String, ActiveTask>,
     /// Historical task records
     pub task_history: Vec<TaskRecord>,
-    /// Child process handles for cancellation
-    child_processes: HashMap<String, Arc<AtomicU8>>,
+    /// Child process PIDs for cancellation (maps task_id -> PID)
+    child_processes: HashMap<String, u32>,
     /// Task analyzer for routing decisions
     task_analyzer: TaskAnalyzer,
     /// Workflow engine reference (populated via set_workflow_engine)
@@ -355,15 +356,11 @@ impl AgentOrchestrator {
                 progress: 0,
                 workflow_id: None,
                 stage_id: None,
+                pid: None, // Will be set by spawn_cli
             },
         );
 
-        // Create cancellation flag
-        let cancel_flag = Arc::new(AtomicU8::new(0));
-        self.child_processes
-            .insert(task_id.clone(), cancel_flag.clone());
-
-        // Spawn the CLI command
+        // Spawn the CLI command — spawn_cli reports PID back via active_tasks
         let cwd = working_dir
             .or(cap.default_cwd.as_deref())
             .unwrap_or(".");
@@ -373,7 +370,7 @@ impl AgentOrchestrator {
             task_description,
             cwd,
             cap.timeout_ms,
-            &cancel_flag,
+            &task_id,
         );
 
         // Update active task status
@@ -456,6 +453,7 @@ impl AgentOrchestrator {
                     progress: 100,
                     workflow_id: record.workflow_id.clone(),
                     stage_id: record.stage_id.clone(),
+                    pid: None,
                 });
             }
         }
@@ -463,20 +461,12 @@ impl AgentOrchestrator {
         None
     }
 
-    /// Cancel a running task
+    /// Cancel a running task by killing the child process
     pub fn cancel_task(&mut self, task_id: &str) -> Result<(), String> {
-        // Send cancellation signal
-        if let Some(cancel_flag) = self.child_processes.get(task_id) {
-            cancel_flag.store(1, Ordering::SeqCst);
-        }
-
-        // Also try to kill the process via taskkill on Windows
-        #[cfg(target_os = "windows")]
-        {
-            let _ = Command::new("taskkill")
-                .args(["/F", "/T", "/PID"])
-                .arg(task_id)
-                .output();
+        // Kill the actual child process by PID
+        if let Some(&pid) = self.child_processes.get(task_id) {
+            let _ = kill_process(pid);
+            println!("[AgentOrchestrator] Killed process {} for task '{}'", pid, task_id);
         }
 
         if let Some(task) = self.active_tasks.get_mut(task_id) {
@@ -770,14 +760,14 @@ impl AgentOrchestrator {
         Err("No available agent in registry".to_string())
     }
 
-    /// Spawn a CLI process and capture output
+    /// Spawn a CLI process and capture output. Stores the PID for cancellation.
     fn spawn_cli(
-        &self,
+        &mut self,
         cli_command: &str,
         prompt: &str,
         cwd: &str,
         timeout_ms: u64,
-        cancel_flag: &Arc<AtomicU8>,
+        task_id: &str,
     ) -> Result<ExecutionResult, String> {
         let start = std::time::Instant::now();
 
@@ -796,6 +786,12 @@ impl AgentOrchestrator {
 
         let child_id = child.id();
 
+        // Store PID for cancellation
+        self.child_processes.insert(task_id.to_string(), child_id);
+        if let Some(task) = self.active_tasks.get_mut(task_id) {
+            task.pid = Some(child_id);
+        }
+
         // Spawn a thread to wait for the process
         let (tx, rx) = std::sync::mpsc::channel::<std::process::Output>();
 
@@ -804,18 +800,11 @@ impl AgentOrchestrator {
             if let Ok(output) = output {
                 let _ = tx.send(output);
             }
-            // If wait_with_output fails, the cancel_flag will handle it
         });
 
         // Poll for completion or timeout
         let timeout = Duration::from_millis(timeout_ms);
         loop {
-            // Check cancellation
-            if cancel_flag.load(Ordering::SeqCst) == 1 {
-                let _ = kill_process(child_id);
-                return Err("Task cancelled by user".to_string());
-            }
-
             // Check timeout
             if start.elapsed() > timeout {
                 let _ = kill_process(child_id);
@@ -892,18 +881,14 @@ fn build_agent_command(cli_command: &str, prompt: &str) -> Result<Command, Strin
             Ok(cmd)
         }
         other => {
-            // Generic: treat the command as a bash command
-            let mut cmd = Command::new("cmd");
-            #[cfg(not(target_os = "windows"))]
-            {
-                cmd = Command::new("sh");
-                cmd.args(["-c", &format!("{} '{}'", other, prompt.replace('\'', "'\\''"))]);
-            }
-            #[cfg(target_os = "windows")]
-            {
-                cmd.args(["/c", &format!("{} \"{}\"", other, prompt)]);
-            }
-            Ok(cmd)
+            // SECURITY: Do NOT pass user prompts through shell execution.
+            // Shell metacharacters (backticks, $(), etc.) would execute as commands.
+            // Only allow registered CLIs that use safe argument passing.
+            Err(format!(
+                "Unknown agent CLI '{}'. Only registered agents with safe CLI commands are allowed. \
+                 Registered: claude, codex, codex-cli, cursor, cursor-agent",
+                other
+            ))
         }
     }
 }

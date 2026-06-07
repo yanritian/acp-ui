@@ -245,11 +245,11 @@ impl ApprovalEngine {
         let result = stmt.query_row(params![id], |row| {
             let status_str: String = row.get(6)?;
             let deadline_str: String = row.get(7)?;
-            let created_at_str: String = row.get(11)?;
             let options_json: String = row.get(5)?;
             let response_json: Option<String> = row.get(8)?;
-            let decided_at_str: Option<String> = row.get(9)?;
-            let source: Option<String> = row.get(10)?;
+            let created_at_str: String = row.get(9)?;
+            let decided_at_str: Option<String> = row.get(10)?;
+            let source: Option<String> = row.get(11)?;
 
             let options: Vec<ApprovalOption> =
                 serde_json::from_str(&options_json).unwrap_or_default();
@@ -343,7 +343,8 @@ impl ApprovalEngine {
             }
         };
 
-        let response_json = serde_json::to_string(&decision.feedback).map_err(|e| e.to_string())?;
+        // Store the full decision as JSON to preserve option_id
+        let response_json = serde_json::to_string(&decision).map_err(|e| e.to_string())?;
 
         conn.execute(
             "UPDATE approval_requests
@@ -499,21 +500,23 @@ fn parse_approval_row(
 
     let response = match (response_json, decided_at_str, source) {
         (Some(resp_json), Some(decided_at_str), Some(src)) => {
-            // resp_json stores the feedback string (or null)
-            let feedback: Option<String> =
-                serde_json::from_str(&resp_json).unwrap_or(None);
             let decided_at = DateTime::parse_from_rfc3339(&decided_at_str)
                 .map(|dt| dt.with_timezone(&Utc))
                 .ok();
 
-            // We don't have the option_id stored separately; set empty as a placeholder.
-            // In a full implementation, option_id could be stored as a separate column.
-            Some(ApprovalDecision {
-                option_id: "".to_string(),
-                feedback,
-                decided_at: decided_at.unwrap_or_else(|| Utc::now()),
-                source: src,
-            })
+            // Try to deserialize the full ApprovalDecision from JSON
+            let decision = serde_json::from_str::<ApprovalDecision>(&resp_json)
+                .ok()
+                .or_else(|| {
+                    // Fallback: construct from partial data
+                    Some(ApprovalDecision {
+                        option_id: "".to_string(),
+                        feedback: None,
+                        decided_at: decided_at.unwrap_or_else(|| Utc::now()),
+                        source: src,
+                    })
+                });
+            decision
         }
         _ => None,
     };

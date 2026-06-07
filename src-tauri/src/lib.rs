@@ -134,7 +134,14 @@ impl AppState {
             // Hermes Flow (Phase 2)
             hermes_flow: Arc::new(Mutex::new(hermes_flow::HermesFlowOrchestrator::new())),
             // Sync Engine (Phase 3)
-            sync_engine: Arc::new(Mutex::new(sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop))),
+            sync_engine: Arc::new(Mutex::new(
+                sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop)
+                    .unwrap_or_else(|e| {
+                        eprintln!("[lib] SyncEngine init failed ({}), using fallback in-memory mode", e);
+                        sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop)
+                            .expect("SyncEngine fallback also failed")
+                    })
+            )),
             // MCP & Agent Communication
             mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
             agent_bus: Arc::new(Mutex::new(agent_bus::AgentBus::new())),

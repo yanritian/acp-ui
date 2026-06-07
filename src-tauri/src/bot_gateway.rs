@@ -141,8 +141,14 @@ pub trait BotAdapter: Send + Sync {
 pub struct FeishuGatewayAdapter {
     app_id: String,
     app_secret: String,
-    tenant_token: std::sync::Mutex<Option<String>>,
+    tenant_token: std::sync::Mutex<Option<CachedToken>>,
     client: ureq::Agent,
+}
+
+/// Cached token with expiry (Feishu tokens expire after 2 hours)
+struct CachedToken {
+    token: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl FeishuGatewayAdapter {
@@ -155,13 +161,18 @@ impl FeishuGatewayAdapter {
         }
     }
 
-    /// Obtain (and cache) the tenant access token
+    /// Obtain (and cache) the tenant access token.
+    /// Feishu tokens expire after 2 hours; we refresh when < 5 minutes remain.
     fn ensure_token(&self) -> Result<String, String> {
-        // Check cache
+        // Check cache with expiry
         {
             let guard = self.tenant_token.lock().map_err(|e| e.to_string())?;
-            if let Some(ref t) = *guard {
-                return Ok(t.clone());
+            if let Some(ref cached) = *guard {
+                let now = chrono::Utc::now();
+                if now + chrono::Duration::minutes(5) < cached.expires_at {
+                    return Ok(cached.token.clone());
+                }
+                // Token expired or near-expiry — will refresh below
             }
         }
 
@@ -187,9 +198,10 @@ impl FeishuGatewayAdapter {
             .map(String::from)
             .ok_or("No tenant_access_token in response")?;
 
-        // Cache
+        // Cache with 2-hour expiry (Feishu default TTL)
+        let expires_at = chrono::Utc::now() + chrono::Duration::hours(2);
         if let Ok(mut guard) = self.tenant_token.lock() {
-            *guard = Some(token.clone());
+            *guard = Some(CachedToken { token: token.clone(), expires_at });
         }
 
         Ok(token)

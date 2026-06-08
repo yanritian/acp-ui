@@ -329,19 +329,6 @@ class _InstructionTextFieldState extends State<_InstructionTextField> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _controller.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(() => setState(() {}));
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,

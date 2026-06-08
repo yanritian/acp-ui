@@ -201,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useConfigStore } from '@/stores/config';
 import { useI18n } from '@/locales';
 import { restrictedTransports, isDesktop } from '@/lib/platform';
@@ -416,11 +416,22 @@ function closeForm() {
   };
 }
 
+// Interval ID for status polling
+let statusIntervalId: ReturnType<typeof setInterval> | null = null;
+
 // Load on mount
 onMounted(async () => {
   await loadStatus();
   // Refresh status every 2 seconds
-  setInterval(loadStatus, 2000);
+  statusIntervalId = setInterval(loadStatus, 2000);
+});
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (statusIntervalId !== null) {
+    clearInterval(statusIntervalId);
+    statusIntervalId = null;
+  }
 });
 </script>
 

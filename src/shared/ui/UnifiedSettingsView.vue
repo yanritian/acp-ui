@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useI18n } from '@/locales';
 import LanguageSelector from './LanguageSelector.vue';
 import AgentConfigView from '@/views/AgentConfigView.vue';
@@ -92,10 +92,16 @@ const tabs = [
   { id: 'advanced', icon: '🔧', labelKey: 'settings.advanced' },
 ];
 
-const activeTab = ref('general');
-const theme = ref('auto');
-const tokenBudget = ref(100000);
-const logLevel = ref('info');
+const activeTab = ref(localStorage.getItem('acp-ui:settings-tab') ?? 'general');
+const theme = ref(localStorage.getItem('acp-ui:theme') ?? 'auto');
+const tokenBudget = ref(Number(localStorage.getItem('acp-ui:tokenBudget')) || 100000);
+const logLevel = ref(localStorage.getItem('acp-ui:logLevel') ?? 'info');
+
+// Persist settings to localStorage
+watch(activeTab, (v) => localStorage.setItem('acp-ui:settings-tab', v));
+watch(theme, (v) => localStorage.setItem('acp-ui:theme', v));
+watch(tokenBudget, (v) => localStorage.setItem('acp-ui:tokenBudget', String(v)));
+watch(logLevel, (v) => localStorage.setItem('acp-ui:logLevel', v));
 </script>
 
 <style scoped>

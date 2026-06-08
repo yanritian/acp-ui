@@ -32,6 +32,7 @@ const teamRuntime = useTeamRuntimeStore()
     </div>
     <div v-else class="empty-state">
       <p>{{ t('common.noTasks') }}</p>
+      <p class="hint">在"协作网络"或"Agent 团队"页面启动团队任务后，这里将显示实时状态。</p>
     </div>
   </div>
 </template>

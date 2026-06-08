@@ -122,6 +122,12 @@ onUnmounted(() => {
 
 <template>
   <div class="hermes-dashboard">
+    <!-- Connection status banner -->
+    <div v-if="!connected" class="connection-banner">
+      <span class="banner-icon">⚠️</span>
+      <span class="banner-text">Hermes 后端未连接。当前显示的为初始值，连接后将展示实时数据。</span>
+    </div>
+
     <header class="hermes-header">
       <div>
         <h1 class="hermes-title">{{ t('hermes.title') }}</h1>
@@ -226,6 +232,25 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Connection banner styles */
+.connection-banner {
+  background: linear-gradient(90deg, #FEF3C7 0%, #FDE68A 100%);
+  border-bottom: 1px solid #F59E0B;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.banner-icon {
+  font-size: 18px;
+}
+
+.banner-text {
+  color: #92400E;
+  font-size: 14px;
+}
+
 .hermes-dashboard {
   font-family: system-ui, -apple-system, sans-serif;
   background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 50%, #F8FAFC 100%);

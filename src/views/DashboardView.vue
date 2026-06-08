@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfigStore } from '@/stores/config'
 import { useSessionStore } from '@/stores/session'
+import { useOrchestrationStore } from '@/stores/orchestration'
 import { useI18n } from '@/locales'
 import { trackBehavior } from '@/lib/self-improvement'
 import AgentStatusCard from '@/features/agents/AgentStatusCard.vue'
@@ -15,6 +16,7 @@ const { t } = useI18n()
 const router = useRouter()
 const configStore = useConfigStore()
 const sessionStore = useSessionStore()
+const orchestrationStore = useOrchestrationStore()
 
 // Expose icons to template
 const icon = icons
@@ -36,6 +38,9 @@ onMounted(async () => {
   loadingAgents.value = true
   await configStore.loadConfig()
   loadingAgents.value = false
+
+  // 初始化 orchestration 数据
+  orchestrationStore.refreshAll()
 
   // Track dashboard view
   trackBehavior('dashboard-viewed', { agentCount: agents.value.length })
@@ -116,6 +121,28 @@ function navigateToHistory() {
 
     <!-- Main Dashboard Content -->
     <div v-else class="dashboard-content">
+      <!-- Orchestration Summary Section -->
+      <section class="dashboard-section orchestration-summary">
+        <h2 class="section-title">
+          <span class="section-icon">⚡</span>
+          {{ t('dashboard.orchestration') }}
+        </h2>
+        <div class="orchestration-stats">
+          <div class="stat-item">
+            <span class="stat-value">{{ orchestrationStore.runningTaskCount }}</span>
+            <span class="stat-label">{{ t('dashboard.activeTasks') }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ orchestrationStore.pendingApprovals.length }}</span>
+            <span class="stat-label">{{ t('dashboard.pendingApprovals') }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ orchestrationStore.agents.length }}</span>
+            <span class="stat-label">{{ t('dashboard.orchAgents') }}</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Agent Status Section -->
       <section class="dashboard-section">
         <h2 class="section-title">

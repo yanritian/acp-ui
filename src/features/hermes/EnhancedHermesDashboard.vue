@@ -26,6 +26,10 @@ const selectedNode = computed(() => collaborationStore.selectedNode)
 const hasData = computed(() => {
   return collaborationStore.nodes.length > 0 || collaborationStore.edges.length > 0
 })
+const isUsingMockData = computed(() => {
+  // 如果没有节点数据，说明是 mock 数据
+  return collaborationStore.nodes.length === 0
+})
 
 // Initialize mock data for demo
 function initializeMockData() {
@@ -252,6 +256,12 @@ onUnmounted(() => {
 
 <template>
   <div class="enhanced-hermes-dashboard">
+    <!-- Mock data warning banner -->
+    <div v-if="isUsingMockData" class="demo-banner">
+      <span class="demo-icon">⚠️</span>
+      <span class="demo-text">当前展示的是模拟协作网络数据。当 Agent 团队实际运行时将显示真实协作关系。</span>
+    </div>
+
     <!-- Header -->
     <header class="dashboard-header">
       <div class="header-left">
@@ -433,6 +443,25 @@ function formatTime(timestamp: number): string {
 </script>
 
 <style scoped>
+/* Demo banner styles */
+.demo-banner {
+  background: linear-gradient(90deg, #FEF3C7 0%, #FDE68A 100%);
+  border-bottom: 1px solid #F59E0B;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-icon {
+  font-size: 18px;
+}
+
+.demo-text {
+  color: #92400E;
+  font-size: 14px;
+}
+
 .enhanced-hermes-dashboard {
   width: 100%;
   height: 100%;

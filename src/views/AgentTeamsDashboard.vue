@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAgentRealtimeStore } from '@/stores/agent-realtime'
 import { useAgentPetStore } from '@/stores/agent-pet'
 import { useCollaborationStore } from '@/stores/collaboration'
+import { useOrchestrationStore } from '@/stores/orchestration'
 import AgentRealtimeProgressPanel from '@/features/agent-teams/components/agent-progress/AgentRealtimeProgressPanel.vue'
 import AgentPetAvatar from '@/features/agent-teams/components/agent-pet/AgentPetAvatar.vue'
 import EmotionDisplay from '@/features/agent-teams/components/agent-pet/EmotionDisplay.vue'
@@ -17,6 +18,7 @@ const { t } = useI18n()
 const realtimeStore = useAgentRealtimeStore()
 const petStore = useAgentPetStore()
 const collaborationStore = useCollaborationStore()
+const orchestrationStore = useOrchestrationStore()
 
 // State
 const activeView = ref<'progress' | 'collaboration' | 'pets' | 'all'>('all')
@@ -81,6 +83,9 @@ onMounted(() => {
   if (realtimeStore.allAgents.length > 0) {
     selectAgent(realtimeStore.allAgents[0].agentId)
   }
+
+  // 初始化 orchestration 数据
+  orchestrationStore.refreshAll()
 
   // 启动自动刷新
   if (autoRefresh.value) {

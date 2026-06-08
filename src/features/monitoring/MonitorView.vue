@@ -19,6 +19,7 @@ const teamRuntime = useTeamRuntimeStore()
     </div>
     <div v-else class="empty-state">
       <p>{{ t('common.noEvents') }}</p>
+      <p class="hint">Agent 运行时产生的事件将在这里展示。请先在对话页面启动 Agent。</p>
     </div>
     <TrafficMonitor />
   </div>

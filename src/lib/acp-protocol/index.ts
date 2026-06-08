@@ -14,12 +14,28 @@ export type ACPMessageType =
   | 'heartbeat';
 
 export interface ACPMessage {
+  // Original ACP fields
   version: '1.0';
   messageId: string;
   timestamp: number;
   type: ACPMessageType;
   payload: Record<string, unknown>;
   encrypted?: boolean;
+
+  // JSON-RPC 2.0 extension fields (from spec.ts)
+  jsonrpc?: '2.0';
+  id?: string | number;
+  method?: string;
+  params?: Record<string, unknown>;
+  result?: unknown;
+  error?: { code: number; message: string; data?: unknown };
+  sessionId?: string;
+  source?: 'client' | 'server' | 'agent';
+  encryption?: {
+    algorithm: 'aes-256-gcm';
+    keyId: string;
+    iv: string;
+  };
 }
 
 // ---------- Encryption utilities (AES-GCM) ----------

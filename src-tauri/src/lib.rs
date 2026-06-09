@@ -29,6 +29,10 @@ mod circuit_breaker;  // Three-state failure protection
 mod team_dag;         // Team DAG execution engine
 mod workflow_engine;  // Multi-stage orchestrated workflows
 mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
+mod swarm_adapters;   // Swarm Agent Adapters - Stdio process communication (Day 1)
+mod swarm_types;      // Swarm Types - Task shards, replica assignment (Day 2)
+mod task_partitioner; // Task Partitioner - ES sharding pattern (Day 2)
+mod queen_lease;      // Queen Lease Election - ZK lease pattern (Day 3)
 mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
 mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 mod agent_orchestration; // Agent Orchestration Layer - "驾驭层"
@@ -102,6 +106,8 @@ pub struct AppState {
     pub agent_orchestrator: Arc<Mutex<agent_orchestration::AgentOrchestrator>>,
     // Approval Engine
     pub approval_engine: Arc<Mutex<approval_engine::ApprovalEngine>>,
+    // Swarm Worker Registry (Day 1 - Real Worker Adapters)
+    pub swarm_workers: Arc<Mutex<HashMap<String, Box<dyn swarm_adapters::SwarmAgentAdapter + Send>>>>,
 }
 
 impl AppState {
@@ -149,6 +155,8 @@ impl AppState {
             agent_orchestrator: Arc::new(Mutex::new(agent_orchestration::AgentOrchestrator::new())),
             // Approval Engine
             approval_engine: Arc::new(Mutex::new(approval_engine::ApprovalEngine::new())),
+            // Swarm Worker Registry (Day 1)
+            swarm_workers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -510,8 +518,162 @@ pub fn run() {
             approval_engine::approval_get_pending,
             approval_engine::approval_get_request,
             approval_engine::approval_decide,
-            approval_engine::approval_get_stats
+            approval_engine::approval_get_stats,
+            // Swarm Worker Adapter commands (Day 1)
+            swarm_register_worker,
+            swarm_list_workers,
+            swarm_send_task,
+            swarm_get_worker_status,
+            swarm_health_check,
+            swarm_cancel_task,
+            swarm_get_task_output,
+            swarm_shutdown_worker
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// ============================================================================
+// Swarm Worker Adapter Commands (Day 1)
+// ============================================================================
+
+use std::collections::HashMap as StdHashMap;
+use swarm_adapters::{SwarmAgentAdapter, TaskDescription, TaskHandle, WorkerStatus, WorkerCapabilities};
+
+/// Register a new swarm worker (Codex or Claude Code)
+#[tauri::command]
+async fn swarm_register_worker(
+    state: State<'_, AppState>,
+    worker_type: String,
+    worker_id: String,
+) -> Result<WorkerCapabilities, String> {
+    let adapter: Box<dyn SwarmAgentAdapter + Send> = match worker_type.as_str() {
+        "codex" => Box::new(swarm_adapters::CodexAdapter::new(worker_id.clone())),
+        "claude_code" => Box::new(swarm_adapters::ClaudeCodeAdapter::new(worker_id.clone())),
+        _ => return Err(format!("Unknown worker type: {}", worker_type)),
+    };
+
+    let capabilities = adapter.capabilities();
+
+    // Store in registry
+    {
+        let mut workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.insert(worker_id, adapter);
+    }
+
+    println!("✅ Registered swarm worker: {} ({})", worker_id, worker_type);
+    Ok(capabilities)
+}
+
+/// List all registered swarm workers
+#[tauri::command]
+async fn swarm_list_workers(
+    state: State<'_, AppState>,
+) -> Result<Vec<WorkerCapabilities>, String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+    let capabilities: Vec<WorkerCapabilities> = workers
+        .values()
+        .map(|adapter| adapter.capabilities())
+        .collect();
+    Ok(capabilities)
+}
+
+/// Send a task to a specific worker
+#[tauri::command]
+async fn swarm_send_task(
+    state: State<'_, AppState>,
+    worker_id: String,
+    task_id: String,
+    prompt: String,
+    working_dir: Option<String>,
+    timeout_ms: Option<u64>,
+) -> Result<TaskHandle, String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    let adapter = workers.get(&worker_id)
+        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+
+    let task = TaskDescription::new(task_id, prompt)
+        .with_timeout(timeout_ms.unwrap_or(60000));
+
+    let task = if let Some(dir) = working_dir {
+        task.with_working_dir(dir)
+    } else {
+        task
+    };
+
+    adapter.send_task(&task).map_err(|e| e.to_string())
+}
+
+/// Get worker status
+#[tauri::command]
+async fn swarm_get_worker_status(
+    state: State<'_, AppState>,
+    worker_id: String,
+) -> Result<WorkerStatus, String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    let adapter = workers.get(&worker_id)
+        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+
+    adapter.get_status().map_err(|e| e.to_string())
+}
+
+/// Health check for a worker
+#[tauri::command]
+async fn swarm_health_check(
+    state: State<'_, AppState>,
+    worker_id: String,
+) -> Result<bool, String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    let adapter = workers.get(&worker_id)
+        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+
+    Ok(adapter.health_check())
+}
+
+/// Cancel a running task
+#[tauri::command]
+async fn swarm_cancel_task(
+    state: State<'_, AppState>,
+    worker_id: String,
+    task_id: String,
+) -> Result<(), String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    let adapter = workers.get(&worker_id)
+        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+
+    adapter.cancel_task(&task_id).map_err(|e| e.to_string())
+}
+
+/// Get task output
+#[tauri::command]
+async fn swarm_get_task_output(
+    state: State<'_, AppState>,
+    worker_id: String,
+    task_id: String,
+) -> Result<String, String> {
+    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    let adapter = workers.get(&worker_id)
+        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+
+    adapter.get_task_output(&task_id).map_err(|e| e.to_string())
+}
+
+/// Shutdown a worker
+#[tauri::command]
+async fn swarm_shutdown_worker(
+    state: State<'_, AppState>,
+    worker_id: String,
+) -> Result<(), String> {
+    let mut workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+
+    if let Some(adapter) = workers.remove(&worker_id) {
+        adapter.shutdown().map_err(|e| e.to_string())?;
+        println!("✅ Shutdown swarm worker: {}", worker_id);
+    }
+
+    Ok(())

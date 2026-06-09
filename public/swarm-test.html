@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Swarm Worker Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Swarm Worker API Test</h1>
+    <p>Testing Claude Code worker registration via Tauri commands</p>
+
+    <div>
+        <button onclick="testRegisterClaudeCode()">Register Claude Code Worker</button>
+        <button onclick="testListWorkers()">List Workers</button>
+        <button onclick="testSendTask()">Send Test Task</button>
+        <button onclick="testHealthCheck()">Health Check</button>
+    </div>
+
+    <div class="log" id="output">Click buttons to test...</div>
+
+    <script type="module">
+        import { invoke } from '@tauri-apps/api/core';
+
+        const output = document.getElementById('output');
+
+        function log(msg, isError = false) {
+            const div = document.createElement('div');
+            div.className = isError ? 'error' : 'success';
+            div.textContent = new Date().toISOString() + ' - ' + msg;
+            output.appendChild(div);
+        }
+
+        window.testRegisterClaudeCode = async function() {
+            output.innerHTML = '';
+            log('Registering Claude Code worker...');
+            try {
+                const result = await invoke('swarm_register_worker', {
+                    workerType: 'claude_code',
+                    workerId: 'claude-code-1'
+                });
+                log('✅ Registered successfully!');
+                log('Worker ID: ' + result.workerId);
+                log('Worker Type: ' + result.workerType);
+                log('Capabilities: ' + result.capabilities.join(', '));
+                log('Max Complexity: ' + result.maxComplexity);
+                log('Supports Streaming: ' + result.supportsStreaming);
+            } catch (e) {
+                log('❌ Error: ' + e, true);
+            }
+        };
+
+        window.testListWorkers = async function() {
+            output.innerHTML = '';
+            log('Listing registered workers...');
+            try {
+                const workers = await invoke('swarm_list_workers');
+                log('✅ Found ' + workers.length + ' workers');
+                workers.forEach(w => {
+                    log('  - ' + w.workerId + ' (' + w.workerType + ')');
+                });
+            } catch (e) {
+                log('❌ Error: ' + e, true);
+            }
+        };
+
+        window.testSendTask = async function() {
+            output.innerHTML = '';
+            log('Sending test task to worker...');
+            try {
+                const handle = await invoke('swarm_send_task', {
+                    workerId: 'claude-code-1',
+                    taskId: 'test-task-' + Date.now(),
+                    prompt: 'Hello, please respond with "Test successful"',
+                    workingDir: null,
+                    timeoutMs: 30000
+                });
+                log('✅ Task sent!');
+                log('Task ID: ' + handle.taskId);
+                log('Status: ' + handle.status);
+                log('Worker: ' + handle.workerId);
+            } catch (e) {
+                log('❌ Error: ' + e, true);
+            }
+        };
+
+        window.testHealthCheck = async function() {
+            output.innerHTML = '';
+            log('Running health check...');
+            try {
+                const healthy = await invoke('swarm_health_check', {
+                    workerId: 'claude-code-1'
+                });
+                log('✅ Health check result: ' + (healthy ? 'Healthy' : 'Not healthy'));
+            } catch (e) {
+                log('❌ Error: ' + e, true);
+            }
+        };
+    </script>
+</body>
+</html>

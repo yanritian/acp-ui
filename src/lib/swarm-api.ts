@@ -284,7 +284,7 @@ export class SwarmOrchestratorClient {
 
   async getHealthyWorkers(): Promise<string[]> {
     const healthy: string[] = []
-    for (const [id] of this.workers) {
+    for (const [id] of Array.from(this.workers.entries())) {
       const status = await swarmHealthCheck(id)
       if (status) healthy.push(id)
     }
@@ -333,7 +333,7 @@ export class SwarmOrchestratorClient {
   }
 
   async refreshStatuses(): Promise<void> {
-    for (const [id] of this.workers) {
+    for (const [id] of Array.from(this.workers.entries())) {
       try {
         const status = await swarmGetWorkerStatus(id)
         this.statuses.set(id, status)

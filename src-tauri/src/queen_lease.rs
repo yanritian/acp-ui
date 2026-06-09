@@ -349,7 +349,7 @@ impl QueenElectionManager {
 
     /// Check lease validity and trigger election if expired
     pub fn check_and_renew(&mut self) -> Result<Option<WorkerId>, SwarmError> {
-        let lease_guard = self.current_lease.lock().unwrap();
+        let mut lease_guard = self.current_lease.lock().unwrap();
 
         if let Some(ref mut lease) = *lease_guard {
             // Try to renew if still valid
@@ -402,25 +402,29 @@ impl QueenElectionManager {
             return Ok(None);
         }
 
-        let workers = self.workers.lock().unwrap();
         let queen_id = current_queen.unwrap();
 
-        let current_max = workers.get(&queen_id)
-            .map(|c| c.max_complexity)
-            .unwrap_or(0);
+        // Find better queen candidate
+        let better_queen = {
+            let workers = self.workers.lock().unwrap();
 
-        // Check if current Queen can handle this complexity
-        if current_max >= required_complexity {
-            return Ok(None); // No upgrade needed
-        }
+            let current_max = workers.get(&queen_id)
+                .map(|c| c.max_complexity)
+                .unwrap_or(0);
 
-        // Find a better Queen
-        let better_queen = workers.iter()
-            .filter(|(_, c)| c.max_complexity >= required_complexity && c.max_complexity > current_max)
-            .max_by_key(|(_, c)| c.max_complexity)
-            .map(|(id, _)| id.clone());
+            // Check if current Queen can handle this complexity
+            if current_max >= required_complexity {
+                return Ok(None); // No upgrade needed
+            }
 
-        if let Some(new_queen_id) = better_queen {
+            // Find a better Queen
+            workers.iter()
+                .filter(|(_, c)| c.max_complexity >= required_complexity && c.max_complexity > current_max)
+                .max_by_key(|(_, c)| c.max_complexity)
+                .map(|(id, _)| id.clone())
+        }; // workers lock released here
+
+        if let Some(_new_queen_id) = better_queen {
             // Invalidate current lease
             {
                 let mut lease = self.current_lease.lock().unwrap();
@@ -429,7 +433,7 @@ impl QueenElectionManager {
                 }
             }
 
-            // Start new election (new_queen_id will likely win due to higher complexity)
+            // Start new election (better queen will likely win due to higher complexity)
             let winner = self.start_election()?;
             println!("✅ Adaptive Queen upgrade: {} -> {}", queen_id, winner);
             return Ok(Some(winner));

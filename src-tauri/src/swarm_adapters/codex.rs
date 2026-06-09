@@ -6,7 +6,6 @@
 use super::*;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::io::{BufRead, BufReader};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -131,7 +130,7 @@ impl CodexAdapter {
         // Note: In a real implementation, we would take stdout/stderr from the child
         // and read them in a background thread. For now, this is a placeholder.
 
-        let outputs = self.outputs.clone();
+        let _outputs = self.outputs.clone();
         let status = self.status.clone();
 
         let handle = thread::spawn(move || {
@@ -163,9 +162,9 @@ impl CodexAdapter {
 
     /// Send prompt to Codex via stdin
     fn send_prompt(&self, prompt: &str) -> Result<(), SwarmError> {
-        let process_guard = self.process.lock().unwrap();
+        let mut process_guard = self.process.lock().unwrap();
 
-        if let Some(ref mut child) = *process_guard {
+        if let Some(ref mut _child) = *process_guard {
             // In production: write to child.stdin
             // For now, this is a placeholder
             println!("[CodexAdapter] Would send prompt to stdin: {}", prompt);

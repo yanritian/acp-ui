@@ -814,9 +814,9 @@ pub fn swarm_get_health(
     Ok(orchestrator.get_health())
 }
 
-/// Cancel a running task
+/// Cancel a running task in swarm orchestrator
 #[tauri::command]
-pub fn swarm_cancel_task(
+pub fn swarm_orch_cancel_task(
     state: State<'_, AppState>,
     task_id: String,
 ) -> Result<(), String> {

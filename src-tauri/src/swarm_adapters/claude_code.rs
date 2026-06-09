@@ -6,7 +6,6 @@
 use super::*;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::io::{BufRead, BufReader, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -136,7 +135,7 @@ impl ClaudeCodeAdapter {
     fn start_output_readers(&self) {
         let outputs = self.outputs.clone();
         let status = self.status.clone();
-        let tasks = self.tasks.clone();
+        let _tasks = self.tasks.clone();
 
         // stdout reader
         let stdout_handle = thread::spawn(move || {
@@ -162,7 +161,7 @@ impl ClaudeCodeAdapter {
                 // Simulate output accumulation
                 if let Some(task_id) = st.current_task.clone() {
                     let mut out = outputs.lock().unwrap();
-                    if let Some(output) = out.get_mut(&task_id) {
+                    if let Some(_output) = out.get_mut(&task_id) {
                         // In production: append actual stdout content
                         // Placeholder: just track that we're reading
                     }
@@ -187,9 +186,9 @@ impl ClaudeCodeAdapter {
 
     /// Send prompt to Claude Code via stdin
     fn send_prompt(&self, prompt: &str) -> Result<(), SwarmError> {
-        let process_guard = self.process.lock().unwrap();
+        let mut process_guard = self.process.lock().unwrap();
 
-        if let Some(ref mut child) = *process_guard {
+        if let Some(ref mut _child) = *process_guard {
             // In production: write to child.stdin
             // Example:
             // let stdin = child.stdin.as_mut().unwrap();
@@ -315,7 +314,7 @@ impl SwarmAgentAdapter for ClaudeCodeAdapter {
 
             // Update outputs
             outputs_clone.lock().unwrap()
-                .insert(task_id_clone.clone(), simulated_output);
+                .insert(task_id_clone.clone(), simulated_output.clone());
 
             // Update task
             if let Some(handle) = tasks_clone.lock().unwrap().get_mut(&task_id_clone) {

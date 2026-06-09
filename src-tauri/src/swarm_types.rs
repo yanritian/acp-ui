@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use swarm_adapters::{WorkerId, TaskId, SwarmError, HealthStatus, OutputFormat};
+pub use crate::swarm_adapters::{WorkerId, TaskId, SwarmError, HealthStatus, OutputFormat};
 
 // ---------------------------------------------------------------------------
 // Task Shard (ES Sharding Pattern)
@@ -332,13 +332,14 @@ impl ShardGroup {
 
     /// Aggregate results from all shards
     pub fn aggregate_results(&mut self) {
-        let results: Vec<&String> = self.shards.values()
-            .filter_map(|s| s.get_result())
+        let results: Vec<String> = self.shards.values()
+            .filter_map(|s| s.get_result().cloned())
             .collect();
 
         if results.len() == self.shard_count as usize {
             // All shards completed - merge results
-            self.final_result = Some(results.join("\n\n--- Shard Boundary ---\n\n"));
+            let merged = results.join("\n\n--- Shard Boundary ---\n\n");
+            self.final_result = Some(merged);
             self.status = ShardGroupStatus::Completed;
         } else if self.failed_count > 0 {
             // Some shards failed

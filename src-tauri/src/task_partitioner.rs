@@ -6,8 +6,8 @@
 //! 3. Assigns workers based on capability matching
 //! 4. Provides replica assignment for fault tolerance
 
-use crate::smart_router::{TaskAnalyzer, TaskComplexity, TaskType};
-use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, ShardStatus, WorkerId};
+use crate::smart_router::TaskAnalyzer;
+use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, WorkerId};
 use crate::swarm_adapters::{WorkerCapabilities, SwarmError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -178,13 +178,15 @@ impl TaskPartitioner {
             }]
         };
 
+        let complexity_level = analysis.complexity_level;
+
         TaskDecomposition {
             original_prompt: prompt.to_string(),
             analysis,
             subtasks,
             worker_assignments: HashMap::new(), // Assigned later by orchestrator
-            use_replicas: analysis.complexity_level > 3,
-            replica_count: if analysis.complexity_level > 3 { 1 } else { 0 },
+            use_replicas: complexity_level > 3,
+            replica_count: if complexity_level > 3 { 1 } else { 0 },
         }
     }
 
@@ -423,7 +425,7 @@ impl TaskPartitioner {
         decomposition: &TaskDecomposition,
         parent_task_id: String,
     ) -> ShardGroup {
-        let mut group = ShardGroup::new(parent_task_id, decomposition.original_prompt.clone());
+        let mut group = ShardGroup::new(parent_task_id.clone(), decomposition.original_prompt.clone());
         group.status = crate::swarm_types::ShardGroupStatus::Assigning;
 
         for subtask in &decomposition.subtasks {
@@ -435,7 +437,7 @@ impl TaskPartitioner {
 
             let shard = TaskShard::new(
                 subtask.id.clone(),
-                parent_task_id.clone(),
+                group.task_id.clone(),
                 subtask.index,
                 decomposition.subtasks.len() as u32,
                 payload,

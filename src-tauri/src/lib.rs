@@ -70,6 +70,7 @@ use config::ConfigManager;
 use database::DatabaseManager;
 use log_stream::LogStreamManager;
 use parking_lot::RwLock;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Listener, Manager, State};
 
@@ -440,7 +441,7 @@ pub fn run() {
             swarm_orchestrator::swarm_submit_result,
             swarm_orchestrator::swarm_get_task,
             swarm_orchestrator::swarm_get_health,
-            swarm_orchestrator::swarm_cancel_task,
+            swarm_orchestrator::swarm_orch_cancel_task,
             // Workflow Engine commands
             workflow_engine::workflow_create,
             workflow_engine::workflow_validate,
@@ -537,7 +538,6 @@ pub fn run() {
 // Swarm Worker Adapter Commands (Day 1)
 // ============================================================================
 
-use std::collections::HashMap as StdHashMap;
 use swarm_adapters::{SwarmAgentAdapter, TaskDescription, TaskHandle, WorkerStatus, WorkerCapabilities};
 
 /// Register a new swarm worker (Codex or Claude Code)
@@ -558,7 +558,7 @@ async fn swarm_register_worker(
     // Store in registry
     {
         let mut workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.insert(worker_id, adapter);
+        workers.insert(worker_id.clone(), adapter);
     }
 
     println!("✅ Registered swarm worker: {} ({})", worker_id, worker_type);
@@ -677,3 +677,4 @@ async fn swarm_shutdown_worker(
     }
 
     Ok(())
+}

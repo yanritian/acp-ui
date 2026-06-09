@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../shared/providers/approval_state.dart';
+import 'approval_screen.dart' show ApprovalStateNotifier;
 import 'progress_screen.dart';
 import 'approval_screen.dart';
 import 'instruction_screen.dart';

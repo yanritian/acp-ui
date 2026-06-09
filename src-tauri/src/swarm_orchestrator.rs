@@ -823,3 +823,180 @@ pub fn swarm_orch_cancel_task(
     let mut orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
     orchestrator.cancel_task(&task_id)
 }
+
+// ---------------------------------------------------------------------------
+// Chain Topology Execution (Phase 2)
+// ---------------------------------------------------------------------------
+
+impl SwarmOrchestrator {
+    /// Execute chain topology - sequential pipeline execution
+    ///
+    /// Worker A → Worker B → Worker C
+    /// Each worker's output becomes the next worker's input
+    pub fn execute_chain(
+        &mut self,
+        task_description: &str,
+        worker_ids: &[String],
+    ) -> Result<SwarmResult, String> {
+        if worker_ids.is_empty() {
+            return Err("Chain requires at least one worker".to_string());
+        }
+
+        let mut current_input = task_description.to_string();
+        let mut stage_results: Vec<StageResult> = Vec::new();
+
+        for (i, worker_id) in worker_ids.iter().enumerate() {
+            let agent = self.agents.get(worker_id)
+                .ok_or_else(|| format!("Worker '{}' not found", worker_id))?;
+
+            // Check worker availability
+            if agent.status != AgentSwarmStatus::Idle {
+                return Err(format!("Worker '{}' is not idle (status: {})", worker_id, agent.status));
+            }
+
+            // Build stage prompt
+            let stage_prompt = format!(
+                "[Chain Pipeline Stage {}/{}]\n\n\
+                Original task: {}\n\n\
+                Previous stage output:\n{}\n\n\
+                Please process this input and produce your stage output.",
+                i + 1,
+                worker_ids.len(),
+                task_description,
+                current_input
+            );
+
+            // Create stage task
+            let stage_task_id = format!("chain-stage-{}-{}", i, uuid::Uuid::new_v4());
+            let stage_task = SwarmTask {
+                id: stage_task_id.clone(),
+                description: stage_prompt.clone(),
+                status: SwarmTaskStatus::Pending,
+                assigned_agents: vec![worker_id.clone()],
+                results: Vec::new(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                completed_at: None,
+                topology: SwarmTopology::Pipeline,
+                consensus: ConsensusStrategy::FirstWins,
+            };
+
+            // Record stage result (simulated for now - real execution uses swarm_workers)
+            let stage_output = format!("[Stage {} output placeholder]", i + 1);
+            let stage_result = StageResult {
+                worker_id: worker_id.clone(),
+                stage_index: i,
+                input: current_input.clone(),
+                output: stage_output.clone(),
+                success: true,
+                error: None,
+            };
+
+            stage_results.push(stage_result);
+            current_input = stage_output;
+
+            // Update agent status
+            if let Some(agent) = self.agents.get_mut(worker_id) {
+                agent.status = AgentSwarmStatus::Running;
+                agent.current_task = Some(stage_task_id);
+            }
+        }
+
+        // Mark all workers as idle again (chain completed)
+        for worker_id in worker_ids {
+            if let Some(agent) = self.agents.get_mut(worker_id) {
+                agent.status = AgentSwarmStatus::Idle;
+                agent.current_task = None;
+            }
+        }
+
+        Ok(SwarmResult {
+            final_output: current_input,
+            stages: stage_results,
+            total_stages: worker_ids.len(),
+        })
+    }
+
+    /// Handle worker failure - retry or find replacement
+    pub fn handle_worker_failure(
+        &mut self,
+        failed_worker_id: &str,
+        task_description: &str,
+        required_capabilities: &[String],
+    ) -> Result<String, String> {
+        // Mark failed worker as unhealthy
+        if let Some(agent) = self.agents.get_mut(failed_worker_id) {
+            agent.status = AgentSwarmStatus::Failed;
+            println!("[SwarmOrchestrator] Worker '{}' failed", failed_worker_id);
+        }
+
+        // Find replacement worker with matching capabilities
+        let replacement = self.find_replacement_worker(required_capabilities)?;
+
+        // Assign task to replacement
+        if let Some(agent) = self.agents.get_mut(&replacement) {
+            agent.status = AgentSwarmStatus::Running;
+            println!("[SwarmOrchestrator] Reassigned task to replacement worker '{}'", replacement);
+        }
+
+        Ok(replacement)
+    }
+
+    /// Find a replacement worker based on capabilities
+    fn find_replacement_worker(
+        &self,
+        required_capabilities: &[String],
+    ) -> Result<String, String> {
+        let available = self.get_available_agents(required_capabilities);
+
+        if available.is_empty() {
+            return Err("No replacement worker available with required capabilities".to_string());
+        }
+
+        // Select first available worker
+        Ok(available[0].id.clone())
+    }
+}
+
+/// Stage result for chain topology
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StageResult {
+    pub worker_id: String,
+    pub stage_index: usize,
+    pub input: String,
+    pub output: String,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+/// Swarm execution result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmResult {
+    pub final_output: String,
+    pub stages: Vec<StageResult>,
+    pub total_stages: usize,
+}
+
+/// Tauri command for chain execution
+#[tauri::command]
+pub fn swarm_execute_chain(
+    state: State<'_, AppState>,
+    task_description: String,
+    worker_ids: Vec<String>,
+) -> Result<SwarmResult, String> {
+    let mut orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+    orchestrator.execute_chain(&task_description, &worker_ids)
+}
+
+/// Tauri command for handling worker failure
+#[tauri::command]
+pub fn swarm_handle_failure(
+    state: State<'_, AppState>,
+    failed_worker_id: String,
+    task_description: String,
+    required_capabilities: Vec<String>,
+) -> Result<String, String> {
+    let mut orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
+    orchestrator.handle_worker_failure(&failed_worker_id, &task_description, &required_capabilities)
+}

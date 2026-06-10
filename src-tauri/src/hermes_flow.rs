@@ -384,12 +384,10 @@ impl HermesFlowOrchestrator {
 
     /// Execute a flow (non-async version for Tauri command)
     ///
-    /// TODO: This is currently a placeholder implementation.
-    /// Real implementation should:
+    /// TODO(Phase 2): Real implementation should:
     /// 1. Invoke skills through Executive Agent for each stage
     /// 2. Parse and store results in flow context
     /// 3. Handle stage failures with retry/fallback logic
-    /// Tracking issue: https://github.com/example/acp-ui/issues/XXX
     pub fn execute_flow_sync(&mut self, flow_id: &str) -> Result<FlowContext, String> {
         let _workflow = self.workflow_engine
             .get_workflow(flow_id)
@@ -403,23 +401,16 @@ impl HermesFlowOrchestrator {
         let ready_stages = self.workflow_engine.get_ready_stages(flow_id)?;
 
         for stage_id in ready_stages {
-            println!("[HermesFlow] Executing stage '{}' in flow '{}' (placeholder)", stage_id, flow_id);
+            println!("[HermesFlow] Executing stage '{}' in flow '{}'", stage_id, flow_id);
 
-            // TODO: Replace placeholder with actual skill invocation
-            // Placeholder result for now - real implementation would call Executive Agent
-            let result = StageResult {
-                agent_id: "claude-code-placeholder".to_string(),
-                success: true,
-                output: serde_json::json!({"stage": stage_id, "output": "placeholder - TODO: implement real execution"}),
-                tokens_used: 0, // Placeholder - no real tokens used
-                duration_ms: 0,
-                review: None,
-            };
-
-            self.workflow_engine.submit_stage_result(flow_id, &stage_id, result)?;
+            // TODO(Phase 2): Replace with actual Executive Agent skill invocation.
+            // For now, return an explicit error rather than fake data.
+            return Err(format!(
+                "Flow execution not yet implemented — stage '{}' in flow '{}' \
+                 requires Executive Agent integration (Phase 2)",
+                stage_id, flow_id
+            ));
         }
-
-        // TODO: Call update_flow_context with real parsed results from stage execution
 
         // Get final context
         let context = self.active_flows
@@ -427,7 +418,7 @@ impl HermesFlowOrchestrator {
             .cloned()
             .ok_or_else(|| format!("Flow '{}' context not found", flow_id))?;
 
-        println!("[HermesFlow] Flow '{}' execution completed (placeholder mode)", flow_id);
+        println!("[HermesFlow] Flow '{}' execution completed", flow_id);
         Ok(context)
     }
 

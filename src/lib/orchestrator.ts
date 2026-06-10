@@ -144,7 +144,7 @@ class Orchestrator {
 
     console.log(`Assigned ${node.id} to agent ${agent.id}`);
 
-    // Execute task (placeholder - would trigger actual agent execution)
+    // Execute task — TODO(Phase 4): trigger actual agent execution
     this.executeTask(dag, node, agent);
   }
 
@@ -152,7 +152,7 @@ class Orchestrator {
    * Execute task
    */
   private async executeTask(dag: TaskDAG, node: TaskNode, _agent: AgentInfo): Promise<void> {
-    // Placeholder - real implementation would invoke agent via ACP
+    // TODO(Phase 4): invoke agent via ACP
     // For now, simulate completion
 
     setTimeout(() => {

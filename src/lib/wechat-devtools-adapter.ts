@@ -113,7 +113,7 @@ class WeChatDevToolsAdapter {
    */
   async getProjectInfo(): Promise<WeChatProjectInfo | null> {
     try {
-      // Project info from CLI - placeholder implementation
+      // Project info from CLI — simplified
       await this.executeCommand('project-info', '--project', this.config.projectPath);
 
       // Parse project.json content
@@ -388,10 +388,10 @@ class WeChatDevToolsAdapter {
   }
 
   /**
-   * Execute CLI command (placeholder)
+   * Execute CLI command — TODO(Phase 4): implement via Tauri shell
    */
   private async executeCommand(...args: string[]): Promise<string> {
-    // Placeholder - would use Tauri shell
+    // TODO(Phase 4): use Tauri shell
     console.log('WeChat DevTools CLI:', this.config.cliPath, args.join(' '));
 
     return new Promise((resolve) => {

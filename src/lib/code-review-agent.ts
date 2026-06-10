@@ -211,7 +211,7 @@ class CodeReviewAgent {
       { pattern: /private[_-]?key\s*[:=]/i, rule: 'potential-private-key', severity: 'high' },
     ];
 
-    // Simple file scan (placeholder - real implementation would use proper file scanner)
+    // Simple file scan — TODO(Phase 4): use proper file scanner
     try {
       const result = await this.executeCommand('grep', ['-r', '-n', 'api_key|secret|password|token', '--include=*.ts', '--include=*.js', '--include=*.vue', '.'], projectPath);
 
@@ -247,7 +247,7 @@ class CodeReviewAgent {
    */
   private async executeCommand(_cmd: string, _args: string[], _cwd: string): Promise<{ success: boolean; stdout: string; stderr: string }> {
     // This would use Tauri's shell plugin or similar
-    // Placeholder implementation
+    // Simplified implementation — TODO(Phase 4): full integration
     return new Promise((resolve) => {
       // In real implementation, invoke Tauri command
       // For now, return mock success

@@ -56,7 +56,7 @@ class SkillsLoader {
       }
     } catch (e) {
       console.error(`Failed to load skill handler: ${handlerPath}`, e);
-      // Store placeholder handler that returns error
+      // Store fallback handler that returns error
       this.skillHandlers.set(skillId, async () => {
         throw new Error(`Skill handler not available: ${handlerPath}`);
       });

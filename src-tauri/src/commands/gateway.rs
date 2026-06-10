@@ -134,7 +134,7 @@ pub async fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: 
         }
     }
 
-    // Discord Bot (placeholder)
+    // Discord Bot — TODO(Phase 4): implement adapter
     if let Some(discord) = &config.discord {
         if discord.enabled {
             println!("Discord Bot enabled, Guild: {:?}", discord.guild_id);
@@ -179,7 +179,7 @@ pub async fn stop_gateway(app_handle: AppHandle, state: State<'_, AppState>) -> 
         println!("Telegram Bot stopped");
     }
 
-    // 4. Discord Bot (placeholder)
+    // 4. Discord Bot — TODO(Phase 4): implement adapter
 
     // Emit gateway stopped event
     let _ = app_handle.emit("gateway-stopped", ());

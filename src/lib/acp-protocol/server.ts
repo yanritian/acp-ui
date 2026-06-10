@@ -2,7 +2,7 @@
 // Allows other ACP clients to connect to ACP-UI
 //
 // @deprecated This module is an interface definition / scaffold.
-// Most methods are placeholder implementations — real WebSocket server
+// Most methods are scaffold implementations — real WebSocket server
 // requires Tauri plugin support or a Node.js sidecar.
 // TODO(Phase 2): Implement real server via tauri-plugin-websocket or sidecar.
 
@@ -50,9 +50,9 @@ export class ACPServer {
   // Start WebSocket server (requires Tauri plugin or sidecar)
   // TODO(Phase 2): Implement real server startup via tauri-plugin-websocket
   async start(_port: number = 8765): Promise<void> {
-    // Placeholder — server not yet implemented in current runtime.
+    // Scaffold — server not yet implemented in current runtime.
     // Callers should check isConnected before sending messages.
-    console.warn('[ACP Server] start() is a placeholder — real server not yet wired');
+    console.warn('[ACP Server] start() is a scaffold — real server not yet wired');
   }
 
   // Stop server

@@ -281,13 +281,13 @@ class OfflineCache {
   }
 
   /**
-   * Sync with server (placeholder)
+   * Sync with server — TODO(Phase 4): implement real sync
    */
   async syncWithServer(): Promise<{
     synced: number;
     failed: number;
   }> {
-    // Placeholder - would implement actual sync logic
+    // TODO(Phase 4): implement actual sync logic
     // This would push local changes and pull server updates
     return { synced: 0, failed: 0 };
   }

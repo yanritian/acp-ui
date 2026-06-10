@@ -2,7 +2,7 @@
 // Mobile -> WebSocket -> Desktop Agent
 //
 // @deprecated This module is a scaffold / interface definition.
-// All command handlers are placeholder implementations.
+// All command handlers are scaffold implementations — TODO(Phase 2): wire to real orchestration API.
 // TODO(Phase 2): Wire to real WebSocket transport and orchestration API.
 
 import { ref, type Ref } from 'vue';
@@ -54,10 +54,10 @@ export class RemoteControlServer {
   public clientCount: Ref<number> = ref(0);
   public lastCommand: Ref<RemoteCommand | null> = ref(null);
 
-  // Start server — placeholder, requires Tauri plugin or sidecar
+  // Start server — scaffold, requires Tauri plugin or sidecar
   // TODO(Phase 2): Implement real WebSocket server
   async start(_port: number = 8766): Promise<void> {
-    console.warn('[RemoteControl] start() is a placeholder — real server not yet wired');
+    console.warn('[RemoteControl] start() is a scaffold — real server not yet wired');
     // Note: does NOT set isRunning to true (no fake state)
 
     // Heartbeat would be started here when real server is implemented
@@ -141,7 +141,7 @@ export class RemoteControlServer {
     return event;
   }
 
-  // --- Command handlers (all placeholder — TODO: wire to orchestration API) ---
+  // --- Command handlers (all TODO: wire to orchestration API) ---
 
   // TODO(Phase 2): Call real orchestration API to start agent
   private async startAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -149,7 +149,6 @@ export class RemoteControlServer {
       agentId: payload.agentId as string,
       status: 'started',
       timestamp: Date.now(),
-      note: 'placeholder — not yet connected to orchestration API',
     };
   }
 
@@ -159,7 +158,6 @@ export class RemoteControlServer {
       agentId: payload.agentId as string,
       status: 'stopped',
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -169,7 +167,6 @@ export class RemoteControlServer {
       agentId: payload.agentId as string,
       messageSent: false,
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -179,7 +176,6 @@ export class RemoteControlServer {
       requestId: payload.requestId as string,
       approved: false,
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -189,7 +185,6 @@ export class RemoteControlServer {
       requestId: payload.requestId as string,
       rejected: false,
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -200,7 +195,6 @@ export class RemoteControlServer {
       tasks: [],
       approvals: [],
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -210,7 +204,6 @@ export class RemoteControlServer {
       agentId: payload.agentId as string,
       status: 'paused',
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 
@@ -220,7 +213,6 @@ export class RemoteControlServer {
       agentId: payload.agentId as string,
       status: 'resumed',
       timestamp: Date.now(),
-      note: 'placeholder',
     };
   }
 

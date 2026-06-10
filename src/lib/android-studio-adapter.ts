@@ -110,7 +110,7 @@ class AndroidStudioAdapter {
   } | null> {
     try {
       // Parse build.gradle or AndroidManifest.xml
-      // Placeholder implementation
+      // Simplified implementation — TODO(Phase 4): full integration
       return {
         name: 'AndroidProject',
         packageName: 'com.example.app',

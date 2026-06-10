@@ -222,7 +222,7 @@ impl SyncEngine {
             id: id.clone(),
             entity_type: entity_type.clone(),
             data,
-            version: 0, // placeholder, set in transaction
+            version: 0, // Will be set to actual version in the database transaction
             updated_at: now,
             source: self.current_source.clone(),
             checksum,

@@ -126,13 +126,13 @@ impl AgentConfigParser {
 
         // Validate MCP servers exist
         for mcp in &config.mcp_servers {
-            // Check if MCP config exists (placeholder)
+            // TODO(Phase 4): Validate MCP server config at parse time
             warnings.push(format!("MCP server '{}' will be validated at runtime", mcp));
         }
 
         // Validate skills exist
         for skill in &config.skills {
-            // Check if skill exists (placeholder)
+            // TODO(Phase 4): Validate skill registration at parse time
             warnings.push(format!("Skill '{}' will be validated at runtime", skill));
         }
 

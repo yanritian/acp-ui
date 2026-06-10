@@ -456,10 +456,12 @@ impl HealingExecutor {
         Ok(action_clone)
     }
 
-    /// Find an anomaly by ID (placeholder - in real system would query a store)
+    /// Find an anomaly by ID.
+    ///
+    /// TODO(Phase 4): Query from persistent storage instead of returning synthetic data.
     fn find_anomaly_by_id(&self, anomaly_id: &str) -> Result<AnomalyRecord, String> {
-        // Create a synthetic anomaly for demonstration
-        // In production, you'd look this up from persistent storage
+        // TODO(Phase 4): Replace with real database lookup.
+        // Currently returns a default record for compilation completeness.
         Ok(AnomalyRecord {
             id: anomaly_id.to_string(),
             anomaly_type: AnomalyType::HighErrorRate, // Default type

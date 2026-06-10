@@ -133,8 +133,7 @@ impl TaskPartitioner {
 
     /// Analyze a task and determine if decomposition is needed
     pub fn analyze_task(&self, prompt: &str) -> TaskAnalysisResult {
-        // Use smart_router's TaskAnalyzer for complexity evaluation
-        // Placeholder: In production, would call smart_router methods
+        // Heuristic-based task analysis (deprecated — use Goal system instead)
 
         // Determine task type based on prompt content
         let task_type = self.detect_task_type(prompt);
@@ -256,10 +255,9 @@ impl TaskPartitioner {
         ((matched as f32 / required.len() as f32) * 10.0) as u8
     }
 
-    /// Create subtasks from decomposition
+    /// Create subtasks from decomposition (deprecated — use GoalGraph instead)
     fn create_subtasks(&self, prompt: &str, analysis: &TaskAnalysisResult) -> Vec<SubTask> {
-        // Placeholder: In production, would use Queen Agent (Claude Code) to decompose
-        // For now, simple heuristic-based decomposition
+        // Heuristic-based decomposition
 
         let shard_count = analysis.recommended_shards.min(self.max_shards);
 

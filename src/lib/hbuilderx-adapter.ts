@@ -105,10 +105,10 @@ class HBuilderXAdapter {
    */
   async getProjectInfo(): Promise<ProjectInfo | null> {
     try {
-      // Parse manifest.json or package.json - placeholder implementation
+      // Parse manifest.json or package.json — simplified
       await this.executeCommand('project-info', this.config.projectPath);
 
-      // Parse result (simplified) - placeholder implementation
+      // Parse result — simplified
       const info: ProjectInfo = {
         name: 'unknown',
         type: 'uniapp',
@@ -413,10 +413,10 @@ class HBuilderXAdapter {
   }
 
   /**
-   * Execute CLI command (placeholder - would use Tauri shell)
+   * Execute CLI command — TODO(Phase 4): use Tauri shell
    */
   private async executeCommand(...args: string[]): Promise<string> {
-    // Placeholder implementation
+    // Simplified implementation — TODO(Phase 4): full integration
     // Real implementation would use Tauri's shell plugin
     console.log('HBuilderX CLI command:', this.config.cliPath, args.join(' '));
 

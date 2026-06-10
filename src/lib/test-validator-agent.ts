@@ -220,7 +220,7 @@ class TestValidatorAgent {
    * Execute command
    */
   private async executeCommand(_projectPath: string, _command: string): Promise<string> {
-    // Placeholder - would use Tauri shell
+    // TODO(Phase 4): use Tauri shell
     return '';
   }
 

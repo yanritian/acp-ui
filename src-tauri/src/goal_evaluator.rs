@@ -7,7 +7,7 @@
 //! - `FileCheck` → filesystem check
 //! - `HttpHealthCheck` → HTTP request
 //! - `All` / `Any` → compound logic
-//! - `QueenJudgment` → placeholder (requires Queen worker, handled in reconcile.rs)
+//! - `QueenJudgment` → deferred to reconcile.rs (requires Queen worker)
 
 use crate::goal::{
     CompletionCondition, ConditionResult, EvaluationResult,

@@ -1,72 +1,17 @@
 <!-- Swarm Dashboard - Real-time visualization of agent swarm execution -->
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { useSwarmStore } from '@/stores/swarm'
+import {
+  swarmSendTask,
+  swarmGetTaskOutput,
+  type WorkerCapabilities,
+  type WorkerStatus,
+  type TaskHandle,
+} from '@/lib/swarm-api'
+import { isTauriHost } from '@/lib/platform'
 
-// Types
-interface WorkerCapabilities {
-  workerId: string
-  workerType: string
-  capabilities: string[]
-  maxComplexity: number
-  maxConcurrent: number
-  supportsStreaming: boolean
-  supportsCancel: boolean
-  defaultTimeoutMs: number
-}
-
-interface WorkerStatus {
-  workerId: string
-  workerType: string
-  health: 'healthy' | 'busy' | 'starting' | 'stopping' | 'unhealthy' | 'offline'
-  pid: number | null
-  memoryBytes: number | null
-  cpuPercent: number | null
-  tasksCompleted: number
-  tasksFailed: number
-  currentTask: string | null
-  startedAt: { timestampMs: number } | null
-  lastHeartbeat: { timestampMs: number } | null
-}
-
-interface TaskHandle {
-  taskId: string
-  workerId: string
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'timeout'
-  startedAt: { timestampMs: number }
-  output: string
-  error: string | null
-  pid: number | null
-}
-
-interface ShardGroup {
-  taskId: string
-  originalPrompt: string
-  status: 'partitioning' | 'assigning' | 'executing' | 'aggregating' | 'completed' | 'failed' | 'cancelled'
-  shardCount: number
-  completedCount: number
-  failedCount: number
-  finalResult: string | null
-  errors: string[]
-}
-
-interface QueenLease {
-  leaseId: string
-  queenId: string
-  grantedAt: { timestampMs: number }
-  ttlSeconds: number
-  expiresAt: { timestampMs: number }
-  isValid: boolean
-  renewalCount: number
-}
-
-// State
-const workers = ref<WorkerCapabilities[]>([])
-const workerStatuses = ref<Map<string, WorkerStatus>>(new Map())
-const activeTasks = ref<Map<string, TaskHandle>>(new Map())
-const shardGroups = ref<Map<string, ShardGroup>>(new Map())
-const queenLease = ref<QueenLease | null>(null)
+const swarm = useSwarmStore()
 
 // Form state
 const workerTypeInput = ref<'codex' | 'claude_code'>('codex')
@@ -80,127 +25,110 @@ const isExecutingTask = ref(false)
 const selectedWorkerId = ref<string | null>(null)
 const eventLog = ref<string[]>([])
 
+// Local state not in store
+const activeTasks = ref<Map<string, TaskHandle>>(new Map())
+
 // Computed
 const healthyWorkers = computed(() =>
-  workers.value.filter(w => {
-    const status = workerStatuses.value.get(w.workerId)
-    return status && (status.health === 'healthy' || status.health === 'busy')
-  })
+  swarm.workers.filter(w =>
+    w.status?.health === 'healthy' || w.status?.health === 'busy'
+  )
 )
 
-const queenWorker = computed(() => {
-  if (!queenLease.value?.isValid) return null
-  return workers.value.find(w => w.workerId === queenLease.value?.queenId)
+const queenWorkerCaps = computed(() => {
+  if (!swarm.queenWorkerId) return null
+  return swarm.workers.find(w => w.id === swarm.queenWorkerId)?.capabilities ?? null
 })
 
-const swarmStatus = computed(() => {
-  if (!queenLease.value?.isValid) return 'no_queen'
-  const runningTasks = Array.from(activeTasks.value.values())
-    .filter(t => t.status === 'running').length
-  return runningTasks > 0 ? 'executing' : 'ready'
+const swarmStatusLabel = computed(() => {
+  return swarm.swarmStatus
 })
 
 // Methods
+function log(msg: string) {
+  eventLog.value.push(msg)
+}
+
 async function registerWorker() {
   if (!workerIdInput.value) {
-    eventLog.value.push('[Error] Worker ID required')
+    log('[Error] Worker ID required')
     return
   }
 
   isRegisteringWorker.value = true
   try {
-    const capabilities = await invoke<WorkerCapabilities>('swarm_register_worker', {
-      workerType: workerTypeInput.value,
-      workerId: workerIdInput.value
-    })
-    workers.value.push(capabilities)
-    eventLog.value.push(`[OK] Registered ${capabilities.workerType} (${capabilities.workerId})`)
+    const caps = await swarm.registerWorker(workerTypeInput.value, workerIdInput.value)
+    log(`[OK] Registered ${caps.workerType} (${caps.workerId})`)
     workerIdInput.value = ''
   } catch (e) {
-    eventLog.value.push(`[Error] Failed to register: ${e}`)
+    log(`[Error] Failed to register: ${e}`)
   } finally {
     isRegisteringWorker.value = false
   }
 }
 
-async function refreshWorkerStatus() {
-  for (const worker of workers.value) {
-    try {
-      const status = await invoke<WorkerStatus>('swarm_get_worker_status', {
-        workerId: worker.workerId
-      })
-      workerStatuses.value.set(worker.workerId, status)
-    } catch (e) {
-      eventLog.value.push(`[Warn] Failed to get status for ${worker.workerId}: ${e}`)
-    }
-  }
+async function refreshWorkerStatuses() {
+  await swarm.loadWorkers()
 }
 
 async function healthCheck(workerId: string) {
   try {
-    const healthy = await invoke<boolean>('swarm_health_check', { workerId })
-    eventLog.value.push(`[Health] ${workerId}: ${healthy ? 'OK' : 'FAIL'}`)
+    const ok = await swarm.checkWorkerHealth(workerId)
+    log(`[Health] ${workerId}: ${ok ? 'OK' : 'FAIL'}`)
   } catch (e) {
-    eventLog.value.push(`[Error] Health check failed: ${e}`)
+    log(`[Error] Health check failed: ${e}`)
   }
 }
 
 async function executeTask() {
   if (!taskPromptInput.value) {
-    eventLog.value.push('[Error] Task prompt required')
+    log('[Error] Task prompt required')
     return
   }
 
-  const availableWorkers = healthyWorkers.value
-  if (availableWorkers.length === 0) {
-    eventLog.value.push('[Error] No healthy workers available')
+  const available = healthyWorkers.value
+  if (available.length === 0) {
+    log('[Error] No healthy workers available')
     return
   }
 
   isExecutingTask.value = true
 
-  // Demo: Use Queen to decompose and Workers to execute
-  const queen = queenWorker.value || availableWorkers[0]
+  const queen = queenWorkerCaps.value || available[0].capabilities
   const taskId = `task-${Date.now()}`
 
   try {
-    // Step 1: Send task to Queen for decomposition
-    eventLog.value.push(`[Queen] Sending task to ${queen.workerId} for decomposition...`)
+    log(`[Queen] Sending task to ${queen.workerId} for decomposition...`)
 
-    const handle = await invoke<TaskHandle>('swarm_send_task', {
-      workerId: queen.workerId,
-      taskId: `${taskId}-decompose`,
-      prompt: `Analyze and decompose this task into subtasks: ${taskPromptInput.value}`,
-      workingDir: null,
-      timeoutMs: 30000
-    })
+    const handle = await swarmSendTask(
+      queen.workerId,
+      `${taskId}-decompose`,
+      `Analyze and decompose this task into subtasks: ${taskPromptInput.value}`
+    )
 
     activeTasks.value.set(handle.taskId, handle)
-    eventLog.value.push(`[Task] ${handle.taskId} started on ${handle.workerId}`)
+    log(`[Task] ${handle.taskId} started on ${handle.workerId}`)
 
-    // Step 2: Distribute subtasks to other workers (simplified)
-    if (topologyInput.value === 'star' && availableWorkers.length > 1) {
-      // Assign subtasks to workers
-      for (let i = 1; i < Math.min(availableWorkers.length, 4); i++) {
-        const subWorker = availableWorkers[i]
+    // Star topology: distribute subtasks
+    if (topologyInput.value === 'star' && available.length > 1) {
+      for (let i = 1; i < Math.min(available.length, 4); i++) {
+        const subWorker = available[i].capabilities
         const subTaskId = `${taskId}-sub-${i}`
 
-        const subHandle = await invoke<TaskHandle>('swarm_send_task', {
-          workerId: subWorker.workerId,
-          taskId: subTaskId,
-          prompt: `Execute subtask ${i} of: ${taskPromptInput.value}`,
-          workingDir: null,
-          timeoutMs: 60000
-        })
+        const subHandle = await swarmSendTask(
+          subWorker.workerId,
+          subTaskId,
+          `Execute subtask ${i} of: ${taskPromptInput.value}`
+        )
 
         activeTasks.value.set(subHandle.taskId, subHandle)
-        eventLog.value.push(`[Worker] ${subWorker.workerId} assigned subtask ${i}`)
+        log(`[Worker] ${subWorker.workerId} assigned subtask ${i}`)
       }
     }
 
-    eventLog.value.push(`[Swarm] Task ${taskId} executing with ${activeTasks.value.size} workers`)
+    log(`[Swarm] Task ${taskId} executing with ${activeTasks.value.size} workers`)
   } catch (e) {
-    eventLog.value.push(`[Error] Task execution failed: ${e}`)
+    log(`[Error] Task execution failed: ${e}`)
   } finally {
     isExecutingTask.value = false
   }
@@ -208,107 +136,102 @@ async function executeTask() {
 
 async function getTaskOutput(taskId: string, workerId: string) {
   try {
-    const output = await invoke<string>('swarm_get_task_output', {
-      workerId,
-      taskId
-    })
-    eventLog.value.push(`[Output] ${taskId}: ${output.substring(0, 200)}...`)
+    const output = await swarmGetTaskOutput(workerId, taskId)
+    log(`[Output] ${taskId}: ${output.substring(0, 200)}...`)
     return output
   } catch (e) {
-    eventLog.value.push(`[Error] Failed to get output: ${e}`)
+    log(`[Error] Failed to get output: ${e}`)
     return null
   }
 }
 
 async function cancelTask(taskId: string, workerId: string) {
   try {
-    await invoke('swarm_cancel_task', { workerId, taskId })
+    await swarm.cancelWorkerTask(workerId, taskId)
     const task = activeTasks.value.get(taskId)
     if (task) {
       task.status = 'cancelled'
     }
-    eventLog.value.push(`[Cancel] ${taskId} cancelled`)
+    log(`[Cancel] ${taskId} cancelled`)
   } catch (e) {
-    eventLog.value.push(`[Error] Cancel failed: ${e}`)
+    log(`[Error] Cancel failed: ${e}`)
   }
 }
 
 async function shutdownWorker(workerId: string) {
   try {
-    await invoke('swarm_shutdown_worker', { workerId })
-    workers.value = workers.value.filter(w => w.workerId !== workerId)
-    workerStatuses.value.delete(workerId)
-    eventLog.value.push(`[Shutdown] ${workerId} stopped`)
+    await swarm.shutdownWorkerById(workerId)
+    log(`[Shutdown] ${workerId} stopped`)
   } catch (e) {
-    eventLog.value.push(`[Error] Shutdown failed: ${e}`)
+    log(`[Error] Shutdown failed: ${e}`)
   }
 }
 
-// Event listeners
-let unlisten: (() => void)[] = []
+// Event listeners — only in Tauri mode
+let unlistenFns: (() => void)[] = []
 
 onMounted(async () => {
-  // Listen to swarm events
-  unlisten.push(
-    await listen('swarm-task-completed', (event) => {
-      const payload = event.payload as { taskId: string; workerId: string; output: string }
-      eventLog.value.push(`[Complete] ${payload.taskId} by ${payload.workerId}`)
-      const task = activeTasks.value.get(payload.taskId)
-      if (task) {
-        task.status = 'completed'
-        task.output = payload.output
-      }
-    })
-  )
-
-  unlisten.push(
-    await listen('swarm-worker-status', (event) => {
-      const status = event.payload as WorkerStatus
-      workerStatuses.value.set(status.workerId, status)
-    })
-  )
-
-  unlisten.push(
-    await listen('queen-lease-update', (event) => {
-      queenLease.value = event.payload as QueenLease
-    })
-  )
-
-  // Refresh status periodically
-  const intervalId = setInterval(refreshWorkerStatus, 5000)
-  unlisten.push(() => clearInterval(intervalId))
-
   // Initial load
-  try {
-    const registered = await invoke<WorkerCapabilities[]>('swarm_list_workers')
-    workers.value = registered
-  } catch (e) {
-    // No workers registered yet
+  await swarm.loadWorkers()
+
+  // Tauri-only event listeners (Web mode uses polling fallback)
+  if (isTauriHost()) {
+    try {
+      const { listen } = await import('@tauri-apps/api/event')
+
+      unlistenFns.push(
+        await listen('swarm-task-completed', (event) => {
+          const payload = event.payload as { taskId: string; workerId: string; output: string }
+          log(`[Complete] ${payload.taskId} by ${payload.workerId}`)
+          const task = activeTasks.value.get(payload.taskId)
+          if (task) {
+            task.status = 'completed'
+            task.output = payload.output
+          }
+        })
+      )
+
+      unlistenFns.push(
+        await listen('swarm-worker-status', (event) => {
+          const status = event.payload as WorkerStatus
+          const worker = swarm.workers.find(w => w.id === status.workerId)
+          if (worker) {
+            worker.status = status
+          }
+        })
+      )
+    } catch {
+      // Event system not available — fall back to polling
+    }
   }
+
+  // Periodic status refresh (both modes)
+  const intervalId = setInterval(refreshWorkerStatuses, 5000)
+  unlistenFns.push(() => clearInterval(intervalId))
 })
 
 onUnmounted(() => {
-  unlisten.forEach(fn => fn())
+  unlistenFns.forEach(fn => fn())
 })
 
 // Helper functions
-function getHealthColor(health: string): string {
+function getHealthColor(health: string | undefined): string {
   const colors: Record<string, string> = {
     healthy: 'text-green-500',
     busy: 'text-blue-500',
     starting: 'text-yellow-500',
     stopping: 'text-orange-500',
     unhealthy: 'text-red-500',
-    offline: 'text-gray-400'
+    offline: 'text-gray-400',
   }
-  return colors[health] || 'text-gray-400'
+  return colors[health || 'offline'] || 'text-gray-400'
 }
 
 function formatCapabilities(caps: string[]): string {
   return caps.slice(0, 3).join(', ') + (caps.length > 3 ? '...' : '')
 }
 
-function formatBytes(bytes: number | null): string {
+function formatBytes(bytes: number | null | undefined): string {
   if (!bytes) return 'N/A'
   if (bytes < 1024) return `${bytes}B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
@@ -326,16 +249,16 @@ function formatBytes(bytes: number | null): string {
 
     <!-- Swarm Status Banner -->
     <div class="mb-4 p-3 rounded-lg" :class="{
-      'bg-green-100 border-green-300': swarmStatus === 'ready',
-      'bg-blue-100 border-blue-300': swarmStatus === 'executing',
-      'bg-yellow-100 border-yellow-300': swarmStatus === 'no_queen'
+      'bg-green-100 border-green-300': swarmStatusLabel === 'ready',
+      'bg-blue-100 border-blue-300': swarmStatusLabel === 'executing',
+      'bg-yellow-100 border-yellow-300': swarmStatusLabel === 'no_queen' || swarmStatusLabel === 'no_workers',
     }">
       <div class="flex items-center gap-2">
         <span class="font-semibold">Swarm Status:</span>
-        <span class="uppercase">{{ swarmStatus }}</span>
-        <span v-if="queenWorker" class="ml-4">
-          Queen: <span class="font-mono">{{ queenWorker.workerId }}</span>
-          ({{ queenWorker.workerType }})
+        <span class="uppercase">{{ swarmStatusLabel }}</span>
+        <span v-if="queenWorkerCaps" class="ml-4">
+          Queen: <span class="font-mono">{{ queenWorkerCaps.workerId }}</span>
+          ({{ queenWorkerCaps.workerType }})
         </span>
       </div>
     </div>
@@ -362,7 +285,7 @@ function formatBytes(bytes: number | null): string {
         </div>
         <button
           @click="registerWorker"
-          :disabled="isRegisteringWorker"
+          :disabled="isRegisteringWorker || swarm.loading"
           class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
         >
           {{ isRegisteringWorker ? 'Registering...' : 'Register' }}
@@ -372,23 +295,23 @@ function formatBytes(bytes: number | null): string {
 
     <!-- Worker Cards -->
     <section class="mb-6">
-      <h2 class="text-lg font-semibold mb-3">Workers ({{ workers.length }})</h2>
+      <h2 class="text-lg font-semibold mb-3">Workers ({{ swarm.workers.length }})</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div
-          v-for="worker in workers"
-          :key="worker.workerId"
+          v-for="worker in swarm.workers"
+          :key="worker.id"
           class="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md"
-          :class="{ 'ring-2 ring-blue-500': selectedWorkerId === worker.workerId }"
-          @click="selectedWorkerId = worker.workerId"
+          :class="{ 'ring-2 ring-blue-500': selectedWorkerId === worker.id }"
+          @click="selectedWorkerId = worker.id"
         >
           <!-- Worker Header -->
           <div class="flex justify-between items-center mb-2">
-            <span class="font-mono font-semibold">{{ worker.workerId }}</span>
+            <span class="font-mono font-semibold">{{ worker.id }}</span>
             <span
-              :class="getHealthColor(workerStatuses.get(worker.workerId)?.health || 'offline')"
+              :class="getHealthColor(worker.status?.health)"
               class="font-medium"
             >
-              {{ workerStatuses.get(worker.workerId)?.health || 'offline' }}
+              {{ worker.status?.health || 'offline' }}
             </span>
           </div>
 
@@ -397,58 +320,58 @@ function formatBytes(bytes: number | null): string {
             <span
               class="px-2 py-1 rounded text-xs font-medium"
               :class="{
-                'bg-purple-100 text-purple-800': worker.workerType === 'claude_code',
-                'bg-green-100 text-green-800': worker.workerType === 'codex'
+                'bg-purple-100 text-purple-800': worker.capabilities.workerType === 'claude_code',
+                'bg-green-100 text-green-800': worker.capabilities.workerType === 'codex',
               }"
             >
-              {{ worker.workerType }}
+              {{ worker.capabilities.workerType }}
             </span>
-            <span v-if="queenWorker?.workerId === worker.workerId" class="ml-2 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+            <span v-if="swarm.queenWorkerId === worker.id" class="ml-2 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
               QUEEN
             </span>
           </div>
 
           <!-- Capabilities -->
           <div class="text-sm text-gray-600 mb-2">
-            {{ formatCapabilities(worker.capabilities) }}
+            {{ formatCapabilities(worker.capabilities.capabilities) }}
           </div>
 
           <!-- Stats -->
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span class="text-gray-500">Tasks:</span>
-              <span class="ml-1">{{ workerStatuses.get(worker.workerId)?.tasksCompleted || 0 }}/{{ workerStatuses.get(worker.workerId)?.tasksFailed || 0 }}</span>
+              <span class="ml-1">{{ worker.status?.tasksCompleted || 0 }}/{{ worker.status?.tasksFailed || 0 }}</span>
             </div>
             <div>
               <span class="text-gray-500">PID:</span>
-              <span class="ml-1">{{ workerStatuses.get(worker.workerId)?.pid || 'N/A' }}</span>
+              <span class="ml-1">{{ worker.status?.pid || 'N/A' }}</span>
             </div>
             <div>
               <span class="text-gray-500">Memory:</span>
-              <span class="ml-1">{{ formatBytes(workerStatuses.get(worker.workerId)?.memoryBytes ?? null) }}</span>
+              <span class="ml-1">{{ formatBytes(worker.status?.memoryBytes) }}</span>
             </div>
             <div>
               <span class="text-gray-500">CPU:</span>
-              <span class="ml-1">{{ workerStatuses.get(worker.workerId)?.cpuPercent?.toFixed(1) || 'N/A' }}%</span>
+              <span class="ml-1">{{ worker.status?.cpuPercent?.toFixed(1) || 'N/A' }}%</span>
             </div>
           </div>
 
           <!-- Current Task -->
-          <div v-if="workerStatuses.get(worker.workerId)?.currentTask" class="mt-2 p-2 bg-blue-50 rounded text-sm">
+          <div v-if="worker.status?.currentTask" class="mt-2 p-2 bg-blue-50 rounded text-sm">
             <span class="text-gray-500">Current:</span>
-            <span class="ml-1 font-mono">{{ workerStatuses.get(worker.workerId)?.currentTask }}</span>
+            <span class="ml-1 font-mono">{{ worker.status.currentTask }}</span>
           </div>
 
           <!-- Actions -->
           <div class="mt-3 flex gap-2">
             <button
-              @click.stop="healthCheck(worker.workerId)"
+              @click.stop="healthCheck(worker.id)"
               class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
             >
               Health
             </button>
             <button
-              @click.stop="shutdownWorker(worker.workerId)"
+              @click.stop="shutdownWorker(worker.id)"
               class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded"
             >
               Shutdown
@@ -486,7 +409,7 @@ function formatBytes(bytes: number | null): string {
         </button>
       </div>
       <div v-if="healthyWorkers.length === 0" class="mt-2 text-sm text-yellow-600">
-        ⚠️ No healthy workers available. Register workers first.
+        No healthy workers available. Register workers first.
       </div>
     </section>
 
@@ -510,7 +433,7 @@ function formatBytes(bytes: number | null): string {
                 'bg-yellow-100 text-yellow-800': task.status === 'running',
                 'bg-green-100 text-green-800': task.status === 'completed',
                 'bg-red-100 text-red-800': task.status === 'failed',
-                'bg-gray-100 text-gray-800': task.status === 'cancelled'
+                'bg-gray-100 text-gray-800': task.status === 'cancelled',
               }"
             >
               {{ task.status }}
@@ -549,8 +472,8 @@ function formatBytes(bytes: number | null): string {
     <section class="bg-white rounded-lg shadow p-4">
       <h2 class="text-lg font-semibold mb-3">Event Log</h2>
       <div class="bg-gray-900 text-green-400 p-3 rounded font-mono text-sm max-h-60 overflow-auto">
-        <div v-for="(log, i) in eventLog.slice(-50)" :key="i" class="mb-1">
-          {{ log }}
+        <div v-for="(msg, i) in eventLog.slice(-50)" :key="i" class="mb-1">
+          {{ msg }}
         </div>
         <div v-if="eventLog.length === 0" class="text-gray-500">
           No events yet

@@ -11,7 +11,7 @@ describe('Swarm Worker API', () => {
   const testWorkerId = 'claude-code-test-1'
   const testWorkerType = 'claude_code'
 
-  test.skip('should register Claude Code worker', async () => {
+  test('should register Claude Code worker', async () => {
     const capabilities = await swarmRegisterWorker(testWorkerType, testWorkerId)
 
     expect(capabilities.workerId).toBe(testWorkerId)
@@ -21,20 +21,20 @@ describe('Swarm Worker API', () => {
     expect(capabilities.supportsStreaming).toBe(true)
   })
 
-  test.skip('should list registered workers', async () => {
+  test('should list registered workers', async () => {
     const workers = await swarmListWorkers()
 
     expect(workers.length).toBeGreaterThanOrEqual(1)
     expect(workers.some(w => w.workerId === testWorkerId)).toBe(true)
   })
 
-  test.skip('should health check worker', async () => {
+  test('should health check worker', async () => {
     const healthy = await swarmHealthCheck(testWorkerId)
 
     expect(typeof healthy).toBe('boolean')
   })
 
-  test.skip('should get worker status', async () => {
+  test('should get worker status', async () => {
     const status = await swarmGetWorkerStatus(testWorkerId)
 
     expect(status.workerId).toBe(testWorkerId)
@@ -42,7 +42,7 @@ describe('Swarm Worker API', () => {
     expect(['healthy', 'busy', 'starting', 'offline']).toContain(status.health)
   })
 
-  test.skip('should send task to worker', async () => {
+  test('should send task to worker', async () => {
     const taskId = `test-task-${Date.now()}`
     const handle = await swarmSendTask(
       testWorkerId,
@@ -57,7 +57,7 @@ describe('Swarm Worker API', () => {
     expect(['pending', 'running']).toContain(handle.status)
   })
 
-  test.skip('should shutdown worker', async () => {
+  test('should shutdown worker', async () => {
     await swarmShutdownWorker(testWorkerId)
 
     // After shutdown, health check should fail
@@ -67,7 +67,7 @@ describe('Swarm Worker API', () => {
 })
 
 describe('Swarm Orchestrator Client', () => {
-  test.skip('should initialize orchestrator', async () => {
+  test('should initialize orchestrator', async () => {
     const { SwarmOrchestratorClient } = await import('../src/lib/swarm-api')
     const client = new SwarmOrchestratorClient()
 

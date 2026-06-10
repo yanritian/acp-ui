@@ -2,28 +2,35 @@
 //!
 //! Manages `codex --full-auto` subprocess with real-time output streaming.
 //! Codex operates in autonomous mode, executing tasks without interactive prompts.
+//!
+//! ## Process Model
+//!
+//! Each task spawns a fresh `codex` process:
+//! 1. Prompt is passed as a command-line argument (codex accepts the prompt directly)
+//! 2. stdout/stderr are read in background threads
+//! 3. When the process exits, the task is marked Completed/Failed
 
 use super::*;
+use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
 
 /// Adapter for Codex CLI
 ///
-/// Codex is an autonomous coding agent that can execute complex tasks
-/// without requiring step-by-step guidance.
+/// Codex is an autonomous coding agent that can execute complex tasks.
 ///
-/// Command: `codex --full-auto`
-/// - Reads prompts from stdin
+/// Command: `codex -q "prompt" --full-auto`
+/// - Reads prompt from command line argument (-q for quiet/quick mode)
 /// - Writes output to stdout
 /// - Errors to stderr
+/// - Exits when execution is complete
 pub struct CodexAdapter {
     /// Worker ID
     worker_id: WorkerId,
     /// Worker type
     worker_type: String,
-    /// Current subprocess (if running)
+    /// Current subprocess (if running) — for cancel / health check
     process: Arc<Mutex<Option<Child>>>,
     /// Current status
     status: Arc<Mutex<WorkerStatus>>,
@@ -33,8 +40,6 @@ pub struct CodexAdapter {
     outputs: Arc<Mutex<HashMap<TaskId, String>>>,
     /// Capabilities
     capabilities: WorkerCapabilities,
-    /// Output reader thread handle
-    reader_thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 impl CodexAdapter {
@@ -51,11 +56,11 @@ impl CodexAdapter {
                 "refactoring".to_string(),
                 "git_operations".to_string(),
             ],
-            max_complexity: 5, // Codex can handle very complex tasks
-            max_concurrent: 1, // Single task at a time
+            max_complexity: 5,
+            max_concurrent: 1,
             supports_streaming: true,
             supports_cancel: true,
-            default_timeout_ms: 300000, // 5 minutes
+            default_timeout_ms: 300_000, // 5 minutes
         };
 
         let status = WorkerStatus {
@@ -80,21 +85,20 @@ impl CodexAdapter {
             tasks: Arc::new(Mutex::new(HashMap::new())),
             outputs: Arc::new(Mutex::new(HashMap::new())),
             capabilities,
-            reader_thread: Arc::new(Mutex::new(None)),
         }
     }
 
-    /// Start the Codex process
-    fn start_process(&self, working_dir: Option<&str>) -> Result<(), SwarmError> {
-        // Check if process already running
-        if self.process.lock().unwrap().is_some() {
-            return Ok(());
-        }
-
-        // Build command
+    /// Spawn a fresh `codex` process with the given prompt.
+    fn spawn_codex_process(
+        &self,
+        prompt: &str,
+        working_dir: Option<&str>,
+    ) -> Result<Child, SwarmError> {
         let mut cmd = Command::new("codex");
+        cmd.arg("-q"); // quiet/non-interactive
         cmd.arg("--full-auto");
-        cmd.stdin(Stdio::piped());
+        cmd.arg(prompt); // pass prompt as CLI argument
+        cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
@@ -102,99 +106,29 @@ impl CodexAdapter {
             cmd.current_dir(dir);
         }
 
-        // Spawn process
-        let child = cmd.spawn()
-            .map_err(|e| SwarmError::ProcessStartFailed(format!("Failed to spawn codex: {}", e)))?;
-
-        let pid = child.id();
-
-        // Store process
-        *self.process.lock().unwrap() = Some(child);
-
-        // Update status
-        {
-            let mut status = self.status.lock().unwrap();
-            status.pid = Some(pid);
-            status.health = HealthStatus::Starting;
-            status.started_at = Some(InstantWrapper::from(Instant::now()));
-        }
-
-        // Start output reader thread
-        self.start_output_reader();
-
-        Ok(())
+        cmd.spawn()
+            .map_err(|e| SwarmError::ProcessStartFailed(format!("Failed to spawn codex: {}", e)))
     }
 
-    /// Start background thread to read stdout/stderr
-    fn start_output_reader(&self) {
-        // Note: In a real implementation, we would take stdout/stderr from the child
-        // and read them in a background thread. For now, this is a placeholder.
-
-        let _outputs = self.outputs.clone();
-        let status = self.status.clone();
-
-        let handle = thread::spawn(move || {
-            // Placeholder: In production, this would:
-            // 1. Take ownership of stdout/stderr from child process
-            // 2. Read lines in a loop
-            // 3. Append to appropriate task output
-            // 4. Update status based on output patterns
-
-            // Simulate heartbeat updates
-            loop {
-                thread::sleep(Duration::from_secs(10));
-
-                let mut st = status.lock().unwrap();
-                if st.health == HealthStatus::Starting {
-                    st.health = HealthStatus::Healthy;
-                }
-                st.last_heartbeat = Some(InstantWrapper::from(Instant::now()));
-
-                // Break if process is no longer running
-                if st.health == HealthStatus::Offline {
-                    break;
-                }
-            }
-        });
-
-        *self.reader_thread.lock().unwrap() = Some(handle);
-    }
-
-    /// Send prompt to Codex via stdin
-    fn send_prompt(&self, prompt: &str) -> Result<(), SwarmError> {
-        let mut process_guard = self.process.lock().unwrap();
-
-        if let Some(ref mut _child) = *process_guard {
-            // In production: write to child.stdin
-            // For now, this is a placeholder
-            println!("[CodexAdapter] Would send prompt to stdin: {}", prompt);
-            Ok(())
-        } else {
-            Err(SwarmError::WorkerCrashed("Process not running".to_string()))
-        }
-    }
-
-    /// Kill the process
+    /// Kill the currently tracked process (if any)
     fn kill_process(&self) -> Result<(), SwarmError> {
-        let mut process_guard = self.process.lock().unwrap();
+        let mut process_guard = self
+            .process
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("process lock poisoned: {}", e)))?;
 
         if let Some(ref mut child) = *process_guard {
-            child.kill()
-                .map_err(|e| SwarmError::InternalError(format!("Failed to kill process: {}", e)))?;
-
-            // Wait for process to exit
-            child.wait()
-                .map_err(|e| SwarmError::InternalError(format!("Failed to wait for process: {}", e)))?;
-
+            let _ = child.kill();
+            let _ = child.wait();
             *process_guard = None;
         }
 
-        // Update status
-        {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Offline;
-            status.pid = None;
-        }
+        let mut status = self
+            .status
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+        status.health = HealthStatus::Offline;
+        status.pid = None;
 
         Ok(())
     }
@@ -202,64 +136,170 @@ impl CodexAdapter {
 
 impl SwarmAgentAdapter for CodexAdapter {
     fn send_task(&self, task: &TaskDescription) -> Result<TaskHandle, SwarmError> {
-        // Start process if not running
-        self.start_process(task.working_dir.as_deref())?;
+        // 1. Spawn a fresh codex process
+        let mut child = self.spawn_codex_process(&task.prompt, task.working_dir.as_deref())?;
+        let pid = child.id();
 
-        // Create task handle
+        // 2. Take stdout and stderr handles
+        let stdout_handle = child
+            .stdout
+            .take()
+            .ok_or_else(|| SwarmError::ProcessStartFailed("stdout pipe not available".into()))?;
+        let stderr_handle = child
+            .stderr
+            .take()
+            .ok_or_else(|| SwarmError::ProcessStartFailed("stderr pipe not available".into()))?;
+
+        // 3. Store the child
+        *self
+            .process
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("process lock poisoned: {}", e)))? =
+            Some(child);
+
+        // 4. Create task handle
         let handle = TaskHandle {
             task_id: task.id.clone(),
             worker_id: self.worker_id.clone(),
             status: TaskStatus::Running,
-            started_at: InstantWrapper::from(Instant::now()),
+            started_at: InstantWrapper::now(),
             output: String::new(),
             error: None,
-            pid: self.status.lock().unwrap().pid,
+            pid: Some(pid),
         };
 
-        // Store task
-        self.tasks.lock().unwrap().insert(task.id.clone(), handle.clone());
+        self.tasks
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("tasks lock poisoned: {}", e)))?
+            .insert(task.id.clone(), handle.clone());
 
-        // Update worker status
+        // 5. Update worker status
         {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Busy;
-            status.current_task = Some(task.id.clone());
+            let mut st = self
+                .status
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+            st.health = HealthStatus::Busy;
+            st.current_task = Some(task.id.clone());
+            st.pid = Some(pid);
+            st.started_at = Some(InstantWrapper::now());
+            st.last_heartbeat = Some(InstantWrapper::now());
         }
 
-        // Send prompt to process
-        self.send_prompt(&task.prompt)?;
+        // 6. Initialize output accumulator
+        self.outputs
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("outputs lock poisoned: {}", e)))?
+            .insert(task.id.clone(), String::new());
 
-        // Initialize output accumulator
-        self.outputs.lock().unwrap().insert(task.id.clone(), String::new());
+        // 7. Spawn background thread to read stdout + wait for process exit
+        let task_id = task.id.clone();
+        let outputs = Arc::clone(&self.outputs);
+        let tasks = Arc::clone(&self.tasks);
+        let status = Arc::clone(&self.status);
+
+        thread::spawn(move || {
+            // Read stdout lines and accumulate
+            let reader = BufReader::new(stdout_handle);
+            for line in reader.lines() {
+                match line {
+                    Ok(text) => {
+                        if let Ok(mut out) = outputs.lock() {
+                            if let Some(buf) = out.get_mut(&task_id) {
+                                buf.push_str(&text);
+                                buf.push('\n');
+                            }
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            // stdout closed — read remaining stderr
+            let err_reader = BufReader::new(stderr_handle);
+            let stderr_text: String = err_reader
+                .lines()
+                .filter_map(|l| l.ok())
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            // Update task with final output
+            if let Ok(mut tasks_guard) = tasks.lock() {
+                if let Some(handle) = tasks_guard.get_mut(&task_id) {
+                    let final_output = outputs
+                        .lock()
+                        .ok()
+                        .and_then(|o| o.get(&task_id).cloned())
+                        .unwrap_or_default();
+                    handle.output = final_output;
+
+                    if !stderr_text.is_empty() {
+                        handle.error = Some(stderr_text);
+                        handle.status = TaskStatus::Failed;
+                    } else {
+                        handle.status = TaskStatus::Completed;
+                    }
+                }
+            }
+
+            // Update worker status
+            if let Ok(mut st) = status.lock() {
+                st.current_task = None;
+                st.health = HealthStatus::Healthy;
+                st.last_heartbeat = Some(InstantWrapper::now());
+                let failed = tasks
+                    .lock()
+                    .ok()
+                    .and_then(|t| t.get(&task_id).map(|h| h.status == TaskStatus::Failed))
+                    .unwrap_or(false);
+                if failed {
+                    st.tasks_failed += 1;
+                } else {
+                    st.tasks_completed += 1;
+                }
+            }
+        });
 
         Ok(handle)
     }
 
     fn get_status(&self) -> Result<WorkerStatus, SwarmError> {
-        let status = self.status.lock().unwrap().clone();
+        let status = self
+            .status
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?
+            .clone();
         Ok(status)
     }
 
     fn cancel_task(&self, task_id: &str) -> Result<(), SwarmError> {
-        // Check if task exists
-        let mut tasks = self.tasks.lock().unwrap();
-        if let Some(handle) = tasks.get_mut(task_id) {
-            handle.status = TaskStatus::Cancelled;
-        } else {
-            return Err(SwarmError::InvalidTask(format!("Task {} not found", task_id)));
-        }
-
-        // Clear current task if this was it
+        // Mark task as cancelled
         {
-            let mut status = self.status.lock().unwrap();
-            if status.current_task.as_ref() == Some(&task_id.to_string()) {
-                status.current_task = None;
-                status.health = HealthStatus::Healthy;
+            let mut tasks = self
+                .tasks
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("tasks lock poisoned: {}", e)))?;
+            if let Some(handle) = tasks.get_mut(task_id) {
+                handle.status = TaskStatus::Cancelled;
+            } else {
+                return Err(SwarmError::WorkerNotFound(task_id.to_string()));
             }
         }
 
-        // In production: would send cancel signal to process
-        // For now: just mark as cancelled
+        // Kill the process
+        self.kill_process()?;
+
+        // Clear current task from worker status
+        {
+            let mut st = self
+                .status
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+            if st.current_task.as_ref() == Some(&task_id.to_string()) {
+                st.current_task = None;
+                st.health = HealthStatus::Healthy;
+            }
+        }
 
         Ok(())
     }
@@ -282,22 +322,18 @@ impl SwarmAgentAdapter for CodexAdapter {
     }
 
     fn shutdown(&self) -> Result<(), SwarmError> {
-        self.kill_process()?;
-
-        // Stop reader thread
-        {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Offline;
-        }
-
-        Ok(())
+        self.kill_process()
     }
 
     fn get_task_output(&self, task_id: &str) -> Result<String, SwarmError> {
-        let outputs = self.outputs.lock().unwrap();
-        outputs.get(task_id)
+        let outputs = self
+            .outputs
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("outputs lock poisoned: {}", e)))?;
+        outputs
+            .get(task_id)
             .cloned()
-            .ok_or_else(|| SwarmError::InvalidTask(format!("Task {} output not found", task_id)))
+            .ok_or_else(|| SwarmError::WorkerNotFound(format!("Task {} output not found", task_id)))
     }
 }
 
@@ -321,8 +357,6 @@ impl CodexAdapterBuilder {
     }
 
     pub fn build(self) -> CodexAdapter {
-        let adapter = CodexAdapter::new(self.worker_id);
-        // Note: working_dir would be used when starting the process
-        adapter
+        CodexAdapter::new(self.worker_id)
     }
 }

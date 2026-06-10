@@ -880,8 +880,25 @@ impl SwarmOrchestrator {
                 consensus: ConsensusStrategy::FirstWins,
             };
 
-            // Record stage result (simulated for now - real execution uses swarm_workers)
-            let stage_output = format!("[Stage {} output placeholder]", i + 1);
+            // Store the stage task for tracking
+            self.tasks.insert(stage_task_id.clone(), stage_task);
+
+            // TODO(Phase 1): Replace with real worker adapter execution.
+            // Currently the orchestrator does not hold a reference to the adapter
+            // registry (AppState.swarm_workers), so we simulate output by echoing
+            // the stage prompt. Once adapters are wired in, this should:
+            //   1. Look up the adapter for `worker_id` from the registry
+            //   2. Build a TaskDescription from stage_prompt
+            //   3. Call adapter.send_task(&task_desc)
+            //   4. Poll adapter.get_task_output() until Completed/Failed
+            let stage_output = format!(
+                "[Stage {}/{} executed by {}]\nInput:\n{}\n\
+                 NOTE: Real adapter execution not yet wired — output is the stage prompt echo.",
+                i + 1,
+                worker_ids.len(),
+                worker_id,
+                stage_prompt
+            );
             let stage_result = StageResult {
                 worker_id: worker_id.clone(),
                 stage_index: i,
@@ -893,6 +910,11 @@ impl SwarmOrchestrator {
 
             stage_results.push(stage_result);
             current_input = stage_output;
+
+            // Update stored task status
+            if let Some(task) = self.tasks.get_mut(&stage_task_id) {
+                task.status = SwarmTaskStatus::InProgress;
+            }
 
             // Update agent status
             if let Some(agent) = self.agents.get_mut(worker_id) {

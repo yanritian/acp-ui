@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use crate::swarm_adapters::{WorkerId, TaskId, SwarmError, HealthStatus, OutputFormat};
+pub use crate::swarm_adapters::{WorkerId, TaskId, SwarmError, HealthStatus, OutputFormat, now_ms};
 
 // ---------------------------------------------------------------------------
 // Task Shard (ES Sharding Pattern)
@@ -139,10 +139,7 @@ impl TaskShard {
             primary_result: None,
             replica_result: None,
             error: None,
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
+            created_at: now_ms(),
             started_at: None,
             completed_at: None,
         }
@@ -157,10 +154,7 @@ impl TaskShard {
     /// Mark shard as running on primary
     pub fn start_primary(&mut self) {
         self.status = ShardStatus::RunningPrimary;
-        self.started_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64);
+        self.started_at = Some(now_ms());
     }
 
     /// Mark shard as running on replica (after primary failure)
@@ -173,30 +167,21 @@ impl TaskShard {
     pub fn complete_primary(&mut self, result: String) {
         self.status = ShardStatus::Completed;
         self.primary_result = Some(result);
-        self.completed_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64);
+        self.completed_at = Some(now_ms());
     }
 
     /// Complete shard with result from replica
     pub fn complete_replica(&mut self, result: String) {
         self.status = ShardStatus::Completed;
         self.replica_result = Some(result);
-        self.completed_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64);
+        self.completed_at = Some(now_ms());
     }
 
     /// Fail shard with error
     pub fn fail(&mut self, error: String) {
         self.status = ShardStatus::Failed;
         self.error = Some(error);
-        self.completed_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64);
+        self.completed_at = Some(now_ms());
     }
 
     /// Check if shard can retry
@@ -295,10 +280,7 @@ impl ShardGroup {
             failed_count: 0,
             final_result: None,
             errors: Vec::new(),
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
+            created_at: now_ms(),
             completed_at: None,
         }
     }
@@ -349,10 +331,7 @@ impl ShardGroup {
             self.status = ShardGroupStatus::Failed;
         }
 
-        self.completed_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64);
+        self.completed_at = Some(now_ms());
     }
 
     /// Get shard by ID

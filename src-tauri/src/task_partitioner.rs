@@ -6,11 +6,11 @@
 //! 3. Assigns workers based on capability matching
 //! 4. Provides replica assignment for fault tolerance
 
-use crate::smart_router::TaskAnalyzer;
 use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, WorkerId};
 use crate::swarm_adapters::{WorkerCapabilities, SwarmError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
 // Task Decomposition Result
@@ -108,8 +108,6 @@ pub enum DependencyType {
 
 /// Task partitioner that breaks down complex tasks
 pub struct TaskPartitioner {
-    /// Analyzer for task complexity
-    analyzer: TaskAnalyzer,
     /// Maximum shards per task
     max_shards: u32,
     /// Default replica count
@@ -120,7 +118,6 @@ impl TaskPartitioner {
     /// Create a new task partitioner
     pub fn new() -> Self {
         Self {
-            analyzer: TaskAnalyzer::new(),
             max_shards: 10,
             default_replica_count: 1, // One replica per shard
         }
@@ -457,10 +454,7 @@ impl Default for TaskPartitioner {
     }
 }
 
-// Helper function for UUID (placeholder)
+/// Generate a unique ID for subtasks
 fn uuid() -> String {
-    format!("{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis())
+    Uuid::new_v4().to_string()
 }

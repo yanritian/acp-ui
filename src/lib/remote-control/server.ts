@@ -1,9 +1,11 @@
 // Remote Control Server - WebSocket server for mobile/IM remote control
 // Mobile -> WebSocket -> Desktop Agent
+//
+// @deprecated This module is a scaffold / interface definition.
+// All command handlers are placeholder implementations.
+// TODO(Phase 2): Wire to real WebSocket transport and orchestration API.
 
 import { ref, type Ref } from 'vue';
-import { type ACPMessage, ACP_METHODS } from '../acp-protocol/spec';
-import { createACPMessage } from '../acp-protocol/index';
 
 export type RemoteCommandType =
   | 'start_agent'
@@ -44,33 +46,30 @@ export interface RemoteClient {
 
 export class RemoteControlServer {
   private clients: Ref<Map<string, RemoteClient>> = ref(new Map());
-  private commandQueue: RemoteCommand[] = [];
   private eventListeners: ((event: RemoteEvent) => void)[] = [];
+  private heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
   // State for UI
   public isRunning: Ref<boolean> = ref(false);
   public clientCount: Ref<number> = ref(0);
   public lastCommand: Ref<RemoteCommand | null> = ref(null);
 
-  // Start server
-  async start(port: number = 8766): Promise<void> {
-    // In Tauri mode, use tauri-plugin-websocket
-    // For now, simulate server behavior
-    this.isRunning.value = true;
-    console.log(`[RemoteControl] Server started on port ${port}`);
+  // Start server — placeholder, requires Tauri plugin or sidecar
+  // TODO(Phase 2): Implement real WebSocket server
+  async start(_port: number = 8766): Promise<void> {
+    console.warn('[RemoteControl] start() is a placeholder — real server not yet wired');
+    // Note: does NOT set isRunning to true (no fake state)
 
-    // Start heartbeat interval
-    setInterval(() => {
-      this.broadcastEvent({
-        type: 'heartbeat',
-        payload: { timestamp: Date.now() },
-        timestamp: Date.now(),
-      });
-    }, 30000);
+    // Heartbeat would be started here when real server is implemented
+    // this.heartbeatIntervalId = setInterval(...)
   }
 
   // Stop server
   async stop(): Promise<void> {
+    if (this.heartbeatIntervalId) {
+      clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = null;
+    }
     this.isRunning.value = false;
     this.clients.value.clear();
     this.clientCount.value = 0;
@@ -142,81 +141,90 @@ export class RemoteControlServer {
     return event;
   }
 
-  // Start agent
+  // --- Command handlers (all placeholder — TODO: wire to orchestration API) ---
+
+  // TODO(Phase 2): Call real orchestration API to start agent
   private async startAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    // Call orchestration API
     return {
       agentId: payload.agentId as string,
       status: 'started',
       timestamp: Date.now(),
+      note: 'placeholder — not yet connected to orchestration API',
     };
   }
 
-  // Stop agent
+  // TODO(Phase 2): Call real orchestration API to stop agent
   private async stopAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       agentId: payload.agentId as string,
       status: 'stopped',
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Send message to agent
+  // TODO(Phase 2): Send message via real agent channel
   private async sendMessageToAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       agentId: payload.agentId as string,
-      messageSent: true,
+      messageSent: false,
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Handle approve
+  // TODO(Phase 2): Wire to real approval flow
   private async handleApprove(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       requestId: payload.requestId as string,
-      approved: true,
+      approved: false,
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Handle reject
+  // TODO(Phase 2): Wire to real approval flow
   private async handleReject(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       requestId: payload.requestId as string,
-      rejected: true,
+      rejected: false,
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Get status
-  private async getStatus(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  // TODO(Phase 2): Query real orchestration state
+  private async getStatus(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       agents: [],
       tasks: [],
       approvals: [],
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Pause agent
+  // TODO(Phase 2): Wire to real agent pause
   private async pauseAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       agentId: payload.agentId as string,
       status: 'paused',
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Resume agent
+  // TODO(Phase 2): Wire to real agent resume
   private async resumeAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return {
       agentId: payload.agentId as string,
       status: 'resumed',
       timestamp: Date.now(),
+      note: 'placeholder',
     };
   }
 
-  // Broadcast event to all clients
+  // Broadcast event to all listeners
   broadcastEvent(event: RemoteEvent): void {
     this.eventListeners.forEach(listener => listener(event));
   }

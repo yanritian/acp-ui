@@ -1,7 +1,7 @@
 // Swarm API - TypeScript wrappers for Rust swarm commands
 // Day 4 - Frontend integration layer
 
-import { invoke } from '@tauri-apps/api/core'
+import { invokeOrProxy } from '@/lib/host'
 
 // Types matching Rust definitions
 
@@ -120,11 +120,11 @@ export async function swarmRegisterWorker(
   workerType: 'codex' | 'claude_code',
   workerId: string
 ): Promise<WorkerCapabilities> {
-  return invoke('swarm_register_worker', { workerType, workerId })
+  return invokeOrProxy('swarm_register_worker', { workerType, workerId })
 }
 
 export async function swarmListWorkers(): Promise<WorkerCapabilities[]> {
-  return invoke('swarm_list_workers')
+  return invokeOrProxy('swarm_list_workers')
 }
 
 export async function swarmSendTask(
@@ -134,7 +134,7 @@ export async function swarmSendTask(
   workingDir?: string,
   timeoutMs?: number
 ): Promise<TaskHandle> {
-  return invoke('swarm_send_task', {
+  return invokeOrProxy('swarm_send_task', {
     workerId,
     taskId,
     prompt,
@@ -144,23 +144,23 @@ export async function swarmSendTask(
 }
 
 export async function swarmGetWorkerStatus(workerId: string): Promise<WorkerStatus> {
-  return invoke('swarm_get_worker_status', { workerId })
+  return invokeOrProxy('swarm_get_worker_status', { workerId })
 }
 
 export async function swarmHealthCheck(workerId: string): Promise<boolean> {
-  return invoke('swarm_health_check', { workerId })
+  return invokeOrProxy('swarm_health_check', { workerId })
 }
 
 export async function swarmCancelTask(workerId: string, taskId: string): Promise<void> {
-  return invoke('swarm_cancel_task', { workerId, taskId })
+  return invokeOrProxy('swarm_cancel_task', { workerId, taskId })
 }
 
 export async function swarmGetTaskOutput(workerId: string, taskId: string): Promise<string> {
-  return invoke('swarm_get_task_output', { workerId, taskId })
+  return invokeOrProxy('swarm_get_task_output', { workerId, taskId })
 }
 
 export async function swarmShutdownWorker(workerId: string): Promise<void> {
-  return invoke('swarm_shutdown_worker', { workerId })
+  return invokeOrProxy('swarm_shutdown_worker', { workerId })
 }
 
 // ============================================================
@@ -168,18 +168,18 @@ export async function swarmShutdownWorker(workerId: string): Promise<void> {
 // ============================================================
 
 export async function taskAnalyze(prompt: string): Promise<TaskAnalysisResult> {
-  return invoke('task_analyze', { prompt })
+  return invokeOrProxy('task_analyze', { prompt })
 }
 
 export async function taskDecompose(prompt: string): Promise<TaskDecomposition> {
-  return invoke('task_decompose', { prompt })
+  return invokeOrProxy('task_decompose', { prompt })
 }
 
 export async function taskCreateShards(
   decomposition: TaskDecomposition,
   parentTaskId: string
 ): Promise<ShardGroup> {
-  return invoke('task_create_shards', { decomposition, parentTaskId })
+  return invokeOrProxy('task_create_shards', { decomposition, parentTaskId })
 }
 
 // ============================================================
@@ -187,23 +187,23 @@ export async function taskCreateShards(
 // ============================================================
 
 export async function queenStartElection(): Promise<string> {
-  return invoke('queen_start_election')
+  return invokeOrProxy('queen_start_election')
 }
 
 export async function queenGetLease(): Promise<QueenLease | null> {
-  return invoke('queen_get_lease')
+  return invokeOrProxy('queen_get_lease')
 }
 
 export async function queenGetCurrent(): Promise<string | null> {
-  return invoke('queen_get_current')
+  return invokeOrProxy('queen_get_current')
 }
 
 export async function queenCheckAndRenew(): Promise<string | null> {
-  return invoke('queen_check_and_renew')
+  return invokeOrProxy('queen_check_and_renew')
 }
 
 export async function queenAdaptiveUpgrade(requiredComplexity: number): Promise<string | null> {
-  return invoke('queen_adaptive_upgrade', { requiredComplexity })
+  return invokeOrProxy('queen_adaptive_upgrade', { requiredComplexity })
 }
 
 // ============================================================

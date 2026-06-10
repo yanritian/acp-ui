@@ -18,7 +18,17 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// Get current UNIX timestamp in milliseconds (safe, never panics).
+///
+/// Shared utility used across the swarm subsystem for consistent timestamps.
+pub fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or(Duration::from_secs(0))
+        .as_millis() as u64
+}
 
 // ---------------------------------------------------------------------------
 // Core Types
@@ -159,18 +169,31 @@ pub struct TaskHandle {
     pub pid: Option<u32>,
 }
 
-/// Wrapper for Instant to make it serializable
+/// Serializable timestamp — stores absolute UNIX milliseconds.
+///
+/// Previously stored `Instant::elapsed()` which is a relative duration with no
+/// fixed reference point, making time comparisons meaningless. Now stores the
+/// absolute UNIX timestamp so values are comparable across threads, processes,
+/// and restarts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstantWrapper {
     pub timestamp_ms: u64,
 }
 
-impl From<Instant> for InstantWrapper {
-    fn from(instant: Instant) -> Self {
-        // Use elapsed from some reference point
-        Self {
-            timestamp_ms: instant.elapsed().as_millis() as u64,
-        }
+impl InstantWrapper {
+    /// Create with the current time
+    pub fn now() -> Self {
+        Self { timestamp_ms: now_ms() }
+    }
+
+    /// Create from a specific UNIX millisecond timestamp
+    pub fn from_ms(ms: u64) -> Self {
+        Self { timestamp_ms: ms }
+    }
+
+    /// Read back the stored UNIX millisecond timestamp
+    pub fn as_ms(&self) -> u64 {
+        self.timestamp_ms
     }
 }
 

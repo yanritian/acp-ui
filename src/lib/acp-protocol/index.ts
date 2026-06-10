@@ -1,42 +1,19 @@
-// ACP (Agent Control Protocol) - standard message format and encryption utilities.
+// ACP Protocol — encryption utilities and message helpers.
+//
+// The canonical ACPMessage type is defined in `./spec.ts` (JSON-RPC 2.0 format).
+// This module re-exports it and adds AES-GCM encryption helpers.
 
-export type ACPMessageType =
-  | 'task_submit'
-  | 'task_progress'
-  | 'task_complete'
-  | 'task_error'
-  | 'approval_request'
-  | 'approval_response'
-  | 'agent_register'
-  | 'agent_deregister'
-  | 'agent_status'
-  | 'sync_event'
-  | 'heartbeat';
+import type { ACPMessage } from './spec';
+export type { ACPMessage } from './spec';
 
-export interface ACPMessage {
-  // Original ACP fields
-  version: '1.0';
-  messageId: string;
-  timestamp: number;
-  type: ACPMessageType;
-  payload: Record<string, unknown>;
-  encrypted?: boolean;
-
-  // JSON-RPC 2.0 extension fields (from spec.ts)
-  jsonrpc?: '2.0';
-  id?: string | number;
-  method?: string;
-  params?: Record<string, unknown>;
-  result?: unknown;
-  error?: { code: number; message: string; data?: unknown };
-  sessionId?: string;
-  source?: 'client' | 'server' | 'agent';
-  encryption?: {
-    algorithm: 'aes-256-gcm';
-    keyId: string;
-    iv: string;
-  };
-}
+// Re-export spec.ts constants and helpers for convenience
+export {
+  ACP_METHODS,
+  ACP_ERROR_CODES,
+  DEFAULT_ACP_CAPABILITIES,
+  negotiateCapabilities,
+} from './spec';
+export type { ACPCapabilities, ACPFeature, ACPError } from './spec';
 
 // ---------- Encryption utilities (AES-GCM) ----------
 
@@ -64,8 +41,6 @@ function generateIV(): Uint8Array {
 
 /**
  * Convert Uint8Array to base64 safely (avoids stack overflow on large payloads).
- * JavaScript engines limit the number of function arguments (~65536), so
- * spreading large arrays into String.fromCharCode crashes.
  */
 function uint8ToBase64(data: Uint8Array): string {
   let binary = '';
@@ -90,10 +65,11 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 /**
- * Encrypt the message payload in-place.
+ * Encrypt the message params field using AES-GCM.
  *
- * The returned message has `encrypted = true` and the payload field replaced
- * with `{ iv: string (base64), ciphertext: string (base64) }`.
+ * The returned message has the `params` field replaced with
+ * `{ iv: string (base64), ciphertext: string (base64) }` and
+ * the encryption metadata set.
  */
 export async function encryptMessage(
   msg: ACPMessage,
@@ -102,7 +78,9 @@ export async function encryptMessage(
   const cryptoKey = await importKey(key);
   const iv = generateIV();
 
-  const plaintext = new TextEncoder().encode(JSON.stringify(msg.payload));
+  const plaintext = new TextEncoder().encode(
+    JSON.stringify(msg.params ?? msg.result ?? {})
+  );
 
   const ciphertext = await crypto.subtle.encrypt(
     { name: ALGORITHM, iv },
@@ -112,33 +90,37 @@ export async function encryptMessage(
 
   return {
     ...msg,
-    payload: {
+    params: {
       iv: uint8ToBase64(iv),
       ciphertext: uint8ToBase64(new Uint8Array(ciphertext)),
     },
-    encrypted: true,
+    encryption: {
+      algorithm: 'aes-256-gcm',
+      keyId: 'default',
+      iv: uint8ToBase64(iv),
+    },
   };
 }
 
 /**
  * Decrypt an encrypted message.
  *
- * Expects `msg.payload` to contain `{ iv: string, ciphertext: string }` in
- * base64 encoding, and `msg.encrypted === true`.
+ * Expects `msg.params` to contain `{ iv: string, ciphertext: string }` in
+ * base64 encoding, and `msg.encryption` to be set.
  */
 export async function decryptMessage(
   msg: ACPMessage,
   key: Uint8Array
 ): Promise<ACPMessage> {
-  if (!msg.encrypted) {
-    return msg; // Already decrypted / never encrypted.
+  if (!msg.encryption) {
+    return msg;
   }
 
   const cryptoKey = await importKey(key);
 
-  const payload = msg.payload as { iv?: string; ciphertext?: string };
-  const iv = payload.iv ? base64ToUint8Array(payload.iv) : null;
-  const ciphertext = payload.ciphertext
+  const payload = msg.params as { iv?: string; ciphertext?: string } | undefined;
+  const iv = payload?.iv ? base64ToUint8Array(payload.iv) : null;
+  const ciphertext = payload?.ciphertext
     ? base64ToUint8Array(payload.ciphertext)
     : null;
 
@@ -156,24 +138,29 @@ export async function decryptMessage(
 
   return {
     ...msg,
-    payload: JSON.parse(plaintext) as Record<string, unknown>,
-    encrypted: false,
+    params: JSON.parse(plaintext) as Record<string, unknown>,
+    encryption: undefined,
   };
 }
 
 // ---------- Message helpers ----------
 
-/** Create a new ACPMessage with auto-generated ID and timestamp. */
+/**
+ * Create a JSON-RPC 2.0 request-style ACPMessage.
+ */
 export function createACPMessage(
-  type: ACPMessageType,
-  payload: Record<string, unknown>
+  method: string,
+  params: Record<string, unknown>,
+  options?: { id?: string | number; sessionId?: string; source?: 'client' | 'server' | 'agent' }
 ): ACPMessage {
   return {
-    version: '1.0',
-    messageId: crypto.randomUUID(),
+    jsonrpc: '2.0',
+    id: options?.id ?? crypto.randomUUID(),
+    method,
+    params,
+    sessionId: options?.sessionId ?? '',
     timestamp: Date.now(),
-    type,
-    payload,
+    source: options?.source ?? 'client',
   };
 }
 

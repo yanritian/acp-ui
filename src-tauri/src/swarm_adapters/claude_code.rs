@@ -2,12 +2,20 @@
 //!
 //! Manages `claude --print` subprocess with real-time output streaming.
 //! Claude Code operates in print mode for non-interactive task execution.
+//!
+//! ## Process Model
+//!
+//! Each task spawns a fresh `claude --print` process:
+//! 1. Prompt is written to the process's stdin
+//! 2. stdin is closed (EOF) so claude knows input is complete
+//! 3. stdout/stderr are read in background threads
+//! 4. When the process exits, the task is marked Completed/Failed
 
 use super::*;
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
 
 /// Adapter for Claude Code CLI
 ///
@@ -15,15 +23,16 @@ use std::time::{Duration, Instant};
 /// It provides reasoning, code generation, and analysis capabilities.
 ///
 /// Command: `claude --print`
-/// - Accepts prompts via stdin or command line
+/// - Accepts prompts via stdin
 /// - Outputs responses to stdout
 /// - Errors to stderr
+/// - Exits when output is complete
 pub struct ClaudeCodeAdapter {
     /// Worker ID
     worker_id: WorkerId,
     /// Worker type
     worker_type: String,
-    /// Current subprocess (if running)
+    /// Current subprocess (if running) — used for health checks and cancel
     process: Arc<Mutex<Option<Child>>>,
     /// Current status
     status: Arc<Mutex<WorkerStatus>>,
@@ -33,10 +42,6 @@ pub struct ClaudeCodeAdapter {
     outputs: Arc<Mutex<HashMap<TaskId, String>>>,
     /// Capabilities
     capabilities: WorkerCapabilities,
-    /// Output reader thread handle
-    reader_thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
-    /// Error reader thread handle
-    error_thread: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
 }
 
 impl ClaudeCodeAdapter {
@@ -55,11 +60,11 @@ impl ClaudeCodeAdapter {
                 "documentation".to_string(),
                 "analysis".to_string(),
             ],
-            max_complexity: 5, // Claude Code handles the most complex tasks
+            max_complexity: 5,
             max_concurrent: 1,
             supports_streaming: true,
             supports_cancel: true,
-            default_timeout_ms: 600000, // 10 minutes for complex reasoning
+            default_timeout_ms: 600_000, // 10 minutes
         };
 
         let status = WorkerStatus {
@@ -84,20 +89,18 @@ impl ClaudeCodeAdapter {
             tasks: Arc::new(Mutex::new(HashMap::new())),
             outputs: Arc::new(Mutex::new(HashMap::new())),
             capabilities,
-            reader_thread: Arc::new(Mutex::new(None)),
-            error_thread: Arc::new(Mutex::new(None)),
         }
     }
 
-    /// Start the Claude Code process
-    fn start_process(&self, working_dir: Option<&str>) -> Result<(), SwarmError> {
-        // Check if process already running
-        if self.process.lock().unwrap().is_some() {
-            return Ok(());
-        }
-
-        // Build command
-        // claude --print runs in non-interactive mode
+    /// Spawn a fresh `claude --print` process and write the prompt to stdin.
+    ///
+    /// Returns the Child process with stdin already closed (EOF sent).
+    /// stdout and stderr pipes are still attached for the caller to read.
+    fn spawn_claude_process(
+        &self,
+        prompt: &str,
+        working_dir: Option<&str>,
+    ) -> Result<Child, SwarmError> {
         let mut cmd = Command::new("claude");
         cmd.arg("--print");
         cmd.stdin(Stdio::piped());
@@ -108,253 +111,217 @@ impl ClaudeCodeAdapter {
             cmd.current_dir(dir);
         }
 
-        // Spawn process
-        let child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| SwarmError::ProcessStartFailed(format!("Failed to spawn claude: {}", e)))?;
 
-        let pid = child.id();
-
-        // Store process
-        *self.process.lock().unwrap() = Some(child);
-
-        // Update status
-        {
-            let mut status = self.status.lock().unwrap();
-            status.pid = Some(pid);
-            status.health = HealthStatus::Starting;
-            status.started_at = Some(InstantWrapper::from(Instant::now()));
+        // Write prompt to stdin
+        if let Some(ref mut stdin) = child.stdin {
+            stdin
+                .write_all(prompt.as_bytes())
+                .map_err(|e| SwarmError::CommunicationError(format!("stdin write failed: {}", e)))?;
+            stdin
+                .flush()
+                .map_err(|e| SwarmError::CommunicationError(format!("stdin flush failed: {}", e)))?;
         }
+        // Drop stdin to send EOF — claude --print needs EOF to start processing
+        child.stdin.take();
 
-        // Start output reader threads
-        self.start_output_readers();
-
-        Ok(())
+        Ok(child)
     }
 
-    /// Start background threads to read stdout/stderr
-    fn start_output_readers(&self) {
-        let outputs = self.outputs.clone();
-        let status = self.status.clone();
-        let _tasks = self.tasks.clone();
-
-        // stdout reader
-        let stdout_handle = thread::spawn(move || {
-            // Placeholder: In production, would:
-            // 1. Take stdout from child process
-            // 2. Read lines in loop
-            // 3. Append to current task output
-            // 4. Detect completion markers
-
-            loop {
-                thread::sleep(Duration::from_secs(5));
-
-                let mut st = status.lock().unwrap();
-                if st.health == HealthStatus::Starting {
-                    st.health = HealthStatus::Healthy;
-                }
-                st.last_heartbeat = Some(InstantWrapper::from(Instant::now()));
-
-                if st.health == HealthStatus::Offline {
-                    break;
-                }
-
-                // Simulate output accumulation
-                if let Some(task_id) = st.current_task.clone() {
-                    let mut out = outputs.lock().unwrap();
-                    if let Some(_output) = out.get_mut(&task_id) {
-                        // In production: append actual stdout content
-                        // Placeholder: just track that we're reading
-                    }
-                }
-            }
-        });
-
-        // stderr reader
-        let stderr_handle = thread::spawn(move || {
-            // Placeholder: Monitor stderr for errors
-            loop {
-                thread::sleep(Duration::from_secs(5));
-
-                // In production: read stderr and update task error field
-                // Placeholder: just heartbeat
-            }
-        });
-
-        *self.reader_thread.lock().unwrap() = Some(stdout_handle);
-        *self.error_thread.lock().unwrap() = Some(stderr_handle);
-    }
-
-    /// Send prompt to Claude Code via stdin
-    fn send_prompt(&self, prompt: &str) -> Result<(), SwarmError> {
-        let mut process_guard = self.process.lock().unwrap();
-
-        if let Some(ref mut _child) = *process_guard {
-            // In production: write to child.stdin
-            // Example:
-            // let stdin = child.stdin.as_mut().unwrap();
-            // stdin.write_all(prompt.as_bytes())?;
-            // stdin.flush()?;
-
-            println!("[ClaudeCodeAdapter] Would send prompt to stdin: {}...", &prompt[..100.min(prompt.len())]);
-            Ok(())
-        } else {
-            Err(SwarmError::WorkerCrashed("Process not running".to_string()))
-        }
-    }
-
-    /// Kill the process
+    /// Kill the currently tracked process (if any)
     fn kill_process(&self) -> Result<(), SwarmError> {
-        let mut process_guard = self.process.lock().unwrap();
+        let mut process_guard = self
+            .process
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("process lock poisoned: {}", e)))?;
 
         if let Some(ref mut child) = *process_guard {
-            child.kill()
-                .map_err(|e| SwarmError::InternalError(format!("Failed to kill process: {}", e)))?;
-
-            child.wait()
-                .map_err(|e| SwarmError::InternalError(format!("Failed to wait for process: {}", e)))?;
-
+            let _ = child.kill();
+            let _ = child.wait();
             *process_guard = None;
         }
 
-        // Update status
-        {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Offline;
-            status.pid = None;
-        }
+        let mut status = self
+            .status
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+        status.health = HealthStatus::Offline;
+        status.pid = None;
 
         Ok(())
-    }
-
-    /// Check if process is still running
-    fn is_process_alive(&self) -> bool {
-        let process_guard = self.process.lock().unwrap();
-        process_guard.is_some()
-    }
-
-    /// Simulate task completion (placeholder for real implementation)
-    fn simulate_task_completion(&self, task_id: &str, output: String) {
-        let mut tasks = self.tasks.lock().unwrap();
-        if let Some(handle) = tasks.get_mut(task_id) {
-            handle.status = TaskStatus::Completed;
-            handle.output = output.clone();
-        }
-
-        let mut outputs = self.outputs.lock().unwrap();
-        outputs.insert(task_id.to_string(), output);
-
-        let mut status = self.status.lock().unwrap();
-        status.current_task = None;
-        status.health = HealthStatus::Healthy;
-        status.tasks_completed += 1;
-    }
-
-    /// Simulate task failure (placeholder)
-    fn simulate_task_failure(&self, task_id: &str, error: String) {
-        let mut tasks = self.tasks.lock().unwrap();
-        if let Some(handle) = tasks.get_mut(task_id) {
-            handle.status = TaskStatus::Failed;
-            handle.error = Some(error.clone());
-        }
-
-        let mut status = self.status.lock().unwrap();
-        status.current_task = None;
-        status.health = HealthStatus::Healthy;
-        status.tasks_failed += 1;
     }
 }
 
 impl SwarmAgentAdapter for ClaudeCodeAdapter {
     fn send_task(&self, task: &TaskDescription) -> Result<TaskHandle, SwarmError> {
-        // Start process if not running
-        self.start_process(task.working_dir.as_deref())?;
+        // 1. Spawn a fresh claude --print process with the prompt
+        let mut child = self.spawn_claude_process(&task.prompt, task.working_dir.as_deref())?;
+        let pid = child.id();
 
-        // Create task handle
+        // 2. Take stdout and stderr handles out of the child before we move it
+        let stdout_handle = child
+            .stdout
+            .take()
+            .ok_or_else(|| SwarmError::ProcessStartFailed("stdout pipe not available".into()))?;
+        let stderr_handle = child
+            .stderr
+            .take()
+            .ok_or_else(|| SwarmError::ProcessStartFailed("stderr pipe not available".into()))?;
+
+        // 3. Store the child (for cancel / health check)
+        *self
+            .process
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("process lock poisoned: {}", e)))? =
+            Some(child);
+
+        // 4. Create task handle
         let handle = TaskHandle {
             task_id: task.id.clone(),
             worker_id: self.worker_id.clone(),
             status: TaskStatus::Running,
-            started_at: InstantWrapper::from(Instant::now()),
+            started_at: InstantWrapper::now(),
             output: String::new(),
             error: None,
-            pid: self.status.lock().unwrap().pid,
+            pid: Some(pid),
         };
 
-        // Store task
-        self.tasks.lock().unwrap().insert(task.id.clone(), handle.clone());
+        self.tasks
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("tasks lock poisoned: {}", e)))?
+            .insert(task.id.clone(), handle.clone());
 
-        // Update worker status
+        // 5. Update worker status
         {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Busy;
-            status.current_task = Some(task.id.clone());
+            let mut st = self
+                .status
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+            st.health = HealthStatus::Busy;
+            st.current_task = Some(task.id.clone());
+            st.pid = Some(pid);
+            st.started_at = Some(InstantWrapper::now());
+            st.last_heartbeat = Some(InstantWrapper::now());
         }
 
-        // Send prompt to process
-        self.send_prompt(&task.prompt)?;
+        // 6. Initialize output accumulator
+        self.outputs
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("outputs lock poisoned: {}", e)))?
+            .insert(task.id.clone(), String::new());
 
-        // Initialize output accumulator
-        self.outputs.lock().unwrap().insert(task.id.clone(), String::new());
-
-        // Placeholder: Simulate task completion after delay
-        // In production: output would be accumulated from stdout stream
-        let task_id_clone = task.id.clone();
-        let outputs_clone = self.outputs.clone();
-        let tasks_clone = self.tasks.clone();
-        let status_clone = self.status.clone();
+        // 7. Spawn background thread to read stdout + wait for process exit
+        let task_id = task.id.clone();
+        let outputs = Arc::clone(&self.outputs);
+        let tasks = Arc::clone(&self.tasks);
+        let status = Arc::clone(&self.status);
 
         thread::spawn(move || {
-            thread::sleep(Duration::from_secs(10));
-
-            // Simulate completion
-            let simulated_output = format!(
-                "[Claude Code Output for task {}]\n\nTask completed successfully.\nOutput files generated.",
-                task_id_clone
-            );
-
-            // Update outputs
-            outputs_clone.lock().unwrap()
-                .insert(task_id_clone.clone(), simulated_output.clone());
-
-            // Update task
-            if let Some(handle) = tasks_clone.lock().unwrap().get_mut(&task_id_clone) {
-                handle.status = TaskStatus::Completed;
-                handle.output = simulated_output;
+            // Read stdout lines and accumulate
+            let reader = BufReader::new(stdout_handle);
+            for line in reader.lines() {
+                match line {
+                    Ok(text) => {
+                        if let Ok(mut out) = outputs.lock() {
+                            if let Some(buf) = out.get_mut(&task_id) {
+                                buf.push_str(&text);
+                                buf.push('\n');
+                            }
+                        }
+                    }
+                    Err(_) => break,
+                }
             }
 
-            // Update status
-            let mut st = status_clone.lock().unwrap();
-            st.current_task = None;
-            st.health = HealthStatus::Healthy;
-            st.tasks_completed += 1;
+            // stdout closed — read remaining stderr into error field
+            let err_reader = BufReader::new(stderr_handle);
+            let stderr_text: String = err_reader
+                .lines()
+                .filter_map(|l| l.ok())
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            // Update task with final output
+            if let Ok(mut tasks_guard) = tasks.lock() {
+                if let Some(handle) = tasks_guard.get_mut(&task_id) {
+                    let final_output = outputs
+                        .lock()
+                        .ok()
+                        .and_then(|o| o.get(&task_id).cloned())
+                        .unwrap_or_default();
+                    handle.output = final_output;
+
+                    if !stderr_text.is_empty() {
+                        handle.error = Some(stderr_text);
+                        handle.status = TaskStatus::Failed;
+                    } else {
+                        handle.status = TaskStatus::Completed;
+                    }
+                }
+            }
+
+            // Update worker status
+            if let Ok(mut st) = status.lock() {
+                st.current_task = None;
+                st.health = HealthStatus::Healthy;
+                st.last_heartbeat = Some(InstantWrapper::now());
+                // Determine success/fail from task handle
+                let failed = tasks
+                    .lock()
+                    .ok()
+                    .and_then(|t| t.get(&task_id).map(|h| h.status == TaskStatus::Failed))
+                    .unwrap_or(false);
+                if failed {
+                    st.tasks_failed += 1;
+                } else {
+                    st.tasks_completed += 1;
+                }
+            }
         });
 
         Ok(handle)
     }
 
     fn get_status(&self) -> Result<WorkerStatus, SwarmError> {
-        let status = self.status.lock().unwrap().clone();
+        let status = self
+            .status
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?
+            .clone();
         Ok(status)
     }
 
     fn cancel_task(&self, task_id: &str) -> Result<(), SwarmError> {
-        let mut tasks = self.tasks.lock().unwrap();
-        if let Some(handle) = tasks.get_mut(task_id) {
-            handle.status = TaskStatus::Cancelled;
-        } else {
-            return Err(SwarmError::InvalidTask(format!("Task {} not found", task_id)));
-        }
-
-        // Clear current task
+        // Mark task as cancelled
         {
-            let mut status = self.status.lock().unwrap();
-            if status.current_task.as_ref() == Some(&task_id.to_string()) {
-                status.current_task = None;
-                status.health = HealthStatus::Healthy;
+            let mut tasks = self
+                .tasks
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("tasks lock poisoned: {}", e)))?;
+            if let Some(handle) = tasks.get_mut(task_id) {
+                handle.status = TaskStatus::Cancelled;
+            } else {
+                return Err(SwarmError::WorkerNotFound(task_id.to_string()));
             }
         }
 
-        // In production: would send SIGTERM or interrupt to process
+        // Kill the process
+        self.kill_process()?;
+
+        // Clear current task from worker status
+        {
+            let mut st = self
+                .status
+                .lock()
+                .map_err(|e| SwarmError::InternalError(format!("status lock poisoned: {}", e)))?;
+            if st.current_task.as_ref() == Some(&task_id.to_string()) {
+                st.current_task = None;
+                st.health = HealthStatus::Healthy;
+            }
+        }
+
         Ok(())
     }
 
@@ -376,21 +343,18 @@ impl SwarmAgentAdapter for ClaudeCodeAdapter {
     }
 
     fn shutdown(&self) -> Result<(), SwarmError> {
-        self.kill_process()?;
-
-        {
-            let mut status = self.status.lock().unwrap();
-            status.health = HealthStatus::Offline;
-        }
-
-        Ok(())
+        self.kill_process()
     }
 
     fn get_task_output(&self, task_id: &str) -> Result<String, SwarmError> {
-        let outputs = self.outputs.lock().unwrap();
-        outputs.get(task_id)
+        let outputs = self
+            .outputs
+            .lock()
+            .map_err(|e| SwarmError::InternalError(format!("outputs lock poisoned: {}", e)))?;
+        outputs
+            .get(task_id)
             .cloned()
-            .ok_or_else(|| SwarmError::InvalidTask(format!("Task {} output not found", task_id)))
+            .ok_or_else(|| SwarmError::WorkerNotFound(format!("Task {} output not found", task_id)))
     }
 }
 
@@ -398,7 +362,6 @@ impl SwarmAgentAdapter for ClaudeCodeAdapter {
 pub struct ClaudeCodeAdapterBuilder {
     worker_id: WorkerId,
     working_dir: Option<String>,
-    timeout_ms: Option<u64>,
 }
 
 impl ClaudeCodeAdapterBuilder {
@@ -406,7 +369,6 @@ impl ClaudeCodeAdapterBuilder {
         Self {
             worker_id,
             working_dir: None,
-            timeout_ms: None,
         }
     }
 
@@ -415,14 +377,7 @@ impl ClaudeCodeAdapterBuilder {
         self
     }
 
-    pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
-        self.timeout_ms = Some(timeout_ms);
-        self
-    }
-
     pub fn build(self) -> ClaudeCodeAdapter {
-        let adapter = ClaudeCodeAdapter::new(self.worker_id);
-        // Note: timeout would be used in task execution
-        adapter
+        ClaudeCodeAdapter::new(self.worker_id)
     }
 }

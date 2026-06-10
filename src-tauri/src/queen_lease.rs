@@ -9,11 +9,10 @@
 //! This prevents split-brain scenarios and ensures single Queen at any time.
 
 use crate::swarm_types::{WorkerId, HealthStatus};
-use crate::swarm_adapters::{WorkerCapabilities, SwarmError};
+use crate::swarm_adapters::{WorkerCapabilities, SwarmError, InstantWrapper, now_ms};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------------------
 // Queen Lease Configuration
@@ -59,13 +58,13 @@ pub struct QueenLease {
     pub lease_id: String,
     /// Worker holding this lease (Queen)
     pub queen_id: WorkerId,
-    /// When the lease was granted
+    /// When the lease was granted (UNIX ms)
     pub granted_at: InstantWrapper,
     /// Lease TTL in seconds
     pub ttl_seconds: u64,
-    /// When the lease expires
+    /// When the lease expires (UNIX ms)
     pub expires_at: InstantWrapper,
-    /// Last renewal time
+    /// Last renewal time (UNIX ms)
     pub last_renewed_at: Option<InstantWrapper>,
     /// Number of renewals so far
     pub renewal_count: u32,
@@ -77,32 +76,18 @@ pub struct QueenLease {
     pub current_complexity: Option<u8>,
 }
 
-/// Wrapper for Instant to make it serializable
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InstantWrapper {
-    pub timestamp_ms: u64,
-}
-
-impl From<Instant> for InstantWrapper {
-    fn from(instant: Instant) -> Self {
-        Self {
-            timestamp_ms: instant.elapsed().as_millis() as u64,
-        }
-    }
-}
-
 impl QueenLease {
     /// Create a new lease for a Queen
     pub fn new(lease_id: String, queen_id: WorkerId, ttl_seconds: u64) -> Self {
-        let now = Instant::now();
-        let expires = now + Duration::from_secs(ttl_seconds);
+        let granted_ms = now_ms();
+        let expires_ms = granted_ms + ttl_seconds * 1000;
 
         Self {
             lease_id,
             queen_id,
-            granted_at: InstantWrapper::from(now),
+            granted_at: InstantWrapper::from_ms(granted_ms),
             ttl_seconds,
-            expires_at: InstantWrapper::from(expires),
+            expires_at: InstantWrapper::from_ms(expires_ms),
             last_renewed_at: None,
             renewal_count: 0,
             is_valid: true,
@@ -111,32 +96,26 @@ impl QueenLease {
         }
     }
 
-    /// Check if lease is still valid
+    /// Check if lease is still valid (compares absolute timestamps)
     pub fn check_validity(&mut self) -> bool {
-        // In production: compare current time with expires_at
-        // For now: use elapsed since creation
-
-        let elapsed = Instant::now()
-            .duration_since(Instant::now() - Duration::from_millis(self.granted_at.timestamp_ms));
-
-        if elapsed > Duration::from_secs(self.ttl_seconds) {
+        let current_ms = now_ms();
+        if current_ms >= self.expires_at.timestamp_ms {
             self.is_valid = false;
             self.invalid_reason = Some("Lease expired".to_string());
             return false;
         }
-
         true
     }
 
-    /// Renew the lease
+    /// Renew the lease — extends expiry by ttl_seconds from NOW
     pub fn renew(&mut self) -> Result<(), SwarmError> {
         if !self.is_valid {
             return Err(SwarmError::InternalError("Cannot renew invalid lease".to_string()));
         }
 
-        let now = Instant::now();
-        self.expires_at = InstantWrapper::from(now + Duration::from_secs(self.ttl_seconds));
-        self.last_renewed_at = Some(InstantWrapper::from(now));
+        let renewed_ms = now_ms();
+        self.expires_at = InstantWrapper::from_ms(renewed_ms + self.ttl_seconds * 1000);
+        self.last_renewed_at = Some(InstantWrapper::from_ms(renewed_ms));
         self.renewal_count += 1;
 
         Ok(())
@@ -150,8 +129,11 @@ impl QueenLease {
 
     /// Get remaining time until expiry (in seconds)
     pub fn remaining_time(&self) -> u64 {
-        // Placeholder: In production, calculate from expires_at - current time
-        self.ttl_seconds
+        let current_ms = now_ms();
+        self.expires_at
+            .timestamp_ms
+            .saturating_sub(current_ms)
+            / 1000
     }
 }
 
@@ -229,8 +211,8 @@ pub struct QueenElectionManager {
     worker_health: Arc<Mutex<HashMap<WorkerId, HealthStatus>>>,
     /// Configuration
     config: QueenLeaseConfig,
-    /// Last election time
-    last_election: Arc<Mutex<Option<Instant>>>,
+    /// Last election time (UNIX ms timestamp)
+    last_election: Arc<Mutex<Option<u64>>>,
     /// Election candidates
     candidates: Arc<Mutex<Vec<QueenCandidate>>>,
 }
@@ -281,17 +263,14 @@ impl QueenElectionManager {
 
         // Create lease for winner
         let lease = QueenLease::new(
-            format!("lease-{}", std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()),
+            format!("lease-{}", now_ms()),
             winner.clone(),
             self.config.ttl_seconds,
         );
 
         *self.current_lease.lock().unwrap() = Some(lease);
         *self.election_state.lock().unwrap() = ElectionState::QueenActive;
-        *self.last_election.lock().unwrap() = Some(Instant::now());
+        *self.last_election.lock().unwrap() = Some(now_ms());
 
         println!("✅ Queen elected: {}", winner);
         Ok(winner)

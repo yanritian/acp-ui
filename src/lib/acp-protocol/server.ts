@@ -1,20 +1,20 @@
 // ACP Server - WebSocket server for ACP protocol
 // Allows other ACP clients to connect to ACP-UI
+//
+// @deprecated This module is an interface definition / scaffold.
+// Most methods are placeholder implementations — real WebSocket server
+// requires Tauri plugin support or a Node.js sidecar.
+// TODO(Phase 2): Implement real server via tauri-plugin-websocket or sidecar.
 
 import { ref, type Ref } from 'vue';
 import {
-  type ACPMessage as ACPMessageSpec,
+  type ACPMessage,
   type ACPCapabilities,
-  type ACPError,
   ACP_METHODS,
   ACP_ERROR_CODES,
   DEFAULT_ACP_CAPABILITIES,
   negotiateCapabilities,
-} from './spec';
-import { createACPMessage, encryptMessage, decryptMessage, type ACPMessage } from './index';
-
-// Re-export for consistency
-export { type ACPMessage } from './index';
+} from './index';
 
 export interface ACPSession {
   id: string;
@@ -47,13 +47,12 @@ export class ACPServer {
     this.registerDefaultHandlers();
   }
 
-  // Start WebSocket server (in Tauri, this uses tauri-plugin-websocket)
-  async start(port: number = 8765): Promise<void> {
-    // In browser mode, we can't start a server
-    // In Tauri mode, we would use tauri-plugin-websocket
-    // For now, this is a placeholder that simulates server behavior
-    console.log(`[ACP Server] Would start on port ${port} (requires Tauri)`);
-    this.isConnected.value = true;
+  // Start WebSocket server (requires Tauri plugin or sidecar)
+  // TODO(Phase 2): Implement real server startup via tauri-plugin-websocket
+  async start(_port: number = 8765): Promise<void> {
+    // Placeholder — server not yet implemented in current runtime.
+    // Callers should check isConnected before sending messages.
+    console.warn('[ACP Server] start() is a placeholder — real server not yet wired');
   }
 
   // Stop server
@@ -81,7 +80,7 @@ export class ACPServer {
     ws.onmessage = async (event) => {
       try {
         const rawData = JSON.parse(event.data as string);
-        // Convert to ACPMessage format
+        // Convert to ACPMessage format (JSON-RPC 2.0)
         const msg: ACPMessage = {
           jsonrpc: '2.0',
           id: rawData.id,
@@ -90,10 +89,7 @@ export class ACPServer {
           sessionId: rawData.sessionId || '',
           timestamp: rawData.timestamp || Date.now(),
           source: rawData.source || 'client',
-          version: '1.0',
-          messageId: rawData.messageId || crypto.randomUUID(),
-          type: rawData.type || 'task_submit',
-          payload: rawData.payload || rawData.params || {},
+          encryption: rawData.encryption,
         };
         await this.handleMessage(msg, conn);
       } catch (e) {
@@ -135,14 +131,12 @@ export class ACPServer {
       const negotiated = negotiateCapabilities(clientCaps, DEFAULT_ACP_CAPABILITIES);
       conn.capabilities = negotiated;
 
-      const baseMsg = createACPMessage('task_submit', {
-        capabilities: negotiated,
-        success: true,
-      });
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { capabilities: negotiated },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
@@ -162,14 +156,12 @@ export class ACPServer {
       conn.sessions.set(sessionId, session);
       this.activeSessions.value = this.countSessions();
 
-      const baseMsg = createACPMessage('task_submit', {
-        sessionId,
-        success: true,
-      });
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { sessionId },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
@@ -187,64 +179,55 @@ export class ACPServer {
       conn.sessions.delete(sessionId);
       this.activeSessions.value = this.countSessions();
 
-      const baseMsg = createACPMessage('task_submit', {
-        sessionId,
-        success: true,
-      });
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { sessionId, closed: true },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
 
     // Heartbeat
-    this.messageHandlers.set(ACP_METHODS.HEARTBEAT, async (msg, conn) => {
-      const baseMsg = createACPMessage('task_submit', {
-        timestamp: Date.now(),
-      });
+    this.messageHandlers.set(ACP_METHODS.HEARTBEAT, async (msg, _conn) => {
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { timestamp: Date.now() },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
 
-    // Agent list - proxy to orchestration store
-    this.messageHandlers.set(ACP_METHODS.AGENT_LIST, async (msg, conn) => {
-      // This would call the orchestration API
-      const baseMsg = createACPMessage('task_submit', {
-        agents: [], // Placeholder - would be populated from orchestration store
-      });
+    // Agent list — proxy to orchestration store
+    this.messageHandlers.set(ACP_METHODS.AGENT_LIST, async (msg, _conn) => {
+      // TODO(Phase 2): Populate from orchestration store
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { agents: [] },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
 
     // Task submit
-    this.messageHandlers.set(ACP_METHODS.TASK_SUBMIT, async (msg, conn) => {
+    this.messageHandlers.set(ACP_METHODS.TASK_SUBMIT, async (msg, _conn) => {
       const params = msg.params as Record<string, unknown>;
       const sessionId = params?.sessionId as string;
-      const taskDescription = params?.description as string;
 
-      // This would call the orchestration API to execute task
+      // TODO(Phase 2): Call orchestration API to execute task
       const taskId = crypto.randomUUID();
 
-      const baseMsg = createACPMessage('task_submit', {
-        taskId,
-        sessionId,
-        status: 'pending',
-        success: true,
-      });
       return {
-        ...baseMsg,
         jsonrpc: '2.0' as const,
+        id: msg.id,
+        result: { taskId, sessionId, status: 'pending' },
         sessionId: '',
+        timestamp: Date.now(),
         source: 'server' as const,
       };
     });
@@ -264,10 +247,6 @@ export class ACPServer {
       sessionId: '',
       timestamp: Date.now(),
       source: 'server',
-      version: '1.0',
-      messageId: crypto.randomUUID(),
-      type: 'task_error',
-      payload: { error: { code, message } },
     };
     this.send(ws, errorMsg);
   }

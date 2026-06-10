@@ -3,17 +3,13 @@
 
 import { ref, type Ref } from 'vue';
 import {
-  type ACPMessage as ACPMessageSpec,
+  type ACPMessage,
   type ACPCapabilities,
   ACP_METHODS,
-  ACP_ERROR_CODES,
   DEFAULT_ACP_CAPABILITIES,
-  negotiateCapabilities,
-} from './spec';
-import { createACPMessage, encryptMessage, decryptMessage, type ACPMessage } from './index';
-
-// Use index.ts ACPMessage as the primary type
-type ClientACPMessage = ACPMessage;
+  encryptMessage,
+  decryptMessage,
+} from './index';
 
 export interface ACPSessionHandle {
   id: string;
@@ -52,7 +48,7 @@ export class ACPClient {
     this.websocket.onmessage = async (event) => {
       try {
         const rawData = JSON.parse(event.data as string);
-        // Convert to ACPMessage format
+        // Convert to ACPMessage format (JSON-RPC 2.0)
         let msg: ACPMessage = {
           jsonrpc: '2.0',
           id: rawData.id,
@@ -63,10 +59,6 @@ export class ACPClient {
           sessionId: rawData.sessionId || '',
           timestamp: rawData.timestamp || Date.now(),
           source: rawData.source || 'server',
-          version: '1.0',
-          messageId: rawData.messageId || crypto.randomUUID(),
-          type: rawData.type || 'task_submit',
-          payload: rawData.payload || rawData.params || {},
           encryption: rawData.encryption,
         };
 
@@ -171,10 +163,6 @@ export class ACPClient {
       sessionId: this.sessions.keys().next().value || '',
       timestamp: Date.now(),
       source: 'client',
-      version: '1.0',
-      messageId: crypto.randomUUID(),
-      type: 'task_submit',
-      payload: params,
     };
 
     // Encrypt if needed
@@ -190,8 +178,24 @@ export class ACPClient {
     }
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-      this.websocket?.send(JSON.stringify(finalMsg));
+      // Timeout to prevent Promise leak — reject after 30s if no response
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`Request ${method} timed out after 30000ms`));
+      }, 30_000);
+
+      this.pendingRequests.set(id, {
+        resolve: (val: ACPMessage) => { clearTimeout(timeoutId); resolve(val); },
+        reject: (err: unknown) => { clearTimeout(timeoutId); reject(err); },
+      });
+
+      try {
+        this.websocket?.send(JSON.stringify(finalMsg));
+      } catch (sendErr) {
+        clearTimeout(timeoutId);
+        this.pendingRequests.delete(id);
+        reject(sendErr);
+      }
     });
   }
 

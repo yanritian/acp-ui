@@ -1,10 +1,12 @@
 //! Task Partitioner - Breaks down complex tasks into shards
 //!
-//! Inspired by Elasticsearch sharding pattern, this module:
-//! 1. Analyzes task complexity
-//! 2. Decomposes into parallel-executable shards
-//! 3. Assigns workers based on capability matching
-//! 4. Provides replica assignment for fault tolerance
+//! # DEPRECATED
+//!
+//! This module is superseded by the Goal-driven architecture (`goal.rs`,
+//! `goal_graph.rs`, `reconcile.rs`). Use `GoalGraph` for task decomposition
+//! and `ReconcileLoop` for iterative execution.
+//!
+//! The TaskShard/TaskPartitioner system will be removed in a future release.
 
 use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, WorkerId};
 use crate::swarm_adapters::{WorkerCapabilities, SwarmError};

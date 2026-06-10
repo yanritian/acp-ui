@@ -942,7 +942,7 @@ impl SwarmOrchestrator {
     pub fn handle_worker_failure(
         &mut self,
         failed_worker_id: &str,
-        task_description: &str,
+        _task_description: &str,
         required_capabilities: &[String],
     ) -> Result<String, String> {
         // Mark failed worker as unhealthy

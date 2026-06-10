@@ -232,18 +232,18 @@ impl QueenElectionManager {
     }
 
     /// Register a worker for potential Queen role
-    pub fn register_worker(&mut self, worker_id: WorkerId, capabilities: WorkerCapabilities) {
+    pub fn register_worker(&self, worker_id: WorkerId, capabilities: WorkerCapabilities) {
         self.workers.lock().unwrap().insert(worker_id.clone(), capabilities);
         self.worker_health.lock().unwrap().insert(worker_id, HealthStatus::Offline);
     }
 
     /// Update worker health status
-    pub fn update_health(&mut self, worker_id: &WorkerId, health: HealthStatus) {
+    pub fn update_health(&self, worker_id: &WorkerId, health: HealthStatus) {
         self.worker_health.lock().unwrap().insert(worker_id.clone(), health);
     }
 
     /// Start election process
-    pub fn start_election(&mut self) -> Result<WorkerId, SwarmError> {
+    pub fn start_election(&self) -> Result<WorkerId, SwarmError> {
         // Check if we have enough workers
         let worker_count = self.workers.lock().unwrap().len() as u32;
         if worker_count < self.config.min_workers_for_election {
@@ -277,7 +277,7 @@ impl QueenElectionManager {
     }
 
     /// Gather candidates for election
-    fn gather_candidates(&mut self) {
+    fn gather_candidates(&self) {
         let workers = self.workers.lock().unwrap();
         let health = self.worker_health.lock().unwrap();
 
@@ -327,7 +327,7 @@ impl QueenElectionManager {
     }
 
     /// Check lease validity and trigger election if expired
-    pub fn check_and_renew(&mut self) -> Result<Option<WorkerId>, SwarmError> {
+    pub fn check_and_renew(&self) -> Result<Option<WorkerId>, SwarmError> {
         let mut lease_guard = self.current_lease.lock().unwrap();
 
         if let Some(ref mut lease) = *lease_guard {
@@ -371,7 +371,7 @@ impl QueenElectionManager {
     }
 
     /// Adaptive Queen upgrade - switch to stronger Queen for complex tasks
-    pub fn adaptive_upgrade(&mut self, required_complexity: u8) -> Result<Option<WorkerId>, SwarmError> {
+    pub fn adaptive_upgrade(&self, required_complexity: u8) -> Result<Option<WorkerId>, SwarmError> {
         if !self.config.enable_adaptive_upgrade {
             return Ok(None);
         }

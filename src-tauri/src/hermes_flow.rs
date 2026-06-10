@@ -199,7 +199,7 @@ impl HermesFlowOrchestrator {
         workspace: &str,
         agent_name: &str,
     ) -> Result<(String, WorkflowDefinition), String> {
-        let flow_id = uuid::Uuid::new_v4().to_string();
+        let _flow_id = uuid::Uuid::new_v4().to_string();
 
         // Create workflow stages based on dev flow
         let stages: Vec<WorkflowStage> = DEV_FLOW_STAGES.iter().enumerate().map(|(idx, stage_name)| {
@@ -541,7 +541,7 @@ fn parse_code_fallback(output: &str) -> Option<CodeResult> {
     })
 }
 
-fn parse_review_fallback(output: &str) -> Option<ReviewResult> {
+fn parse_review_fallback(_output: &str) -> Option<ReviewResult> {
     Some(ReviewResult {
         issues: vec![],
         score: 85,
@@ -559,7 +559,7 @@ fn parse_adjustments_fallback(_output: &str) -> Option<AdjustmentsResult> {
     })
 }
 
-fn parse_test_fallback(output: &str) -> Option<TestResult> {
+fn parse_test_fallback(_output: &str) -> Option<TestResult> {
     Some(TestResult {
         total_tests: 5,
         passed: 5,

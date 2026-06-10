@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use crate::swarm_adapters::{WorkerId, TaskId, SwarmError, HealthStatus, OutputFormat, now_ms};
+pub use crate::swarm_adapters::{WorkerId, HealthStatus, OutputFormat, now_ms};
 
 // ---------------------------------------------------------------------------
 // Task Shard (ES Sharding Pattern)

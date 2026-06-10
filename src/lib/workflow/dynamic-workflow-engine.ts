@@ -155,9 +155,8 @@ export class DynamicWorkflowEngine {
 
     // Execute script
     try {
-      // In production, this would use a proper sandbox (vm2, isolated-vm)
-      // For now, we simulate execution
-      const output = await this.simulateExecution(script.script, sandbox);
+      // Script execution requires sandboxed runtime — currently throws
+      const output = await this.executeScriptSandboxed(script.script, sandbox);
 
       return {
         success: errors.length === 0,
@@ -229,35 +228,16 @@ export class DynamicWorkflowEngine {
     };
   }
 
-  // Simulate script execution (placeholder for proper sandbox)
-  private async simulateExecution(
-    scriptContent: string,
-    sandbox: Record<string, unknown>
+  // Script execution — requires sandboxed runtime (not yet implemented)
+  // TODO(Phase 2): Replace with vm2 / isolated-vm / Node.js worker_threads sandbox
+  private async executeScriptSandboxed(
+    _scriptContent: string,
+    _sandbox: Record<string, unknown>
   ): Promise<unknown> {
-    // In production, use vm2 or isolated-vm
-    // For now, parse script and execute simple operations
-
-    // Detect parallel patterns
-    const parallelMatch = scriptContent.match(/parallel\s*\(\s*\[([\s\S]*?)\]\s*\)/);
-    if (parallelMatch) {
-      // Extract tasks from parallel block
-      const tasksBlock = parallelMatch[1];
-      const tasks = this.parseParallelTasks(tasksBlock);
-      const parallelFn = sandbox.parallel as (tasks: Array<{ agentId: string; task: string }>) => Promise<unknown[]>;
-      return parallelFn(tasks);
-    }
-
-    // Detect spawn patterns
-    const spawnMatch = scriptContent.match(/spawnAgent\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/);
-    if (spawnMatch) {
-      const agentId = spawnMatch[1];
-      const task = spawnMatch[2];
-      const spawnFn = sandbox.spawnAgent as (agentId: string, task: string) => Promise<unknown>;
-      return spawnFn(agentId, task);
-    }
-
-    // Default: return input
-    return sandbox.input;
+    throw new Error(
+      'Script execution not implemented — requires sandboxed runtime (vm2 or isolated-vm). ' +
+      'Use the Goal-based workflow system instead.'
+    );
   }
 
   // Parse parallel tasks from script

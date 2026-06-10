@@ -32,6 +32,11 @@ mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
 mod swarm_adapters;   // Swarm Agent Adapters - Stdio process communication (Day 1)
 mod swarm_types;      // Swarm Types - Task shards, replica assignment (Day 2)
 mod task_partitioner; // Task Partitioner - ES sharding pattern (Day 2)
+mod goal;            // Goal-driven architecture (RFC-001) — replaces TaskPartitioner
+mod goal_evaluator;  // ConditionEvaluator — evaluates CompletionConditions
+mod reconcile;       // Reconcile Loop — iterative Goal execution with feedback
+mod goal_graph;      // GoalGraph — dependency DAG for multi-Goal coordination
+mod topology;        // Swarm Topology — Star/Chain/Pipeline execution patterns
 mod queen_lease;      // Queen Lease Election - ZK lease pattern (Day 3)
 mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
 mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
@@ -108,7 +113,7 @@ pub struct AppState {
     // Approval Engine
     pub approval_engine: Arc<Mutex<approval_engine::ApprovalEngine>>,
     // Swarm Worker Registry (Day 1 - Real Worker Adapters)
-    pub swarm_workers: Arc<Mutex<HashMap<String, Box<dyn swarm_adapters::SwarmAgentAdapter + Send>>>>,
+    pub swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>>,
 }
 
 impl AppState {
@@ -549,9 +554,9 @@ async fn swarm_register_worker(
     worker_type: String,
     worker_id: String,
 ) -> Result<WorkerCapabilities, String> {
-    let adapter: Box<dyn SwarmAgentAdapter + Send> = match worker_type.as_str() {
-        "codex" => Box::new(swarm_adapters::CodexAdapter::new(worker_id.clone())),
-        "claude_code" => Box::new(swarm_adapters::ClaudeCodeAdapter::new(worker_id.clone())),
+    let adapter: Arc<dyn SwarmAgentAdapter + Send + Sync> = match worker_type.as_str() {
+        "codex" => Arc::new(swarm_adapters::CodexAdapter::new(worker_id.clone())),
+        "claude_code" => Arc::new(swarm_adapters::ClaudeCodeAdapter::new(worker_id.clone())),
         _ => return Err(format!("Unknown worker type: {}", worker_type)),
     };
 
@@ -590,10 +595,12 @@ async fn swarm_send_task(
     working_dir: Option<String>,
     timeout_ms: Option<u64>,
 ) -> Result<TaskHandle, String> {
-    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-
-    let adapter = workers.get(&worker_id)
-        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
+    let adapter = {
+        let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.get(&worker_id)
+            .ok_or_else(|| format!("Worker not found: {}", worker_id))?
+            .clone() // Arc clone — Mutex released immediately
+    };
 
     let task = TaskDescription::new(task_id, prompt)
         .with_timeout(timeout_ms.unwrap_or(60000));
@@ -613,11 +620,12 @@ async fn swarm_get_worker_status(
     state: State<'_, AppState>,
     worker_id: String,
 ) -> Result<WorkerStatus, String> {
-    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-
-    let adapter = workers.get(&worker_id)
-        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
-
+    let adapter = {
+        let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.get(&worker_id)
+            .ok_or_else(|| format!("Worker not found: {}", worker_id))?
+            .clone()
+    };
     adapter.get_status().map_err(|e| e.to_string())
 }
 
@@ -627,11 +635,12 @@ async fn swarm_health_check(
     state: State<'_, AppState>,
     worker_id: String,
 ) -> Result<bool, String> {
-    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-
-    let adapter = workers.get(&worker_id)
-        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
-
+    let adapter = {
+        let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.get(&worker_id)
+            .ok_or_else(|| format!("Worker not found: {}", worker_id))?
+            .clone()
+    };
     Ok(adapter.health_check())
 }
 
@@ -642,11 +651,12 @@ async fn swarm_cancel_task(
     worker_id: String,
     task_id: String,
 ) -> Result<(), String> {
-    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-
-    let adapter = workers.get(&worker_id)
-        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
-
+    let adapter = {
+        let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.get(&worker_id)
+            .ok_or_else(|| format!("Worker not found: {}", worker_id))?
+            .clone()
+    };
     adapter.cancel_task(&task_id).map_err(|e| e.to_string())
 }
 
@@ -657,11 +667,12 @@ async fn swarm_get_task_output(
     worker_id: String,
     task_id: String,
 ) -> Result<String, String> {
-    let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-
-    let adapter = workers.get(&worker_id)
-        .ok_or_else(|| format!("Worker not found: {}", worker_id))?;
-
+    let adapter = {
+        let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.get(&worker_id)
+            .ok_or_else(|| format!("Worker not found: {}", worker_id))?
+            .clone()
+    };
     adapter.get_task_output(&task_id).map_err(|e| e.to_string())
 }
 
@@ -671,9 +682,12 @@ async fn swarm_shutdown_worker(
     state: State<'_, AppState>,
     worker_id: String,
 ) -> Result<(), String> {
-    let mut workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+    let adapter = {
+        let mut workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
+        workers.remove(&worker_id)
+    }; // Mutex released here
 
-    if let Some(adapter) = workers.remove(&worker_id) {
+    if let Some(adapter) = adapter {
         adapter.shutdown().map_err(|e| e.to_string())?;
         println!("✅ Shutdown swarm worker: {}", worker_id);
     }

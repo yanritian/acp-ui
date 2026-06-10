@@ -883,29 +883,28 @@ impl SwarmOrchestrator {
             // Store the stage task for tracking
             self.tasks.insert(stage_task_id.clone(), stage_task);
 
-            // TODO(Phase 1): Replace with real worker adapter execution.
-            // Currently the orchestrator does not hold a reference to the adapter
-            // registry (AppState.swarm_workers), so we simulate output by echoing
-            // the stage prompt. Once adapters are wired in, this should:
-            //   1. Look up the adapter for `worker_id` from the registry
-            //   2. Build a TaskDescription from stage_prompt
-            //   3. Call adapter.send_task(&task_desc)
-            //   4. Poll adapter.get_task_output() until Completed/Failed
+            // NOTE: Real adapter execution is handled by the topology module
+            // (topology::execute_chain via GoalGraph + ReconcileLoop).
+            // This legacy path records the stage intent; actual worker dispatch
+            // requires the ReconcileLoop which is not accessible from SwarmOrchestrator.
             let stage_output = format!(
-                "[Stage {}/{} executed by {}]\nInput:\n{}\n\
-                 NOTE: Real adapter execution not yet wired — output is the stage prompt echo.",
+                "[Stage {}/{}] Assigned to worker '{}'. \
+                 Real execution is routed through topology::execute_chain (GoalGraph + ReconcileLoop).",
                 i + 1,
                 worker_ids.len(),
                 worker_id,
-                stage_prompt
             );
             let stage_result = StageResult {
                 worker_id: worker_id.clone(),
                 stage_index: i,
                 input: current_input.clone(),
                 output: stage_output.clone(),
-                success: true,
-                error: None,
+                success: false,
+                error: Some(
+                    "Legacy execute_chain does not dispatch to real adapters; \
+                     use topology::execute_chain for production execution."
+                        .into(),
+                ),
             };
 
             stage_results.push(stage_result);

@@ -102,33 +102,39 @@ export class RemoteControlServer {
 
     let result: Record<string, unknown>;
 
-    switch (cmd.type) {
-      case 'start_agent':
-        result = await this.startAgent(cmd.payload);
-        break;
-      case 'stop_agent':
-        result = await this.stopAgent(cmd.payload);
-        break;
-      case 'send_message':
-        result = await this.sendMessageToAgent(cmd.payload);
-        break;
-      case 'approve':
-        result = await this.handleApprove(cmd.payload);
-        break;
-      case 'reject':
-        result = await this.handleReject(cmd.payload);
-        break;
-      case 'get_status':
-        result = await this.getStatus(cmd.payload);
-        break;
-      case 'pause_agent':
-        result = await this.pauseAgent(cmd.payload);
-        break;
-      case 'resume_agent':
-        result = await this.resumeAgent(cmd.payload);
-        break;
-      default:
-        result = { error: 'Unknown command type' };
+    try {
+      switch (cmd.type) {
+        case 'start_agent':
+          result = await this.startAgent(cmd.payload);
+          break;
+        case 'stop_agent':
+          result = await this.stopAgent(cmd.payload);
+          break;
+        case 'send_message':
+          result = await this.sendMessageToAgent(cmd.payload);
+          break;
+        case 'approve':
+          result = await this.handleApprove(cmd.payload);
+          break;
+        case 'reject':
+          result = await this.handleReject(cmd.payload);
+          break;
+        case 'get_status':
+          result = await this.getStatus(cmd.payload);
+          break;
+        case 'pause_agent':
+          result = await this.pauseAgent(cmd.payload);
+          break;
+        case 'resume_agent':
+          result = await this.resumeAgent(cmd.payload);
+          break;
+        default:
+          result = { error: 'Unknown command type' };
+      }
+    } catch (e) {
+      const err = e as Error;
+      console.warn(`[RemoteControl] Command '${cmd.type}' failed:`, err.message);
+      result = { error: err.message };
     }
 
     const event: RemoteEvent = {
@@ -141,79 +147,38 @@ export class RemoteControlServer {
     return event;
   }
 
-  // --- Command handlers (all TODO: wire to orchestration API) ---
+  // --- Command handlers (scaffold — throw until wired to orchestration API) ---
 
-  // TODO(Phase 2): Call real orchestration API to start agent
-  private async startAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agentId: payload.agentId as string,
-      status: 'started',
-      timestamp: Date.now(),
-    };
+  private async startAgent(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] startAgent: not implemented — wire to orchestration API');
   }
 
-  // TODO(Phase 2): Call real orchestration API to stop agent
-  private async stopAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agentId: payload.agentId as string,
-      status: 'stopped',
-      timestamp: Date.now(),
-    };
+  private async stopAgent(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] stopAgent: not implemented — wire to orchestration API');
   }
 
-  // TODO(Phase 2): Send message via real agent channel
-  private async sendMessageToAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agentId: payload.agentId as string,
-      messageSent: false,
-      timestamp: Date.now(),
-    };
+  private async sendMessageToAgent(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] sendMessageToAgent: not implemented — wire to orchestration API');
   }
 
-  // TODO(Phase 2): Wire to real approval flow
-  private async handleApprove(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      requestId: payload.requestId as string,
-      approved: false,
-      timestamp: Date.now(),
-    };
+  private async handleApprove(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] handleApprove: not implemented — wire to approval flow');
   }
 
-  // TODO(Phase 2): Wire to real approval flow
-  private async handleReject(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      requestId: payload.requestId as string,
-      rejected: false,
-      timestamp: Date.now(),
-    };
+  private async handleReject(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] handleReject: not implemented — wire to approval flow');
   }
 
-  // TODO(Phase 2): Query real orchestration state
   private async getStatus(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agents: [],
-      tasks: [],
-      approvals: [],
-      timestamp: Date.now(),
-    };
+    throw new Error('[RemoteControl] getStatus: not implemented — wire to orchestration state');
   }
 
-  // TODO(Phase 2): Wire to real agent pause
-  private async pauseAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agentId: payload.agentId as string,
-      status: 'paused',
-      timestamp: Date.now(),
-    };
+  private async pauseAgent(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] pauseAgent: not implemented — wire to agent pause');
   }
 
-  // TODO(Phase 2): Wire to real agent resume
-  private async resumeAgent(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return {
-      agentId: payload.agentId as string,
-      status: 'resumed',
-      timestamp: Date.now(),
-    };
+  private async resumeAgent(_payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    throw new Error('[RemoteControl] resumeAgent: not implemented — wire to agent resume');
   }
 
   // Broadcast event to all listeners

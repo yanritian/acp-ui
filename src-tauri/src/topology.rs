@@ -37,7 +37,9 @@ pub fn execute_star(
 ) -> HashMap<String, GoalStatus> {
     let mut graph = GoalGraph::new();
     for goal in goals {
-        let _ = graph.add_goal(goal);
+        if let Err(e) = graph.add_goal(goal) {
+            eprintln!("[topology] Warning: failed to add goal to star graph: {}", e);
+        }
     }
 
     run_graph(&mut graph, reconcile)
@@ -60,7 +62,9 @@ pub fn execute_chain(
         }
         let id = goal.id.clone();
         prev_id = Some(id.clone());
-        let _ = graph.add_goal(goal);
+        if let Err(e) = graph.add_goal(goal) {
+            eprintln!("[topology] Warning: failed to add goal to chain graph: {}", e);
+        }
     }
 
     run_graph(&mut graph, reconcile)
@@ -193,4 +197,37 @@ pub fn build_chain_goals(
     }
 
     goals
+}
+
+/// Execute a set of goals using the Pipeline topology.
+///
+/// Goals are grouped into sequential stages. Within each stage, goals execute
+/// in parallel. Between stages, execution is sequential (stage N+1 waits for stage N).
+///
+/// Each stage is a Vec<Goal> — all goals in the stage run concurrently.
+pub fn execute_pipeline(
+    stages: Vec<Vec<Goal>>,
+    reconcile: &ReconcileLoop,
+) -> HashMap<String, GoalStatus> {
+    let mut graph = GoalGraph::new();
+    let mut prev_stage_ids: Vec<String> = Vec::new();
+
+    for stage_goals in stages {
+        let mut current_stage_ids: Vec<String> = Vec::new();
+
+        for mut goal in stage_goals {
+            // Each goal in this stage depends on ALL goals from the previous stage
+            for prev_id in &prev_stage_ids {
+                goal.dependencies.push(prev_id.clone());
+            }
+            current_stage_ids.push(goal.id.clone());
+            if let Err(e) = graph.add_goal(goal) {
+                eprintln!("[topology] Warning: failed to add pipeline goal: {}", e);
+            }
+        }
+
+        prev_stage_ids = current_stage_ids;
+    }
+
+    run_graph(&mut graph, reconcile)
 }

@@ -39,10 +39,13 @@ impl GoalGraph {
         let id = goal.id.clone();
         let deps = goal.dependencies.clone();
 
-        // Validate dependencies exist
+        // Validate dependencies exist (warn on forward references)
         for dep in &deps {
             if !self.goals.contains_key(dep) && *dep != id {
-                // Allow forward references — we'll validate at execution time
+                eprintln!(
+                    "[GoalGraph] Warning: goal '{}' has forward dependency on '{}' (not yet in graph)",
+                    id, dep
+                );
             }
         }
 
@@ -179,15 +182,7 @@ impl GoalGraph {
         for id in self.goals.keys() {
             in_degree.insert(id.clone(), 0);
         }
-        for deps in self.dependencies.values() {
-            for dep in deps {
-                // dep is depended upon, so the goal that depends on it has higher in-degree
-                // Actually, in Kahn's: edge goes from dependency → dependent
-                // So we need to count how many dependencies each goal has
-            }
-        }
-
-        // Re-calculate: in_degree[g] = number of dependencies of g
+        // in_degree[g] = number of dependencies of g
         for (id, deps) in &self.dependencies {
             in_degree.insert(id.clone(), deps.len());
         }
@@ -260,19 +255,17 @@ impl GoalGraph {
     /// Remove a goal from the graph (and clean up dependency references).
     pub fn remove_goal(&mut self, id: &str) -> Option<Goal> {
         if let Some(goal) = self.goals.remove(id) {
-            // Remove from dependency maps
-            self.dependencies.remove(id);
+            // Save deps BEFORE removing the entry, so we can clean up reverse mappings
+            let deps = self.dependencies.remove(id).unwrap_or_default();
 
-            // Remove from dependents of its dependencies
-            if let Some(deps) = self.dependencies.get(id) {
-                for dep in deps {
-                    if let Some(rev) = self.dependents.get_mut(dep) {
-                        rev.retain(|r| r != id);
-                    }
+            // Remove this goal from the dependents list of each of its dependencies
+            for dep in &deps {
+                if let Some(rev) = self.dependents.get_mut(dep) {
+                    rev.retain(|r| r != id);
                 }
             }
 
-            // Remove its entry in the dependents map
+            // Remove its entry in the dependents map (no one depends on this goal anymore)
             self.dependents.remove(id);
 
             // Remove references in other goals' dependency lists

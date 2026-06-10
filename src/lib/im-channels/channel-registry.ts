@@ -159,28 +159,34 @@ export class IMChannelRegistry {
       case 'status':
         await this.sendStatusReport();
         break;
-      case 'approve':
+      case 'approve': {
         if (command.payload?.id) {
           await invokeOrProxy('approval_decide', {
             request_id: command.payload.id,
             decision: 'approved',
           });
-          await this.sendMessage('feishu', {
+          // Reply on the originating channel, not hardcoded to feishu
+          const approveChannel = (command.payload as Record<string, unknown>).channel as IMChannelType || 'feishu';
+          await this.sendMessage(approveChannel, {
             text: `已批准请求 ${command.payload.id}`,
           });
         }
         break;
-      case 'reject':
+      }
+      case 'reject': {
         if (command.payload?.id) {
           await invokeOrProxy('approval_decide', {
             request_id: command.payload.id,
             decision: 'rejected',
           });
-          await this.sendMessage('feishu', {
+          // Reply on the originating channel, not hardcoded to feishu
+          const rejectChannel = (command.payload as Record<string, unknown>).channel as IMChannelType || 'feishu';
+          await this.sendMessage(rejectChannel, {
             text: `已拒绝请求 ${command.payload.id}`,
           });
         }
         break;
+      }
       case 'list':
         await this.sendTaskList();
         break;

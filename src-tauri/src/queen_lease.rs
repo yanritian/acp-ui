@@ -278,13 +278,22 @@ impl QueenElectionManager {
 
     /// Gather candidates for election
     fn gather_candidates(&self) {
-        let workers = self.workers.lock().unwrap();
-        let health = self.worker_health.lock().unwrap();
+        // Clone data from each lock separately to avoid holding two locks simultaneously
+        // (which risks deadlock if another thread acquires them in a different order).
+        let workers_snapshot: Vec<(WorkerId, WorkerCapabilities)> = {
+            let workers = self.workers.lock().unwrap();
+            workers.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        };
+
+        let health_snapshot: HashMap<WorkerId, HealthStatus> = {
+            let health = self.worker_health.lock().unwrap();
+            health.clone()
+        };
 
         let mut candidates = Vec::new();
 
-        for (worker_id, capabilities) in workers.iter() {
-            let worker_health = health.get(worker_id).copied().unwrap_or(HealthStatus::Offline);
+        for (worker_id, capabilities) in &workers_snapshot {
+            let worker_health = health_snapshot.get(worker_id).copied().unwrap_or(HealthStatus::Offline);
             let is_healthy = matches!(worker_health, HealthStatus::Healthy | HealthStatus::Busy);
 
             let candidate = QueenCandidate {

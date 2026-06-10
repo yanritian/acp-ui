@@ -48,19 +48,19 @@ export class KVCacheManager {
     maxCacheSize: this.maxCacheSize,
   });
 
-  // FNV-1a 64-bit hash
+  // FNV-1a 64-bit hash using BigInt for true 64-bit precision
   private hashPrompt(prompt: string): string {
-    const FNV_OFFSET_BASIS = 0xcbf29ce484222325;
-    const FNV_PRIME = 0x100000001b3;
+    const FNV_OFFSET_BASIS = 0xcbf29ce484222325n;
+    const FNV_PRIME = 0x100000001b3n;
+    const MASK_64 = 0xffffffffffffffffn;
     let hash = FNV_OFFSET_BASIS;
 
     for (let i = 0; i < prompt.length; i++) {
-      hash ^= prompt.charCodeAt(i);
-      hash = Math.imul(hash, FNV_PRIME);
+      hash ^= BigInt(prompt.charCodeAt(i));
+      hash = (hash * FNV_PRIME) & MASK_64;
     }
 
-    // Convert to hex string (simulating 64-bit)
-    return (hash >>> 0).toString(16).padStart(8, '0') + ((hash % 0x100000000) >>> 0).toString(16).padStart(8, '0');
+    return hash.toString(16).padStart(16, '0');
   }
 
   // Normalize prompt for hashing (remove variable parts)

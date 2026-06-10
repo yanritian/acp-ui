@@ -139,6 +139,10 @@ impl ReconcileLoop {
         };
 
         // Poll for completion (blocking with timeout)
+        // NOTE: This polling loop uses std::thread::sleep which blocks the OS thread.
+        // When called from a tokio async context, wrap the caller in
+        // tokio::task::spawn_blocking() to avoid starving the executor.
+        // TODO(Phase 3): Convert ReconcileLoop to async and use tokio::time::sleep.
         let timeout_ms = 300_000; // 5 minutes
         let poll_interval_ms = 1_000;
         let start = crate::swarm_adapters::now_ms();

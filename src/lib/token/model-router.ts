@@ -33,6 +33,20 @@ export interface ModelSelection {
   estimatedLatency: number;
 }
 
+/**
+ * Estimate token count for a text string.
+ * CJK characters are ~1.5 tokens each; other text averages ~1 token per 4 chars.
+ */
+function estimateTokenCount(text: string): number {
+  // CJK Unified Ideographs and related ranges
+  const cjkRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u3400-\u4DBF\uf900-\ufaff]/g;
+  const cjkChars = text.match(cjkRegex) || [];
+  const cjkTokens = cjkChars.length * 1.5;
+  const nonCjkChars = text.length - cjkChars.length;
+  const nonCjkTokens = nonCjkChars / 4;
+  return Math.ceil(cjkTokens + nonCjkTokens);
+}
+
 // Available models
 const AVAILABLE_MODELS: ModelInfo[] = [
   {
@@ -175,7 +189,7 @@ export class ModelRouter {
       reason = 'Complex task routed to high-capability model';
     }
 
-    const estimatedTokens = Math.ceil(task.prompt.length / 4 + (task.context?.length || 0) / 4);
+    const estimatedTokens = estimateTokenCount(task.prompt) + estimateTokenCount(task.context || '');
     const estimatedCost = estimatedTokens * selected.costPerToken;
 
     const selection: ModelSelection = {

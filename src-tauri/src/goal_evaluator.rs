@@ -68,7 +68,50 @@ impl ConditionEvaluator {
 
     // --- Individual evaluators ---
 
+    /// Commands that are never allowed in completion checks (security denylist).
+    const DENIED_COMMANDS: &'static [&'static str] = &[
+        "rm -rf /", "rm -rf /*", "mkfs", "dd if=", ":(){:|:&};:",
+        "chmod -R 777 /", "wget", "curl", "nc ", "ncat ",
+        "bash -i", "python -c", "perl -e", "ruby -e",
+        "> /dev/sda", "mv / ", "format c:",
+    ];
+
     fn eval_command(&self, command: &str, expected_exit_code: i32) -> EvaluationResult {
+        // Security: deny dangerous commands
+        let cmd_lower = command.to_lowercase();
+        for denied in Self::DENIED_COMMANDS {
+            if cmd_lower.contains(denied) {
+                return EvaluationResult {
+                    passed: false,
+                    explanation: format!(
+                        "Command '{}' was rejected by security denylist (matched: '{}')",
+                        command, denied
+                    ),
+                    details: vec![ConditionResult {
+                        description: format!("Command: {} (DENIED)", command),
+                        passed: false,
+                        evidence: format!("Security policy blocked: contains '{}'", denied),
+                    }],
+                };
+            }
+        }
+
+        // Security: limit command length to prevent injection via long strings
+        if command.len() > 512 {
+            return EvaluationResult {
+                passed: false,
+                explanation: format!(
+                    "Command rejected: length {} exceeds maximum 512 characters",
+                    command.len()
+                ),
+                details: vec![ConditionResult {
+                    description: "Command length check".into(),
+                    passed: false,
+                    evidence: format!("Command length: {} chars (max 512)", command.len()),
+                }],
+            };
+        }
+
         let result = Command::new("sh")
             .arg("-c")
             .arg(command)

@@ -23,15 +23,12 @@ export class ACPClient {
   private serverCapabilities: ACPCapabilities | null = null;
   private sessions = new Map<string, ACPSessionHandle>();
   private pendingRequests = new Map<string | number, { resolve: Function; reject: Function }>();
-  private messageQueue: ACPMessage[] = [];
-  private backpressureThreshold = 100; // Max queued messages before pause
   private encryptionKey: Uint8Array | null = null;
 
   // State refs for UI binding
   public isConnected: Ref<boolean> = ref(false);
   public serverUrl: Ref<string> = ref('');
   public activeSessions: Ref<number> = ref(0);
-  public queuedMessages: Ref<number> = ref(0);
 
   // Connect to ACP server
   async connect(url: string): Promise<void> {
@@ -77,6 +74,13 @@ export class ACPClient {
       this.isConnected.value = false;
       this.sessions.clear();
       this.activeSessions.value = 0;
+
+      // Reject all pending requests to prevent Promise leak
+      const error = new Error('WebSocket connection closed');
+      for (const [, { reject }] of this.pendingRequests) {
+        reject(error);
+      }
+      this.pendingRequests.clear();
     };
 
     this.websocket.onerror = (error) => {
@@ -171,12 +175,6 @@ export class ACPClient {
       finalMsg = await encryptMessage(msg, this.encryptionKey);
     }
 
-    // Check backpressure
-    if (this.messageQueue.length >= this.backpressureThreshold) {
-      console.warn('[ACP Client] Backpressure threshold reached, waiting...');
-      await this.flushQueue();
-    }
-
     return new Promise((resolve, reject) => {
       // Timeout to prevent Promise leak — reject after 30s if no response
       const timeoutId = setTimeout(() => {
@@ -240,18 +238,6 @@ export class ACPClient {
       default:
         console.log('[ACP Client] Unknown notification:', method);
     }
-  }
-
-  // Flush queued messages
-  private async flushQueue(): Promise<void> {
-    while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift();
-      if (msg) {
-        this.websocket?.send(JSON.stringify(msg));
-      }
-      await new Promise(r => setTimeout(r, 10)); // Small delay for backpressure
-    }
-    this.queuedMessages.value = 0;
   }
 
   // Set encryption key

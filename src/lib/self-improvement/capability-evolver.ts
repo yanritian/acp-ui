@@ -4,7 +4,6 @@
 
 import { ref, computed, type Ref } from 'vue';
 import { invokeOrProxy } from '../host';
-import { useOrchestrationStore } from '../../stores/orchestration';
 
 export interface EvolutionEvent {
   id?: string;
@@ -260,12 +259,16 @@ export class CapabilityEvolver {
 
   // Calculate composite fitness score
   private calculateCompositeScore(score: FitnessScore): number {
-    return (
+    // Clamp duration component to [0, 1] so long durations don't produce negative values
+    const durationComponent = Math.max(0, 1 - score.avgDuration / 10000);
+    const raw = (
       score.successRate * 0.3 +
-      (1 - score.avgDuration / 10000) * 0.2 +
+      durationComponent * 0.2 +
       score.userSatisfaction * 0.25 +
       score.tokenEfficiency * 0.25
     );
+    // Clamp final score to [0, 1]
+    return Math.max(0, Math.min(1, raw));
   }
 
   // Log evolution event

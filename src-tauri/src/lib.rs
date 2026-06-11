@@ -446,7 +446,7 @@ pub fn run() {
             swarm_orchestrator::swarm_submit_result,
             swarm_orchestrator::swarm_get_task,
             swarm_orchestrator::swarm_get_health,
-            swarm_orchestrator::swarm_orch_cancel_task,
+            swarm_orchestrator::swarm_cancel_task,
             swarm_orchestrator::swarm_execute_chain,
             swarm_orchestrator::swarm_handle_failure,
             // Workflow Engine commands

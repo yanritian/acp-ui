@@ -47,7 +47,6 @@ mod approval_engine;     // Approval protocol for workflow stages
 mod smart_router;     // Three-layer complexity evaluation
 mod self_healing;     // EWMA anomaly detection
 mod event_router;     // Claw Code Event Router (clawhip layer)
-// mod hermes_traits;    // TODO: Re-enable when integrating with hermes_flow and MCP client
 
 // ---- Plugin System ----
 mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters
@@ -64,7 +63,6 @@ mod feishu_rich_message;
 mod executive_agent;  // Executes actual development tasks
 
 // ---- Pluggable Modules ----
-mod finance;          // ERP Finance (example domain module)
 mod gateway_config;
 
 // ---- Tauri Commands ----

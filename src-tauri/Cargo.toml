@@ -5,6 +5,24 @@ description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
+[workspace]
+members = [
+    "crates/acp-core",
+    "crates/acp-transport",
+    "crates/swarm-engine",
+    "crates/workflow-engine",
+    "crates/hook-runtime",
+    "crates/tool-sandbox",
+    "hermes-crates/hermes-agent",
+    "hermes-crates/hermes-core",
+    "hermes-crates/hermes-config",
+    "hermes-crates/hermes-tools",
+    "hermes-crates/hermes-environments",
+    "hermes-crates/hermes-skills",
+    "hermes-crates/hermes-intelligence",
+    "hermes-crates/hermes-memory",
+]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]

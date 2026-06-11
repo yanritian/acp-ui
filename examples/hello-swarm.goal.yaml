@@ -1,0 +1,88 @@
+# hello-swarm.goal
+# 第一个 ACP-Swarm Goal 示例
+# 演示 Goal-Driven 执行模型的基本工作流程
+
+name: hello-swarm
+description: "Hello World Swarm Demo - Fix TypeScript compilation errors"
+
+goals:
+  # Goal 1: 修复 TypeScript 编译错误
+  - id: fix-typescript
+    description: "Fix all TypeScript compilation errors in the project"
+    completion_condition:
+      type: command_success
+      command: "npx vue-tsc --noEmit"
+      args: []
+      cwd: null
+    evaluator: auto
+    executor: claude-code-worker
+    depends_on: []
+    token_budget: 80000
+    max_iterations: 5
+    per_iteration_timeout_ms: 120000
+
+  # Goal 2: 运行测试确保无破坏
+  - id: run-tests
+    description: "Run all tests to ensure no regressions"
+    completion_condition:
+      type: command_success
+      command: "npm"
+      args: ["test"]
+      cwd: null
+    evaluator: auto
+    executor: codex-worker
+    depends_on:
+      - fix-typescript  # 依赖 Goal 1 收敛后才能执行
+    token_budget: 50000
+    max_iterations: 3
+    per_iteration_timeout_ms: 180000
+
+  # Goal 3: 生成文档
+  - id: generate-docs
+    description: "Update README with latest changes"
+    completion_condition:
+      type: file_check
+      path: "README.md"
+      content_contains: "hello-swarm"
+      max_size_bytes: null
+    evaluator: auto
+    executor: claude-code-worker
+    depends_on:
+      - run-tests  # 依赖 Goal 2 收敛后才能执行
+    token_budget: 30000
+    max_iterations: 2
+    per_iteration_timeout_ms: 60000
+
+# 执行拓扑
+topology: chain  # chain = 按依赖顺序执行; star = 并行执行
+
+# Queen 配置
+queen:
+  lease_ttl_seconds: 30
+  renew_interval_seconds: 10
+  worker_id: claude-code-worker
+
+# Worker 配置
+workers:
+  - id: claude-code-worker
+    type: claude_code
+    skills:
+      - name: code-generation
+        proficiency: 0.9
+        avg_duration_ms: 30000
+      - name: debugging
+        proficiency: 0.85
+        avg_duration_ms: 45000
+      - name: documentation
+        proficiency: 0.8
+        avg_duration_ms: 20000
+
+  - id: codex-worker
+    type: codex
+    skills:
+      - name: test-writing
+        proficiency: 0.9
+        avg_duration_ms: 30000
+      - name: code-generation
+        proficiency: 0.8
+        avg_duration_ms: 35000

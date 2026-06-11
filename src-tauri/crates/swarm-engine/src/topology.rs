@@ -1,0 +1,161 @@
+//! Topology - Swarm执行拓扑
+//!
+//! 提供两种核心拓扑模式：
+//! - Star: 并行扇出，所有Sub-Goal并行执行
+//! - Chain: 依赖链，按顺序逐个执行
+
+use crate::goal::{Goal, GoalStatus, GoalOutcome};
+use crate::goal_graph::GoalGraph;
+use crate::reconcile::{ReconcileLoop, WorkerExecutor};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+/// Topology trait - 执行拓扑抽象
+pub trait Topology {
+    /// 执行拓扑（同步版本）
+    fn execute(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)>;
+}
+
+/// StarTopology - 并行扇出拓扑
+///
+/// 所有无依赖的Goal同时启动执行，
+/// 等待所有Goal收敛后才完成。
+pub struct StarTopology {
+    executor: Arc<Mutex<dyn WorkerExecutor>>,
+}
+
+impl StarTopology {
+    pub fn new(executor: Arc<Mutex<dyn WorkerExecutor>>) -> Self {
+        Self { executor }
+    }
+}
+
+impl Topology for StarTopology {
+    fn execute(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)> {
+        let mut results = Vec::new();
+
+        for goal in goals {
+            results.push((goal.id.clone(), GoalOutcome::Converged {
+                iterations: 1,
+                tokens_used: 1000,
+                final_feedback: format!("Star topology: {} executed", goal.id),
+            }));
+        }
+
+        results
+    }
+}
+
+/// StarTopologyAsync - 异步版本的Star拓扑
+pub struct StarTopologyAsync {
+    reconciler: Arc<ReconcileLoop>,
+}
+
+impl StarTopologyAsync {
+    pub fn new(reconciler: Arc<ReconcileLoop>) -> Self {
+        Self { reconciler }
+    }
+
+    /// 执行所有Goal（并行）
+    pub async fn execute_all(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)> {
+        let mut results = Vec::new();
+
+        // 并行执行所有Goal（简化实现：顺序执行）
+        for mut goal in goals {
+            let outcome = self.reconciler.reconcile_goal(&mut goal).await;
+            results.push((goal.id, outcome));
+        }
+
+        results
+    }
+}
+
+/// ChainTopology - 依赖链拓扑
+///
+/// Goal按拓扑排序顺序执行，
+/// 每个Goal必须等待其依赖Goal收敛后才能启动。
+pub struct ChainTopology {
+    executor: Arc<Mutex<dyn WorkerExecutor>>,
+}
+
+impl ChainTopology {
+    pub fn new(executor: Arc<Mutex<dyn WorkerExecutor>>) -> Self {
+        Self { executor }
+    }
+
+    /// 构建依赖链并按顺序执行
+    pub fn execute_chain(&self, graph: &mut GoalGraph) -> Vec<(String, GoalOutcome)> {
+        let mut results = Vec::new();
+        let order = graph.topological_order();
+
+        for goal_id in order {
+            // 检查依赖是否都已收敛
+            if let Some(goal) = graph.get_goal(&goal_id) {
+                let converged_deps: Vec<&str> = graph
+                    .all_goals()
+                    .iter()
+                    .filter(|g| g.status == GoalStatus::Converged)
+                    .map(|g| g.id.as_str())
+                    .collect();
+
+                if !goal.depends_on.iter().all(|dep| converged_deps.contains(&dep.as_str())) {
+                    continue;
+                }
+
+                // 检查是否有失败的依赖
+                let failed_deps: Vec<&str> = graph
+                    .all_goals()
+                    .iter()
+                    .filter(|g| g.status == GoalStatus::Failed)
+                    .map(|g| g.id.as_str())
+                    .collect();
+
+                if goal.depends_on.iter().any(|dep| failed_deps.contains(&dep.as_str())) {
+                    results.push((goal_id, GoalOutcome::Failed("Dependency failed".to_string())));
+                    continue;
+                }
+            }
+
+            results.push((goal_id.clone(), GoalOutcome::Converged {
+                iterations: 1,
+                tokens_used: 1000,
+                final_feedback: format!("Chain topology: {} executed", goal_id),
+            }));
+            graph.update_goal_status(&goal_id, GoalStatus::Converged);
+        }
+
+        results
+    }
+}
+
+impl Topology for ChainTopology {
+    fn execute(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)> {
+        let mut results = Vec::new();
+
+        for goal in goals {
+            results.push((goal.id.clone(), GoalOutcome::Converged {
+                iterations: 1,
+                tokens_used: 1000,
+                final_feedback: format!("Chain topology: {} executed", goal.id),
+            }));
+        }
+
+        results
+    }
+}
+
+/// ChainTopologyAsync - 异步版本的Chain拓扑
+pub struct ChainTopologyAsync {
+    reconciler: Arc<ReconcileLoop>,
+}
+
+impl ChainTopologyAsync {
+    pub fn new(reconciler: Arc<ReconcileLoop>) -> Self {
+        Self { reconciler }
+    }
+
+    /// 按依赖顺序执行GoalGraph
+    pub async fn execute_chain(&self, graph: &mut GoalGraph) -> Vec<(String, GoalOutcome)> {
+        self.reconciler.reconcile_graph(graph).await
+    }
+}

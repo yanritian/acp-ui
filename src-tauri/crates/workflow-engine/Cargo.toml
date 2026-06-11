@@ -1,0 +1,13 @@
+[package]
+name = "workflow-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Workflow engine (DAG/checkpoints/backtracking)"
+
+[dependencies]
+acp-core = { path = "../acp-core" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+indexmap = { version = "2", features = ["serde"] }

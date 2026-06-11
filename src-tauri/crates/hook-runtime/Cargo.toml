@@ -1,0 +1,12 @@
+[package]
+name = "hook-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Hook execution runtime"
+
+[dependencies]
+acp-core = { path = "../acp-core" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"

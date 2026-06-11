@@ -310,3 +310,252 @@ pub struct ConditionResult {
     /// Details / evidence
     pub evidence: String,
 }
+
+// ---------------------------------------------------------------------------
+// GoalGraph - Goal Dependency Graph Manager
+// ---------------------------------------------------------------------------
+
+use std::sync::Mutex;
+
+/// Graph of all goals with dependency tracking and state management.
+pub struct GoalGraph {
+    goals: Mutex<HashMap<String, Goal>>,
+}
+
+impl GoalGraph {
+    pub fn new() -> Self {
+        Self {
+            goals: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Submit a new goal to the graph
+    pub fn submit(&self, goal: Goal) -> Result<(), String> {
+        let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
+
+        // Check for duplicate ID
+        if goals.contains_key(&goal.id) {
+            return Err(format!("Goal '{}' already exists", goal.id));
+        }
+
+        // Validate dependencies exist
+        for dep_id in &goal.dependencies {
+            if !goals.contains_key(dep_id) {
+                return Err(format!("Dependency '{}' not found", dep_id));
+            }
+        }
+
+        goals.insert(goal.id.clone(), goal);
+        Ok(())
+    }
+
+    /// Get a goal by ID
+    pub fn get(&self, id: &str) -> Option<Goal> {
+        let goals = self.goals.lock().ok()?;
+        goals.get(id).cloned()
+    }
+
+    /// Update goal status
+    pub fn update_status(&self, id: &str, status: GoalStatus) -> Result<(), String> {
+        let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
+
+        let goal = goals
+            .get_mut(id)
+            .ok_or_else(|| format!("Goal '{}' not found", id))?;
+
+        goal.status = status;
+        Ok(())
+    }
+
+    /// Add an iteration record to a goal
+    pub fn add_iteration(&self, id: &str, record: IterationRecord) -> Result<(), String> {
+        let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
+
+        let goal = goals
+            .get_mut(id)
+            .ok_or_else(|| format!("Goal '{}' not found", id))?;
+
+        goal.iterations.push(record);
+        Ok(())
+    }
+
+    /// Cancel a goal
+    pub fn cancel(&self, id: &str) -> Result<(), String> {
+        self.update_status(id, GoalStatus::Cancelled)
+    }
+
+    /// Get all goals
+    pub fn list(&self) -> Vec<Goal> {
+        let goals = self.goals.lock().ok();
+        match goals {
+            Some(g) => g.values().cloned().collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Get summary statistics
+    pub fn summary(&self) -> GoalGraphSummary {
+        let goals = match self.goals.lock() {
+            Ok(g) => g,
+            Err(_) => return GoalGraphSummary::default(),
+        };
+
+        let mut summary = GoalGraphSummary::default();
+        for goal in goals.values() {
+            match &goal.status {
+                GoalStatus::Pending => summary.pending += 1,
+                GoalStatus::Active => summary.active += 1,
+                GoalStatus::Evaluating => summary.evaluating += 1,
+                GoalStatus::Converged => summary.converged += 1,
+                GoalStatus::Iterating { .. } => summary.iterating += 1,
+                GoalStatus::Failed { .. } => summary.failed += 1,
+                GoalStatus::BudgetExhausted => summary.budget_exhausted += 1,
+                GoalStatus::Cancelled => summary.cancelled += 1,
+            }
+        }
+        summary.total = goals.len() as u32;
+        summary
+    }
+
+    /// Get goals ready to execute (all dependencies converged)
+    pub fn get_ready_goals(&self) -> Vec<Goal> {
+        let goals = match self.goals.lock() {
+            Ok(g) => g,
+            Err(_) => return Vec::new(),
+        };
+
+        goals
+            .values()
+            .filter(|goal| {
+                if goal.status != GoalStatus::Pending {
+                    return false;
+                }
+                // Check all dependencies are converged
+                goal.dependencies.iter().all(|dep_id| {
+                    goals
+                        .get(dep_id)
+                        .map(|dep| dep.status == GoalStatus::Converged)
+                        .unwrap_or(false)
+                })
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Assign a worker to a goal
+    pub fn assign_worker(&self, id: &str, worker_id: WorkerId) -> Result<(), String> {
+        let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
+
+        let goal = goals
+            .get_mut(id)
+            .ok_or_else(|| format!("Goal '{}' not found", id))?;
+
+        goal.assigned_worker = Some(worker_id);
+        goal.status = GoalStatus::Active;
+        goal.started_at = Some(now_ms());
+        Ok(())
+    }
+}
+
+impl Default for GoalGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Summary statistics for the goal graph.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GoalGraphSummary {
+    pub total: u32,
+    pub pending: u32,
+    pub active: u32,
+    pub evaluating: u32,
+    pub converged: u32,
+    pub iterating: u32,
+    pub failed: u32,
+    pub budget_exhausted: u32,
+    pub cancelled: u32,
+}
+
+// ---------------------------------------------------------------------------
+// Tauri Commands
+// ---------------------------------------------------------------------------
+
+use tauri::State;
+use crate::AppState;
+
+/// Submit a new goal
+#[tauri::command]
+pub fn goal_submit(
+    state: State<'_, AppState>,
+    goal: Goal,
+) -> Result<(), String> {
+    state.goal_graph.lock().map_err(|e| e.to_string())?.submit(goal)
+}
+
+/// Get goal status
+#[tauri::command]
+pub fn goal_get_status(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Goal, String> {
+    state.goal_graph.lock().map_err(|e| e.to_string())?
+        .get(&id)
+        .ok_or_else(|| format!("Goal '{}' not found", id))
+}
+
+/// Cancel a goal
+#[tauri::command]
+pub fn goal_cancel(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    state.goal_graph.lock().map_err(|e| e.to_string())?.cancel(&id)
+}
+
+/// Get graph summary
+#[tauri::command]
+pub fn goal_get_graph_summary(
+    state: State<'_, AppState>,
+) -> Result<GoalGraphSummary, String> {
+    Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.summary())
+}
+
+/// List all goals
+#[tauri::command]
+pub fn goal_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<Goal>, String> {
+    Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.list())
+}
+
+/// Get goals ready to execute
+#[tauri::command]
+pub fn goal_get_ready(
+    state: State<'_, AppState>,
+) -> Result<Vec<Goal>, String> {
+    Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.get_ready_goals())
+}
+
+/// Assign a worker to a goal
+#[tauri::command]
+pub fn goal_assign_worker(
+    state: State<'_, AppState>,
+    id: String,
+    worker_id: String,
+) -> Result<(), String> {
+    state.goal_graph.lock().map_err(|e| e.to_string())?
+        .assign_worker(&id, worker_id)
+}
+
+/// Add iteration record to a goal
+#[tauri::command]
+pub fn goal_add_iteration(
+    state: State<'_, AppState>,
+    id: String,
+    record: IterationRecord,
+) -> Result<(), String> {
+    state.goal_graph.lock().map_err(|e| e.to_string())?
+        .add_iteration(&id, record)
+}

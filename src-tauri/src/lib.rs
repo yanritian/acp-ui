@@ -114,6 +114,8 @@ pub struct AppState {
     pub approval_engine: Arc<Mutex<approval_engine::ApprovalEngine>>,
     // Swarm Worker Registry (Day 1 - Real Worker Adapters)
     pub swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>>,
+    // Goal-Driven Architecture (RFC-001)
+    pub goal_graph: Arc<Mutex<goal::GoalGraph>>,
 }
 
 impl AppState {
@@ -163,6 +165,8 @@ impl AppState {
             approval_engine: Arc::new(Mutex::new(approval_engine::ApprovalEngine::new())),
             // Swarm Worker Registry (Day 1)
             swarm_workers: Arc::new(Mutex::new(HashMap::new())),
+            // Goal-Driven Architecture (RFC-001)
+            goal_graph: Arc::new(Mutex::new(goal::GoalGraph::new())),
         }
     }
 }
@@ -449,6 +453,15 @@ pub fn run() {
             swarm_orchestrator::swarm_cancel_task,
             swarm_orchestrator::swarm_execute_chain,
             swarm_orchestrator::swarm_handle_failure,
+            // Goal-Driven Architecture commands (RFC-001)
+            goal::goal_submit,
+            goal::goal_get_status,
+            goal::goal_cancel,
+            goal::goal_get_graph_summary,
+            goal::goal_list,
+            goal::goal_get_ready,
+            goal::goal_assign_worker,
+            goal::goal_add_iteration,
             // Workflow Engine commands
             workflow_engine::workflow_create,
             workflow_engine::workflow_validate,
@@ -533,7 +546,7 @@ pub fn run() {
             swarm_send_task,
             swarm_get_worker_status,
             swarm_health_check,
-            swarm_cancel_task,
+            swarm_worker_cancel_task,
             swarm_get_task_output,
             swarm_shutdown_worker
         ])
@@ -644,9 +657,9 @@ async fn swarm_health_check(
     Ok(adapter.health_check())
 }
 
-/// Cancel a running task
+/// Cancel a running task on a specific worker adapter
 #[tauri::command]
-async fn swarm_cancel_task(
+async fn swarm_worker_cancel_task(
     state: State<'_, AppState>,
     worker_id: String,
     task_id: String,

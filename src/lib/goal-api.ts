@@ -1,7 +1,9 @@
-// Goal-Driven Architecture — TypeScript Types (RFC-001)
+// Goal-Driven Architecture — TypeScript Types + Tauri API (RFC-001)
 //
 // Mirrors the Rust Goal data structures for frontend integration.
 // These types align with src-tauri/src/goal.rs.
+
+import { invokeOrProxy } from './host';
 
 // ---------------------------------------------------------------------------
 // Goal
@@ -99,12 +101,14 @@ export interface ConditionResult {
 
 export interface GoalGraphSummary {
   total: number
-  converged: number
-  active: number
   pending: number
-  failed: number
+  active: number
+  evaluating: number
+  converged: number
   iterating: number
-  blocked: number
+  failed: number
+  budget_exhausted: number
+  cancelled: number
 }
 
 // ---------------------------------------------------------------------------
@@ -205,4 +209,48 @@ export function createCommandGoal(
     parentId: null,
     dependencies: [],
   }
+}
+
+// ---------------------------------------------------------------------------
+// Tauri API Functions
+// ---------------------------------------------------------------------------
+
+/** Submit a new goal to the GoalGraph */
+export async function goalSubmit(goal: Goal): Promise<void> {
+  return invokeOrProxy('goal_submit', { goal })
+}
+
+/** Get goal status by ID */
+export async function goalGetStatus(id: string): Promise<Goal> {
+  return invokeOrProxy<Goal>('goal_get_status', { id })
+}
+
+/** Cancel a goal */
+export async function goalCancel(id: string): Promise<void> {
+  return invokeOrProxy('goal_cancel', { id })
+}
+
+/** Get graph summary statistics */
+export async function goalGetGraphSummary(): Promise<GoalGraphSummary> {
+  return invokeOrProxy<GoalGraphSummary>('goal_get_graph_summary')
+}
+
+/** List all goals */
+export async function goalList(): Promise<Goal[]> {
+  return invokeOrProxy<Goal[]>('goal_list')
+}
+
+/** Get goals ready to execute (dependencies converged) */
+export async function goalGetReady(): Promise<Goal[]> {
+  return invokeOrProxy<Goal[]>('goal_get_ready')
+}
+
+/** Assign a worker to a goal */
+export async function goalAssignWorker(id: string, workerId: string): Promise<void> {
+  return invokeOrProxy('goal_assign_worker', { id, workerId })
+}
+
+/** Add an iteration record to a goal */
+export async function goalAddIteration(id: string, record: IterationRecord): Promise<void> {
+  return invokeOrProxy('goal_add_iteration', { id, record })
 }

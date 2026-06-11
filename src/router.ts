@@ -8,8 +8,9 @@ const routes = [
   { path: '/chat', name: 'chat', component: () => import('./features/chat/ChatView.vue') },
   { path: '/multi-agent', name: 'multi-agent', component: () => import('./features/chat/MultiAgentChat.vue') },
   { path: '/multi-session', name: 'multi-session', component: () => import('./features/chat/MultiSessionChat.vue') },
-  { path: '/status', name: 'status', component: () => import('./features/monitoring/StatusView.vue') },
-  { path: '/monitor', name: 'monitor', component: () => import('./features/monitoring/MonitorView.vue') },
+  // Demo pages - placeholder data, not connected to real backend
+  { path: '/status', name: 'status', component: () => import('./features/monitoring/StatusView.vue'), meta: { isDemo: true } },
+  { path: '/monitor', name: 'monitor', component: () => import('./features/monitoring/MonitorView.vue'), meta: { isDemo: true } },
   { path: '/history', name: 'history', component: () => import('./shared/ui/HistoryView.vue') },
   { path: '/workflow', name: 'workflow', component: () => import('./features/workflow/WorkflowView.vue') },
   { path: '/gateway', name: 'gateway', component: () => import('./shared/ui/GatewaySettings.vue') },
@@ -19,14 +20,17 @@ const routes = [
   { path: '/error', name: 'error', component: () => import('./shared/ui/ErrorView.vue') },
   { path: '/evolution', name: 'evolution', component: () => import('./features/intelligence/EvolutionView.vue') },
   { path: '/pattern', name: 'pattern', component: () => import('./features/intelligence/PatternView.vue') },
-  { path: '/hermes', name: 'hermes', component: () => import('./features/hermes/HermesDashboard.vue') },
+  // Demo page - mock Hermes dashboard
+  { path: '/hermes', name: 'hermes', component: () => import('./features/hermes/HermesDashboard.vue'), meta: { isDemo: true } },
   {
     path: '/task-graph',
     name: 'task-graph',
     component: () => import('./features/workflow/TaskGraphView.vue'),
-    props: () => ({ dag: createMockTaskDag(), showAgents: true, orientation: 'vertical', isDemo: true })
+    props: () => ({ dag: createMockTaskDag(), showAgents: true, orientation: 'vertical', isDemo: true }),
+    meta: { isDemo: true }
   },
-  { path: '/collaboration', name: 'collaboration', component: () => import('./features/hermes/EnhancedHermesDashboard.vue') },
+  // Demo page - mock collaboration dashboard
+  { path: '/collaboration', name: 'collaboration', component: () => import('./features/hermes/EnhancedHermesDashboard.vue'), meta: { isDemo: true } },
   { path: '/agent-teams', name: 'agent-teams', component: () => import('./views/AgentTeamsDashboard.vue') },
   { path: '/executive-session', name: 'executive-session', component: () => import('./features/agent-teams/ExecutiveSessionView.vue') },
   { path: '/skills', name: 'skills', component: () => import('./features/plugins/skills/SkillManager.vue') },

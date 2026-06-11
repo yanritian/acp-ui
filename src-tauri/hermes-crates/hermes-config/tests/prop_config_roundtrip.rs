@@ -132,6 +132,7 @@ fn arb_gateway_config() -> impl Strategy<Value = GatewayConfig> {
                 profile: ProfileConfig::default(),
                 agent: AgentLoopBehaviorConfig::default(),
                 home_dir: None,
+                extra_body: None,
             },
         )
 }

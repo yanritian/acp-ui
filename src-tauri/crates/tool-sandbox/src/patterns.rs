@@ -45,10 +45,11 @@ impl DeniedPatterns {
     pub fn default_patterns() -> Self {
         Self {
             patterns: vec![
+                // More specific patterns first (order matters!)
                 DeniedPattern {
-                    name: "env-files".to_string(),
-                    pattern: ".env".to_string(),
-                    reason: "Environment files may contain API keys and secrets".to_string(),
+                    name: "env-production".to_string(),
+                    pattern: ".env.production".to_string(),
+                    reason: "Production environment files contain critical secrets".to_string(),
                     severity: Severity::Critical,
                 },
                 DeniedPattern {
@@ -58,9 +59,9 @@ impl DeniedPatterns {
                     severity: Severity::Critical,
                 },
                 DeniedPattern {
-                    name: "env-production".to_string(),
-                    pattern: ".env.production".to_string(),
-                    reason: "Production environment files contain critical secrets".to_string(),
+                    name: "env-files".to_string(),
+                    pattern: ".env".to_string(),
+                    reason: "Environment files may contain API keys and secrets".to_string(),
                     severity: Severity::Critical,
                 },
                 DeniedPattern {
@@ -109,15 +110,28 @@ impl DeniedPatterns {
 
     /// 匹配glob模式
     fn matches_pattern(&self, path: &str, pattern: &str) -> bool {
+        // Handle **/dir/** patterns (path contains dir/ anywhere)
+        if pattern.starts_with("**/") && pattern.ends_with("/**") {
+            let middle = &pattern[3..pattern.len()-3];
+            return path.contains(&format!("{}/", middle)) || path.contains(middle);
+        }
+        // Handle **/*.ext patterns (path ends with .ext)
+        if pattern.starts_with("**/*.") {
+            let ext = &pattern[5..];
+            return path.ends_with(ext);
+        }
+        // Handle **/name patterns (path ends with name or contains name)
         if pattern.starts_with("**/") {
             let suffix = &pattern[3..];
-            return path.ends_with(suffix) || path.contains(suffix);
+            return path.ends_with(suffix) || path.contains(&format!("/{suffix}"));
         }
+        // Handle dir/** patterns (path starts with dir/)
         if pattern.ends_with("/**") {
             let prefix = &pattern[..pattern.len() - 3];
-            return path.starts_with(prefix);
+            return path.starts_with(prefix) || path.starts_with(&format!("{}/", prefix));
         }
-        path.contains(pattern) || path == pattern
+        // Exact match or substring match
+        path == pattern || path.contains(pattern)
     }
 
     /// 添加禁止模式
@@ -134,5 +148,116 @@ impl DeniedPatterns {
 impl Default for DeniedPatterns {
     fn default() -> Self {
         Self::default_patterns()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_patterns_count() {
+        let patterns = DeniedPatterns::default_patterns();
+        assert_eq!(patterns.list_patterns().len(), 8);
+    }
+
+    #[test]
+    fn is_denied_env_file() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied(".env");
+        assert!(result.is_some());
+        let pattern = result.unwrap();
+        assert_eq!(pattern.name, "env-files");
+        assert_eq!(pattern.severity, Severity::Critical);
+    }
+
+    #[test]
+    fn is_denied_env_local() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied(".env.local");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "env-local");
+    }
+
+    #[test]
+    fn is_denied_env_production() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied(".env.production");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "env-production");
+    }
+
+    #[test]
+    fn is_denied_secrets_directory() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied("config/secrets/api.key");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "secrets-dir");
+    }
+
+    #[test]
+    fn is_denied_credentials_directory() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied("app/.credentials/db.json");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "credentials-dir");
+    }
+
+    #[test]
+    fn is_denied_ssh_keys() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied(".ssh/id_rsa");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "ssh-keys");
+    }
+
+    #[test]
+    fn is_denied_pem_file() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied("certs/server.pem");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().name, "private-keys");
+        assert_eq!(result.unwrap().severity, Severity::High);
+    }
+
+    #[test]
+    fn is_not_denied_normal_file() {
+        let patterns = DeniedPatterns::default_patterns();
+
+        let result = patterns.is_denied("src/main.rs");
+        assert!(result.is_none());
+
+        let result = patterns.is_denied("README.md");
+        assert!(result.is_none());
+
+        let result = patterns.is_denied("Cargo.toml");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn add_custom_pattern() {
+        let mut patterns = DeniedPatterns::default_patterns();
+        patterns.add_pattern(DeniedPattern {
+            name: "custom-block".to_string(),
+            pattern: "*.log".to_string(),
+            reason: "Log files should not be accessed".to_string(),
+            severity: Severity::Medium,
+        });
+
+        assert_eq!(patterns.list_patterns().len(), 9);
+    }
+
+    #[test]
+    fn severity_levels() {
+        assert_ne!(Severity::Low, Severity::Medium);
+        assert_ne!(Severity::Medium, Severity::High);
+        assert_ne!(Severity::High, Severity::Critical);
     }
 }

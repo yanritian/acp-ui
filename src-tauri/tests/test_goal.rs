@@ -154,3 +154,66 @@ fn test_goal_budget_tracking() {
     used_goal.token_used = 1000;
     assert!(used_goal.is_budget_exhausted());
 }
+
+// ---------------------------------------------------------------------------
+// FT-8: Additional Tauri Command-style tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_goal_status_budget_exhausted() {
+    let graph = GoalGraph::new();
+    let mut goal = create_goal("g1", "Expensive goal");
+    goal.token_budget = Some(100);
+    goal.token_used = 100; // Already exhausted
+
+    graph.submit(goal).unwrap();
+
+    // Update to budget exhausted
+    graph.update_status("g1", GoalStatus::BudgetExhausted).unwrap();
+
+    let stored = graph.get("g1").unwrap();
+    assert_eq!(stored.status, GoalStatus::BudgetExhausted);
+    assert!(stored.is_budget_exhausted());
+}
+
+#[test]
+fn test_goal_status_iterating_with_feedback() {
+    let graph = GoalGraph::new();
+    let goal = create_goal("g1", "Iterating goal");
+    graph.submit(goal).unwrap();
+
+    // Mark as iterating with feedback
+    graph.update_status("g1", GoalStatus::Iterating {
+        feedback: "Need to fix the API endpoint".to_string(),
+    }).unwrap();
+
+    let stored = graph.get("g1").unwrap();
+    if let GoalStatus::Iterating { feedback } = stored.status {
+        assert_eq!(feedback, "Need to fix the API endpoint");
+    } else {
+        panic!("Expected Iterating status");
+    }
+}
+
+#[test]
+fn test_goal_failed_status() {
+    let graph = GoalGraph::new();
+    let goal = create_goal("g1", "Goal that will fail");
+    graph.submit(goal).unwrap();
+
+    // Mark as failed with reason
+    graph.update_status("g1", GoalStatus::Failed {
+        reason: "Max iterations reached without convergence".to_string(),
+    }).unwrap();
+
+    let stored = graph.get("g1").unwrap();
+    if let GoalStatus::Failed { reason } = stored.status {
+        assert!(reason.contains("Max iterations"));
+    } else {
+        panic!("Expected Failed status");
+    }
+
+    // Summary should count failed
+    let summary = graph.summary();
+    assert_eq!(summary.failed, 1);
+}

@@ -198,3 +198,115 @@ pub enum ValidationResult {
     /// 无Queen
     NoQueen,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn queen_lease_new_is_valid() {
+        let lease = QueenLease::new("queen-001");
+        assert!(lease.check_validity());
+    }
+
+    #[test]
+    fn queen_lease_expires_at() {
+        let lease = QueenLease::new("queen-001");
+        assert!(lease.expires_at_ms() > lease.granted_at);
+        assert_eq!(lease.ttl_seconds, 30);
+    }
+
+    #[test]
+    fn queen_lease_renew() {
+        let mut lease = QueenLease::new("queen-001");
+        let original_granted = lease.granted_at;
+
+        // Should be able to renew while valid
+        assert!(lease.renew());
+
+        // granted_at should be updated
+        assert!(lease.granted_at >= original_granted);
+    }
+
+    #[test]
+    fn election_manager_register_and_elect() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+
+        let lease = manager.elect_new_queen();
+        assert!(lease.is_some());
+        assert_eq!(lease.unwrap().queen_id, "worker-001");
+    }
+
+    #[test]
+    fn election_manager_no_workers() {
+        let mut manager = QueenElectionManager::new();
+        let lease = manager.elect_new_queen();
+        assert!(lease.is_none());
+    }
+
+    #[test]
+    fn election_manager_priority_election() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+        manager.register_worker("worker-002".to_string(), "claude_code".to_string());
+
+        // Set priorities
+        manager.update_priority("worker-001", 0.5);
+        manager.update_priority("worker-002", 0.9);
+
+        // Higher priority worker should be elected
+        let lease = manager.elect_new_queen();
+        assert!(lease.is_some());
+        assert_eq!(lease.unwrap().queen_id, "worker-002");
+    }
+
+    #[test]
+    fn election_manager_auto_elect() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+
+        // No current lease -> auto_elect should trigger election
+        let lease = manager.auto_elect_if_expired();
+        assert!(lease.is_some());
+    }
+
+    #[test]
+    fn election_manager_is_queen_valid() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+
+        // Initially no queen
+        assert!(!manager.is_queen_valid());
+
+        // After election
+        manager.elect_new_queen();
+        assert!(manager.is_queen_valid());
+    }
+
+    #[test]
+    fn election_manager_renew_lease() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+        manager.elect_new_queen();
+
+        // Should be able to renew
+        assert!(manager.renew_queen_lease());
+    }
+
+    #[test]
+    fn election_manager_update_heartbeat() {
+        let mut manager = QueenElectionManager::new();
+        manager.register_worker("worker-001".to_string(), "codex".to_string());
+
+        // Get current heartbeat
+        let initial = manager.workers.get("worker-001").unwrap().last_heartbeat;
+
+        // Update heartbeat
+        manager.update_heartbeat("worker-001");
+
+        // Should be updated
+        let updated = manager.workers.get("worker-001").unwrap().last_heartbeat;
+        assert!(updated >= initial);
+    }
+}

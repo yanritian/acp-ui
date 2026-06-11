@@ -199,3 +199,188 @@ impl Default for SkillRouter {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skill_declaration_new() {
+        let skill = SkillDeclaration::new("code-generation", 0.9);
+        assert_eq!(skill.name, "code-generation");
+        assert_eq!(skill.proficiency, 0.9);
+        assert_eq!(skill.effective_proficiency(), 0.9); // No history yet
+    }
+
+    #[test]
+    fn skill_declaration_effective_proficiency_with_history() {
+        let mut skill = SkillDeclaration::new("code-generation", 0.9);
+
+        // 10 successes out of 10
+        for _ in 0..10 {
+            skill.record_execution(true, 1000);
+        }
+
+        // effective = 0.9 * 0.3 + 1.0 * 0.7 = 0.27 + 0.7 = 0.97
+        let effective = skill.effective_proficiency();
+        assert!(effective > 0.9 && effective <= 1.0);
+    }
+
+    #[test]
+    fn skill_declaration_effective_proficiency_with_failures() {
+        let mut skill = SkillDeclaration::new("code-generation", 0.9);
+
+        // 5 successes out of 10
+        for i in 0..10 {
+            skill.record_execution(i < 5, 1000);
+        }
+
+        // effective = 0.9 * 0.3 + 0.5 * 0.7 = 0.27 + 0.35 = 0.62
+        let effective = skill.effective_proficiency();
+        assert!(effective > 0.5 && effective < 0.9);
+    }
+
+    #[test]
+    fn worker_capabilities_new() {
+        let caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        assert_eq!(caps.worker_id, "worker-001");
+        assert_eq!(caps.worker_type, "codex");
+        assert!(caps.skills.is_empty());
+        assert_eq!(caps.max_concurrency, 2);
+        assert!(caps.is_available());
+    }
+
+    #[test]
+    fn worker_capabilities_add_skill() {
+        let mut caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps.add_skill(SkillDeclaration::new("code-generation", 0.9));
+
+        assert_eq!(caps.skills.len(), 1);
+        assert_eq!(caps.get_skill_proficiency("code-generation"), Some(0.9));
+        assert_eq!(caps.get_skill_proficiency("nonexistent"), None);
+    }
+
+    #[test]
+    fn worker_capabilities_is_available() {
+        let mut caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps.max_concurrency = 2;
+
+        assert!(caps.is_available()); // load = 0
+
+        caps.current_load = 1;
+        assert!(caps.is_available()); // load < max
+
+        caps.current_load = 2;
+        assert!(!caps.is_available()); // load = max
+    }
+
+    #[test]
+    fn skill_router_register() {
+        let mut router = SkillRouter::new();
+        let caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        router.register(caps);
+
+        assert!(router.get_worker("worker-001").is_some());
+        assert!(router.get_worker("nonexistent").is_none());
+    }
+
+    #[test]
+    fn skill_router_route_best_worker() {
+        let mut router = SkillRouter::new();
+
+        let mut caps1 = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps1.add_skill(SkillDeclaration::new("code-generation", 0.7));
+
+        let mut caps2 = WorkerCapabilitiesDeclaration::new("worker-002", "claude_code");
+        caps2.add_skill(SkillDeclaration::new("code-generation", 0.9));
+
+        router.register(caps1);
+        router.register(caps2);
+
+        // Should route to worker-002 (higher proficiency)
+        let routed = router.route("code-generation");
+        assert_eq!(routed, Some("worker-002".to_string()));
+    }
+
+    #[test]
+    fn skill_router_route_no_skill() {
+        let mut router = SkillRouter::new();
+
+        let mut caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps.add_skill(SkillDeclaration::new("debugging", 0.9));
+
+        router.register(caps);
+
+        // No worker with code-generation skill
+        let routed = router.route("code-generation");
+        assert!(routed.is_none());
+    }
+
+    #[test]
+    fn skill_router_route_unavailable_worker() {
+        let mut router = SkillRouter::new();
+
+        let mut caps1 = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps1.add_skill(SkillDeclaration::new("code-generation", 0.9));
+        caps1.current_load = 2; // At max concurrency
+
+        let mut caps2 = WorkerCapabilitiesDeclaration::new("worker-002", "claude_code");
+        caps2.add_skill(SkillDeclaration::new("code-generation", 0.7));
+
+        router.register(caps1);
+        router.register(caps2);
+
+        // worker-001 has higher proficiency but is unavailable
+        // Should route to worker-002
+        let routed = router.route("code-generation");
+        assert_eq!(routed, Some("worker-002".to_string()));
+    }
+
+    #[test]
+    fn skill_router_route_batch() {
+        let mut router = SkillRouter::new();
+
+        let mut caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps.add_skill(SkillDeclaration::new("code-generation", 0.9));
+        caps.add_skill(SkillDeclaration::new("debugging", 0.8));
+
+        router.register(caps);
+
+        let skills = vec!["code-generation".to_string(), "debugging".to_string(), "nonexistent".to_string()];
+        let routed = router.route_batch(&skills);
+
+        assert_eq!(routed.get("code-generation"), Some(&Some("worker-001".to_string())));
+        assert_eq!(routed.get("debugging"), Some(&Some("worker-001".to_string())));
+        assert_eq!(routed.get("nonexistent"), Some(&None));
+    }
+
+    #[test]
+    fn skill_router_record_execution() {
+        let mut router = SkillRouter::new();
+
+        let mut caps = WorkerCapabilitiesDeclaration::new("worker-001", "codex");
+        caps.add_skill(SkillDeclaration::new("code-generation", 0.9));
+
+        router.register(caps);
+
+        // Record execution
+        router.record_execution("worker-001", "code-generation", true, 1000);
+
+        // Check proficiency updated
+        let worker = router.get_worker("worker-001").unwrap();
+        let skill = worker.skills.iter().find(|s| s.name == "code-generation").unwrap();
+        assert_eq!(skill.total_count, 1);
+        assert_eq!(skill.success_count, 1);
+    }
+
+    #[test]
+    fn skill_router_unregister() {
+        let mut router = SkillRouter::new();
+        router.register(WorkerCapabilitiesDeclaration::new("worker-001", "codex"));
+
+        assert!(router.get_worker("worker-001").is_some());
+
+        router.unregister("worker-001");
+        assert!(router.get_worker("worker-001").is_none());
+    }
+}

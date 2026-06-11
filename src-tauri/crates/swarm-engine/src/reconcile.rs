@@ -272,3 +272,125 @@ impl ReconcileLoop {
         results
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::goal::CompletionCondition;
+
+    #[tokio::test]
+    async fn reconcile_converges_with_echo_executor_success() {
+        let reconciler = ReconcileLoop::with_echo(true);
+        let mut goal = Goal::new(
+            "test-goal",
+            "Test description",
+            CompletionCondition::command_success("echo"),
+            "echo-worker",
+        );
+
+        let outcome = reconciler.reconcile_goal(&mut goal).await;
+
+        assert!(matches!(outcome, GoalOutcome::Converged { .. }));
+        assert_eq!(goal.status, GoalStatus::Converged);
+    }
+
+    #[tokio::test]
+    async fn reconcile_fails_with_echo_executor_error() {
+        let reconciler = ReconcileLoop::with_echo(false);
+        let mut goal = Goal::new(
+            "test-goal",
+            "Test description",
+            CompletionCondition::command_success("echo"),
+            "echo-worker",
+        );
+
+        let outcome = reconciler.reconcile_goal(&mut goal).await;
+
+        assert!(matches!(outcome, GoalOutcome::Failed(_)));
+        assert_eq!(goal.status, GoalStatus::Failed);
+    }
+
+    #[tokio::test]
+    async fn reconcile_budget_exhausted() {
+        let reconciler = ReconcileLoop::with_echo(true);
+        let mut goal = Goal::new(
+            "test-goal",
+            "Test description",
+            CompletionCondition::command_success("echo"),
+            "echo-worker",
+        );
+        goal.token_budget = 0; // Zero budget
+
+        let outcome = reconciler.reconcile_goal(&mut goal).await;
+
+        assert!(matches!(outcome, GoalOutcome::BudgetExhausted { .. }));
+    }
+
+    #[tokio::test]
+    async fn reconcile_max_iter_reached() {
+        let reconciler = ReconcileLoop::with_echo(true);
+        let mut goal = Goal::new(
+            "test-goal",
+            "Test description",
+            CompletionCondition::command_success("echo"),
+            "echo-worker",
+        );
+        goal.max_iterations = 0; // Zero max iterations
+
+        let outcome = reconciler.reconcile_goal(&mut goal).await;
+
+        assert!(matches!(outcome, GoalOutcome::MaxIterReached { .. }));
+    }
+
+    #[test]
+    fn echo_executor_worker_id() {
+        let executor = EchoExecutor::new("my-worker", "output", true);
+        assert_eq!(executor.worker_id(), "my-worker");
+    }
+
+    #[test]
+    fn echo_executor_success() {
+        let mut executor = EchoExecutor::new("worker", "test output", true);
+        let goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        let result = executor.execute(&goal);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test output");
+    }
+
+    #[test]
+    fn echo_executor_failure() {
+        let mut executor = EchoExecutor::new("worker", "error message", false);
+        let goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        let result = executor.execute(&goal);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn command_executor_worker_id() {
+        let executor = CommandExecutor::new("cmd-worker");
+        assert_eq!(executor.worker_id(), "cmd-worker");
+    }
+
+    #[tokio::test]
+    async fn reconcile_graph_simple_chain() {
+        let reconciler = ReconcileLoop::with_echo(true);
+        let mut graph = crate::goal_graph::GoalGraph::new();
+
+        let mut goal_a = Goal::new("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
+        goal_a.depends_on = vec![];
+
+        let mut goal_b = Goal::new("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
+        goal_b.depends_on = vec!["a".to_string()];
+
+        graph.add_goal(goal_a);
+        graph.add_goal(goal_b);
+
+        let results = reconciler.reconcile_graph(&mut graph).await;
+
+        assert_eq!(results.len(), 2);
+        // Both should converge
+        for (_, outcome) in &results {
+            assert!(matches!(outcome, GoalOutcome::Converged { .. }));
+        }
+    }
+}

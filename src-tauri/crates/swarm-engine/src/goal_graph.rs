@@ -177,3 +177,139 @@ impl Default for GoalGraph {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::goal::CompletionCondition;
+
+    fn make_goal(id: &str, depends_on: Vec<String>) -> Goal {
+        let mut goal = Goal::new(id, "Test goal", CompletionCondition::command_success("echo"), "worker-1");
+        goal.depends_on = depends_on;
+        goal
+    }
+
+    #[test]
+    fn empty_graph() {
+        let graph = GoalGraph::new();
+        assert!(graph.is_empty());
+        assert_eq!(graph.len(), 0);
+        assert!(graph.ready_goals().is_empty());
+        assert!(graph.all_converged()); // vacuous truth
+        assert!(graph.topological_order().is_empty());
+    }
+
+    #[test]
+    fn single_goal_no_deps() {
+        let mut graph = GoalGraph::new();
+        graph.add_goal(make_goal("goal-a", vec![]));
+
+        assert!(!graph.is_empty());
+        assert_eq!(graph.len(), 1);
+
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-a");
+    }
+
+    #[test]
+    fn dependency_chain() {
+        let mut graph = GoalGraph::new();
+        // B depends on A
+        graph.add_goal(make_goal("goal-a", vec![]));
+        graph.add_goal(make_goal("goal-b", vec!["goal-a".to_string()]));
+
+        // Initially only A is ready
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-a");
+
+        // Mark A as converged
+        graph.update_goal_status("goal-a", GoalStatus::Converged);
+
+        // Now B is ready
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-b");
+
+        // Topological order: A before B
+        let order = graph.topological_order();
+        assert_eq!(order[0], "goal-a");
+        assert_eq!(order[1], "goal-b");
+    }
+
+    #[test]
+    fn blocked_by_failed_dependency() {
+        let mut graph = GoalGraph::new();
+        graph.add_goal(make_goal("goal-a", vec![]));
+        graph.add_goal(make_goal("goal-b", vec!["goal-a".to_string()]));
+
+        // Mark A as failed
+        graph.update_goal_status("goal-a", GoalStatus::Failed);
+
+        // B should be blocked
+        let blocked = graph.has_blocked_goals();
+        assert_eq!(blocked.len(), 1);
+        assert_eq!(blocked[0].0, "goal-b");
+        assert!(blocked[0].1.contains(&"goal-a".to_string()));
+    }
+
+    #[test]
+    fn all_converged() {
+        let mut graph = GoalGraph::new();
+        graph.add_goal(make_goal("goal-a", vec![]));
+        graph.add_goal(make_goal("goal-b", vec!["goal-a".to_string()]));
+
+        assert!(!graph.all_converged());
+
+        graph.update_goal_status("goal-a", GoalStatus::Converged);
+        assert!(!graph.all_converged());
+
+        graph.update_goal_status("goal-b", GoalStatus::Converged);
+        assert!(graph.all_converged());
+    }
+
+    #[test]
+    fn parallel_goals() {
+        let mut graph = GoalGraph::new();
+        // A and B both have no dependencies
+        graph.add_goal(make_goal("goal-a", vec![]));
+        graph.add_goal(make_goal("goal-b", vec![]));
+
+        // Both should be ready
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 2);
+    }
+
+    #[test]
+    fn complex_dependency_graph() {
+        let mut graph = GoalGraph::new();
+        // D depends on B and C, B and C depend on A
+        graph.add_goal(make_goal("goal-a", vec![]));
+        graph.add_goal(make_goal("goal-b", vec!["goal-a".to_string()]));
+        graph.add_goal(make_goal("goal-c", vec!["goal-a".to_string()]));
+        graph.add_goal(make_goal("goal-d", vec!["goal-b".to_string(), "goal-c".to_string()]));
+
+        // Only A ready initially
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-a");
+
+        // Converge A -> B and C ready
+        graph.update_goal_status("goal-a", GoalStatus::Converged);
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 2);
+
+        // Converge B -> only C ready (D needs both B and C)
+        graph.update_goal_status("goal-b", GoalStatus::Converged);
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-c");
+
+        // Converge C -> D ready
+        graph.update_goal_status("goal-c", GoalStatus::Converged);
+        let ready = graph.ready_goals();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "goal-d");
+    }
+}

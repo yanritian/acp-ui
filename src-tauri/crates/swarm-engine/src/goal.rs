@@ -305,3 +305,143 @@ pub enum GoalOutcome {
     /// 失败
     Failed(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn goal_new_defaults() {
+        let goal = Goal::new(
+            "test-goal",
+            "Test description",
+            CompletionCondition::command_success("echo"),
+            "worker-001",
+        );
+
+        assert_eq!(goal.id, "test-goal");
+        assert_eq!(goal.description, "Test description");
+        assert_eq!(goal.executor, "worker-001");
+        assert_eq!(goal.status, GoalStatus::Pending);
+        assert_eq!(goal.current_iteration, 0);
+        assert_eq!(goal.tokens_used, 0);
+        assert_eq!(goal.token_budget, 100_000);
+        assert_eq!(goal.max_iterations, 5);
+        assert!(goal.depends_on.is_empty());
+        assert!(goal.iteration_log.is_empty());
+        assert!(goal.converged_at.is_none());
+    }
+
+    #[test]
+    fn goal_status_is_terminal() {
+        // Terminal states
+        assert!(GoalStatus::Converged.is_terminal());
+        assert!(GoalStatus::Failed.is_terminal());
+        assert!(GoalStatus::Cancelled.is_terminal());
+        assert!(GoalStatus::BudgetExhausted.is_terminal());
+        assert!(GoalStatus::MaxIterReached.is_terminal());
+
+        // Non-terminal states
+        assert!(!GoalStatus::Pending.is_terminal());
+        assert!(!GoalStatus::Active.is_terminal());
+        assert!(!GoalStatus::Evaluating.is_terminal());
+        assert!(!GoalStatus::Iterating.is_terminal());
+    }
+
+    #[test]
+    fn goal_status_is_success() {
+        assert!(GoalStatus::Converged.is_success());
+        assert!(!GoalStatus::Failed.is_success());
+        assert!(!GoalStatus::Pending.is_success());
+        assert!(!GoalStatus::Active.is_success());
+    }
+
+    #[test]
+    fn goal_budget_exhausted() {
+        let mut goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        goal.token_budget = 1000;
+
+        assert!(!goal.budget_exhausted());
+
+        goal.tokens_used = 500;
+        assert!(!goal.budget_exhausted());
+
+        goal.tokens_used = 1000;
+        assert!(goal.budget_exhausted());
+
+        goal.tokens_used = 1500;
+        assert!(goal.budget_exhausted());
+    }
+
+    #[test]
+    fn goal_max_iter_reached() {
+        let mut goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        goal.max_iterations = 3;
+
+        assert!(!goal.max_iter_reached());
+
+        goal.current_iteration = 2;
+        assert!(!goal.max_iter_reached());
+
+        goal.current_iteration = 3;
+        assert!(goal.max_iter_reached());
+    }
+
+    #[test]
+    fn goal_append_feedback() {
+        let mut goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        assert!(goal.iteration_log.is_empty());
+
+        goal.append_feedback(1, "First iteration feedback", 500);
+
+        assert_eq!(goal.iteration_log.len(), 1);
+        assert_eq!(goal.iteration_log[0].iteration, 1);
+        assert_eq!(goal.iteration_log[0].evaluation_result.feedback, "First iteration feedback");
+        assert_eq!(goal.iteration_log[0].evaluation_result.tokens_used, 500);
+        assert_eq!(goal.tokens_used, 500);
+
+        goal.append_feedback(2, "Second iteration feedback", 300);
+
+        assert_eq!(goal.iteration_log.len(), 2);
+        assert_eq!(goal.tokens_used, 800);
+    }
+
+    #[test]
+    fn goal_is_ready_no_deps() {
+        let goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+
+        assert!(goal.is_ready(&[]));
+    }
+
+    #[test]
+    fn goal_is_ready_with_deps() {
+        let mut goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        goal.depends_on = vec!["goal-a".to_string(), "goal-b".to_string()];
+        goal.status = GoalStatus::Pending;
+
+        // No deps converged -> not ready
+        assert!(!goal.is_ready(&[]));
+
+        // Partial deps converged -> not ready
+        assert!(!goal.is_ready(&["goal-a"]));
+
+        // All deps converged -> ready
+        assert!(goal.is_ready(&["goal-a", "goal-b"]));
+
+        // Wrong status -> not ready
+        goal.status = GoalStatus::Active;
+        assert!(!goal.is_ready(&["goal-a", "goal-b"]));
+    }
+
+    #[test]
+    fn completion_condition_command_success() {
+        let cc = CompletionCondition::command_success("npm test");
+        assert!(matches!(cc, CompletionCondition::CommandSuccess { .. }));
+    }
+
+    #[test]
+    fn completion_condition_file_exists() {
+        let cc = CompletionCondition::file_exists("README.md");
+        assert!(matches!(cc, CompletionCondition::FileCheck { .. }));
+    }
+}

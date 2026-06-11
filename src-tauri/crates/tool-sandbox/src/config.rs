@@ -162,3 +162,111 @@ impl Default for SandboxConfig {
         Self::default_relaxed()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_relaxed_allows_most_paths() {
+        let config = SandboxConfig::default_relaxed();
+
+        // Should allow normal paths
+        assert!(config.is_path_allowed("src/main.rs"));
+        assert!(config.is_path_allowed("Cargo.toml"));
+        assert!(config.is_path_allowed("README.md"));
+
+        // Should deny .env files
+        assert!(!config.is_path_allowed(".env"));
+        assert!(!config.is_path_allowed(".env.local"));
+        assert!(!config.is_path_allowed("config/.env.production"));
+    }
+
+    #[test]
+    fn default_relaxed_allows_most_commands() {
+        let config = SandboxConfig::default_relaxed();
+
+        // Should allow normal commands
+        assert!(config.is_command_allowed("ls"));
+        assert!(config.is_command_allowed("cargo build"));
+        assert!(config.is_command_allowed("npm test"));
+
+        // Should deny dangerous commands
+        assert!(!config.is_command_allowed("rm -rf /"));
+        assert!(!config.is_command_allowed("sudo rm"));
+    }
+
+    #[test]
+    fn default_strict_restricts_paths() {
+        let config = SandboxConfig::default_strict();
+
+        // Should allow ./ paths
+        assert!(config.is_path_allowed("./src/main.rs"));
+        assert!(config.is_path_allowed("./Cargo.toml"));
+
+        // Should deny .env
+        assert!(!config.is_path_allowed(".env"));
+
+        // Should deny absolute paths (not starting with ./)
+        assert!(!config.is_path_allowed("/etc/passwd"));
+        assert!(!config.is_path_allowed("C:\\Windows\\"));
+    }
+
+    #[test]
+    fn default_strict_restricts_commands() {
+        let config = SandboxConfig::default_strict();
+
+        // Should allow listed commands
+        assert!(config.is_command_allowed("ls"));
+        assert!(config.is_command_allowed("cat"));
+        assert!(config.is_command_allowed("npm"));
+        assert!(config.is_command_allowed("cargo"));
+
+        // Should deny unlisted commands
+        assert!(!config.is_command_allowed("rm"));
+        assert!(!config.is_command_allowed("curl"));
+        assert!(!config.is_command_allowed("python"));
+    }
+
+    #[test]
+    fn disabled_sandbox_allows_all() {
+        let mut config = SandboxConfig::default_relaxed();
+        config.enabled = false;
+
+        // Everything should be allowed when sandbox is disabled
+        assert!(config.is_path_allowed(".env"));
+        assert!(config.is_path_allowed("/etc/passwd"));
+        assert!(config.is_command_allowed("rm -rf /"));
+        assert!(config.is_command_allowed("sudo"));
+    }
+
+    #[test]
+    fn matches_pattern_glob_star() {
+        let config = SandboxConfig::default_relaxed();
+
+        // * should match anything
+        assert!(config.is_path_allowed("anything"));
+    }
+
+    #[test]
+    fn matches_pattern_double_star_prefix() {
+        let config = SandboxConfig::default_strict();
+
+        // **/secrets/** should match any path containing secrets/
+        assert!(!config.is_path_allowed("config/secrets/api.key"));
+        assert!(!config.is_path_allowed("secrets/password.txt"));
+        assert!(!config.is_path_allowed("deep/nested/secrets/file"));
+    }
+
+    #[test]
+    fn no_network_in_strict() {
+        let config = SandboxConfig::default_strict();
+        assert!(!config.allow_network);
+    }
+
+    #[test]
+    fn network_in_relaxed() {
+        let config = SandboxConfig::default_relaxed();
+        assert!(config.allow_network);
+    }
+}

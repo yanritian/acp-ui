@@ -69,7 +69,20 @@ mod gateway_config;
 mod commands;         // Refactored command handlers organized by domain
 
 // ---- Public exports for integration tests ----
-pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary};
+pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary, ConditionResult};
+pub use swarm_orchestrator::{
+    SwarmOrchestrator, SwarmAgent, SwarmTask, SwarmTaskStatus,
+    AgentRole, AgentSwarmStatus, AgentResult,
+    SwarmTopology, ConsensusStrategy, SwarmHealth,
+};
+
+// Re-export from workspace crates
+pub use swarm_engine::{
+    GoalGraph as SwarmGoalGraph, GoalStatus as SwarmGoalStatus,
+    CompletionCondition as SwarmCompletionCondition, GoalOutcome,
+    ReconcileLoop, EchoExecutor,
+};
+pub use tool_sandbox::{SandboxConfig, DeniedPatterns, Severity};
 
 use agent::{AgentManager};
 use config::ConfigManager;

@@ -15,4 +15,4 @@ pub mod patterns;
 pub use config::SandboxConfig;
 pub use executor::ToolExecutor;
 pub use permissions::PermissionChecker;
-pub use patterns::DeniedPatterns;
+pub use patterns::{DeniedPatterns, DeniedPattern, Severity};

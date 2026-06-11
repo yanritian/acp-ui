@@ -43,3 +43,75 @@ impl AcpEvent {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn acp_event_new() {
+        let event = AcpEvent::new("goal.submitted");
+
+        assert_eq!(event.event_type, "goal.submitted");
+        assert!(event.goal_id.is_none());
+        assert!(event.worker_id.is_none());
+        assert!(event.data.is_none());
+        assert!(event.timestamp > 0);
+    }
+
+    #[test]
+    fn acp_event_with_goal() {
+        let event = AcpEvent::new("goal.converged").with_goal("goal-001");
+
+        assert_eq!(event.goal_id, Some("goal-001".to_string()));
+        assert!(event.worker_id.is_none());
+    }
+
+    #[test]
+    fn acp_event_with_worker() {
+        let event = AcpEvent::new("worker.registered").with_worker("worker-001");
+
+        assert_eq!(event.worker_id, Some("worker-001".to_string()));
+        assert!(event.goal_id.is_none());
+    }
+
+    #[test]
+    fn acp_event_with_data() {
+        let event = AcpEvent::new("goal.iterating")
+            .with_goal("goal-001")
+            .with_data(serde_json::json!({
+                "iteration": 2,
+                "feedback": "Still working on it"
+            }));
+
+        assert!(event.data.is_some());
+        let data = event.data.unwrap();
+        assert_eq!(data["iteration"], 2);
+    }
+
+    #[test]
+    fn acp_event_serde_roundtrip() {
+        let event = AcpEvent::new("queen.elected")
+            .with_worker("worker-001")
+            .with_data(serde_json::json!({"ttl_seconds": 30}));
+
+        let json = serde_json::to_string(&event).unwrap();
+        let decoded: AcpEvent = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(decoded.event_type, event.event_type);
+        assert_eq!(decoded.worker_id, event.worker_id);
+        assert!(decoded.data.is_some());
+    }
+
+    #[test]
+    fn acp_event_builder_chain() {
+        let event = AcpEvent::new("test.event")
+            .with_goal("g001")
+            .with_worker("w001")
+            .with_data(serde_json::json!({"key": "value"}));
+
+        assert_eq!(event.goal_id, Some("g001".to_string()));
+        assert_eq!(event.worker_id, Some("w001".to_string()));
+        assert!(event.data.is_some());
+    }
+}

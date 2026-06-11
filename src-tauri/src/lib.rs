@@ -70,6 +70,9 @@ mod gateway_config;
 // ---- Tauri Commands ----
 mod commands;         // Refactored command handlers organized by domain
 
+// ---- Public exports for integration tests ----
+pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary};
+
 use agent::{AgentManager};
 use config::ConfigManager;
 use database::DatabaseManager;

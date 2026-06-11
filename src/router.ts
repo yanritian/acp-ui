@@ -38,7 +38,8 @@ const routes = [
   { path: '/plugins', name: 'plugins', component: () => import('./features/plugins/PluginManagerView.vue') },
   { path: '/swarm', name: 'swarm', component: () => import('./features/swarm/SwarmDashboard.vue') },
   { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./features/workflow/WorkflowEditor.vue') },
-  { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue') },
+  // Demo page - token optimizer backend commands not implemented
+  { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue'), meta: { isDemo: true } },
   { path: '/settings', name: 'settings', component: () => import('./shared/ui/UnifiedSettingsView.vue') },
 ]
 

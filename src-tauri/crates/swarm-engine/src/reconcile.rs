@@ -143,6 +143,140 @@ impl CommandExecutor {
     }
 }
 
+/// AIWorkerExecutor - 通过AI Worker执行Goal
+///
+/// 调用Claude Code或其他AI来执行任务
+pub struct AIWorkerExecutor {
+    worker_id: String,
+    ai_command: String,
+    default_cwd: Option<String>,
+}
+
+impl AIWorkerExecutor {
+    /// 创建新的AI Worker Executor
+    ///
+    /// # Arguments
+    /// * `worker_id` - Worker标识
+    /// * `ai_command` - AI命令（如 "claude" 或 "codex"）
+    pub fn new(worker_id: impl Into<String>, ai_command: impl Into<String>) -> Self {
+        Self {
+            worker_id: worker_id.into(),
+            ai_command: ai_command.into(),
+            default_cwd: None,
+        }
+    }
+
+    /// 设置默认工作目录
+    pub fn with_cwd(mut self, cwd: impl Into<String>) -> Self {
+        self.default_cwd = Some(cwd.into());
+        self
+    }
+
+    /// 构建执行prompt
+    fn build_prompt(goal: &Goal) -> String {
+        let mut prompt = format!("Task: {}\n\n", goal.description);
+
+        // 根据completion condition添加具体要求
+        match &goal.completion_condition {
+            CompletionCondition::FileCheck { path, content_contains, .. } => {
+                prompt.push_str(&format!("Please create or modify the file '{}'.\n", path));
+                if let Some(content) = content_contains {
+                    prompt.push_str(&format!("The file must contain: '{}'\n", content));
+                }
+            }
+            CompletionCondition::CommandSuccess { command, args, .. } => {
+                prompt.push_str(&format!("Execute the command: {} {}\n", command, args.join(" ")));
+                prompt.push_str("Verify it succeeds (exit code 0).\n");
+            }
+            CompletionCondition::OutputContains { command, pattern, .. } => {
+                prompt.push_str(&format!("Execute: {}\n", command));
+                prompt.push_str(&format!("The output must contain: '{}'\n", pattern));
+            }
+            CompletionCondition::All { conditions } => {
+                prompt.push_str("All of the following must be satisfied:\n");
+                for (i, cond) in conditions.iter().enumerate() {
+                    prompt.push_str(&format!("{}. {}\n", i + 1, Self::describe_condition(cond)));
+                }
+            }
+            CompletionCondition::Any { conditions } => {
+                prompt.push_str("At least one of the following must be satisfied:\n");
+                for (i, cond) in conditions.iter().enumerate() {
+                    prompt.push_str(&format!("{}. {}\n", i + 1, Self::describe_condition(cond)));
+                }
+            }
+            _ => {
+                prompt.push_str("Complete the task as described.\n");
+            }
+        }
+
+        prompt.push_str("\nAfter completing, report what was done.");
+        prompt
+    }
+
+    /// 描述条件
+    fn describe_condition(cond: &CompletionCondition) -> String {
+        match cond {
+            CompletionCondition::FileCheck { path, content_contains, .. } => {
+                if let Some(content) = content_contains {
+                    format!("File '{}' contains '{}'", path, content)
+                } else {
+                    format!("File '{}' exists", path)
+                }
+            }
+            CompletionCondition::CommandSuccess { command, args, .. } => {
+                format!("Command '{}' with args {:?} succeeds", command, args)
+            }
+            CompletionCondition::OutputContains { command, pattern, .. } => {
+                format!("Output of '{}' contains '{}'", command, pattern)
+            }
+            _ => "Condition met".to_string()
+        }
+    }
+
+    /// 执行AI命令
+    fn execute_ai(&self, prompt: &str) -> Result<String, ReconcileError> {
+        use std::process::Command;
+
+        // Windows需要通过cmd.exe执行npm安装的命令
+        let output = if cfg!(target_os = "windows") {
+            Command::new("cmd")
+                .args(["/C", &self.ai_command, "-p", prompt])
+                .current_dir(self.default_cwd.as_deref().unwrap_or("."))
+                .output()
+                .map_err(|e| ReconcileError::WorkerError(format!("Failed to start AI process: {}", e)))?
+        } else {
+            Command::new(&self.ai_command)
+                .args(["-p", prompt])
+                .current_dir(self.default_cwd.as_deref().unwrap_or("."))
+                .output()
+                .map_err(|e| ReconcileError::WorkerError(format!("Failed to start AI process: {}", e)))?
+        };
+
+        // 检查退出码
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(ReconcileError::WorkerError(format!("AI process failed: {}", stderr)));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        Ok(stdout)
+    }
+}
+
+impl WorkerExecutor for AIWorkerExecutor {
+    fn execute(&mut self, goal: &Goal) -> Result<String, ReconcileError> {
+        // 1. 构建prompt
+        let prompt = Self::build_prompt(goal);
+
+        // 2. 执行AI
+        self.execute_ai(&prompt)
+    }
+
+    fn worker_id(&self) -> &str {
+        &self.worker_id
+    }
+}
+
 /// ReconcileLoop - Goal迭代执行引擎
 pub struct ReconcileLoop {
     evaluator: ConditionEvaluator,
@@ -163,6 +297,10 @@ impl ReconcileLoop {
 
     pub fn with_command(worker_id: impl Into<String>) -> Self {
         Self::new(Arc::new(Mutex::new(CommandExecutor::new(worker_id))))
+    }
+
+    pub fn with_ai(worker_id: impl Into<String>, ai_command: impl Into<String>) -> Self {
+        Self::new(Arc::new(Mutex::new(AIWorkerExecutor::new(worker_id, ai_command))))
     }
 
     /// 执行单Goal的Reconcile Loop

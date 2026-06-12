@@ -109,3 +109,57 @@ impl Default for HookRegistry {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Hook;
+
+    #[test]
+    fn registry_new_is_empty() {
+        let registry = HookRegistry::new();
+        assert!(registry.get_global_hooks().is_empty());
+        assert!(registry.list().is_empty());
+    }
+
+    #[test]
+    fn registry_register_global() {
+        let mut registry = HookRegistry::new();
+        let hook = Hook::new("hook-1", HookType::PreToolUse, "echo");
+        registry.register_global(hook);
+        assert_eq!(registry.get_global_hooks().len(), 1);
+    }
+
+    #[test]
+    fn registry_get_hooks_by_type() {
+        let mut registry = HookRegistry::new();
+        let pre_hook = Hook::new("pre-1", HookType::PreToolUse, "echo");
+        let post_hook = Hook::new("post-1", HookType::PostToolUse, "echo");
+        registry.register_global(pre_hook);
+        registry.register_global(post_hook);
+
+        let pre_hooks = registry.get_hooks_by_type(HookType::PreToolUse, None);
+        assert_eq!(pre_hooks.len(), 1);
+
+        let post_hooks = registry.get_hooks_by_type(HookType::PostToolUse, None);
+        assert_eq!(post_hooks.len(), 1);
+    }
+
+    #[test]
+    fn registry_register_for_agent() {
+        let mut registry = HookRegistry::new();
+        let hook = Hook::new("agent-hook", HookType::PreToolUse, "echo");
+        registry.register_for_agent("agent-1", hook);
+        assert_eq!(registry.get_agent_hooks("agent-1").len(), 1);
+    }
+
+    #[test]
+    fn registry_set_enabled() {
+        let mut registry = HookRegistry::new();
+        let hook = Hook::new("hook-1", HookType::PreToolUse, "echo");
+        registry.register_global(hook);
+        registry.set_enabled("hook-1", false);
+        let hooks = registry.get_global_hooks();
+        assert!(!hooks[0].enabled);
+    }
+}

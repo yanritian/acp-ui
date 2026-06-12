@@ -22,7 +22,7 @@ pub use goal::{
 };
 pub use goal_evaluator::ConditionEvaluator;
 pub use goal_graph::GoalGraph;
-pub use reconcile::{ReconcileLoop, WorkerExecutor, EchoExecutor, CommandExecutor, ReconcileError};
+pub use reconcile::{ReconcileLoop, WorkerExecutor, EchoExecutor, CommandExecutor, AIWorkerExecutor, ReconcileError};
 pub use topology::{Topology, StarTopology, StarTopologyAsync, ChainTopology, ChainTopologyAsync};
 pub use queen_lease::{QueenLease, QueenElectionManager, WorkerId, ValidationResult};
 pub use skill_registry::{SkillRouter, SkillDeclaration, WorkerCapabilitiesDeclaration};

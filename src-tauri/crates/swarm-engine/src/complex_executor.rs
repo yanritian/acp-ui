@@ -217,13 +217,14 @@ impl ComplexGoalExecutor {
             vec![]
         };
 
-        // 分批次执行（改进：内容质量验证 + 空文件重试）
+        // 分批次执行（改进：内容质量验证 + 空文件重试 + stdout flush）
         for batch_num in 0..total_batches {
             let batch_start = batch_num * batch_size;
             let batch_end = std::cmp::min(batch_start + batch_size, total_tasks);
             let batch_tasks = &order[batch_start..batch_end];
 
             println!("【批次 {}】执行任务 {}-{}:", batch_num + 1, batch_start + 1, batch_end);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
 
             for goal_id in batch_tasks {
                 // 跳过已完成的任务
@@ -237,6 +238,7 @@ impl ComplexGoalExecutor {
                     let condition = goal.completion_condition.clone();
 
                     println!("  执行 {}...", goal_id);
+                    std::io::Write::flush(&mut std::io::stdout()).ok();
                     graph.update_goal_status(goal_id, GoalStatus::Active);
 
                     // 提取文件路径
@@ -264,8 +266,10 @@ impl ComplexGoalExecutor {
                                     if content_check.is_ok() {
                                         success = true;
                                         println!("    ✓ 成功 ({} 行)", content_check.unwrap());
+                                        std::io::Write::flush(&mut std::io::stdout()).ok();
                                     } else {
                                         println!("    ✗ 内容不足: {}", content_check.unwrap_err());
+                                        std::io::Write::flush(&mut std::io::stdout()).ok();
                                         // 删除空文件，准备重试
                                         std::fs::remove_file(&file_path).ok();
                                     }

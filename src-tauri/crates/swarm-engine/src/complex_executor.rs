@@ -137,47 +137,91 @@ impl ComplexGoalExecutor {
         graph
     }
 
-    /// 第三阶段：执行 - 逐个执行 GoalGraph
+    /// 第三阶段：执行 - 逐个执行 GoalGraph（改进：重试机制 + 超时控制）
     pub async fn execute_graph(&self, graph: &mut GoalGraph) -> Vec<(String, GoalOutcome)> {
         let mut results = Vec::new();
         let order = graph.topological_order();
+        let max_retries = 2; // 每个任务最多重试 2 次
 
         for goal_id in order {
-            // 获取当前 Goal 信息
             if let Some(goal) = graph.get_goal(&goal_id) {
-                // 构建增量执行 prompt（包含已完成的上下文）
                 let description = goal.description.clone();
                 let condition = goal.completion_condition.clone();
-                let prompt = self.build_execution_prompt_from_info(&goal_id, &description, &results);
 
                 // 更新状态为 Active
                 graph.update_goal_status(&goal_id, GoalStatus::Active);
 
-                // 执行
-                let _output = self.execute_ai(&prompt).await.ok();
+                // 重试循环
+                let mut converged = false;
+                let mut last_error = String::new();
 
-                // 更新状态为 Evaluating
-                graph.update_goal_status(&goal_id, GoalStatus::Evaluating);
+                for attempt in 0..=max_retries {
+                    if attempt > 0 {
+                        println!("  重试 {} 第 {} 次...", goal_id, attempt);
+                    }
 
-                // 验证
-                let eval_result = self.evaluator.evaluate(&condition);
+                    // 构建增量执行 prompt
+                    let prompt = self.build_execution_prompt_from_info(&goal_id, &description, &results);
 
-                if eval_result.converged {
-                    graph.update_goal_status(&goal_id, GoalStatus::Converged);
-                    results.push((goal_id.clone(), GoalOutcome::Converged {
-                        iterations: 1,
-                        tokens_used: 0,
-                        final_feedback: eval_result.feedback,
-                    }));
-                } else {
-                    // 未收敛，记录反馈继续
-                    graph.update_goal_status(&goal_id, GoalStatus::Iterating);
-                    results.push((goal_id.clone(), GoalOutcome::Failed(format!("Not converged: {}", eval_result.feedback))));
+                    // 执行（带超时）
+                    let output_result = self.execute_ai_with_timeout(&prompt, 60).await;
+
+                    match output_result {
+                        Ok(output) => {
+                            // 验证
+                            graph.update_goal_status(&goal_id, GoalStatus::Evaluating);
+                            let eval_result = self.evaluator.evaluate(&condition);
+
+                            if eval_result.converged {
+                                graph.update_goal_status(&goal_id, GoalStatus::Converged);
+                                results.push((goal_id.clone(), GoalOutcome::Converged {
+                                    iterations: attempt + 1,
+                                    tokens_used: 0,
+                                    final_feedback: eval_result.feedback,
+                                }));
+                                converged = true;
+                                break;
+                            } else {
+                                last_error = eval_result.feedback.clone();
+                                graph.update_goal_status(&goal_id, GoalStatus::Iterating);
+                            }
+                        },
+                        Err(e) => {
+                            last_error = e.to_string();
+                            if attempt == max_retries {
+                                break; // 达到最大重试次数
+                            }
+                        }
+                    }
+                }
+
+                // 最终结果
+                if !converged {
+                    graph.update_goal_status(&goal_id, GoalStatus::Failed);
+                    results.push((goal_id.clone(), GoalOutcome::Failed(format!(
+                        "After {} attempts: {}", max_retries + 1, last_error
+                    ))));
                 }
             }
         }
 
         results
+    }
+
+    /// 执行 AI 命令（带超时）
+    async fn execute_ai_with_timeout(&self, prompt: &str, timeout_secs: u64) -> Result<String, ComplexError> {
+        use tokio::time::{timeout, Duration};
+
+        let result = timeout(
+            Duration::from_secs(timeout_secs),
+            self.execute_ai(prompt)
+        ).await;
+
+        match result {
+            Ok(Ok(output)) => Ok(output),
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err(ComplexError::ExecutionFailed(format!("Timeout after {}s", timeout_secs))),
+        }
     }
 
     /// 第四阶段：验证 - 编译/测试验证
@@ -234,52 +278,30 @@ JSON格式:
     }
 
     /// 构建执行 prompt（从信息构建，用于 execute_graph）- 改进版
+    /// 构建执行 prompt（精简版，减少约60% token）
     fn build_execution_prompt_from_info(&self, id: &str, description: &str, completed: &[(String, GoalOutcome)]) -> String {
         let mut prompt = String::new();
 
-        // 任务标识
-        prompt.push_str(&format!("=== TASK EXECUTION ===\n"));
-        prompt.push_str(&format!("Task ID: {}\n\n", id));
-
-        // 工作目录 - 明确提示
-        prompt.push_str(&format!("WORKING DIRECTORY: {}\n\n", self.working_dir));
-
-        // 提取并高亮文件路径
+        // 提取文件路径
         let file_path = self.extract_file_path_from_description(description);
+
+        // 精简格式：仅核心信息
         if !file_path.is_empty() {
-            prompt.push_str(&format!("TARGET FILE: {}\n", file_path));
-            prompt.push_str(&format!("FULL PATH: {}/{}\n\n", self.working_dir, file_path));
+            prompt.push_str(&format!("创建文件: {}/{}\n", self.working_dir, file_path));
         }
+        prompt.push_str(&format!("内容: {}\n", description.chars().take(100).collect::<String>()));
 
-        // 任务描述
-        prompt.push_str(&format!("DESCRIPTION:\n{}\n\n", description));
-
-        // 已完成任务的上下文
+        // 已完成提示（仅列表）
         if !completed.is_empty() {
-            let completed_tasks: Vec<_> = completed
-                .iter()
-                .filter(|(_, outcome)| matches!(outcome, GoalOutcome::Converged { .. }))
+            let done: Vec<_> = completed.iter()
+                .filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. }))
                 .collect();
-
-            if !completed_tasks.is_empty() {
-                prompt.push_str("COMPLETED TASKS:\n");
-                for (prev_id, outcome) in &completed_tasks {
-                    if let GoalOutcome::Converged { final_feedback, .. } = outcome {
-                        prompt.push_str(&format!("  ✓ {} - {}\n", prev_id, final_feedback.chars().take(50).collect::<String>()));
-                    }
-                }
-                prompt.push_str("\n");
+            if !done.is_empty() {
+                prompt.push_str(&format!("已完成: {} 个任务\n", done.len()));
             }
         }
 
-        // 执行指令
-        prompt.push_str("INSTRUCTIONS:\n");
-        prompt.push_str("1. Create ONLY the file specified above\n");
-        prompt.push_str("2. Use the working directory as base path\n");
-        prompt.push_str("3. Ensure proper exports/imports for module integration\n");
-        prompt.push_str("4. Follow project coding standards\n");
-        prompt.push_str("5. Report completion with file path and key changes\n");
-
+        prompt.push_str("\n立即执行Write工具创建文件。");
         prompt
     }
 

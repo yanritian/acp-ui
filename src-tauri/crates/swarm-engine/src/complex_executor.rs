@@ -356,29 +356,41 @@ JSON格式:
 
     /// 构建执行 prompt（从信息构建，用于 execute_graph）- 改进版
     /// 构建执行 prompt（精简版，减少约60% token）
-    fn build_execution_prompt_from_info(&self, id: &str, description: &str, completed: &[(String, GoalOutcome)]) -> String {
+    /// 构建执行 prompt（精简但明确）
+    fn build_execution_prompt_from_info(&self, _id: &str, description: &str, completed: &[(String, GoalOutcome)]) -> String {
+        // 从 description 提取文件路径（格式: "... (file: path) ..."）
+        let file_path = if description.contains("(file: ") {
+            description.split("(file: ")
+                .nth(1)
+                .and_then(|s| s.split(')').next())
+                .map(|s| s.trim())
+                .unwrap_or("")
+        } else {
+            // 备用：查找 .ts 或 .md 文件名
+            description.split_whitespace()
+                .find(|s| s.ends_with(".ts") || s.ends_with(".md"))
+                .unwrap_or("")
+        };
+
+        // 构建明确的 prompt
         let mut prompt = String::new();
-
-        // 提取文件路径
-        let file_path = self.extract_file_path_from_description(description);
-
-        // 精简格式：仅核心信息
         if !file_path.is_empty() {
-            prompt.push_str(&format!("创建文件: {}/{}\n", self.working_dir, file_path));
+            prompt.push_str(&format!("Use Write tool to create file: {}\n", file_path));
         }
-        prompt.push_str(&format!("内容: {}\n", description.chars().take(100).collect::<String>()));
 
-        // 已完成提示（仅列表）
+        // 提取功能描述
+        let func_desc = description.split("(file: ").next().unwrap_or(description);
+        prompt.push_str(&format!("Content: {} module with TypeScript exports\n", func_desc.chars().take(60).collect::<String>()));
+
+        // 已完成提示
         if !completed.is_empty() {
-            let done: Vec<_> = completed.iter()
-                .filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. }))
-                .collect();
-            if !done.is_empty() {
-                prompt.push_str(&format!("已完成: {} 个任务\n", done.len()));
+            let done_count = completed.iter().filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. })).count();
+            if done_count > 0 {
+                prompt.push_str(&format!("Note: {} files already created\n", done_count));
             }
         }
 
-        prompt.push_str("\n立即执行Write工具创建文件。");
+        prompt.push_str("\nExecute Write tool now.");
         prompt
     }
 

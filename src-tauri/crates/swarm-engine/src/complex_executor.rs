@@ -339,18 +339,22 @@ JSON格式:
                                 .map(|s| s.to_string())
                                 .unwrap_or_else(|| format!("task-{}", subtasks.len() + 1));
 
-                            let desc = task.get("description")
+                            // 解析字段（支持精简格式: desc/file 和完整格式: description/file_path）
+                            let desc = task.get("desc")
                                 .and_then(|v| v.as_str())
+                                .or_else(|| task.get("description").and_then(|v| v.as_str()))
                                 .unwrap_or("")
                                 .to_string();
 
-                            let file_path = task.get("file_path")
+                            let file_path = task.get("file")
                                 .and_then(|v| v.as_str())
+                                .or_else(|| task.get("file_path").and_then(|v| v.as_str()))
                                 .unwrap_or("")
                                 .to_string();
 
-                            let deps = task.get("dependencies")
+                            let deps = task.get("deps")
                                 .and_then(|v| v.as_array())
+                                .or_else(|| task.get("dependencies").and_then(|v| v.as_array()))
                                 .map(|arr| {
                                     arr.iter()
                                         .filter_map(|d| d.as_str().map(|s| s.to_string()))

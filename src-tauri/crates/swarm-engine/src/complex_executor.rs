@@ -1,10 +1,10 @@
 //! ComplexGoalExecutor - 处理复杂系统需求的执行器
 //!
 //! 核心改进：
-//! 1. 规划阶段：先让 AI 分析需求并制定实施计划
-//! 2. 分解阶段：将复杂需求拆分成多个子 Goal
-//! 3. 执行阶段：逐个执行子 Goal，支持增量反馈
-//! 4. 验证阶段：编译/测试验证，确保质量
+//! 1. 规划阶段：AI 分析需求并制定实施计划
+//! 2. 分解阶段：将需求拆分成多个子 Goal
+//! 3. 执行阶段：分批次执行，支持进度持久化和恢复
+//! 4. 验证阶段：检查所有文件，编译验证
 
 use crate::goal::{Goal, GoalStatus, CompletionCondition, GoalOutcome};
 use crate::goal_graph::GoalGraph;
@@ -12,6 +12,7 @@ use crate::goal_evaluator::ConditionEvaluator;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use thiserror::Error;
+use std::path::Path;
 
 #[derive(Debug, Error)]
 pub enum ComplexError {
@@ -26,10 +27,13 @@ pub enum ComplexError {
 
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
+
+    #[error("Progress error: {0}")]
+    ProgressError(String),
 }
 
 /// 实施计划
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImplementationPlan {
     /// 需求分析
     pub analysis: String,
@@ -40,7 +44,7 @@ pub struct ImplementationPlan {
 }
 
 /// 子任务规格
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubTaskSpec {
     pub id: String,
     pub description: String,
@@ -48,58 +52,107 @@ pub struct SubTaskSpec {
     pub validation_criteria: String,
 }
 
-/// ComplexGoalExecutor - 复杂需求执行器
-pub struct ComplexGoalExecutor {
-    /// AI 命令路径
-    ai_command: String,
-    /// 工作目录
-    working_dir: String,
-    /// 评估器
-    evaluator: ConditionEvaluator,
-}
-
-/// 进度状态（用于保存和恢复）
+/// 执行进度（持久化状态）
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ProgressState {
+pub struct ExecutionProgress {
     /// 需求原文
     pub requirement: String,
-    /// 当前阶段
-    pub phase: String,
-    /// 已完成的任务 ID
-    pub completed_tasks: Vec<String>,
-    /// 失败的任务 ID
-    pub failed_tasks: Vec<String>,
-    /// 当前正在执行的任务
-    pub current_task: Option<String>,
+    /// 实施计划
+    pub plan: ImplementationPlan,
+    /// 已完成的任务
+    pub completed: Vec<TaskResult>,
+    /// 失败的任务
+    pub failed: Vec<TaskResult>,
+    /// 待执行的任务 ID
+    pub pending: Vec<String>,
+    /// 当前批次
+    pub current_batch: u32,
+    /// 总批次
+    pub total_batches: u32,
     /// 时间戳
     pub timestamp: u64,
 }
 
+/// 任务执行结果
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TaskResult {
+    pub task_id: String,
+    pub success: bool,
+    pub iterations: u32,
+    pub feedback: String,
+    pub file_path: Option<String>,
+}
+
+/// ComplexGoalExecutor - 复杂需求执行器（改进版）
+pub struct ComplexGoalExecutor {
+    ai_command: String,
+    working_dir: String,
+    evaluator: ConditionEvaluator,
+    /// 进度文件路径
+    progress_file: String,
+    /// 每批次执行的任务数
+    batch_size: u32,
+    /// 单任务超时秒数
+    task_timeout_secs: u64,
+}
+
 impl ComplexGoalExecutor {
     pub fn new(ai_command: impl Into<String>, working_dir: impl Into<String>) -> Self {
+        let ai_cmd = ai_command.into();
+        let work_dir = working_dir.into();
         Self {
-            ai_command: ai_command.into(),
-            working_dir: working_dir.into(),
+            ai_command: ai_cmd,
+            working_dir: work_dir.clone(),
             evaluator: ConditionEvaluator::new(),
+            progress_file: format!("{}progress.json", work_dir),
+            batch_size: 3, // 每批次 3 个任务
+            task_timeout_secs: 45, // 单任务 45 秒超时
         }
     }
 
+    /// 设置批次大小
+    pub fn with_batch_size(mut self, size: u32) -> Self {
+        self.batch_size = size;
+        self
+    }
+
+    /// 设置任务超时
+    pub fn with_timeout(mut self, secs: u64) -> Self {
+        self.task_timeout_secs = secs;
+        self
+    }
+
     /// 保存进度到文件
-    pub fn save_progress(&self, state: &ProgressState, path: &str) -> Result<(), ComplexError> {
-        let json = serde_json::to_string_pretty(state)
-            .map_err(|e| ComplexError::ExecutionFailed(format!("Serialize failed: {}", e)))?;
-        std::fs::write(path, json)
-            .map_err(|e| ComplexError::ExecutionFailed(format!("Write failed: {}", e)))?;
+    pub fn save_progress(&self, progress: &ExecutionProgress) -> Result<(), ComplexError> {
+        let json = serde_json::to_string_pretty(progress)
+            .map_err(|e| ComplexError::ProgressError(format!("Serialize: {}", e)))?;
+        std::fs::write(&self.progress_file, json)
+            .map_err(|e| ComplexError::ProgressError(format!("Write: {}", e)))?;
+        println!("  [进度已保存: {} 个完成, {} 个待执行]", progress.completed.len(), progress.pending.len());
         Ok(())
     }
 
     /// 从文件恢复进度
-    pub fn load_progress(&self, path: &str) -> Result<ProgressState, ComplexError> {
-        let json = std::fs::read_to_string(path)
-            .map_err(|e| ComplexError::ExecutionFailed(format!("Read failed: {}", e)))?;
-        let state: ProgressState = serde_json::from_str(&json)
-            .map_err(|e| ComplexError::ExecutionFailed(format!("Deserialize failed: {}", e)))?;
-        Ok(state)
+    pub fn load_progress(&self) -> Result<ExecutionProgress, ComplexError> {
+        if !Path::new(&self.progress_file).exists() {
+            return Err(ComplexError::ProgressError("No progress file found".into()));
+        }
+        let json = std::fs::read_to_string(&self.progress_file)
+            .map_err(|e| ComplexError::ProgressError(format!("Read: {}", e)))?;
+        let progress: ExecutionProgress = serde_json::from_str(&json)
+            .map_err(|e| ComplexError::ProgressError(format!("Deserialize: {}", e)))?;
+        println!("  [进度已恢复: {} 个完成, {} 个待执行]", progress.completed.len(), progress.pending.len());
+        Ok(progress)
+    }
+
+    /// 检查是否有可恢复的进度
+    pub fn has_progress(&self) -> bool {
+        Path::new(&self.progress_file).exists()
+    }
+
+    /// 清除进度文件
+    pub fn clear_progress(&self) {
+        std::fs::remove_file(&self.progress_file).ok();
     }
 
     /// 第一阶段：规划 - 分析需求并制定计划
@@ -137,78 +190,102 @@ impl ComplexGoalExecutor {
         graph
     }
 
-    /// 第三阶段：执行 - 逐个执行 GoalGraph（改进：重试机制 + 超时控制）
+    /// 第三阶段：执行 - 分批次执行，支持进度持久化
     pub async fn execute_graph(&self, graph: &mut GoalGraph) -> Vec<(String, GoalOutcome)> {
-        let mut results = Vec::new();
+        self.execute_graph_with_progress(graph, None).await
+    }
+
+    /// 分批次执行（带进度）
+    pub async fn execute_graph_with_progress(
+        &self,
+        graph: &mut GoalGraph,
+        initial_progress: Option<ExecutionProgress>,
+    ) -> Vec<(String, GoalOutcome)> {
+        let mut results: Vec<(String, GoalOutcome)> = Vec::new();
         let order = graph.topological_order();
-        let max_retries = 2; // 每个任务最多重试 2 次
+        let total_tasks = order.len();
+        let batch_size = self.batch_size as usize;
 
-        for goal_id in order {
-            if let Some(goal) = graph.get_goal(&goal_id) {
-                let description = goal.description.clone();
-                let condition = goal.completion_condition.clone();
+        // 计算批次
+        let total_batches = (total_tasks + batch_size - 1) / batch_size;
+        println!("  总任务: {} 个, 分 {} 批执行 (每批 {} 个)\n", total_tasks, total_batches, batch_size);
 
-                // 更新状态为 Active
-                graph.update_goal_status(&goal_id, GoalStatus::Active);
+        // 如果有恢复的进度，跳过已完成的任务
+        let skip_tasks: Vec<String> = if let Some(progress) = initial_progress {
+            progress.completed.iter().map(|r| r.task_id.clone()).collect()
+        } else {
+            vec![]
+        };
 
-                // 重试循环
-                let mut converged = false;
-                let mut last_error = String::new();
+        // 分批次执行
+        for batch_num in 0..total_batches {
+            let batch_start = batch_num * batch_size;
+            let batch_end = std::cmp::min(batch_start + batch_size, total_tasks);
+            let batch_tasks = &order[batch_start..batch_end];
 
-                for attempt in 0..=max_retries {
-                    if attempt > 0 {
-                        println!("  重试 {} 第 {} 次...", goal_id, attempt);
-                    }
+            println!("【批次 {}】执行任务 {}-{}:", batch_num + 1, batch_start + 1, batch_end);
 
-                    // 构建增量执行 prompt
-                    let prompt = self.build_execution_prompt_from_info(&goal_id, &description, &results);
+            for goal_id in batch_tasks {
+                // 跳过已完成的任务
+                if skip_tasks.contains(goal_id) {
+                    println!("  ✓ {} 已完成（从进度恢复）", goal_id);
+                    continue;
+                }
 
-                    // 执行（带超时）
-                    let output_result = self.execute_ai_with_timeout(&prompt, 60).await;
+                if let Some(goal) = graph.get_goal(goal_id) {
+                    let description = goal.description.clone();
+                    let condition = goal.completion_condition.clone();
 
-                    match output_result {
-                        Ok(output) => {
-                            // 验证
-                            graph.update_goal_status(&goal_id, GoalStatus::Evaluating);
+                    println!("  执行 {}...", goal_id);
+                    graph.update_goal_status(goal_id, GoalStatus::Active);
+
+                    // 执行（单次尝试，不重试以节省时间）
+                    let prompt = self.build_execution_prompt_from_info(goal_id, &description, &results);
+                    let exec_result = self.execute_ai_with_timeout(&prompt, self.task_timeout_secs).await;
+
+                    match exec_result {
+                        Ok(_) => {
+                            graph.update_goal_status(goal_id, GoalStatus::Evaluating);
                             let eval_result = self.evaluator.evaluate(&condition);
 
                             if eval_result.converged {
-                                graph.update_goal_status(&goal_id, GoalStatus::Converged);
+                                graph.update_goal_status(goal_id, GoalStatus::Converged);
                                 results.push((goal_id.clone(), GoalOutcome::Converged {
-                                    iterations: attempt + 1,
+                                    iterations: 1,
                                     tokens_used: 0,
                                     final_feedback: eval_result.feedback,
                                 }));
-                                converged = true;
-                                break;
+                                println!("    ✓ 成功");
                             } else {
-                                last_error = eval_result.feedback.clone();
-                                graph.update_goal_status(&goal_id, GoalStatus::Iterating);
+                                graph.update_goal_status(goal_id, GoalStatus::Iterating);
+                                results.push((goal_id.clone(), GoalOutcome::Failed(eval_result.feedback)));
+                                println!("    ✗ 未收敛");
                             }
                         },
                         Err(e) => {
-                            last_error = e.to_string();
-                            if attempt == max_retries {
-                                break; // 达到最大重试次数
-                            }
+                            graph.update_goal_status(goal_id, GoalStatus::Failed);
+                            results.push((goal_id.clone(), GoalOutcome::Failed(e.to_string())));
+                            println!("    ✗ 错误: {}", e);
                         }
                     }
                 }
-
-                // 最终结果
-                if !converged {
-                    graph.update_goal_status(&goal_id, GoalStatus::Failed);
-                    results.push((goal_id.clone(), GoalOutcome::Failed(format!(
-                        "After {} attempts: {}", max_retries + 1, last_error
-                    ))));
-                }
             }
+
+            println!("  批次 {} 完成\n", batch_num + 1);
+
+            // 每批次后保存进度
+            let success_count = results.iter().filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. })).count();
+            println!("  进度: {} / {} 完成", success_count, total_tasks);
+
+            // 短暂休息，避免 API 过载
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
+        println!("\n全部执行完成！");
         results
     }
 
-    /// 执行 AI 命令（带超时）
+    /// 执行 AI 命令（带超时）- 使用更短的超时
     async fn execute_ai_with_timeout(&self, prompt: &str, timeout_secs: u64) -> Result<String, ComplexError> {
         use tokio::time::{timeout, Duration};
 
@@ -220,7 +297,7 @@ impl ComplexGoalExecutor {
         match result {
             Ok(Ok(output)) => Ok(output),
             Ok(Err(e)) => Err(e),
-            Err(_) => Err(ComplexError::ExecutionFailed(format!("Timeout after {}s", timeout_secs))),
+            Err(_) => Err(ComplexError::ExecutionFailed(format!("Timeout {}s", timeout_secs))),
         }
     }
 

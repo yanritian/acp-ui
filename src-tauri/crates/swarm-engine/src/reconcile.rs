@@ -269,49 +269,62 @@ impl AIWorkerExecutor {
             prompt
         );
 
-        // Windows需要通过cmd.exe执行npm安装的命令
-        // 关键改进：添加 --permission-mode bypassPermissions 让工具实际执行
-        let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args([
-                    "/C",
-                    &self.ai_command,
-                    "--bare",
-                    "--dangerously-skip-permissions",
-                    "--allowedTools",
-                    "Write,Edit,Bash",
-                    "--permission-mode",
-                    "bypassPermissions",
-                    "-p",
-                    &full_prompt,
-                ])
-                .current_dir(self.default_cwd.as_deref().unwrap_or("."))
-                .output()
-                .map_err(|e| ReconcileError::WorkerError(format!("Failed to start AI process: {}", e)))?
-        } else {
-            Command::new(&self.ai_command)
-                .args([
-                    "--bare",
-                    "--dangerously-skip-permissions",
-                    "--allowedTools",
-                    "Write,Edit,Bash",
-                    "--permission-mode",
-                    "bypassPermissions",
-                    "-p",
-                    &full_prompt,
-                ])
-                .current_dir(self.default_cwd.as_deref().unwrap_or("."))
-                .output()
-                .map_err(|e| ReconcileError::WorkerError(format!("Failed to start AI process: {}", e)))?
-        };
+        // 调试输出（可选，生产环境可移除）
+        // println!("\n【DEBUG】Generated prompt:");
+        // println!("----------------------------------------");
+        // println!("{}", full_prompt);
+        // println!("----------------------------------------\n");
 
-        // 检查退出码
+        // Windows: 使用 Git Bash 执行，管道能正确传递 stdin
+        // Git Bash 位于 C:\Program Files\Git\usr\bin\bash.exe
+        let work_dir = self.default_cwd.as_deref().unwrap_or("D:/tmp");
+
+        // 创建临时文件
+        let temp_prompt_file = format!("D:/tmp/claude_prompt_{}.txt", std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis());
+
+        std::fs::write(&temp_prompt_file, &full_prompt)
+            .map_err(|e| ReconcileError::WorkerError(format!("Failed to write temp prompt file: {}", e)))?;
+
+        // 使用 Git Bash 执行
+        let git_bash = "C:/Program Files/Git/usr/bin/bash.exe";
+        let cmd_args = format!(
+            "cat '{}' | '{}' --bare --dangerously-skip-permissions --allowedTools Write,Edit,Bash --permission-mode bypassPermissions --print",
+            temp_prompt_file,
+            &self.ai_command
+        );
+
+        let output = Command::new(git_bash)
+            .args(["-c", &cmd_args])
+            .current_dir(work_dir)
+            .output()
+            .map_err(|e| ReconcileError::WorkerError(format!("Failed to start AI process: {}", e)))?;
+
+        // 清理临时文件
+        std::fs::remove_file(&temp_prompt_file).ok();
+
+        // 检查退出码（调试输出可选）
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        // println!("【DEBUG】Command stdout:");
+        // println!("----------------------------------------");
+        // println!("{}", stdout);
+        // println!("----------------------------------------");
+
+        if !stderr.is_empty() {
+            // println!("【DEBUG】Command stderr:");
+            // println!("----------------------------------------");
+            // println!("{}", stderr);
+            // println!("----------------------------------------");
+        }
+
         if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(ReconcileError::WorkerError(format!("AI process failed: {}", stderr)));
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         Ok(stdout)
     }
 }

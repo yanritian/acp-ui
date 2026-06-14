@@ -217,7 +217,7 @@ impl ComplexGoalExecutor {
             vec![]
         };
 
-        // 分批次执行
+        // 分批次执行（改进：内容质量验证 + 空文件重试）
         for batch_num in 0..total_batches {
             let batch_start = batch_num * batch_size;
             let batch_end = std::cmp::min(batch_start + batch_size, total_tasks);
@@ -239,50 +239,111 @@ impl ComplexGoalExecutor {
                     println!("  执行 {}...", goal_id);
                     graph.update_goal_status(goal_id, GoalStatus::Active);
 
-                    // 执行（单次尝试，不重试以节省时间）
-                    let prompt = self.build_execution_prompt_from_info(goal_id, &description, &results);
-                    let exec_result = self.execute_ai_with_timeout(&prompt, self.task_timeout_secs).await;
+                    // 提取文件路径
+                    let file_path = self.extract_file_path(&description);
 
-                    match exec_result {
-                        Ok(_) => {
-                            graph.update_goal_status(goal_id, GoalStatus::Evaluating);
-                            let eval_result = self.evaluator.evaluate(&condition);
+                    // 重试循环（最多 2 次）
+                    let mut success = false;
+                    let mut attempts = 0;
+                    let max_attempts = 2;
 
-                            if eval_result.converged {
-                                graph.update_goal_status(goal_id, GoalStatus::Converged);
-                                results.push((goal_id.clone(), GoalOutcome::Converged {
-                                    iterations: 1,
-                                    tokens_used: 0,
-                                    final_feedback: eval_result.feedback,
-                                }));
-                                println!("    ✓ 成功");
-                            } else {
-                                graph.update_goal_status(goal_id, GoalStatus::Iterating);
-                                results.push((goal_id.clone(), GoalOutcome::Failed(eval_result.feedback)));
-                                println!("    ✗ 未收敛");
-                            }
-                        },
-                        Err(e) => {
-                            graph.update_goal_status(goal_id, GoalStatus::Failed);
-                            results.push((goal_id.clone(), GoalOutcome::Failed(e.to_string())));
-                            println!("    ✗ 错误: {}", e);
+                    while !success && attempts < max_attempts {
+                        attempts += 1;
+                        if attempts > 1 {
+                            println!("    重试 {} 第 {} 次...", goal_id, attempts);
                         }
+
+                        let prompt = self.build_execution_prompt_from_info(goal_id, &description, &results);
+                        let exec_result = self.execute_ai_with_timeout(&prompt, self.task_timeout_secs).await;
+
+                        match exec_result {
+                            Ok(_) => {
+                                // 验证文件是否存在且有足够内容
+                                if !file_path.is_empty() {
+                                    let content_check = self.check_file_quality(&file_path);
+                                    if content_check.is_ok() {
+                                        success = true;
+                                        println!("    ✓ 成功 ({} 行)", content_check.unwrap());
+                                    } else {
+                                        println!("    ✗ 内容不足: {}", content_check.unwrap_err());
+                                        // 删除空文件，准备重试
+                                        std::fs::remove_file(&file_path).ok();
+                                    }
+                                } else {
+                                    // 无文件路径的任务，只检查条件
+                                    graph.update_goal_status(goal_id, GoalStatus::Evaluating);
+                                    let eval_result = self.evaluator.evaluate(&condition);
+                                    success = eval_result.converged;
+                                    if !success {
+                                        println!("    ✗ 条件未满足");
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                println!("    ✗ 错误: {}", e);
+                            }
+                        }
+                    }
+
+                    // 记录结果
+                    if success {
+                        graph.update_goal_status(goal_id, GoalStatus::Converged);
+                        results.push((goal_id.clone(), GoalOutcome::Converged {
+                            iterations: attempts,
+                            tokens_used: 0,
+                            final_feedback: "Success".into(),
+                        }));
+                    } else {
+                        graph.update_goal_status(goal_id, GoalStatus::Failed);
+                        results.push((goal_id.clone(), GoalOutcome::Failed(
+                            format!("Failed after {} attempts", attempts)
+                        )));
                     }
                 }
             }
 
             println!("  批次 {} 完成\n", batch_num + 1);
 
-            // 每批次后保存进度
+            // 进度统计
             let success_count = results.iter().filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. })).count();
             println!("  进度: {} / {} 完成", success_count, total_tasks);
 
-            // 短暂休息，避免 API 过载
             tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
         println!("\n全部执行完成！");
         results
+    }
+
+    /// 提取文件路径
+    fn extract_file_path(&self, description: &str) -> String {
+        if description.contains("(file: ") {
+            description.split("(file: ")
+                .nth(1)
+                .and_then(|s| s.split(')').next())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        }
+    }
+
+    /// 检查文件质量（至少 50 行或 500 bytes）
+    fn check_file_quality(&self, path: &str) -> Result<u32, String> {
+        if !std::path::Path::new(path).exists() {
+            return Err("File not created".into());
+        }
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let lines = content.lines().count() as u32;
+        let bytes = content.len();
+
+        if lines >= 50 || bytes >= 500 {
+            Ok(lines)
+        } else if lines == 0 {
+            Err("Empty file".into())
+        } else {
+            Err(format!("Insufficient content: {} lines, {} bytes (need 50 lines or 500 bytes)", lines, bytes))
+        }
     }
 
     /// 执行 AI 命令（带超时）- 使用更短的超时
@@ -312,24 +373,41 @@ impl ComplexGoalExecutor {
         Ok(true)
     }
 
-    /// 构建规划 prompt - 输出结构化 JSON 格式
-    /// 构建规划 prompt - 精简版，减少约70% token消耗
+    /// 构建规划 prompt - 明确格式，确保 AI 正确理解任务分解
     fn build_planning_prompt(&self, requirement: &str) -> String {
         format!(
-            r#"分析需求输出JSON任务列表。
+            r#"分析需求，输出结构化 JSON 任务列表。
 
 需求: {}
 
-JSON格式:
-{{"tasks":[{{"id":"t1","file":"路径","desc":"内容","deps":[]]}}}}
+输出 JSON 格式（严格遵守）:
+{{
+  "analysis": "简短分析",
+  "tasks": [
+    {{
+      "id": "task-1",
+      "file": "{}/文件名.ts",
+      "desc": "模块功能描述",
+      "deps": []
+    }},
+    {{
+      "id": "task-2",
+      "file": "{}/另一个文件.md",
+      "desc": "另一个模块描述",
+      "deps": ["task-1"]
+    }}
+  ]
+}}
 
-规则:
-1.每任务创建1文件
-2.deps=[]无依赖
-3.路径基于:{}
+关键规则:
+1. file 字段: 必须是完整路径，包含工作目录前缀
+2. deps 字段: 空数组 [] 表示无依赖，有依赖填任务 ID
+3. 每个任务创建一个文件，文件扩展名要与内容匹配
+4. id 格式: task-1, task-2, task-3... 顺序编号
 
-仅输出JSON:"#,
-            requirement.chars().take(200).collect::<String>(),
+仅输出 JSON，不要其他文字:"#,
+            requirement.chars().take(300).collect::<String>(),
+            self.working_dir,
             self.working_dir
         )
     }
@@ -354,9 +432,7 @@ JSON格式:
         prompt
     }
 
-    /// 构建执行 prompt（从信息构建，用于 execute_graph）- 改进版
-    /// 构建执行 prompt（精简版，减少约60% token）
-    /// 构建执行 prompt（精简但明确）
+    /// 构建执行 prompt（明确文件路径和内容质量要求）
     fn build_execution_prompt_from_info(&self, _id: &str, description: &str, completed: &[(String, GoalOutcome)]) -> String {
         // 从 description 提取文件路径（格式: "... (file: path) ..."）
         let file_path = if description.contains("(file: ") {
@@ -372,25 +448,36 @@ JSON格式:
                 .unwrap_or("")
         };
 
-        // 构建明确的 prompt
+        // 构建明确的 prompt（包含内容质量要求）
         let mut prompt = String::new();
+
+        // 明确的目标文件
         if !file_path.is_empty() {
-            prompt.push_str(&format!("Use Write tool to create file: {}\n", file_path));
+            prompt.push_str(&format!("TARGET FILE: {}\n\n", file_path));
         }
 
-        // 提取功能描述
+        // 内容质量要求（关键改进）
+        prompt.push_str("CONTENT REQUIREMENT:\n");
+        prompt.push_str("- File must have at least 50 lines OR 500 bytes\n");
+        prompt.push_str("- Include complete module structure with exports\n");
+        prompt.push_str("- Add detailed comments and type definitions\n\n");
+
+        // 功能描述
         let func_desc = description.split("(file: ").next().unwrap_or(description);
-        prompt.push_str(&format!("Content: {} module with TypeScript exports\n", func_desc.chars().take(60).collect::<String>()));
+        prompt.push_str(&format!("MODULE: {}\n\n", func_desc.chars().take(80).collect::<String>()));
 
         // 已完成提示
         if !completed.is_empty() {
             let done_count = completed.iter().filter(|(_, o)| matches!(o, GoalOutcome::Converged { .. })).count();
             if done_count > 0 {
-                prompt.push_str(&format!("Note: {} files already created\n", done_count));
+                prompt.push_str(&format!("COMPLETED: {} files already created\n\n", done_count));
             }
         }
 
-        prompt.push_str("\nExecute Write tool now.");
+        // 执行指令
+        prompt.push_str("ACTION: Use Write tool to create the file NOW.\n");
+        prompt.push_str("DO NOT create empty files. DO NOT stop until file has substantial content.");
+
         prompt
     }
 
@@ -703,9 +790,11 @@ mod tests {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
         let prompt = executor.build_planning_prompt("Create a MES system");
         assert!(prompt.contains("JSON")); // 验证 JSON 格式
-        assert!(prompt.contains("需求")); // 验证需求关键词（中文精简版）
+        assert!(prompt.contains("需求")); // 验证需求关键词
         assert!(prompt.contains("D:/tmp")); // 验证工作目录
-        // 精简版不再包含 "REQUIREMENT" 和 "analysis"（减少 token）
+        assert!(prompt.contains("file")); // 验证 file 字段说明
+        assert!(prompt.contains("deps")); // 验证 deps 字段说明
+        assert!(prompt.contains("analysis")); // 验证 analysis 字段示例
     }
 
     #[test]
@@ -778,9 +867,9 @@ mod tests {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
         let prompt = executor.build_execution_prompt_from_info("task-1", "Create README.md (file: README.md)", &[]);
         assert!(prompt.contains("TARGET FILE"));
-        assert!(prompt.contains("FULL PATH"));
-        assert!(prompt.contains("D:/tmp"));
         assert!(prompt.contains("README.md"));
+        assert!(prompt.contains("50 lines")); // 验证内容质量要求
+        assert!(prompt.contains("Write tool")); // 验证执行指令
     }
 
     #[test]
@@ -794,9 +883,9 @@ mod tests {
             }),
         ];
         let prompt = executor.build_execution_prompt_from_info("task-2", "Create index.ts (file: src/index.ts)", &completed);
-        assert!(prompt.contains("COMPLETED TASKS"));
-        assert!(prompt.contains("task-1"));
+        assert!(prompt.contains("COMPLETED")); // 验证已完成提示
         assert!(prompt.contains("src/index.ts"));
+        assert!(prompt.contains("50 lines")); // 验证内容质量要求
     }
 
     #[test]

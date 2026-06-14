@@ -268,10 +268,29 @@ impl ComplexGoalExecutor {
                                         println!("    ✓ 成功 ({} 行)", content_check.unwrap());
                                         std::io::Write::flush(&mut std::io::stdout()).ok();
                                     } else {
-                                        println!("    ✗ 内容不足: {}", content_check.unwrap_err());
+                                        let error_msg = content_check.unwrap_err();
+                                        println!("    ✗ 内容问题: {}", error_msg);
                                         std::io::Write::flush(&mut std::io::stdout()).ok();
-                                        // 删除空文件，准备重试
-                                        std::fs::remove_file(&file_path).ok();
+
+                                        // 如果是 TypeScript 语法错误，尝试自动修复
+                                        if error_msg.contains("TypeScript syntax errors") && (file_path.ends_with(".ts") || file_path.ends_with(".tsx")) {
+                                            println!("    ⟳ 尝试自动修复语法问题...");
+                                            std::io::Write::flush(&mut std::io::stdout()).ok();
+                                            if self.fix_ts_syntax(&file_path).is_ok() {
+                                                // 重新检查
+                                                let recheck = self.check_file_quality(&file_path);
+                                                if recheck.is_ok() {
+                                                    success = true;
+                                                    println!("    ✓ 修复成功 ({} 行)", recheck.unwrap());
+                                                    std::io::Write::flush(&mut std::io::stdout()).ok();
+                                                }
+                                            }
+                                        }
+
+                                        // 如果仍然失败，删除文件准备重试
+                                        if !success {
+                                            std::fs::remove_file(&file_path).ok();
+                                        }
                                     }
                                 } else {
                                     // 无文件路径的任务，只检查条件
@@ -342,12 +361,53 @@ impl ComplexGoalExecutor {
         let bytes = content.len();
 
         if lines >= 50 || bytes >= 500 {
+            // TypeScript 文件额外检查：检测双引号语法错误
+            if path.ends_with(".ts") || path.ends_with(".tsx") {
+                let syntax_errors = self.check_ts_syntax(path, &content);
+                if !syntax_errors.is_empty() {
+                    return Err(format!("TypeScript syntax errors: {:?}", syntax_errors));
+                }
+            }
             Ok(lines)
         } else if lines == 0 {
             Err("Empty file".into())
         } else {
             Err(format!("Insufficient content: {} lines, {} bytes (need 50 lines or 500 bytes)", lines, bytes))
         }
+    }
+
+    /// 检查 TypeScript 文件语法（检测常见错误）
+    fn check_ts_syntax(&self, _path: &str, content: &str) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        // 检查双引号问题：''xxx'' 应该是 'xxx'
+        if content.contains("''") {
+            // 统计双引号出现次数
+            let double_quote_count = content.matches("''").count();
+            if double_quote_count > 0 {
+                errors.push(format!("Found {} double-single-quote patterns (''xxx''), should be single quote ('xxx')", double_quote_count));
+            }
+        }
+
+        // 检查是否有未闭合的大括号（简单检查）
+        let open_braces = content.matches('{').count();
+        let close_braces = content.matches('}').count();
+        if open_braces != close_braces {
+            errors.push(format!("Unbalanced braces: {} open, {} close", open_braces, close_braces));
+        }
+
+        errors
+    }
+
+    /// 自动修复 TypeScript 文件语法问题
+    fn fix_ts_syntax(&self, path: &str) -> Result<(), String> {
+        let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+
+        // 修复双引号问题
+        let fixed = content.replace("''", "'");
+
+        std::fs::write(path, fixed).map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     /// 执行 AI 命令（带超时）- 使用更短的超时
@@ -907,5 +967,37 @@ mod tests {
         // 测试无路径
         let path = executor.extract_file_path_from_description("Do something generic");
         assert!(path.is_empty());
+    }
+
+    #[test]
+    fn test_check_ts_syntax_double_quotes() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+
+        // 测试双引号问题检测
+        let bad_content = "export enum Status { DRAFT = ''DRAFT'' }";
+        let errors = executor.check_ts_syntax("test.ts", bad_content);
+        assert!(!errors.is_empty());
+        assert!(errors[0].contains("double-single-quote"));
+
+        // 测试正常内容
+        let good_content = "export enum Status { DRAFT = 'DRAFT' }";
+        let errors = executor.check_ts_syntax("test.ts", good_content);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_check_ts_syntax_unbalanced_braces() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+
+        // 测试未闭合大括号
+        let bad_content = "export class Test { method() { return 1; }";
+        let errors = executor.check_ts_syntax("test.ts", bad_content);
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.contains("Unbalanced braces")));
+
+        // 测试正常内容
+        let good_content = "export class Test { method() { return 1; } }";
+        let errors = executor.check_ts_syntax("test.ts", good_content);
+        assert!(errors.is_empty());
     }
 }

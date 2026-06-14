@@ -58,6 +58,23 @@ pub struct ComplexGoalExecutor {
     evaluator: ConditionEvaluator,
 }
 
+/// 进度状态（用于保存和恢复）
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProgressState {
+    /// 需求原文
+    pub requirement: String,
+    /// 当前阶段
+    pub phase: String,
+    /// 已完成的任务 ID
+    pub completed_tasks: Vec<String>,
+    /// 失败的任务 ID
+    pub failed_tasks: Vec<String>,
+    /// 当前正在执行的任务
+    pub current_task: Option<String>,
+    /// 时间戳
+    pub timestamp: u64,
+}
+
 impl ComplexGoalExecutor {
     pub fn new(ai_command: impl Into<String>, working_dir: impl Into<String>) -> Self {
         Self {
@@ -65,6 +82,24 @@ impl ComplexGoalExecutor {
             working_dir: working_dir.into(),
             evaluator: ConditionEvaluator::new(),
         }
+    }
+
+    /// 保存进度到文件
+    pub fn save_progress(&self, state: &ProgressState, path: &str) -> Result<(), ComplexError> {
+        let json = serde_json::to_string_pretty(state)
+            .map_err(|e| ComplexError::ExecutionFailed(format!("Serialize failed: {}", e)))?;
+        std::fs::write(path, json)
+            .map_err(|e| ComplexError::ExecutionFailed(format!("Write failed: {}", e)))?;
+        Ok(())
+    }
+
+    /// 从文件恢复进度
+    pub fn load_progress(&self, path: &str) -> Result<ProgressState, ComplexError> {
+        let json = std::fs::read_to_string(path)
+            .map_err(|e| ComplexError::ExecutionFailed(format!("Read failed: {}", e)))?;
+        let state: ProgressState = serde_json::from_str(&json)
+            .map_err(|e| ComplexError::ExecutionFailed(format!("Deserialize failed: {}", e)))?;
+        Ok(state)
     }
 
     /// 第一阶段：规划 - 分析需求并制定计划
@@ -156,33 +191,25 @@ impl ComplexGoalExecutor {
         Ok(true)
     }
 
-    /// 构建规划 prompt - 改进版，输出结构化 JSON 格式
+    /// 构建规划 prompt - 输出结构化 JSON 格式
+    /// 构建规划 prompt - 精简版，减少约70% token消耗
     fn build_planning_prompt(&self, requirement: &str) -> String {
         format!(
-            "You are a system architect. Analyze the requirement and output a JSON task list.\n\n\
-            REQUIREMENT:\n{}\n\n\
-            OUTPUT FORMAT (strict JSON):\n\
-            ```json\n\
-            {{\n\
-              \"tasks\": [\n\
-                {{\n\
-                  \"id\": \"task-1\",\n\
-                  \"description\": \"Create file X with content Y\",\n\
-                  \"file_path\": \"path/to/file.ts\",\n\
-                  \"dependencies\": [],\n\
-                  \"validation\": \"File exists and contains keyword\"\n\
-                }}\n\
-              ]\n\
-            }}\n\
-            ```\n\n\
-            RULES:\n\
-            1. Each task creates ONE file only\n\
-            2. Use simple task IDs: task-1, task-2, etc.\n\
-            3. Dependencies use task IDs (empty array [] for first task)\n\
-            4. file_path must be relative to working directory\n\
-            5. validation is a single keyword or phrase to check\n\n\
-            OUTPUT THE JSON NOW:\n",
-            requirement
+            r#"分析需求输出JSON任务列表。
+
+需求: {}
+
+JSON格式:
+{{"tasks":[{{"id":"t1","file":"路径","desc":"内容","deps":[]]}}}}
+
+规则:
+1.每任务创建1文件
+2.deps=[]无依赖
+3.路径基于:{}
+
+仅输出JSON:"#,
+            requirement.chars().take(200).collect::<String>(),
+            self.working_dir
         )
     }
 
@@ -208,94 +235,197 @@ impl ComplexGoalExecutor {
 
     /// 构建执行 prompt（从信息构建，用于 execute_graph）- 改进版
     fn build_execution_prompt_from_info(&self, id: &str, description: &str, completed: &[(String, GoalOutcome)]) -> String {
-        let mut prompt = format!("Task ID: {}\n", id);
+        let mut prompt = String::new();
 
-        // 提取文件路径信息
-        if description.contains("file:") {
-            let file_part = description.split("file:").nth(1).unwrap_or("").trim();
-            prompt.push_str(&format!("Target File: {}\n", file_part));
+        // 任务标识
+        prompt.push_str(&format!("=== TASK EXECUTION ===\n"));
+        prompt.push_str(&format!("Task ID: {}\n\n", id));
+
+        // 工作目录 - 明确提示
+        prompt.push_str(&format!("WORKING DIRECTORY: {}\n\n", self.working_dir));
+
+        // 提取并高亮文件路径
+        let file_path = self.extract_file_path_from_description(description);
+        if !file_path.is_empty() {
+            prompt.push_str(&format!("TARGET FILE: {}\n", file_path));
+            prompt.push_str(&format!("FULL PATH: {}/{}\n\n", self.working_dir, file_path));
         }
 
-        prompt.push_str(&format!("Working Directory: {}\n\n", self.working_dir));
-        prompt.push_str(&format!("Description: {}\n\n", description));
+        // 任务描述
+        prompt.push_str(&format!("DESCRIPTION:\n{}\n\n", description));
 
-        // 添加已完成的上下文
+        // 已完成任务的上下文
         if !completed.is_empty() {
-            prompt.push_str("Previously completed tasks:\n");
-            for (prev_id, outcome) in completed {
-                if matches!(outcome, GoalOutcome::Converged { .. }) {
-                    prompt.push_str(&format!("  - {} ✓\n", prev_id));
+            let completed_tasks: Vec<_> = completed
+                .iter()
+                .filter(|(_, outcome)| matches!(outcome, GoalOutcome::Converged { .. }))
+                .collect();
+
+            if !completed_tasks.is_empty() {
+                prompt.push_str("COMPLETED TASKS:\n");
+                for (prev_id, outcome) in &completed_tasks {
+                    if let GoalOutcome::Converged { final_feedback, .. } = outcome {
+                        prompt.push_str(&format!("  ✓ {} - {}\n", prev_id, final_feedback.chars().take(50).collect::<String>()));
+                    }
                 }
+                prompt.push_str("\n");
             }
-            prompt.push_str("\n");
         }
 
+        // 执行指令
         prompt.push_str("INSTRUCTIONS:\n");
         prompt.push_str("1. Create ONLY the file specified above\n");
         prompt.push_str("2. Use the working directory as base path\n");
-        prompt.push_str("3. Include appropriate exports/imports\n");
-        prompt.push_str("4. After completing, report what was done\n");
+        prompt.push_str("3. Ensure proper exports/imports for module integration\n");
+        prompt.push_str("4. Follow project coding standards\n");
+        prompt.push_str("5. Report completion with file path and key changes\n");
+
         prompt
     }
 
-    /// 解析 AI 输出提取计划 - 改进版，支持 JSON 和 fallback
-    fn parse_plan(&self, output: &str) -> Result<ImplementationPlan, ComplexError> {
-        let mut subtasks = Vec::new();
+    /// 从描述中提取文件路径
+    fn extract_file_path_from_description(&self, description: &str) -> String {
+        // 格式: "description (file: path/to/file.ts)"
+        if let Some(file_part) = description.split("(file: ").nth(1) {
+            if let Some(path) = file_part.strip_suffix(')') {
+                return path.trim().to_string();
+            }
+        }
 
-        // 尝试解析 JSON 格式
-        if let Some(json_str) = self.extract_json(output) {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
-                if let Some(tasks) = parsed.get("tasks").and_then(|t| t.as_array()) {
-                    for task in tasks {
-                        let id = task.get("id").and_then(|v| v.as_str()).unwrap_or("task").to_string();
-                        let desc = task.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let file_path = task.get("file_path").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let deps = task.get("dependencies")
-                            .and_then(|v| v.as_array())
-                            .map(|arr| arr.iter().filter_map(|d| d.as_str().map(|s| s.to_string())).collect())
-                            .unwrap_or_default();
-                        let validation = task.get("validation").and_then(|v| v.as_str()).unwrap_or("export").to_string();
+        // 尝试提取常见路径模式
+        let path_patterns = [
+            ("src/", ".ts"),
+            ("src/", ".tsx"),
+            ("lib/", ".ts"),
+            ("", ".md"),
+            ("", ".json"),
+        ];
 
-                        // 使用 file_path 作为描述的一部分
-                        let full_desc = if file_path.is_empty() {
-                            desc.clone()
-                        } else {
-                            format!("{} (file: {})", desc, file_path)
-                        };
-
-                        subtasks.push(SubTaskSpec {
-                            id,
-                            description: full_desc,
-                            dependencies: deps,
-                            validation_criteria: validation,
-                        });
+        for (prefix, ext) in &path_patterns {
+            if description.contains(prefix) && description.contains(ext) {
+                // 尝试提取完整路径
+                if let Some(start) = description.find(prefix) {
+                    if let Some(end) = description[start..].find(ext) {
+                        let path = &description[start..start + end + ext.len()];
+                        return path.to_string();
                     }
                 }
             }
         }
 
-        // 如果 JSON 解析失败，尝试旧的格式解析
+        String::new()
+    }
+
+    /// 解析 AI 输出提取计划 - 改进版，支持 JSON 和智能 fallback
+    fn parse_plan(&self, output: &str) -> Result<ImplementationPlan, ComplexError> {
+        let mut subtasks = Vec::new();
+        let mut analysis = output.to_string();
+
+        // 尝试解析 JSON 格式
+        if let Some(json_str) = self.extract_json(output) {
+            // 尝试解析为 JSON
+            match serde_json::from_str::<serde_json::Value>(json_str) {
+                Ok(parsed) => {
+                    // 提取 analysis 字段
+                    if let Some(a) = parsed.get("analysis").and_then(|v| v.as_str()) {
+                        analysis = a.to_string();
+                    }
+
+                    // 解析 tasks 数组
+                    if let Some(tasks) = parsed.get("tasks").and_then(|t| t.as_array()) {
+                        for task in tasks {
+                            let id = task.get("id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| format!("task-{}", subtasks.len() + 1));
+
+                            let desc = task.get("description")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+
+                            let file_path = task.get("file_path")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+
+                            let deps = task.get("dependencies")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|d| d.as_str().map(|s| s.to_string()))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
+                            let validation = task.get("validation")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("export")
+                                .to_string();
+
+                            // 构建完整描述，包含文件路径
+                            let full_desc = if file_path.is_empty() {
+                                desc.clone()
+                            } else {
+                                format!("{} (file: {})", desc, file_path)
+                            };
+
+                            subtasks.push(SubTaskSpec {
+                                id,
+                                description: full_desc,
+                                dependencies: deps,
+                                validation_criteria: validation,
+                            });
+                        }
+                    }
+                }
+                Err(e) => {
+                    // JSON 解析失败，记录但继续尝试 fallback
+                    eprintln!("JSON parse error: {}, attempting fallback", e);
+                }
+            }
+        }
+
+        // 如果 JSON 解析失败或没有提取到任务，尝试旧的格式解析
         if subtasks.is_empty() {
             for line in output.lines() {
-                if line.starts_with("- ") || line.contains(": ") {
-                    let parts: Vec<&str> = line.split(": ").collect();
-                    if parts.len() >= 2 {
+                // 匹配格式: "- task-id: description" 或 "task-id: description"
+                if line.starts_with("- ") || (line.contains(": ") && !line.starts_with("{")) {
+                    let parts: Vec<&str> = line.splitn(2, ": ").collect();
+                    if parts.len() == 2 {
                         let id = parts[0].replace("- ", "").trim().to_string();
                         let desc = parts[1].trim().to_string();
 
+                        // 解析依赖: "depends on: task-1, task-2"
                         let deps: Vec<String> = if line.contains("(depends on:") {
-                            line.split("depends on:")
+                            line.split("(depends on:")
                                 .nth(1)
                                 .unwrap_or("")
                                 .replace(")", "")
-                                .split(",")
+                                .split(',')
                                 .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
+                                .collect()
+                        } else if line.contains("depends on:") {
+                            line.split("depends on:")
+                                .nth(1)
+                                .unwrap_or("")
+                                .split(',')
+                                .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
                                 .collect()
                         } else {
                             vec![]
                         };
 
-                        let validation = desc.split("包含").nth(1).unwrap_or(&desc).to_string();
+                        // 从描述中提取验证关键词
+                        let validation = if desc.contains("包含") {
+                            desc.split("包含").nth(1).unwrap_or(&desc).trim().to_string()
+                        } else if desc.contains("contains") {
+                            desc.split("contains").nth(1).unwrap_or(&desc).trim().to_string()
+                        } else {
+                            "export".to_string()
+                        };
 
                         subtasks.push(SubTaskSpec {
                             id,
@@ -315,7 +445,7 @@ impl ComplexGoalExecutor {
 
         let steps = subtasks.len() as u32;
         Ok(ImplementationPlan {
-            analysis: output.to_string(),
+            analysis,
             subtasks,
             estimated_steps: steps,
         })
@@ -387,23 +517,36 @@ impl ComplexGoalExecutor {
         tasks
     }
 
-    /// 执行 AI 命令
+    /// 执行 AI 命令 - 使用 Git Bash stdin 方式（避免 cmd 管道问题）
     async fn execute_ai(&self, prompt: &str) -> Result<String, ComplexError> {
         use std::process::Command;
 
-        let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", &self.ai_command, "-p", prompt])
-                .current_dir(&self.working_dir)
-                .output()
-                .map_err(|e| ComplexError::ExecutionFailed(format!("AI process failed: {}", e)))?
-        } else {
-            Command::new(&self.ai_command)
-                .args(["-p", prompt])
-                .current_dir(&self.working_dir)
-                .output()
-                .map_err(|e| ComplexError::ExecutionFailed(format!("AI process failed: {}", e)))?
-        };
+        // 创建临时文件存储 prompt
+        let temp_file = format!("D:/tmp/complex_prompt_{}.txt",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis());
+
+        std::fs::write(&temp_file, prompt)
+            .map_err(|e| ComplexError::ExecutionFailed(format!("Write temp file failed: {}", e)))?;
+
+        // 使用 Git Bash 执行（与 reconcile.rs 一致的方式）
+        let git_bash = "C:/Program Files/Git/usr/bin/bash.exe";
+        let cmd_args = format!(
+            "cat '{}' | '{}' --bare --dangerously-skip-permissions --allowedTools Write,Edit,Bash --permission-mode bypassPermissions --print",
+            temp_file,
+            &self.ai_command
+        );
+
+        let output = Command::new(git_bash)
+            .args(["-c", &cmd_args])
+            .current_dir(&self.working_dir)
+            .output()
+            .map_err(|e| ComplexError::ExecutionFailed(format!("AI process failed: {}", e)))?;
+
+        // 清理临时文件
+        std::fs::remove_file(&temp_file).ok();
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -444,15 +587,27 @@ mod tests {
     fn test_build_planning_prompt() {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
         let prompt = executor.build_planning_prompt("Create a MES system");
-        assert!(prompt.contains("JSON"));
-        assert!(prompt.contains("tasks"));
-        assert!(prompt.contains("REQUIREMENT"));
+        assert!(prompt.contains("JSON")); // 验证 JSON 格式
+        assert!(prompt.contains("需求")); // 验证需求关键词（中文精简版）
+        assert!(prompt.contains("D:/tmp")); // 验证工作目录
+        // 精简版不再包含 "REQUIREMENT" 和 "analysis"（减少 token）
     }
 
     #[test]
     fn test_parse_plan_json() {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
-        let output = "```json\n{\"tasks\": [{\"id\": \"task-1\", \"description\": \"Create README\", \"file_path\": \"README.md\", \"dependencies\": [], \"validation\": \"MES\"}]}\n```";
+        let output = r#"{"analysis": "MES system needs modules", "tasks": [{"id": "task-1", "description": "Create README", "file_path": "README.md", "dependencies": [], "validation": "MES"}]}"#;
+        let plan = executor.parse_plan(output).unwrap();
+        assert_eq!(plan.subtasks.len(), 1);
+        assert_eq!(plan.subtasks[0].id, "task-1");
+        assert_eq!(plan.analysis, "MES system needs modules");
+        assert!(plan.subtasks[0].description.contains("README.md"));
+    }
+
+    #[test]
+    fn test_parse_plan_json_with_markdown() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+        let output = "```\n{\"tasks\": [{\"id\": \"task-1\", \"description\": \"Create README\", \"file_path\": \"README.md\", \"dependencies\": [], \"validation\": \"MES\"}]}\n```";
         let plan = executor.parse_plan(output).unwrap();
         assert_eq!(plan.subtasks.len(), 1);
         assert_eq!(plan.subtasks[0].id, "task-1");
@@ -467,12 +622,31 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_plan_text_format() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+        let output = "- task-1: Create README.md\n- task-2: Create production.ts (depends on: task-1)";
+        let plan = executor.parse_plan(output).unwrap();
+        assert_eq!(plan.subtasks.len(), 2);
+        assert_eq!(plan.subtasks[0].id, "task-1");
+        assert_eq!(plan.subtasks[1].dependencies, vec!["task-1"]);
+    }
+
+    #[test]
     fn test_extract_json() {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
         let output = "Some text ```json\n{\"test\": 1}\n``` more text";
         let json = executor.extract_json(output);
         assert!(json.is_some());
         assert!(json.unwrap().contains("test"));
+    }
+
+    #[test]
+    fn test_extract_json_raw() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+        let output = "Here is the plan: {\"tasks\": [{\"id\": \"task-1\"}]} end";
+        let json = executor.extract_json(output);
+        assert!(json.is_some());
+        assert!(json.unwrap().contains("tasks"));
     }
 
     #[test]
@@ -488,7 +662,42 @@ mod tests {
     fn test_build_execution_prompt_from_info() {
         let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
         let prompt = executor.build_execution_prompt_from_info("task-1", "Create README.md (file: README.md)", &[]);
-        assert!(prompt.contains("Target File"));
-        assert!(prompt.contains("Working Directory"));
+        assert!(prompt.contains("TARGET FILE"));
+        assert!(prompt.contains("FULL PATH"));
+        assert!(prompt.contains("D:/tmp"));
+        assert!(prompt.contains("README.md"));
+    }
+
+    #[test]
+    fn test_build_execution_prompt_with_completed() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+        let completed = vec![
+            ("task-1".to_string(), GoalOutcome::Converged {
+                iterations: 1,
+                tokens_used: 100,
+                final_feedback: "Created README.md successfully".to_string(),
+            }),
+        ];
+        let prompt = executor.build_execution_prompt_from_info("task-2", "Create index.ts (file: src/index.ts)", &completed);
+        assert!(prompt.contains("COMPLETED TASKS"));
+        assert!(prompt.contains("task-1"));
+        assert!(prompt.contains("src/index.ts"));
+    }
+
+    #[test]
+    fn test_extract_file_path_from_description() {
+        let executor = ComplexGoalExecutor::new("claude", "D:/tmp");
+
+        // 测试 (file: ...) 格式
+        let path = executor.extract_file_path_from_description("Create README (file: README.md)");
+        assert_eq!(path, "README.md");
+
+        // 测试 src/ 路径
+        let path = executor.extract_file_path_from_description("Create src/index.ts module");
+        assert_eq!(path, "src/index.ts");
+
+        // 测试无路径
+        let path = executor.extract_file_path_from_description("Do something generic");
+        assert!(path.is_empty());
     }
 }

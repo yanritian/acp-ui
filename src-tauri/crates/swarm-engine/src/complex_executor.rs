@@ -441,38 +441,52 @@ impl ComplexGoalExecutor {
     fn build_planning_prompt(&self, requirement: &str) -> String {
         let work_dir = &self.working_dir;
         format!(
-            r#"分析需求，输出结构化 JSON 任务列表。
+            r#"你需要将需求分解为独立的任务文件。每个任务对应一个文件。
 
-需求: {}
+=== 需求 ===
+{}
 
-工作目录: {}
+=== 工作目录 ===
+{}
 
-输出 JSON 格式（严格遵守）:
+=== 输出要求 ===
+输出纯 JSON（无 markdown 包裹），格式如下：
+
 {{
-  "analysis": "简短分析",
+  "analysis": "简短需求分析（1-2句话）",
   "tasks": [
     {{
       "id": "task-1",
-      "file": "{work_dir}/finance.ts",
-      "desc": "ERP财务模块"
+      "desc": "任务简述",
+      "file": "{work_dir}/filename.ts",
+      "deps": []
     }},
     {{
       "id": "task-2",
-      "file": "{work_dir}/production.ts",
-      "desc": "MES生产模块"
+      "desc": "依赖 task-1 的任务",
+      "file": "{work_dir}/other.ts",
+      "deps": ["task-1"]
     }}
   ]
 }}
 
-关键规则（必须严格遵守）:
-1. file 字段格式: "{work_dir}/文件名.扩展名" - 必须是完整绝对路径
-2. 不要创建子目录，文件直接放在工作目录下
-3. deps 字段: 空数组 [] 表示无依赖
-4. id 格式: task-1, task-2... 顺序编号
-5. 文件名示例: finance.ts, production.ts, web-app.md
+=== 字段说明 ===
+- id: 任务标识，格式 task-N（N 从 1 开始）
+- desc: 任务简述（中文或英文）
+- file: 输出文件完整路径，必须是 "{work_dir}/文件名.扩展名"
+- deps: 依赖的任务 ID 数组，无依赖填 []
 
-仅输出 JSON:"#,
-            requirement.chars().take(500).collect::<String>(),
+=== 关键规则 ===
+1. 文件路径必须包含完整工作目录前缀
+2. 不要创建子目录，所有文件放在工作目录根
+3. 合理设置依赖：基础模块在前，依赖模块在后
+4. 每个任务聚焦单一职责，避免过大任务
+5. 输出纯 JSON，不要添加任何解释或 markdown
+
+=== 示例输出 ===
+{{"analysis":"实现财务和生产两个模块","tasks":[{{"id":"task-1","desc":"ERP财务模块","file":"{work_dir}/finance.ts","deps":[]}},{{"id":"task-2","desc":"MES生产模块","file":"{work_dir}/production.ts","deps":["task-1"]}}]}}
+"#,
+            requirement.chars().take(800).collect::<String>(),
             work_dir
         )
     }

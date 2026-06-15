@@ -37,6 +37,8 @@ const routes = [
   { path: '/agent-config', name: 'agent-config', component: () => import('./views/AgentConfigView.vue') },
   { path: '/plugins', name: 'plugins', component: () => import('./features/plugins/PluginManagerView.vue') },
   { path: '/swarm', name: 'swarm', component: () => import('./features/swarm/SwarmDashboard.vue') },
+  { path: '/goal-graph', name: 'goal-graph', component: () => import('./features/swarm/GoalGraphView.vue') },
+  { path: '/worker-health', name: 'worker-health', component: () => import('./features/swarm/WorkerHealthPanel.vue') },
   { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./features/workflow/WorkflowEditor.vue') },
   // Demo page - token optimizer backend commands not implemented
   { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue'), meta: { isDemo: true } },

@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { SwarmService, type SwarmAgent, type SwarmTask, type SwarmHealth, type SwarmTopology, type ConsensusStrategy } from '@/lib/plugin-system/swarm-service'
 import {
   swarmRegisterWorker,
   swarmListWorkers,
@@ -14,7 +13,7 @@ import {
   type TaskHandle,
 } from '@/lib/swarm-api'
 
-// Extended types for real worker management (Day 1-4)
+// SwarmWorker type for real worker management (Day 1-4)
 export interface SwarmWorker {
   id: string
   capabilities: WorkerCapabilities
@@ -22,25 +21,15 @@ export interface SwarmWorker {
 }
 
 export const useSwarmStore = defineStore('swarm', () => {
-  // Existing state
-  const agents = ref<SwarmAgent[]>([])
-  const tasks = ref<SwarmTask[]>([])
-  const health = ref<SwarmHealth | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-
-  // New state for real workers (Day 1-4)
+  // State for real workers (Day 1-4)
   const workers = ref<SwarmWorker[]>([])
   const queenWorkerId = ref<string | null>(null)
   const currentTaskHandle = ref<TaskHandle | null>(null)
   const taskHandles = ref<TaskHandle[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  // Existing computed
-  const activeAgents = computed(() => agents.value.filter(a => a.status === 'running' || a.status === 'assigned'))
-  const idleAgents = computed(() => agents.value.filter(a => a.status === 'idle'))
-  const runningTasks = computed(() => tasks.value.filter(t => t.status === 'in_progress' || t.status === 'waiting_consensus'))
-
-  // New computed for workers
+  // Computed for workers
   const idleWorkers = computed(() => workers.value.filter(w => w.status?.health === 'healthy'))
   const busyWorkers = computed(() => workers.value.filter(w => w.status?.health === 'busy'))
   const offlineWorkers = computed(() => workers.value.filter(w => w.status?.health === 'offline'))
@@ -53,58 +42,7 @@ export const useSwarmStore = defineStore('swarm', () => {
     return 'ready'
   })
 
-  // Existing actions
-  async function loadAgents() {
-    loading.value = true
-    try {
-      agents.value = await SwarmService.listAgents()
-    } catch (e) {
-      error.value = String(e)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function registerAgent(agent: SwarmAgent) {
-    try {
-      await SwarmService.registerAgent(agent)
-      await loadAgents()
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function createTask(description: string, topology?: SwarmTopology, consensus?: ConsensusStrategy) {
-    try {
-      const task = await SwarmService.createTask(description, topology, consensus)
-      tasks.value.push(task)
-      return task
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  async function loadHealth() {
-    try {
-      health.value = await SwarmService.getHealth()
-    } catch (e) {
-      error.value = String(e)
-    }
-  }
-
-  async function cancelTask(taskId: string) {
-    try {
-      await SwarmService.cancelTask(taskId)
-      await loadAgents()
-    } catch (e) {
-      error.value = String(e)
-      throw e
-    }
-  }
-
-  // New actions for real workers (Day 1-4)
+  // Actions for real workers (Day 1-4)
   async function loadWorkers() {
     loading.value = true
     try {
@@ -222,14 +160,11 @@ export const useSwarmStore = defineStore('swarm', () => {
   }
 
   return {
-    // Existing state
-    agents, tasks, health, loading, error,
-    activeAgents, idleAgents, runningTasks,
-    loadAgents, registerAgent, createTask, loadHealth, cancelTask,
-
-    // New state for workers (Day 1-4)
-    workers, queenWorkerId, currentTaskHandle, taskHandles,
+    // State for workers (Day 1-4)
+    workers, queenWorkerId, currentTaskHandle, taskHandles, loading, error,
+    // Computed
     idleWorkers, busyWorkers, offlineWorkers, queenWorker, healthyWorkerCount, swarmStatus,
+    // Actions
     loadWorkers, registerWorker, sendTaskToWorker, checkWorkerHealth, cancelWorkerTask, shutdownWorkerById, setQueen,
   }
 })

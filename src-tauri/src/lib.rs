@@ -76,12 +76,8 @@ pub use swarm_orchestrator::{
     SwarmTopology, ConsensusStrategy, SwarmHealth,
 };
 
-// Re-export from workspace crates
-pub use swarm_engine::{
-    GoalGraph as SwarmGoalGraph, GoalStatus as SwarmGoalStatus,
-    CompletionCondition as SwarmCompletionCondition, GoalOutcome,
-    ReconcileLoop, EchoExecutor,
-};
+// Re-export from workspace crates (used by tests and complex_executor)
+pub use swarm_engine::{GoalOutcome, EchoExecutor};
 pub use tool_sandbox::{SandboxConfig, DeniedPatterns, Severity};
 
 use agent::{AgentManager};

@@ -1,9 +1,20 @@
 <script setup lang="ts">
 // GoalGraphView.vue - Goal状态图可视化
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useGoalStore } from '@/stores/goal'
+import type { Goal, CompletionCondition } from '@/lib/goal-api'
 
 const goalStore = useGoalStore()
+
+// 新 Goal 表单状态
+const showForm = ref(false)
+const newGoal = ref({
+  id: '',
+  description: '',
+  completionCondition: 'command_success',
+  command: '',
+  maxIterations: 5,
+})
 
 // 计算属性：按状态分组
 const goalsByStatus = computed(() => ({
@@ -47,10 +58,127 @@ const dependencies = computed(() => {
   }
   return deps
 })
+
+// 提交新 Goal
+async function handleSubmitGoal() {
+  if (!newGoal.value.id || !newGoal.value.description) {
+    return
+  }
+
+  // 构建完成条件
+  let completionCondition: CompletionCondition
+  switch (newGoal.value.completionCondition) {
+    case 'command_success':
+      completionCondition = {
+        type: 'command_success',
+        command: newGoal.value.command || 'echo done',
+        expectedExitCode: 0,
+      }
+      break
+    case 'file_exists':
+      completionCondition = {
+        type: 'file_check',
+        path: newGoal.value.command || 'output.txt',
+        mustExist: true,
+        contentContains: null,
+      }
+      break
+    case 'output_contains':
+      completionCondition = {
+        type: 'output_contains',
+        text: newGoal.value.command || 'success',
+        caseSensitive: false,
+      }
+      break
+    default:
+      completionCondition = {
+        type: 'command_success',
+        command: 'echo done',
+        expectedExitCode: 0,
+      }
+  }
+
+  const goal: Goal = {
+    id: newGoal.value.id,
+    description: newGoal.value.description,
+    status: { status: 'pending' },
+    completionCondition,
+    evaluator: { type: 'auto' },
+    iterations: [],
+    maxIterations: newGoal.value.maxIterations,
+    dependencies: [],
+    assignedWorker: null,
+    tokenBudget: null,
+    tokenUsed: 0,
+    createdAt: Date.now(),
+    startedAt: null,
+    convergedAt: null,
+    parentId: null,
+  }
+
+  await goalStore.submitGoal(goal)
+
+  // 重置表单
+  newGoal.value = {
+    id: '',
+    description: '',
+    completionCondition: 'command_success',
+    command: '',
+    maxIterations: 5,
+  }
+  showForm.value = false
+}
+
+// 自动生成 ID
+function generateId() {
+  newGoal.value.id = `goal-${Date.now().toString(36)}`
+}
 </script>
 
 <template>
   <div class="goal-graph-view p-4">
+    <!-- 工具栏 -->
+    <div class="toolbar flex gap-2 mb-4">
+      <button @click="showForm = true" class="add-goal-btn">+ 新 Goal</button>
+      <button @click="goalStore.refreshGoals" class="refresh-btn">刷新</button>
+    </div>
+
+    <!-- Goal 提交表单 -->
+    <div class="goal-form" v-if="showForm">
+      <div class="form-header">
+        <h3>创建新 Goal</h3>
+        <button @click="showForm = false" class="close-btn">×</button>
+      </div>
+      <div class="form-body">
+        <div class="form-row">
+          <label>ID:</label>
+          <input v-model="newGoal.id" placeholder="goal-xxx" />
+          <button @click="generateId" class="gen-btn">生成</button>
+        </div>
+        <div class="form-row">
+          <label>描述:</label>
+          <input v-model="newGoal.description" placeholder="Goal 描述" />
+        </div>
+        <div class="form-row">
+          <label>完成条件:</label>
+          <select v-model="newGoal.completionCondition">
+            <option value="command_success">命令成功</option>
+            <option value="file_exists">文件存在</option>
+            <option value="output_contains">输出包含</option>
+          </select>
+        </div>
+        <div class="form-row" v-if="newGoal.completionCondition === 'command_success'">
+          <label>命令:</label>
+          <input v-model="newGoal.command" placeholder="cargo test" />
+        </div>
+        <div class="form-row">
+          <label>最大迭代:</label>
+          <input type="number" v-model="newGoal.maxIterations" min="1" max="10" />
+        </div>
+        <button @click="handleSubmitGoal" class="submit-btn">提交</button>
+      </div>
+    </div>
+
     <!-- 状态摘要 -->
     <div class="summary-bar flex gap-4 mb-6">
       <div class="summary-item" v-for="[status, count] in Object.entries(goalStore.summary)" :key="status">
@@ -94,6 +222,98 @@ const dependencies = computed(() => {
 .goal-graph-view {
   background: #1a1a2e;
   border-radius: 8px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.add-goal-btn {
+  background: #10b981;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.refresh-btn {
+  background: #3b82f6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.goal-form {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #10b981;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.form-header h3 {
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.close-btn {
+  background: transparent;
+  color: #6b7280;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-row label {
+  color: #a0a0a0;
+  min-width: 80px;
+}
+
+.form-row input,
+.form-row select {
+  background: #0f3460;
+  color: #e0e0e0;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #1a1a2e;
+  flex: 1;
+}
+
+.gen-btn {
+  background: #6b7280;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit-btn {
+  background: #10b981;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 8px;
 }
 
 .summary-bar {

@@ -439,10 +439,13 @@ impl ComplexGoalExecutor {
 
     /// 构建规划 prompt - 明确格式，确保 AI 正确理解任务分解
     fn build_planning_prompt(&self, requirement: &str) -> String {
+        let work_dir = &self.working_dir;
         format!(
             r#"分析需求，输出结构化 JSON 任务列表。
 
 需求: {}
+
+工作目录: {}
 
 输出 JSON 格式（严格遵守）:
 {{
@@ -450,29 +453,27 @@ impl ComplexGoalExecutor {
   "tasks": [
     {{
       "id": "task-1",
-      "file": "{}/文件名.ts",
-      "desc": "模块功能描述",
-      "deps": []
+      "file": "{work_dir}/finance.ts",
+      "desc": "ERP财务模块"
     }},
     {{
       "id": "task-2",
-      "file": "{}/另一个文件.md",
-      "desc": "另一个模块描述",
-      "deps": ["task-1"]
+      "file": "{work_dir}/production.ts",
+      "desc": "MES生产模块"
     }}
   ]
 }}
 
-关键规则:
-1. file 字段: 必须是完整路径，包含工作目录前缀
-2. deps 字段: 空数组 [] 表示无依赖，有依赖填任务 ID
-3. 每个任务创建一个文件，文件扩展名要与内容匹配
-4. id 格式: task-1, task-2, task-3... 顺序编号
+关键规则（必须严格遵守）:
+1. file 字段格式: "{work_dir}/文件名.扩展名" - 必须是完整绝对路径
+2. 不要创建子目录，文件直接放在工作目录下
+3. deps 字段: 空数组 [] 表示无依赖
+4. id 格式: task-1, task-2... 顺序编号
+5. 文件名示例: finance.ts, production.ts, web-app.md
 
-仅输出 JSON，不要其他文字:"#,
-            requirement.chars().take(300).collect::<String>(),
-            self.working_dir,
-            self.working_dir
+仅输出 JSON:"#,
+            requirement.chars().take(500).collect::<String>(),
+            work_dir
         )
     }
 

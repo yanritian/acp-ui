@@ -180,15 +180,10 @@ impl ReconcileLoop {
         // 6. Evaluate the result
         goal.status = GoalStatus::Evaluating;
 
-        // For QueenJudgment, we defer evaluation (requires a separate Queen call)
+        // For QueenJudgment, send output to Queen worker for evaluation
         let eval_result = match &goal.completion_condition {
-            CompletionCondition::QueenJudgment { .. } => {
-                // TODO(Phase 3): Send output to Queen worker for judgment
-                EvaluationResult {
-                    passed: false,
-                    explanation: "QueenJudgment not yet wired — treating as failed for retry".into(),
-                    details: vec![],
-                }
+            CompletionCondition::QueenJudgment { criteria } => {
+                self.eval_queen_judgment(&output, criteria, &worker_id)
             }
             condition => self.evaluator.eval(condition, &output),
         };
@@ -271,6 +266,160 @@ impl ReconcileLoop {
 
         prompt
     }
+
+    /// Evaluate QueenJudgment by calling a Queen worker.
+    ///
+    /// The Queen worker receives the execution output and criteria,
+    /// then returns a judgment on whether the goal is converged.
+    fn eval_queen_judgment(
+        &self,
+        output: &str,
+        criteria: &str,
+        primary_worker_id: &str,
+    ) -> EvaluationResult {
+        // Find a Queen worker (Claude Code type)
+        let workers = match self.workers.lock() {
+            Ok(w) => w,
+            Err(e) => {
+                return EvaluationResult {
+                    passed: false,
+                    explanation: format!("Worker lock poisoned: {}", e),
+                    details: vec![ConditionResult {
+                        description: "Queen evaluation".into(),
+                        passed: false,
+                        evidence: format!("Lock error: {}", e),
+                    }],
+                };
+            }
+        };
+
+        // Find Queen worker: prefer Claude Code worker, fallback to any available
+        let queen_worker = workers
+            .values()
+            .find(|w| {
+                let caps = w.capabilities();
+                caps.worker_type == "claude_code" && caps.worker_id != primary_worker_id
+            })
+            .or_else(|| {
+                // Fallback: any worker except the primary executor
+                workers
+                    .values()
+                    .find(|w| w.capabilities().worker_id != primary_worker_id)
+            });
+
+        let queen_adapter = match queen_worker {
+            Some(a) => a.clone(),
+            None => {
+                // No Queen worker available — use self-evaluation fallback
+                return EvaluationResult {
+                    passed: false,
+                    explanation: "No Queen worker available for judgment".into(),
+                    details: vec![ConditionResult {
+                        description: "Queen evaluation".into(),
+                        passed: false,
+                        evidence: "No suitable Queen worker found".into(),
+                    }],
+                };
+            }
+        };
+
+        // Build Queen evaluation prompt
+        let queen_prompt = format!(
+            "You are the Queen evaluator. Judge whether the following execution result meets the criteria.\n\n\
+            **Criteria**: {}\n\n\
+            **Execution Output**:\n{}\n\n\
+            **Task**: Respond with exactly one of:\n\
+            - 'CONVERGED: <brief explanation>' if the criteria is fully satisfied\n\
+            - 'NOT_CONVERGED: <brief explanation>' if the criteria is not yet satisfied\n\n\
+            Be strict but fair. If the output clearly demonstrates the criteria is met, say CONVERGED.",
+            criteria,
+            if output.len() > 4000 {
+                format!("{}... (truncated, {} total chars)", output.chars().take(4000).collect::<String>(), output.len())
+            } else {
+                output.to_string()
+            }
+        );
+
+        // Send evaluation task to Queen
+        let queen_task_id = format!("queen-eval-{}-{}", primary_worker_id, crate::swarm_adapters::now_ms());
+        let queen_task = TaskDescription::new(queen_task_id.clone(), queen_prompt)
+            .with_timeout(60_000); // 60 seconds for Queen evaluation
+
+        match queen_adapter.send_task(&queen_task) {
+            Ok(handle) => {
+                // Poll for Queen response with timeout
+                let queen_timeout_ms = 90_000; // 90 seconds
+                let queen_poll_interval_ms = 500;
+                let queen_start = crate::swarm_adapters::now_ms();
+                let mut queen_output = String::new();
+
+                loop {
+                    let elapsed = crate::swarm_adapters::now_ms() - queen_start;
+                    if elapsed > queen_timeout_ms {
+                        let _ = queen_adapter.cancel_task(&queen_task_id);
+                        return EvaluationResult {
+                            passed: false,
+                            explanation: format!("Queen evaluation timed out after {}ms", queen_timeout_ms),
+                            details: vec![ConditionResult {
+                                description: "Queen evaluation".into(),
+                                passed: false,
+                                evidence: "Timeout waiting for Queen response".into(),
+                            }],
+                        };
+                    }
+
+                    // Get Queen output
+                    if let Ok(task_output) = queen_adapter.get_task_output(&queen_task_id) {
+                        if !task_output.is_empty() {
+                            queen_output = task_output;
+                            break;
+                        }
+                    }
+
+                    // Check if Queen is still working
+                    if let Ok(status) = queen_adapter.get_status() {
+                        if status.current_task.is_none() {
+                            // Queen finished but we didn't get output — try one more time
+                            if let Ok(task_output) = queen_adapter.get_task_output(&queen_task_id) {
+                                queen_output = task_output;
+                            }
+                            break;
+                        }
+                    }
+
+                    std::thread::sleep(std::time::Duration::from_millis(queen_poll_interval_ms));
+                }
+
+                // Parse Queen response
+                let queen_output_lower = queen_output.to_lowercase();
+                let passed = queen_output_lower.contains("converged")
+                    && !queen_output_lower.contains("not_converged");
+
+                EvaluationResult {
+                    passed,
+                    explanation: if passed {
+                        format!("Queen judged as CONVERGED: {}", extract_explanation(&queen_output))
+                    } else {
+                        format!("Queen judged as NOT_CONVERGED: {}", extract_explanation(&queen_output))
+                    },
+                    details: vec![ConditionResult {
+                        description: format!("Queen judgment: {}", criteria),
+                        passed,
+                        evidence: format!("Queen response: {} chars", queen_output.len()),
+                    }],
+                }
+            }
+            Err(e) => EvaluationResult {
+                passed: false,
+                explanation: format!("Failed to dispatch Queen evaluation: {}", e),
+                details: vec![ConditionResult {
+                    description: "Queen evaluation".into(),
+                    passed: false,
+                    evidence: format!("Dispatch error: {}", e),
+                }],
+            },
+        }
+    }
 }
 
 /// Human-readable description of a completion condition.
@@ -311,4 +460,30 @@ fn describe_condition(condition: &CompletionCondition) -> String {
             format!("Queen judges: {}", criteria)
         }
     }
+}
+
+/// Extract explanation from Queen response (CONVERGED: xxx or NOT_CONVERGED: xxx).
+fn extract_explanation(queen_output: &str) -> String {
+    // Look for pattern: CONVERGED: <explanation> or NOT_CONVERGED: <explanation>
+    let lower = queen_output.to_lowercase();
+    let marker = if lower.contains("converged:") {
+        "converged:"
+    } else if lower.contains("not_converged:") {
+        "not_converged:"
+    } else {
+        // No clear marker — return truncated output
+        return queen_output.chars().take(200).collect::<String>();
+    };
+
+    // Find the marker position and extract explanation
+    let marker_pos = lower.find(marker).unwrap_or(0);
+    let start_pos = marker_pos + marker.len();
+
+    queen_output
+        .chars()
+        .skip(start_pos)
+        .take(300)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }

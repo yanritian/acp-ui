@@ -13,6 +13,7 @@ members = [
     "crates/workflow-engine",
     "crates/hook-runtime",
     "crates/tool-sandbox",
+    "crates/finance-engine",
     "hermes-crates/hermes-agent",
     "hermes-crates/hermes-core",
     "hermes-crates/hermes-config",
@@ -50,7 +51,7 @@ futures-util = "0.3"
 dirs = "5"
 uuid = { version = "1", features = ["v4"] }
 parking_lot = "0.12"
-indexmap = { version = "2", features = ["serde"] }
+indexmap = { version = "1", features = ["serde"] }
 shell-escape = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }

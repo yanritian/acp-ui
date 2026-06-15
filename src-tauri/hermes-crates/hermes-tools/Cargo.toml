@@ -22,7 +22,7 @@ tokio-tungstenite = "0.24"
 bytes = "1"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-indexmap = { version = "2", features = ["serde"] }
+indexmap = { version = "1", features = ["serde"] }
 thiserror = "2"
 base64 = "0.22"
 serde_yaml = "0.9"

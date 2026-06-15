@@ -1,6 +1,6 @@
 //! Goal Parser - Parse natural language into structured goals
 
-use acp_core::{GoalSpec, CompletionConditionSpec};
+use acp_core::{GoalSpec, CompletionConditionSpec, EvaluatorSpec};
 use crate::{ParseResult, ComplexityLevel, DependencyDetector, ConditionInference};
 use thiserror::Error;
 use uuid::Uuid;
@@ -140,7 +140,7 @@ impl GoalParser {
             completion_condition: CompletionConditionSpec::Custom {
                 evaluator: "auto".to_string(),
             },
-            evaluator: "auto".to_string(),
+            evaluator: EvaluatorSpec::Auto,
             executor: None,
             depends_on: vec![],
             token_budget: self.default_token_budget,
@@ -254,6 +254,6 @@ mod tests {
         let goal = &result.goals[0];
         assert!(goal.executor.is_none());
         assert!(goal.depends_on.is_empty());
-        assert_eq!(goal.evaluator, "auto");
+        assert_eq!(goal.evaluator, EvaluatorSpec::Auto);
     }
 }

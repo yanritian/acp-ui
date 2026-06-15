@@ -81,6 +81,17 @@ pub use swarm_orchestrator::{
 pub use swarm_engine::{GoalOutcome, EchoExecutor};
 pub use tool_sandbox::{SandboxConfig, DeniedPatterns, Severity};
 
+// Re-export unified types from acp-core (C-1 integration)
+pub use acp_core::{
+    GoalSpec, CompletionConditionSpec, EvaluatorSpec,
+    GoalStatus as UnifiedGoalStatus,
+    IterationRecord as UnifiedIterationRecord,
+    EvaluationResult as UnifiedEvaluationResult,
+    GoalOutcome as UnifiedGoalOutcome,
+    GoalGraphSummary as UnifiedGoalGraphSummary,
+    AcpEvent,
+};
+
 use agent::{AgentManager};
 use config::ConfigManager;
 use database::DatabaseManager;

@@ -37,7 +37,7 @@ pub enum CompletionConditionSpec {
 }
 
 /// Evaluator specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EvaluatorSpec {
     Auto,
     Queen { queen_worker_id: String },

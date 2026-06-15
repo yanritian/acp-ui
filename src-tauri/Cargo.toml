@@ -13,6 +13,8 @@ members = [
     "crates/workflow-engine",
     "crates/hook-runtime",
     "crates/tool-sandbox",
+    "crates/event-bus",
+    "crates/goal-parser",
     "crates/finance-engine",
     "hermes-crates/hermes-agent",
     "hermes-crates/hermes-core",

@@ -38,6 +38,7 @@ mod reconcile;       // Reconcile Loop — iterative Goal execution with feedbac
 mod goal_graph;      // GoalGraph — dependency DAG for multi-Goal coordination
 mod topology;        // Swarm Topology — Star/Chain/Pipeline execution patterns
 mod queen_lease;      // Queen Lease Election - ZK lease pattern (Day 3)
+mod worktree;         // Git Worktree Isolation - per-Goal workspace isolation
 mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
 mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 mod agent_orchestration; // Agent Orchestration Layer - "驾驭层"

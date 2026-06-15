@@ -22,6 +22,12 @@ use crate::swarm_adapters::{WorkerId, now_ms};
 /// - An `Evaluator` that checks the condition (auto, Queen, adversarial)
 /// - An iteration history tracking each attempt
 /// - A token budget to prevent runaway execution
+///
+/// ## Unified Field Names (C-1 compatibility)
+/// The following fields have aliases for backward compatibility:
+/// - `dependencies` also accepts `depends_on`
+/// - `parent_id` also accepts `parent_goal_id`
+/// - `token_used` also accepts `tokens_used`
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Goal {
@@ -43,7 +49,8 @@ pub struct Goal {
     pub max_iterations: u32,
     /// Token budget (None = unlimited)
     pub token_budget: Option<u64>,
-    /// Tokens used so far
+    /// Tokens used so far (alias: tokens_used for compatibility)
+    #[serde(alias = "tokens_used")]
     pub token_used: u64,
     /// Creation timestamp (UNIX ms)
     pub created_at: u64,
@@ -51,9 +58,11 @@ pub struct Goal {
     pub started_at: Option<u64>,
     /// When the goal converged (UNIX ms)
     pub converged_at: Option<u64>,
-    /// Parent goal ID (for sub-goals)
+    /// Parent goal ID (alias: parent_goal_id for compatibility)
+    #[serde(alias = "parent_goal_id")]
     pub parent_id: Option<String>,
-    /// Goal IDs that must converge before this goal can start
+    /// Goal IDs that must converge before this goal can start (alias: depends_on)
+    #[serde(alias = "depends_on")]
     pub dependencies: Vec<String>,
 }
 
@@ -117,6 +126,40 @@ impl Goal {
     pub fn with_dependency(mut self, dep_id: String) -> Self {
         self.dependencies.push(dep_id);
         self
+    }
+
+    // =========================================================================
+    // Unified Field Names (C-1 compatibility aliases)
+    // =========================================================================
+
+    /// Get dependencies (alias: depends_on)
+    pub fn depends_on(&self) -> &[String] {
+        &self.dependencies
+    }
+
+    /// Set dependencies (alias for compatibility)
+    pub fn set_depends_on(&mut self, deps: Vec<String>) {
+        self.dependencies = deps;
+    }
+
+    /// Get parent goal ID (alias: parent_goal_id)
+    pub fn parent_goal_id(&self) -> Option<&String> {
+        self.parent_id.as_ref()
+    }
+
+    /// Set parent goal ID (alias for compatibility)
+    pub fn set_parent_goal_id(&mut self, id: Option<String>) {
+        self.parent_id = id;
+    }
+
+    /// Get tokens used (alias: tokens_used)
+    pub fn tokens_used(&self) -> u64 {
+        self.token_used
+    }
+
+    /// Set tokens used (alias for compatibility)
+    pub fn set_tokens_used(&mut self, tokens: u64) {
+        self.token_used = tokens;
     }
 
     /// Check if the goal has exceeded its budget

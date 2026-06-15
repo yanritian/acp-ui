@@ -7,6 +7,11 @@
 //! - Topology: Star/Chain/Pipeline execution patterns
 //! - SkillRouter: Worker capability routing
 //! - ComplexGoalExecutor: Handles complex system requirements with planning/decomposition
+//!
+//! # Unified Types (from acp-core)
+//!
+//! The following types are re-exported from acp-core for unified usage:
+//! - `GoalStatus`, `IterationRecord`, `EvaluationResult`, `GoalOutcome`
 
 pub mod goal;
 pub mod goal_evaluator;
@@ -16,6 +21,17 @@ pub mod topology;
 pub mod queen_lease;
 pub mod skill_registry;
 pub mod complex_executor;
+
+// Re-export from acp-core (unified types)
+pub use acp_core::{
+    GoalStatus as UnifiedGoalStatus,
+    IterationRecord as UnifiedIterationRecord,
+    EvaluationResult as UnifiedEvaluationResult,
+    ConditionResult as UnifiedConditionResult,
+    GoalOutcome as UnifiedGoalOutcome,
+    GoalGraphSummary as UnifiedGoalGraphSummary,
+    AcpEvent,
+};
 
 // Re-export main types
 pub use goal::{

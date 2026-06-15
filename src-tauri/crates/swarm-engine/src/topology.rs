@@ -159,3 +159,69 @@ impl ChainTopologyAsync {
         self.reconciler.reconcile_graph(graph).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::reconcile::EchoExecutor;
+    use crate::goal::CompletionCondition;
+
+    #[test]
+    fn star_topology_execute() {
+        let executor = Arc::new(Mutex::new(EchoExecutor::new("star-worker", "", true)));
+        let topology = StarTopology::new(executor);
+
+        let goals = vec![
+            Goal::new("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
+            Goal::new("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
+        ];
+
+        let results = topology.execute(goals);
+
+        assert_eq!(results.len(), 2);
+        for (_, outcome) in &results {
+            assert!(matches!(outcome, GoalOutcome::Converged { .. }));
+        }
+    }
+
+    #[test]
+    fn chain_topology_execute() {
+        let executor = Arc::new(Mutex::new(EchoExecutor::new("chain-worker", "", true)));
+        let topology = ChainTopology::new(executor);
+
+        let goals = vec![
+            Goal::new("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
+            Goal::new("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
+        ];
+
+        let results = topology.execute(goals);
+
+        assert_eq!(results.len(), 2);
+        for (_, outcome) in &results {
+            assert!(matches!(outcome, GoalOutcome::Converged { .. }));
+        }
+    }
+
+    #[test]
+    fn chain_topology_execute_chain_with_deps() {
+        let executor = Arc::new(Mutex::new(EchoExecutor::new("chain-worker", "", true)));
+        let topology = ChainTopology::new(executor);
+        let mut graph = GoalGraph::new();
+
+        let mut goal_a = Goal::new("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
+        goal_a.depends_on = vec![];
+
+        let mut goal_b = Goal::new("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
+        goal_b.depends_on = vec!["a".to_string()];
+
+        graph.add_goal(goal_a);
+        graph.add_goal(goal_b);
+
+        let results = topology.execute_chain(&mut graph);
+
+        assert_eq!(results.len(), 2);
+        // Check execution order matches topological order
+        assert_eq!(results[0].0, "a");
+        assert_eq!(results[1].0, "b");
+    }
+}

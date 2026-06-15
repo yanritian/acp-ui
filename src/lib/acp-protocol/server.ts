@@ -201,35 +201,89 @@ export class ACPServer {
       };
     });
 
-    // Agent list — proxy to orchestration store
+    // Agent list — proxy to swarm store
     this.messageHandlers.set(ACP_METHODS.AGENT_LIST, async (msg, _conn) => {
-      // TODO(Phase 2): Populate from orchestration store
-      return {
-        jsonrpc: '2.0' as const,
-        id: msg.id,
-        result: { agents: [] },
-        sessionId: '',
-        timestamp: Date.now(),
-        source: 'server' as const,
-      };
+      // Import swarm-api dynamically to avoid circular deps
+      const { swarmListWorkers, swarmGetWorkerStatus } = await import('@/lib/swarm-api');
+
+      try {
+        const workers = await swarmListWorkers();
+        const agents = await Promise.all(
+          workers.map(async (w) => {
+            try {
+              const status = await swarmGetWorkerStatus(w.workerId);
+              return {
+                id: w.workerId,
+                type: w.workerType,
+                capabilities: w.capabilities,
+                health: status.health,
+                tasksCompleted: status.tasksCompleted,
+                currentTask: status.currentTask,
+              };
+            } catch {
+              return {
+                id: w.workerId,
+                type: w.workerType,
+                capabilities: w.capabilities,
+                health: 'offline',
+                tasksCompleted: 0,
+                currentTask: null,
+              };
+            }
+          })
+        );
+
+        return {
+          jsonrpc: '2.0' as const,
+          id: msg.id,
+          result: { agents },
+          sessionId: '',
+          timestamp: Date.now(),
+          source: 'server' as const,
+        };
+      } catch (e) {
+        throw new Error(`Failed to list agents: ${e}`);
+      }
     });
 
-    // Task submit
+    // Task submit — execute via swarm
     this.messageHandlers.set(ACP_METHODS.TASK_SUBMIT, async (msg, _conn) => {
+      const { swarmSendTask, swarmRegisterWorker } = await import('@/lib/swarm-api');
       const params = msg.params as Record<string, unknown>;
-      const sessionId = params?.sessionId as string;
 
-      // TODO(Phase 2): Call orchestration API to execute task
-      const taskId = crypto.randomUUID();
+      try {
+        // Get available worker or create one
+        const workerType = ((params?.workerType as string) || 'claude_code') as 'codex' | 'claude_code';
+        const workerId = (params?.workerId as string) || `worker-${Date.now()}`;
+        const taskId = crypto.randomUUID();
 
-      return {
-        jsonrpc: '2.0' as const,
-        id: msg.id,
-        result: { taskId, sessionId, status: 'pending' },
-        sessionId: '',
-        timestamp: Date.now(),
-        source: 'server' as const,
-      };
+        // Register worker if not already
+        await swarmRegisterWorker(workerType, workerId);
+
+        // Send task to worker
+        const taskHandle = await swarmSendTask(
+          workerId,
+          taskId,
+          (params?.prompt as string) || '',
+          params?.workingDir as string | undefined,
+          (params?.timeoutMs as number) || 60000
+        );
+
+        return {
+          jsonrpc: '2.0' as const,
+          id: msg.id,
+          result: {
+            taskId: taskHandle.taskId,
+            workerId: taskHandle.workerId,
+            status: taskHandle.status,
+          },
+          sessionId: '',
+          timestamp: Date.now(),
+          source: 'server' as const,
+        };
+      } catch (e) {
+        throw new Error(`Task submit failed: ${e}`);
+      }
     });
   }
 

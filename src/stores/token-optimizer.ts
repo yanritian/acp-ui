@@ -158,7 +158,7 @@ export const useTokenOptimizerStore = defineStore('token-optimizer', () => {
     fetchStats()
   }
 
-  /** Initialize mock history data for demo */
+  /** Initialize mock history data for demo (DEMO DATA - not production) */
   function initializeMockHistory() {
     // Generate hourly data for last 24 hours
     const hourlyData: HourlyUsage[] = []
@@ -247,7 +247,7 @@ export const useTokenOptimizerStore = defineStore('token-optimizer', () => {
     }
   }
 
-  /** Get mock stats for demo */
+  /** Get mock stats for demo (DEMO DATA - not production) */
   function getMockStats(): TokenOptimizerState {
     return {
       config: config.value,

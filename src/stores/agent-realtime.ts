@@ -331,69 +331,6 @@ export const useAgentRealtimeStore = defineStore('agent-realtime', () => {
     globalEvents.value = []
   }
 
-  // 初始化模拟数据（演示用）
-  function initializeMockData() {
-    // 注册几个Agent
-    registerAgent('planner-001', 'Planner')
-    registerAgent('architect-001', 'Architect')
-    registerAgent('tdd-guide-001', 'TDD Guide')
-    registerAgent('code-reviewer-001', 'Code Reviewer')
-
-    // 设置活跃Agent
-    setActiveAgent('planner-001')
-
-    // 模拟一些事件
-    setTimeout(() => {
-      handleRealtimeEvent({
-        id: 'mock-1',
-        type: 'thinking_start',
-        agentId: 'planner-001',
-        timestamp: Date.now(),
-        data: { description: '分析任务需求...' },
-        severity: 'info'
-      })
-    }, 500)
-
-    setTimeout(() => {
-      handleRealtimeEvent({
-        id: 'mock-2',
-        type: 'thinking_chunk',
-        agentId: 'planner-001',
-        timestamp: Date.now(),
-        data: {
-          chunk: {
-            id: 'chunk-1',
-            content: '首先需要了解用户的具体需求...',
-            timestamp: Date.now(),
-            duration: 150,
-            depth: 2
-          }
-        },
-        severity: 'info'
-      })
-    }, 1000)
-
-    setTimeout(() => {
-      handleRealtimeEvent({
-        id: 'mock-3',
-        type: 'tool_call_start',
-        agentId: 'architect-001',
-        timestamp: Date.now(),
-        data: {
-          toolExecution: {
-            id: 'tool-1',
-            toolName: 'readFile',
-            parameters: { path: '/src/main.ts' },
-            status: 'running',
-            progress: 0,
-            startTime: Date.now()
-          }
-        },
-        severity: 'info'
-      })
-    }, 2000)
-  }
-
   return {
     // State
     agents,
@@ -423,7 +360,6 @@ export const useAgentRealtimeStore = defineStore('agent-realtime', () => {
     respondToPermission,
     addGlobalEvent,
     setConnectionStatus,
-    clearAll,
-    initializeMockData
+    clearAll
   }
 })

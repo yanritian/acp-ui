@@ -11,6 +11,9 @@ import type {
 /**
  * Mock Data Generator for Collaboration Network
  *
+ * @deprecated DEMO DATA - This file is for demonstration/testing only.
+ *             Do not use in production. Real data should come from backend APIs.
+ *
  * Generates realistic mock data for testing and demonstration
  */
 export class CollaborationMockDataGenerator {

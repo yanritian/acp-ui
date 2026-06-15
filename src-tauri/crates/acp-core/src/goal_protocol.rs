@@ -1,8 +1,10 @@
 //! Goal Protocol - Goal definition and submission
+//!
+//! Unified Goal types for both src-tauri/src/ and swarm-engine crate.
 
 use serde::{Deserialize, Serialize};
 
-/// Goal specification
+/// Goal specification (用于提交 Goal 的规格)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalSpec {
     /// Goal ID
@@ -12,7 +14,7 @@ pub struct GoalSpec {
     /// Completion condition
     pub completion_condition: CompletionConditionSpec,
     /// Evaluator type
-    pub evaluator: String,
+    pub evaluator: EvaluatorSpec,
     /// Executor assignment
     pub executor: Option<String>,
     /// Dependencies
@@ -34,6 +36,161 @@ pub enum CompletionConditionSpec {
     Custom { evaluator: String },
 }
 
+/// Evaluator specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EvaluatorSpec {
+    Auto,
+    Queen { queen_worker_id: String },
+    Adversarial { primary: String, adversary: String },
+}
+
+// ============================================================================
+// 执行状态类型（用于 Goal 执行过程中）
+// ============================================================================
+
+/// Goal 执行状态
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum GoalStatus {
+    Pending,
+    Active,
+    Evaluating,
+    Converged,
+    Iterating { feedback: String },
+    Failed { reason: String },
+    BudgetExhausted,
+    MaxIterReached,
+    Cancelled,
+}
+
+impl GoalStatus {
+    /// 检查是否为终止状态
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            GoalStatus::Converged
+                | GoalStatus::Failed { .. }
+                | GoalStatus::BudgetExhausted
+                | GoalStatus::MaxIterReached
+                | GoalStatus::Cancelled
+        )
+    }
+
+    /// 检查是否为成功状态
+    pub fn is_success(&self) -> bool {
+        matches!(self, GoalStatus::Converged)
+    }
+}
+
+/// 迭代记录
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IterationRecord {
+    /// 迭代编号
+    pub iteration: u32,
+    /// Worker 输出
+    pub worker_output: String,
+    /// 评估结果
+    pub evaluation: EvaluationResult,
+    /// 时间戳（UNIX 毫秒）
+    pub timestamp: u64,
+    /// 消耗的 token
+    pub tokens_used: u64,
+}
+
+/// 评估结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EvaluationResult {
+    /// 是否通过
+    pub passed: bool,
+    /// 解释说明
+    pub explanation: String,
+    /// 详细条件结果
+    pub details: Vec<ConditionResult>,
+}
+
+/// 单个条件结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConditionResult {
+    /// 条件描述
+    pub description: String,
+    /// 是否通过
+    pub passed: bool,
+    /// 证据/输出
+    pub evidence: String,
+}
+
+/// Goal 执行结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GoalOutcome {
+    Converged { iterations: u32, tokens_used: u64 },
+    Failed { reason: String, iterations: u32 },
+    BudgetExhausted { tokens_used: u64 },
+    MaxIterReached { iterations: u32 },
+    Cancelled,
+}
+
+/// Goal 图摘要
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GoalGraphSummary {
+    pub total: u32,
+    pub pending: u32,
+    pub active: u32,
+    pub evaluating: u32,
+    pub converged: u32,
+    pub iterating: u32,
+    pub failed: u32,
+    pub budget_exhausted: u32,
+    pub cancelled: u32,
+}
+
+// ============================================================================
+// AcpEvent - Event Protocol 实现
+// ============================================================================
+
+/// ACP 事件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AcpEvent {
+    /// 事件类型
+    pub event_type: String,
+    /// Goal ID
+    pub goal_id: Option<String>,
+    /// Worker ID
+    pub worker_id: Option<String>,
+    /// 事件数据
+    pub data: serde_json::Value,
+    /// 时间戳
+    pub timestamp: u64,
+}
+
+impl AcpEvent {
+    pub fn new(event_type: impl Into<String>) -> Self {
+        Self {
+            event_type: event_type.into(),
+            goal_id: None,
+            worker_id: None,
+            data: serde_json::Value::Null,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+        }
+    }
+
+    pub fn with_goal(mut self, goal_id: impl Into<String>) -> Self {
+        self.goal_id = Some(goal_id.into());
+        self
+    }
+
+    pub fn with_worker(mut self, worker_id: impl Into<String>) -> Self {
+        self.worker_id = Some(worker_id.into());
+        self
+    }
+
+    pub fn with_data(mut self, data: serde_json::Value) -> Self {
+        self.data = data;
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -46,7 +203,7 @@ mod tests {
             completion_condition: CompletionConditionSpec::CommandSuccess {
                 command: "cargo build".to_string(),
             },
-            evaluator: "auto".to_string(),
+            evaluator: EvaluatorSpec::Auto,
             executor: Some("worker-001".to_string()),
             depends_on: vec![],
             token_budget: 50_000,
@@ -58,6 +215,30 @@ mod tests {
     }
 
     #[test]
+    fn goal_status_is_terminal() {
+        assert!(GoalStatus::Converged.is_terminal());
+        assert!(GoalStatus::Failed { reason: "test".into() }.is_terminal());
+        assert!(!GoalStatus::Pending.is_terminal());
+        assert!(!GoalStatus::Active.is_terminal());
+    }
+
+    #[test]
+    fn goal_status_is_success() {
+        assert!(GoalStatus::Converged.is_success());
+        assert!(!GoalStatus::Failed { reason: "test".into() }.is_success());
+    }
+
+    #[test]
+    fn acp_event_builder() {
+        let event = AcpEvent::new("goal.created")
+            .with_goal("goal-001")
+            .with_data(serde_json::json!({"description": "Test"}));
+
+        assert_eq!(event.event_type, "goal.created");
+        assert_eq!(event.goal_id, Some("goal-001".to_string()));
+    }
+
+    #[test]
     fn goal_spec_serde_roundtrip() {
         let spec = GoalSpec {
             id: "goal-002".to_string(),
@@ -65,7 +246,7 @@ mod tests {
             completion_condition: CompletionConditionSpec::CommandSuccess {
                 command: "npm test".to_string(),
             },
-            evaluator: "auto".to_string(),
+            evaluator: EvaluatorSpec::Auto,
             executor: None,
             depends_on: vec!["goal-001".to_string()],
             token_budget: 30_000,
@@ -125,17 +306,43 @@ mod tests {
     }
 
     #[test]
-    fn completion_condition_any() {
-        let cc = CompletionConditionSpec::Any {
-            conditions: vec![
-                CompletionConditionSpec::CommandSuccess { command: "eslint".to_string() },
-                CompletionConditionSpec::CommandSuccess { command: "prettier --check".to_string() },
-            ],
+    fn evaluator_spec_serde() {
+        let eval = EvaluatorSpec::Queen { queen_worker_id: "queen-001".into() };
+        let json = serde_json::to_string(&eval).unwrap();
+        let decoded: EvaluatorSpec = serde_json::from_str(&json).unwrap();
+        assert!(matches!(decoded, EvaluatorSpec::Queen { .. }));
+    }
+
+    #[test]
+    fn iteration_record() {
+        let record = IterationRecord {
+            iteration: 1,
+            worker_output: "output".into(),
+            evaluation: EvaluationResult {
+                passed: true,
+                explanation: "success".into(),
+                details: vec![],
+            },
+            timestamp: 1000,
+            tokens_used: 100,
         };
 
-        let json = serde_json::to_string(&cc).unwrap();
-        let decoded: CompletionConditionSpec = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&record).unwrap();
+        let decoded: IterationRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.iteration, 1);
+    }
 
-        assert!(matches!(decoded, CompletionConditionSpec::Any { .. }));
+    #[test]
+    fn goal_outcome_converged() {
+        let outcome = GoalOutcome::Converged { iterations: 3, tokens_used: 1000 };
+        let json = serde_json::to_string(&outcome).unwrap();
+        assert!(json.contains("Converged"));
+    }
+
+    #[test]
+    fn goal_graph_summary_default() {
+        let summary = GoalGraphSummary::default();
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.pending, 0);
     }
 }

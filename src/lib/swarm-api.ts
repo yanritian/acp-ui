@@ -50,9 +50,39 @@ export interface TaskDescription {
   expectedFormat: 'structured' | 'markdown' | 'diff' | 'text' | 'code'
 }
 
+// TaskShard - A portion of a larger task for parallel execution
+export interface TaskShard {
+  id: string
+  parentTask: string
+  shardIndex: number
+  totalShards: number
+  payload: TaskPayload
+  primaryWorker: string
+  replicaWorker: string | null
+  status: 'pending' | 'assigned_primary' | 'running_primary' | 'assigned_replica' | 'running_replica' | 'completed' | 'failed' | 'cancelled'
+  timeoutMs: number
+  maxRetries: number
+  retryCount: number
+  primaryResult: string | null
+  replicaResult: string | null
+  error: string | null
+  createdAt: number
+  startedAt: number | null
+  completedAt: number | null
+}
+
+// TaskPayload - The execution payload for a shard
+export interface TaskPayload {
+  prompt: string
+  context: Record<string, string>
+  expectedOutput: string
+}
+
+// ShardGroup - Collection of shards for a task (M-1 fix: added shards field)
 export interface ShardGroup {
   taskId: string
   originalPrompt: string
+  shards: Record<string, TaskShard>  // HashMap<String, TaskShard> as object
   status: 'partitioning' | 'assigning' | 'executing' | 'aggregating' | 'completed' | 'failed' | 'cancelled'
   shardCount: number
   completedCount: number

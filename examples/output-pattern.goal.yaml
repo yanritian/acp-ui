@@ -1,0 +1,43 @@
+# output-pattern.goal
+# Output Pattern Example - Validate command output
+# Demonstrates OutputContains and OutputMatches completion conditions
+
+name: output-pattern-demo
+description: "Output Pattern Demo - Validate command output contains/matches patterns"
+
+goals:
+  # Goal 1: Output contains specific text
+  - id: check-version-output
+    description: "Run version command and verify output contains version number"
+    completion_condition:
+      type: output_contains
+      command: "node --version"
+      text: "v"
+      case_sensitive: false
+    evaluator: auto
+    executor: checker-worker
+    depends_on: []
+    token_budget: 10000
+    max_iterations: 3
+
+  # Goal 2: Output matches regex pattern
+  - id: check-package-version
+    description: "Verify npm version output matches semver pattern"
+    completion_condition:
+      type: output_matches
+      command: "npm --version"
+      pattern: "^\\d+\\.\\d+\\.\\d+$"
+    evaluator: auto
+    executor: checker-worker
+    depends_on: []
+    token_budget: 10000
+    max_iterations: 3
+
+topology: star
+
+workers:
+  - id: checker-worker
+    type: codex
+    skills:
+      - name: validation
+        proficiency: 0.9

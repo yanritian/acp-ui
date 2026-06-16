@@ -1,0 +1,64 @@
+# compound-condition.goal
+# Compound Condition Example - All/Any conditions
+# Demonstrates complex completion criteria with multiple conditions
+
+name: compound-condition-demo
+description: "Compound Condition Demo - Goals with All/Any completion conditions"
+
+goals:
+  # Goal 1: All conditions must pass (strict)
+  - id: strict-validation
+    description: "Validate that all project requirements are met"
+    completion_condition:
+      type: all
+      conditions:
+        - type: file_check
+          path: "package.json"
+          content_contains: "name"
+        - type: file_check
+          path: "README.md"
+          content_contains: "#"
+        - type: command_success
+          command: "npm run lint"
+          args: []
+    evaluator: auto
+    executor: validator-worker
+    depends_on: []
+    token_budget: 40000
+    max_iterations: 5
+
+  # Goal 2: Any condition can pass (flexible)
+  - id: flexible-build
+    description: "Build project using any available method"
+    completion_condition:
+      type: any
+      conditions:
+        - type: command_success
+          command: "npm run build"
+          args: []
+        - type: command_success
+          command: "yarn build"
+          args: []
+        - type: command_success
+          command: "pnpm build"
+          args: []
+    evaluator: auto
+    executor: builder-worker
+    depends_on: []
+    token_budget: 60000
+    max_iterations: 3
+
+topology: star
+
+workers:
+  - id: validator-worker
+    type: claude_code
+    skills:
+      - name: validation
+        proficiency: 0.9
+
+  - id: builder-worker
+    type: codex
+    skills:
+      - name: build
+        proficiency: 0.85

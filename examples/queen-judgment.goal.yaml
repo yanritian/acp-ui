@@ -1,0 +1,64 @@
+# queen-judgment.goal
+# Queen Judgment Example - Manual evaluation by Queen worker
+# Demonstrates human-in-the-loop evaluation pattern
+
+name: queen-judgment-demo
+description: "Queen Judgment Demo - Goals requiring Queen worker evaluation"
+
+goals:
+  # Goal 1: Code review task (requires Queen judgment)
+  - id: code-review
+    description: "Review the code changes and approve if quality standards are met"
+    completion_condition:
+      type: queen_judgment
+      criteria: "Code follows best practices, has no security issues, and is well documented"
+    evaluator:
+      type: queen
+      queen_worker_id: queen-worker
+    executor: reviewer-worker
+    depends_on: []
+    token_budget: 50000
+    max_iterations: 5
+
+  # Goal 2: Architecture decision (requires Queen judgment)
+  - id: architecture-decision
+    description: "Propose an architecture solution for the caching system"
+    completion_condition:
+      type: queen_judgment
+      criteria: "Solution is scalable, maintainable, and fits within budget constraints"
+    evaluator:
+      type: queen
+      queen_worker_id: queen-worker
+    executor: architect-worker
+    depends_on: []
+    token_budget: 80000
+    max_iterations: 3
+
+# Chain topology = sequential execution
+topology: chain
+
+# Queen worker for judgment
+queen:
+  lease_ttl_seconds: 60
+  worker_id: queen-worker
+
+workers:
+  - id: queen-worker
+    type: claude_code
+    skills:
+      - name: judgment
+        proficiency: 1.0
+      - name: architecture-review
+        proficiency: 0.95
+
+  - id: reviewer-worker
+    type: codex
+    skills:
+      - name: code-review
+        proficiency: 0.85
+
+  - id: architect-worker
+    type: claude_code
+    skills:
+      - name: architecture-design
+        proficiency: 0.9

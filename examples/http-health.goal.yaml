@@ -1,0 +1,42 @@
+# http-health.goal
+# HTTP Health Check Example - Validate API endpoints
+# Demonstrates HttpHealthCheck completion condition
+
+name: http-health-demo
+description: "HTTP Health Check Demo - Validate API endpoints are healthy"
+
+goals:
+  # Goal 1: Check API health endpoint
+  - id: check-api-health
+    description: "Verify the API health endpoint returns 200 OK"
+    completion_condition:
+      type: http_health_check
+      url: "http://localhost:3000/api/health"
+      expected_status: 200
+    evaluator: auto
+    executor: health-checker-worker
+    depends_on: []
+    token_budget: 20000
+    max_iterations: 10
+
+  # Goal 2: Check API version endpoint
+  - id: check-api-version
+    description: "Verify the API version endpoint returns 200 OK"
+    completion_condition:
+      type: http_health_check
+      url: "http://localhost:3000/api/version"
+      expected_status: 200
+    evaluator: auto
+    executor: health-checker-worker
+    depends_on: []
+    token_budget: 20000
+    max_iterations: 10
+
+topology: star
+
+workers:
+  - id: health-checker-worker
+    type: codex
+    skills:
+      - name: health-check
+        proficiency: 1.0

@@ -1,0 +1,69 @@
+# star-topology.goal
+# Star Topology Example - Parallel execution of independent goals
+# Demonstrates parallel fan-out pattern
+
+name: star-topology-demo
+description: "Star Topology Demo - Execute multiple independent goals in parallel"
+
+goals:
+  # Goal 1: Create README (independent)
+  - id: create-readme
+    description: "Create a README.md file with project description"
+    completion_condition:
+      type: file_check
+      path: "README.md"
+      content_contains: "# Project"
+    evaluator: auto
+    executor: worker-1
+    depends_on: []
+    token_budget: 30000
+    max_iterations: 3
+
+  # Goal 2: Create package.json (independent)
+  - id: create-package
+    description: "Create a package.json with basic npm configuration"
+    completion_condition:
+      type: file_check
+      path: "package.json"
+      content_contains: "scripts"
+    evaluator: auto
+    executor: worker-2
+    depends_on: []
+    token_budget: 30000
+    max_iterations: 3
+
+  # Goal 3: Create .gitignore (independent)
+  - id: create-gitignore
+    description: "Create a .gitignore file for Node.js projects"
+    completion_condition:
+      type: file_check
+      path: ".gitignore"
+      content_contains: "node_modules"
+    evaluator: auto
+    executor: worker-3
+    depends_on: []
+    token_budget: 20000
+    max_iterations: 2
+
+# Star topology = parallel execution
+topology: star
+
+# Worker pool for parallel execution
+workers:
+  - id: worker-1
+    type: claude_code
+    skills:
+      - name: documentation
+        proficiency: 0.9
+
+  - id: worker-2
+    type: claude_code
+    skills:
+      - name: configuration
+        proficiency: 0.85
+
+  - id: worker-3
+    type: codex
+    skills:
+      - name: configuration
+        proficiency: 0.8

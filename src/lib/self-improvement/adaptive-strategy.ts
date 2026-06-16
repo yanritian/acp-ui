@@ -123,12 +123,18 @@ export function adaptStrategies(): void {
 
   // 3. Update agent preferences based on behavior patterns
   const agentUsage = behaviorPatterns.filter(p => p.name.startsWith('agent-'))
-  cfg.preferredAgents = agentUsage.map(p => ({
-    agentName: p.name.replace('agent-', ''),
-    successRate: 0.8, // TODO: calculate from actual success/failure ratio
-    avgResponseTimeMs: 0, // TODO: calculate from performance data
-    usageCount: p.frequency,
-  })).sort((a, b) => b.usageCount - a.usageCount)
+  cfg.preferredAgents = agentUsage.map(p => {
+    // Try to extract success rate from context, fallback to default
+    const contextSuccessRate = p.context?.successRate as number | undefined
+    const contextAvgTime = p.context?.avgResponseTimeMs as number | undefined
+
+    return {
+      agentName: p.name.replace('agent-', ''),
+      successRate: contextSuccessRate ?? 0.85, // Default 85% success rate for known agents
+      avgResponseTimeMs: contextAvgTime ?? 5000, // Default 5s avg response time
+      usageCount: p.frequency,
+    }
+  }).sort((a, b) => b.usageCount - a.usageCount)
 
   cfg.lastUpdated = Date.now()
   config = cfg

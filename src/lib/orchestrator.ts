@@ -149,16 +149,54 @@ class Orchestrator {
   }
 
   /**
-   * Execute task
+ * Execute task — now uses real swarm API (M-2 fix)
    */
-  private async executeTask(dag: TaskDAG, node: TaskNode, _agent: AgentInfo): Promise<void> {
-    // TODO(Phase 4): invoke agent via ACP
-    // For now, simulate completion
+  private async executeTask(dag: TaskDAG, node: TaskNode, agent: AgentInfo): Promise<void> {
+    // Import swarm-api dynamically
+    const { swarmRegisterWorker, swarmSendTask, swarmGetTaskOutput } = await import('./swarm-api');
 
-    setTimeout(() => {
-      // Simulate success
-      this.handleTaskComplete(dag.id, node.id, { success: true, output: 'Task completed' });
-    }, 1000);
+    try {
+      // Register worker if needed
+      await swarmRegisterWorker('claude_code', agent.id);
+
+      // Create task
+      const taskId = `task-${node.id}-${Date.now()}`;
+      const prompt = node.step?.action || node.step?.name || node.id;
+
+      // Send task to worker
+      await swarmSendTask(agent.id, taskId, prompt, undefined, 60000);
+
+      // Poll for completion (non-blocking)
+      const pollInterval = 1000;
+      const maxPolls = 60; // 60 seconds max
+      let polls = 0;
+      let outputStr = '';
+
+      while (polls < maxPolls) {
+        try {
+          const taskOutput = await swarmGetTaskOutput(agent.id, taskId);
+          if (taskOutput && typeof taskOutput === 'string') {
+            outputStr = taskOutput;
+            break;
+          }
+        } catch {
+          // Task not ready yet
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        polls++;
+      }
+
+      // Handle completion
+      if (outputStr) {
+        this.handleTaskComplete(dag.id, node.id, { success: true, output: outputStr });
+      } else {
+        this.handleTaskFailed(dag.id, node.id, 'Task timed out or no output');
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.handleTaskFailed(dag.id, node.id, errorMsg);
+    }
   }
 
   /**

@@ -9,6 +9,11 @@
 //!
 //! This replaces the old "fire and forget" task model with an iterative
 //! convergence model inspired by Kubernetes controllers.
+//!
+//! ## Async vs Sync (M-4 fix)
+//! - `reconcile_once()` — synchronous, uses std::thread::sleep (blocking)
+//! - `reconcile_once_async()` — async, uses tokio::time::sleep (non-blocking)
+//! - Prefer async version in Tauri command handlers to avoid blocking the executor.
 
 use crate::goal::*;
 use crate::goal_evaluator::ConditionEvaluator;
@@ -486,4 +491,199 @@ fn extract_explanation(queen_output: &str) -> String {
         .collect::<String>()
         .trim()
         .to_string()
+}
+
+// =========================================================================
+// Async versions (M-4 fix — non-blocking execution)
+// =========================================================================
+
+impl ReconcileLoop {
+    /// Execute a single iteration of the reconcile loop asynchronously.
+    ///
+    /// Uses tokio::time::sleep instead of std::thread::sleep to avoid
+    /// blocking the executor. This is the preferred version for Tauri commands.
+    pub async fn reconcile_once_async(&self, goal: &mut Goal) -> GoalStatus {
+        // 1. Pre-checks
+        if goal.is_budget_exhausted() {
+            goal.status = GoalStatus::BudgetExhausted;
+            return GoalStatus::BudgetExhausted;
+        }
+
+        if goal.is_max_iterations_reached() {
+            goal.status = GoalStatus::Failed {
+                reason: format!(
+                    "Max iterations ({}) exceeded without convergence",
+                    goal.max_iterations
+                ),
+            };
+            return goal.status.clone();
+        }
+
+        let worker_id = match &goal.assigned_worker {
+            Some(id) => id.clone(),
+            None => {
+                goal.status = GoalStatus::Failed {
+                    reason: "No worker assigned to goal".into(),
+                };
+                return goal.status.clone();
+            }
+        };
+
+        // 2. Build prompt with feedback from previous iteration
+        let prompt = self.build_prompt(goal);
+
+        // 3. Mark as Active
+        goal.status = GoalStatus::Active;
+        if goal.started_at.is_none() {
+            goal.started_at = Some(crate::swarm_adapters::now_ms());
+        }
+
+        // 4. Dispatch to worker
+        let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration());
+        let task = TaskDescription::new(task_id.clone(), prompt);
+
+        let handle = {
+            let workers = match self.workers.lock() {
+                Ok(w) => w,
+                Err(e) => {
+                    goal.status = GoalStatus::Failed {
+                        reason: format!("Worker lock poisoned: {}", e),
+                    };
+                    return goal.status.clone();
+                }
+            };
+
+            let adapter = match workers.get(&worker_id) {
+                Some(a) => a.clone(),
+                None => {
+                    goal.status = GoalStatus::Failed {
+                        reason: format!("Worker '{}' not found", worker_id),
+                    };
+                    return goal.status.clone();
+                }
+            };
+
+            match adapter.send_task(&task) {
+                Ok(h) => h,
+                Err(e) => {
+                    goal.status = GoalStatus::Failed {
+                        reason: format!("Dispatch failed: {}", e),
+                    };
+                    return goal.status.clone();
+                }
+            }
+        };
+
+        // 5. Wait for task to complete (async polling with timeout)
+        let adapter = {
+            let workers = match self.workers.lock() {
+                Ok(w) => w,
+                Err(e) => {
+                    goal.status = GoalStatus::Failed {
+                        reason: format!("Worker lock poisoned: {}", e),
+                    };
+                    return goal.status.clone();
+                }
+            };
+            workers.get(&worker_id).cloned()
+        };
+
+        let adapter = match adapter {
+            Some(a) => a,
+            None => {
+                goal.status = GoalStatus::Failed {
+                    reason: format!("Worker '{}' disappeared", worker_id),
+                };
+                return goal.status.clone();
+            }
+        };
+
+        // Async poll loop using tokio::time::sleep
+        let timeout_ms = 300_000; // 5 minutes
+        let poll_interval_ms = 1_000;
+        let start = crate::swarm_adapters::now_ms();
+        let mut output = String::new();
+
+        loop {
+            let elapsed = crate::swarm_adapters::now_ms() - start;
+            if elapsed > timeout_ms {
+                let _ = adapter.cancel_task(&task_id);
+                goal.status = GoalStatus::Failed {
+                    reason: format!("Task timed out after {}ms", timeout_ms),
+                };
+                return goal.status.clone();
+            }
+
+            // Check task output
+            if let Ok(task_output) = adapter.get_task_output(&task_id) {
+                if !task_output.is_empty() {
+                    output = task_output;
+                }
+            }
+
+            // Check worker status
+            if let Ok(status) = adapter.get_status() {
+                if status.current_task.is_none() {
+                    break;
+                }
+            }
+
+            // Non-blocking sleep
+            tokio::time::sleep(tokio::time::Duration::from_millis(poll_interval_ms)).await;
+        }
+
+        // 6. Evaluate the result
+        goal.status = GoalStatus::Evaluating;
+
+        let eval_result = match &goal.completion_condition {
+            CompletionCondition::QueenJudgment { criteria } => {
+                self.eval_queen_judgment(&output, criteria, &worker_id)
+            }
+            condition => self.evaluator.eval(condition, &output),
+        };
+
+        // 7. Record iteration
+        let iteration = IterationRecord {
+            iteration: goal.current_iteration(),
+            worker_output: output.clone(),
+            evaluation: eval_result.clone(),
+            feedback: if eval_result.passed {
+                None
+            } else {
+                Some(eval_result.explanation.clone())
+            },
+            tokens_used: 0,
+            timestamp: crate::swarm_adapters::now_ms(),
+            duration_ms: crate::swarm_adapters::now_ms() - start,
+        };
+
+        goal.iterations.push(iteration);
+
+        // 8. Update status
+        if eval_result.passed {
+            goal.status = GoalStatus::Converged;
+            goal.converged_at = Some(crate::swarm_adapters::now_ms());
+        } else {
+            goal.status = GoalStatus::Iterating {
+                feedback: eval_result.explanation,
+            };
+        }
+
+        goal.status.clone()
+    }
+
+    /// Run the full reconcile loop asynchronously until terminal state.
+    pub async fn reconcile_until_done_async(&self, goal: &mut Goal) -> GoalStatus {
+        loop {
+            let status = self.reconcile_once_async(goal).await;
+            match &status {
+                GoalStatus::Converged => return status,
+                GoalStatus::Failed { .. } => return status,
+                GoalStatus::BudgetExhausted => return status,
+                GoalStatus::Cancelled => return status,
+                GoalStatus::Iterating { .. } => continue,
+                _ => return status,
+            }
+        }
+    }
 }

@@ -1,10 +1,10 @@
-// ACP Server - WebSocket server for ACP protocol
-// Allows other ACP clients to connect to ACP-UI
+// ACP Server - WebSocket client for ACP protocol
+// Connects to the Rust backend WebSocketServer (port 1421)
 //
-// @deprecated This module is an interface definition / scaffold.
-// Most methods are scaffold implementations — real WebSocket server
-// requires Tauri plugin support or a Node.js sidecar.
-// TODO(Phase 2): Implement real server via tauri-plugin-websocket or sidecar.
+// NOTE: This module provides frontend WebSocket client functionality.
+// The `start()` method is a scaffold — frontend should NOT start a server,
+// instead use `connectToBackend()` to connect to the Rust backend.
+// The Rust backend auto-starts WebSocketServer in src-tauri/src/lib.rs.
 
 import { ref, type Ref } from 'vue';
 import {

@@ -52,7 +52,84 @@ export class ACPServer {
   async start(_port: number = 8765): Promise<void> {
     // Scaffold — server not yet implemented in current runtime.
     // Callers should check isConnected before sending messages.
-    console.warn('[ACP Server] start() is a scaffold — real server not yet wired');
+    console.warn('[ACP Server] start() is a scaffold — real server not yet wired')
+  }
+
+  /**
+   * Connect to the backend Rust WebSocketServer (port 1421 by default).
+   * This allows the frontend to receive events pushed from the backend.
+   *
+   * The Rust WebSocketServer is auto-started in src-tauri/src/lib.rs.
+   */
+  async connectToBackend(port: number = 1421): Promise<void> {
+    const wsUrl = `ws://127.0.0.1:${port}`
+
+    try {
+      this.websocket = new WebSocket(wsUrl)
+
+      this.websocket.onopen = () => {
+        this.isConnected.value = true
+        console.log(`[ACP Server] Connected to backend WebSocket at ${wsUrl}`)
+      }
+
+      this.websocket.onmessage = async (event) => {
+        try {
+          const rawData = JSON.parse(event.data as string)
+          // Handle backend events - these are pushed from Rust WebSocketServer
+          const msg: ACPMessage = {
+            jsonrpc: '2.0',
+            id: rawData.id,
+            method: rawData.method,
+            params: rawData.params,
+            sessionId: rawData.sessionId || '',
+            timestamp: rawData.timestamp || Date.now(),
+            source: rawData.source || 'server',
+            encryption: rawData.encryption,
+          }
+
+          // If it's a request from backend, handle it
+          if (msg.method) {
+            // Create a pseudo-connection for handling
+            const pseudoConn: ACPConnection = {
+              websocket: this.websocket!,
+              clientId: 'backend',
+              sessions: new Map(),
+            }
+            await this.handleMessage(msg, pseudoConn)
+          }
+        } catch (e) {
+          console.error('[ACP Server] Backend message parse error:', e)
+        }
+      }
+
+      this.websocket.onclose = () => {
+        this.isConnected.value = false
+        console.log('[ACP Server] Disconnected from backend WebSocket')
+      }
+
+      this.websocket.onerror = (error) => {
+        console.error('[ACP Server] Backend WebSocket error:', error)
+        this.isConnected.value = false
+      }
+
+      // Wait for connection to establish
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000)
+        this.websocket!.onopen = () => {
+          clearTimeout(timeout)
+          resolve()
+        }
+        this.websocket!.onerror = (err) => {
+          clearTimeout(timeout)
+          reject(err)
+        }
+      })
+
+    } catch (error) {
+      console.error('[ACP Server] Failed to connect to backend:', error)
+      this.isConnected.value = false
+      throw error
+    }
   }
 
   // Stop server

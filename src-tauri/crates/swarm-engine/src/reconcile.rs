@@ -445,14 +445,14 @@ impl ReconcileLoop {
                     // 6. 未收敛 → 追加反馈，进入下一轮
                     println!("\n【未收敛，准备下一轮迭代】");
                     goal.current_iteration += 1;
-                    goal.status = GoalStatus::Iterating;
+                    goal.status = GoalStatus::Iterating { feedback: evaluation.feedback.clone() };
                     goal.append_feedback(goal.current_iteration, &evaluation.feedback, evaluation.tokens_used);
                     println!("  Iteration {} 完成，累计 tokens: {}", goal.current_iteration, goal.tokens_used);
                 }
                 Err(e) => {
                     println!("\n【执行失败】");
                     println!("  错误: {}", e);
-                    goal.status = GoalStatus::Failed;
+                    goal.status = GoalStatus::Failed { reason: e.to_string() };
                     return GoalOutcome::Failed(e.to_string());
                 }
             }
@@ -477,14 +477,14 @@ impl ReconcileLoop {
             let failed_deps: Vec<&str> = graph
                 .all_goals()
                 .iter()
-                .filter(|g| g.status == GoalStatus::Failed)
+                .filter(|g| matches!(g.status, GoalStatus::Failed { .. }))
                 .map(|g| g.id.as_str())
                 .collect();
 
             if let Some(goal) = graph.get_goal(&goal_id) {
                 // 依赖失败，标记为Blocked
                 if goal.depends_on.iter().any(|dep| failed_deps.contains(&dep.as_str())) {
-                    graph.update_goal_status(&goal_id, GoalStatus::Failed);
+                    graph.update_goal_status(&goal_id, GoalStatus::Failed { reason: "Blocked by failed dependency".into() });
                     results.push((goal_id, GoalOutcome::Failed("Blocked by failed dependency".to_string())));
                     continue;
                 }
@@ -543,7 +543,7 @@ mod tests {
         let outcome = reconciler.reconcile_goal(&mut goal).await;
 
         assert!(matches!(outcome, GoalOutcome::Failed(_)));
-        assert_eq!(goal.status, GoalStatus::Failed);
+        assert!(matches!(goal.status, GoalStatus::Failed { .. }));
     }
 
     #[tokio::test]

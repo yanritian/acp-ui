@@ -1,10 +1,28 @@
 //! Goal - 根据RFC-001定义的Goal数据结构
 //!
-//! Goal是蜂群编排的核心抽象：包含明确的完成条件和独立的评估器。
-//! Worker不是一次性执行，而是进入Reconcile Loop——执行、评估、反馈、再执行——直到完成条件满足。
+//! **DEPRECATED: C-1 CODE DUPLICATION FIX**
+//!
+//! This file contains a duplicate Goal implementation that differs from the
+//! authoritative version in `src-tauri/src/goal.rs`. The TypeScript frontend
+//! (`src/lib/goal-api.ts`) aligns with the main application version.
+//!
+//! **For new code, use types from acp-core or src-tauri/src/goal.rs instead.**
+//!
+//! This module will be gradually phased out. The following types are kept for
+//! backward compatibility with existing tests:
+//! - `CompletionCondition` (until acp-core expands to 8 variants)
+//! - `Evaluator` (until acp-core adds full 4 variants)
+//! - `GoalOutcome` (used by reconcile.rs)
+//!
+//! See: docs/question/enhanced/20260615-1430-项目缺失项与问题清单.md (C-1)
+
+#![allow(deprecated)]
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+// Re-export unified GoalStatus from acp-core (C-1 fix)
+pub use acp_core::GoalStatus;
 
 /// Goal —— 蜂群编排的核心抽象
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,47 +231,11 @@ impl Default for Evaluator {
     }
 }
 
-/// GoalStatus（状态机）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GoalStatus {
-    /// 等待执行
-    Pending,
-    /// 正在执行
-    Active,
-    /// 正在评估
-    Evaluating,
-    /// 已收敛（成功）
-    Converged,
-    /// 未收敛，继续迭代
-    Iterating,
-    /// Token预算耗尽
-    BudgetExhausted,
-    /// 达到最大迭代次数
-    MaxIterReached,
-    /// 失败
-    Failed,
-    /// 已取消
-    Cancelled,
-}
-
-impl GoalStatus {
-    /// 是否为终态（不可继续执行）
-    pub fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            Self::Converged
-                | Self::BudgetExhausted
-                | Self::MaxIterReached
-                | Self::Failed
-                | Self::Cancelled
-        )
-    }
-
-    /// 是否成功
-    pub fn is_success(&self) -> bool {
-        *self == Self::Converged
-    }
-}
+// GoalStatus is now re-exported from acp_core (see line 24)
+// The acp_core::GoalStatus includes all variants:
+// - Pending, Active, Evaluating, Converged, Iterating { feedback },
+// - Failed { reason }, BudgetExhausted, MaxIterReached, Cancelled
+// with is_terminal() and is_success() methods already defined.
 
 /// IterationRecord（迭代记录）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -336,7 +318,7 @@ mod tests {
     fn goal_status_is_terminal() {
         // Terminal states
         assert!(GoalStatus::Converged.is_terminal());
-        assert!(GoalStatus::Failed.is_terminal());
+        assert!(GoalStatus::Failed { reason: "test".into() }.is_terminal());
         assert!(GoalStatus::Cancelled.is_terminal());
         assert!(GoalStatus::BudgetExhausted.is_terminal());
         assert!(GoalStatus::MaxIterReached.is_terminal());
@@ -345,13 +327,13 @@ mod tests {
         assert!(!GoalStatus::Pending.is_terminal());
         assert!(!GoalStatus::Active.is_terminal());
         assert!(!GoalStatus::Evaluating.is_terminal());
-        assert!(!GoalStatus::Iterating.is_terminal());
+        assert!(!GoalStatus::Iterating { feedback: "test".into() }.is_terminal());
     }
 
     #[test]
     fn goal_status_is_success() {
         assert!(GoalStatus::Converged.is_success());
-        assert!(!GoalStatus::Failed.is_success());
+        assert!(!GoalStatus::Failed { reason: "test".into() }.is_success());
         assert!(!GoalStatus::Pending.is_success());
         assert!(!GoalStatus::Active.is_success());
     }

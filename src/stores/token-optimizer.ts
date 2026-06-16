@@ -247,7 +247,12 @@ export const useTokenOptimizerStore = defineStore('token-optimizer', () => {
     }
   }
 
-  /** Get mock stats for demo (DEMO DATA - not production) */
+  /** Get mock stats for demo (DEMO DATA - not production)
+   *
+   * TODO(M-2): Replace with real backend API when available.
+   * This mock data is used when the backend is not available or for demo pages.
+   * Production should call token_optimizer_get_stats() Tauri command.
+   */
   function getMockStats(): TokenOptimizerState {
     return {
       config: config.value,

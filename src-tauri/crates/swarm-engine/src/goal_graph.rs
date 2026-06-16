@@ -77,7 +77,7 @@ impl GoalGraph {
         let failed_ids: HashSet<&str> = self
             .goals
             .values()
-            .filter(|g| g.status == GoalStatus::Failed || g.status == GoalStatus::Cancelled)
+            .filter(|g| matches!(g.status, GoalStatus::Failed { .. } | GoalStatus::Cancelled))
             .map(|g| g.id.as_str())
             .collect();
 
@@ -245,7 +245,7 @@ mod tests {
         graph.add_goal(make_goal("goal-b", vec!["goal-a".to_string()]));
 
         // Mark A as failed
-        graph.update_goal_status("goal-a", GoalStatus::Failed);
+        graph.update_goal_status("goal-a", GoalStatus::Failed { reason: "test failure".into() });
 
         // B should be blocked
         let blocked = graph.has_blocked_goals();

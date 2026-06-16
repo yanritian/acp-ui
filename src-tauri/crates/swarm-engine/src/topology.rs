@@ -3,6 +3,11 @@
 //! 提供两种核心拓扑模式：
 //! - Star: 并行扇出，所有Sub-Goal并行执行
 //! - Chain: 依赖链，按顺序逐个执行
+//!
+//! **IMPORTANT (H-3 Fix)**: The sync versions (StarTopology::execute, ChainTopology::execute)
+//! are stubs that return fake Converged outcomes. Use the Async versions instead:
+//! - StarTopologyAsync::execute_all() - real reconcile_goal() calls
+//! - ChainTopologyAsync::execute_chain() - real reconcile_graph() calls
 
 use crate::goal::{Goal, GoalStatus, GoalOutcome};
 use crate::goal_graph::GoalGraph;
@@ -31,14 +36,19 @@ impl StarTopology {
 }
 
 impl Topology for StarTopology {
+    /// **DEPRECATED (H-3): Stub implementation**
+    ///
+    /// This sync version returns fake `GoalOutcome::Converged` without real execution.
+    /// Use `StarTopologyAsync::execute_all()` for real reconcile_goal() calls.
     fn execute(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)> {
         let mut results = Vec::new();
 
         for goal in goals {
+            // Stub: returns fake Converged outcome
             results.push((goal.id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: format!("Star topology: {} executed", goal.id),
+                final_feedback: format!("Star topology stub: {} (use Async version)", goal.id),
             }));
         }
 
@@ -106,7 +116,7 @@ impl ChainTopology {
                 let failed_deps: Vec<&str> = graph
                     .all_goals()
                     .iter()
-                    .filter(|g| g.status == GoalStatus::Failed)
+                    .filter(|g| matches!(g.status, GoalStatus::Failed { .. }))
                     .map(|g| g.id.as_str())
                     .collect();
 
@@ -129,14 +139,19 @@ impl ChainTopology {
 }
 
 impl Topology for ChainTopology {
+    /// **DEPRECATED (H-3): Stub implementation**
+    ///
+    /// This sync version returns fake `GoalOutcome::Converged` without real execution.
+    /// Use `ChainTopologyAsync::execute_chain()` for real reconcile_graph() calls.
     fn execute(&self, goals: Vec<Goal>) -> Vec<(String, GoalOutcome)> {
         let mut results = Vec::new();
 
         for goal in goals {
+            // Stub: returns fake Converged outcome
             results.push((goal.id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: format!("Chain topology: {} executed", goal.id),
+                final_feedback: format!("Chain topology stub: {} (use Async version)", goal.id),
             }));
         }
 

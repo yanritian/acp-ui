@@ -63,10 +63,18 @@ impl ConditionEvaluator {
                 self.eval_any(conditions)
             }
             CompletionCondition::QueenJudgment { criteria } => {
-                // QueenJudgment需要人工或Queen评估，返回待评估状态
+                // QueenJudgment requires live Queen worker evaluation.
+                // The ConditionEvaluator cannot auto-evaluate this condition.
+                // Instead, ReconcileLoop.eval_queen_judgment() should be used:
+                // 1. Find a Queen worker (claude_code type)
+                // 2. Send evaluation task to Queen
+                // 3. Parse Queen's CONVERGED/NOT_CONVERGED response
+                //
+                // This method returns "pending" status for QueenJudgment.
+                // Real evaluation happens in src-tauri/src/reconcile.rs::eval_queen_judgment()
                 EvaluationResult {
                     converged: false,
-                    feedback: format!("QueenJudgment pending: {}", criteria),
+                    feedback: format!("QueenJudgment pending (requires Queen worker): {}", criteria),
                     tokens_used: 0,
                 }
             }

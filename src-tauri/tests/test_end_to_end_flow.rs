@@ -121,7 +121,7 @@ async fn test_workflow_handles_dependency_failure() {
     graph.add_goal(goal_run_tests);
 
     // Simulate fix-typescript failing
-    graph.update_goal_status("fix-typescript", GoalStatus::Failed);
+    graph.update_goal_status("fix-typescript", GoalStatus::Failed { reason: "TypeScript errors".into() });
 
     // Verify blocked goals detection
     let blocked = graph.has_blocked_goals();

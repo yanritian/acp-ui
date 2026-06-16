@@ -317,7 +317,7 @@ impl ComplexGoalExecutor {
                             final_feedback: "Success".into(),
                         }));
                     } else {
-                        graph.update_goal_status(goal_id, GoalStatus::Failed);
+                        graph.update_goal_status(goal_id, GoalStatus::Failed { reason: format!("Failed after {} attempts", attempts) });
                         results.push((goal_id.clone(), GoalOutcome::Failed(
                             format!("Failed after {} attempts", attempts)
                         )));

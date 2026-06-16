@@ -7,16 +7,29 @@ edition = "2021"
 
 [workspace]
 members = [
-    "crates/acp-core",
-    "crates/acp-transport",
-    "crates/acp-cli",
-    "crates/swarm-engine",
-    "crates/workflow-engine",
-    "crates/hook-runtime",
-    "crates/tool-sandbox",
-    "crates/event-bus",
-    "crates/goal-parser",
-    "crates/finance-engine",
+    # === ACP-Swarm Crates (9-crate per 总纲) ===
+    "crates/acp-core",        # Core protocol definitions
+    "crates/acp-transport",   # Transport layer (stdio/websocket/http)
+    "crates/acp-cli",         # CLI inspector tool
+    "crates/swarm-engine",    # Goal-driven orchestration engine
+    "crates/workflow-engine", # DAG executor + checkpoint manager
+    "crates/hook-runtime",    # Hook system (12 types)
+    "crates/tool-sandbox",    # Sandbox + permission check
+    "crates/event-bus",       # EventBus pub/sub
+    "crates/goal-parser",     # .goal.yaml parser
+    "crates/finance-engine",  # ERP Finance logic
+
+    # === Hermes Crates (L-3: AI Agent Framework, not in 总纲) ===
+    # Hermes provides AI agent capabilities used by swarm-engine.
+    # These crates were added for AI worker integration:
+    # - hermes-agent: Agent lifecycle management
+    # - hermes-core: Core agent traits + types
+    # - hermes-config: Agent configuration parsing
+    # - hermes-tools: Tool execution backends (browser, shell, etc.)
+    # - hermes-environments: Environment management
+    # - hermes-skills: Skill definitions + routing
+    # - hermes-intelligence: AI reasoning + planning
+    # - hermes-memory: Memory + context management
     "hermes-crates/hermes-agent",
     "hermes-crates/hermes-core",
     "hermes-crates/hermes-config",

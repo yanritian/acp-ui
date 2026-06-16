@@ -1,6 +1,6 @@
 //! Dependency Detector - Detect task dependencies from natural language
 
-use acp_core::GoalSpec;
+use acp_core::{GoalSpec, CompletionConditionSpec, EvaluatorSpec};
 
 /// Dependency detector for goal ordering
 pub struct DependencyDetector;

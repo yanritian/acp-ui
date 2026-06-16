@@ -10,7 +10,7 @@
 //! - `graph summary` — Show goal graph summary
 
 use clap::{Parser, Subcommand};
-use acp_core::GoalGraphSummary;
+use acp_core::{GoalGraphSummary, GoalYamlFile};
 use anyhow::Result;
 
 /// ACP-Swarm CLI Inspector
@@ -52,6 +52,11 @@ enum GoalCommands {
     },
     /// Submit a goal from file
     Submit {
+        /// Path to .goal.yaml file
+        file: String,
+    },
+    /// Parse and validate a goal.yaml file (dry-run)
+    Parse {
         /// Path to .goal.yaml file
         file: String,
     },
@@ -99,8 +104,55 @@ fn handle_goal_command(command: GoalCommands) -> Result<()> {
         }
         GoalCommands::Submit { file } => {
             println!("Submitting goal from: {}", file);
-            println!("  (Stub — connect to ACP-Swarm backend for real submission)");
-            // TODO: Read .goal.yaml and parse
+
+            // Parse the YAML file
+            let goal_file = GoalYamlFile::from_file(&file)?;
+
+            println!("\n  Name: {}", goal_file.name);
+            println!("  Description: {}", goal_file.description);
+            println!("  Topology: {}", goal_file.topology);
+            println!("  Goals: {} goal(s)", goal_file.goals.len());
+
+            for goal in &goal_file.goals {
+                println!("\n  ── Goal: {} ──", goal.id);
+                println!("    Description: {}", goal.description);
+                println!("    Executor: {}", goal.executor.as_deref().unwrap_or("auto"));
+                println!("    Token Budget: {}", goal.token_budget);
+                println!("    Max Iterations: {}", goal.max_iterations);
+                println!("    Dependencies: {:?}", goal.depends_on);
+            }
+
+            println!("\n  (Parsed successfully — connect to backend for real execution)");
+        }
+        GoalCommands::Parse { file } => {
+            println!("Parsing goal.yaml file: {}", file);
+
+            // Parse the YAML file
+            let goal_file = GoalYamlFile::from_file(&file)?;
+
+            println!("\n✓ Parse successful!");
+            println!("  Name: {}", goal_file.name);
+            println!("  Description: {}", goal_file.description);
+            println!("  Topology: {}", goal_file.topology);
+            println!("  Goals: {} goal(s)", goal_file.goals.len());
+
+            // Validate goal structure
+            for (i, goal) in goal_file.goals.iter().enumerate() {
+                println!("\n  Goal #{}: {}", i + 1, goal.id);
+                println!("    - Description: {}", goal.description);
+
+                // Check dependencies exist in goal set
+                let goal_ids: Vec<&str> = goal_file.goals.iter().map(|g| g.id.as_str()).collect();
+                for dep in &goal.depends_on {
+                    if !goal_ids.contains(&dep.as_str()) {
+                        println!("    ⚠ Warning: Dependency '{}' not found in goal set", dep);
+                    } else {
+                        println!("    ✓ Dependency '{}' exists", dep);
+                    }
+                }
+            }
+
+            println!("\n✓ Validation complete");
         }
     }
     Ok(())

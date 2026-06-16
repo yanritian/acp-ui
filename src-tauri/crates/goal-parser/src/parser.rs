@@ -145,6 +145,7 @@ impl GoalParser {
             depends_on: vec![],
             token_budget: self.default_token_budget,
             max_iterations: self.default_max_iterations,
+            per_iteration_timeout_ms: 60_000,
         }
     }
 

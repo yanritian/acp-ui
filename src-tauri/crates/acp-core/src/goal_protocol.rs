@@ -10,34 +10,208 @@ pub struct GoalSpec {
     /// Goal ID
     pub id: String,
     /// Goal description
+    #[serde(alias = "desc")]
     pub description: String,
     /// Completion condition
+    #[serde(alias = "completionCondition")]
     pub completion_condition: CompletionConditionSpec,
     /// Evaluator type
     pub evaluator: EvaluatorSpec,
     /// Executor assignment
     pub executor: Option<String>,
     /// Dependencies
+    #[serde(alias = "dependencies", alias = "depends_on")]
     pub depends_on: Vec<String>,
     /// Token budget
+    #[serde(alias = "tokenBudget")]
     pub token_budget: u64,
     /// Maximum iterations
+    #[serde(alias = "maxIterations")]
     pub max_iterations: u32,
+    /// Per-iteration timeout (milliseconds)
+    #[serde(default = "default_timeout", alias = "perIterationTimeoutMs")]
+    pub per_iteration_timeout_ms: u64,
+}
+
+fn default_timeout() -> u64 {
+    60_000
+}
+
+/// Goal YAML file structure (完整的 .goal.yaml 文件格式)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GoalYamlFile {
+    /// File name/identifier
+    pub name: String,
+    /// Overall description
+    pub description: String,
+    /// List of goals
+    pub goals: Vec<GoalSpec>,
+    /// Execution topology (chain, star, etc.)
+    #[serde(default = "default_topology")]
+    pub topology: String,
+    /// Queen configuration
+    #[serde(default)]
+    pub queen: Option<QueenConfig>,
+    /// Worker configurations
+    #[serde(default)]
+    pub workers: Vec<WorkerDefinition>,
+}
+
+fn default_topology() -> String {
+    "chain".to_string()
+}
+
+/// Queen configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueenConfig {
+    #[serde(default = "default_lease_ttl")]
+    pub lease_ttl_seconds: u64,
+    #[serde(default = "default_renew_interval")]
+    pub renew_interval_seconds: u64,
+    pub worker_id: String,
+}
+
+fn default_lease_ttl() -> u64 { 30 }
+fn default_renew_interval() -> u64 { 10 }
+
+/// Worker definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerDefinition {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub worker_type: String,
+    #[serde(default)]
+    pub skills: Vec<SkillDefinition>,
+}
+
+/// Skill definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillDefinition {
+    pub name: String,
+    pub proficiency: f32,
+    #[serde(default)]
+    pub avg_duration_ms: u64,
+}
+
+impl GoalYamlFile {
+    /// Parse a Goal YAML file from string
+    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
+        serde_yaml::from_str(yaml)
+    }
+
+    /// Parse from file path
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, std::io::Error> {
+        let content = std::fs::read_to_string(path)?;
+        serde_yaml::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    }
+
+    /// Convert to individual GoalSpecs
+    pub fn to_goal_specs(&self) -> Vec<GoalSpec> {
+        self.goals.clone()
+    }
 }
 
 /// Completion condition specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum CompletionConditionSpec {
-    CommandSuccess { command: String },
-    FileExists { path: String },
-    FileContains { path: String, pattern: String },
+    #[serde(rename = "command_success")]
+    CommandSuccess {
+        command: String,
+        #[serde(default)]
+        args: Vec<String>,
+        #[serde(default)]
+        cwd: Option<String>,
+    },
+    #[serde(rename = "file_check")]
+    FileCheck {
+        path: String,
+        #[serde(default, alias = "content_contains")]
+        content_contains: Option<String>,
+        #[serde(default, alias = "max_size_bytes")]
+        max_size_bytes: Option<u64>,
+    },
+    #[serde(rename = "output_contains")]
+    OutputContains {
+        command: String,
+        #[serde(alias = "pattern")]
+        pattern: String,
+        #[serde(default)]
+        case_sensitive: bool,
+    },
+    #[serde(rename = "output_matches")]
+    OutputMatches {
+        command: String,
+        #[serde(alias = "regex")]
+        regex: String,
+    },
+    #[serde(rename = "http_health_check")]
+    HttpHealthCheck {
+        #[serde(alias = "url")]
+        url: String,
+        #[serde(default = "default_get_method")]
+        method: String,
+        #[serde(default, alias = "expected_status")]
+        expected_status: Option<u16>,
+    },
+    #[serde(rename = "queen_judgment")]
+    QueenJudgment {
+        #[serde(alias = "criteria")]
+        criteria: String,
+    },
+    #[serde(rename = "all")]
     All { conditions: Vec<CompletionConditionSpec> },
+    #[serde(rename = "any")]
     Any { conditions: Vec<CompletionConditionSpec> },
+    #[serde(rename = "custom")]
     Custom { evaluator: String },
+}
+
+fn default_get_method() -> String {
+    "GET".to_string()
+}
+
+/// Intermediate type for deserializing EvaluatorSpec (string or object)
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[allow(dead_code, non_snake_case)]
+enum EvaluatorRaw {
+    String(String),
+    QueenObj { queen_worker_id: String },
+    AdversarialObj { primary: String, adversary: String },
+    QueenWrapped { Queen: QueenInner },
+    AdversarialWrapped { Adversarial: AdversarialInner },
+    AutoWrapped { Auto: serde_json::Value },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct QueenInner {
+    queen_worker_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct AdversarialInner {
+    primary: String,
+    adversary: String,
+}
+
+impl From<EvaluatorRaw> for EvaluatorSpec {
+    fn from(raw: EvaluatorRaw) -> Self {
+        match raw {
+            EvaluatorRaw::String(s) if s == "auto" => EvaluatorSpec::Auto,
+            EvaluatorRaw::String(_) => EvaluatorSpec::Auto, // default fallback for unknown strings
+            EvaluatorRaw::QueenObj { queen_worker_id } => EvaluatorSpec::Queen { queen_worker_id },
+            EvaluatorRaw::AdversarialObj { primary, adversary } => EvaluatorSpec::Adversarial { primary, adversary },
+            EvaluatorRaw::QueenWrapped { Queen: inner } => EvaluatorSpec::Queen { queen_worker_id: inner.queen_worker_id },
+            EvaluatorRaw::AdversarialWrapped { Adversarial: inner } => EvaluatorSpec::Adversarial { primary: inner.primary, adversary: inner.adversary },
+            EvaluatorRaw::AutoWrapped { .. } => EvaluatorSpec::Auto,
+        }
+    }
 }
 
 /// Evaluator specification
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(from = "EvaluatorRaw")]
 pub enum EvaluatorSpec {
     Auto,
     Queen { queen_worker_id: String },
@@ -202,12 +376,15 @@ mod tests {
             description: "Fix compilation errors".to_string(),
             completion_condition: CompletionConditionSpec::CommandSuccess {
                 command: "cargo build".to_string(),
+                args: vec![],
+                cwd: None,
             },
             evaluator: EvaluatorSpec::Auto,
             executor: Some("worker-001".to_string()),
             depends_on: vec![],
             token_budget: 50_000,
             max_iterations: 5,
+            per_iteration_timeout_ms: 60_000,
         };
 
         assert_eq!(spec.id, "goal-001");
@@ -245,12 +422,15 @@ mod tests {
             description: "Run tests".to_string(),
             completion_condition: CompletionConditionSpec::CommandSuccess {
                 command: "npm test".to_string(),
+                args: vec!["--verbose".to_string()],
+                cwd: Some("/tmp".to_string()),
             },
             evaluator: EvaluatorSpec::Auto,
             executor: None,
             depends_on: vec!["goal-001".to_string()],
             token_budget: 30_000,
             max_iterations: 3,
+            per_iteration_timeout_ms: 120_000,
         };
 
         let json = serde_json::to_string(&spec).unwrap();
@@ -264,10 +444,12 @@ mod tests {
     fn completion_condition_command_success() {
         let cc = CompletionConditionSpec::CommandSuccess {
             command: "echo hello".to_string(),
+            args: vec![],
+            cwd: None,
         };
 
         let json = serde_json::to_string(&cc).unwrap();
-        assert!(json.contains("CommandSuccess"));
+        assert!(json.contains("command_success"));
         assert!(json.contains("echo hello"));
 
         let decoded: CompletionConditionSpec = serde_json::from_str(&json).unwrap();
@@ -275,23 +457,33 @@ mod tests {
     }
 
     #[test]
-    fn completion_condition_file_exists() {
-        let cc = CompletionConditionSpec::FileExists {
+    fn completion_condition_file_check() {
+        let cc = CompletionConditionSpec::FileCheck {
             path: "README.md".to_string(),
+            content_contains: Some("hello".to_string()),
+            max_size_bytes: None,
         };
 
         let json = serde_json::to_string(&cc).unwrap();
         let decoded: CompletionConditionSpec = serde_json::from_str(&json).unwrap();
 
-        assert!(matches!(decoded, CompletionConditionSpec::FileExists { .. }));
+        assert!(matches!(decoded, CompletionConditionSpec::FileCheck { .. }));
     }
 
     #[test]
     fn completion_condition_all() {
         let cc = CompletionConditionSpec::All {
             conditions: vec![
-                CompletionConditionSpec::CommandSuccess { command: "cargo test".to_string() },
-                CompletionConditionSpec::FileExists { path: "Cargo.toml".to_string() },
+                CompletionConditionSpec::CommandSuccess {
+                    command: "cargo test".to_string(),
+                    args: vec![],
+                    cwd: None,
+                },
+                CompletionConditionSpec::FileCheck {
+                    path: "Cargo.toml".to_string(),
+                    content_contains: None,
+                    max_size_bytes: None,
+                },
             ],
         };
 
@@ -302,6 +494,34 @@ mod tests {
             assert_eq!(conditions.len(), 2);
         } else {
             panic!("Expected All variant");
+        }
+    }
+
+    #[test]
+    fn completion_condition_yaml_parsing() {
+        let yaml = r#"
+type: command_success
+command: "npx vue-tsc --noEmit"
+args: []
+cwd: null
+"#;
+        let cc: CompletionConditionSpec = serde_yaml::from_str(yaml).unwrap();
+        assert!(matches!(cc, CompletionConditionSpec::CommandSuccess { .. }));
+    }
+
+    #[test]
+    fn completion_condition_file_check_yaml() {
+        let yaml = r#"
+type: file_check
+path: "README.md"
+content_contains: "hello-swarm"
+"#;
+        let cc: CompletionConditionSpec = serde_yaml::from_str(yaml).unwrap();
+        if let CompletionConditionSpec::FileCheck { path, content_contains, .. } = cc {
+            assert_eq!(path, "README.md");
+            assert_eq!(content_contains, Some("hello-swarm".to_string()));
+        } else {
+            panic!("Expected FileCheck variant");
         }
     }
 
@@ -344,5 +564,97 @@ mod tests {
         let summary = GoalGraphSummary::default();
         assert_eq!(summary.total, 0);
         assert_eq!(summary.pending, 0);
+    }
+
+    #[test]
+    fn goal_yaml_file_hello_swarm() {
+        // Simulate parsing hello-swarm.goal.yaml structure
+        let yaml = r#"
+name: hello-swarm
+description: "Hello World Swarm Demo - Fix TypeScript compilation errors"
+
+goals:
+  - id: fix-typescript
+    description: "Fix all TypeScript compilation errors in the project"
+    completion_condition:
+      type: command_success
+      command: "npx vue-tsc --noEmit"
+      args: []
+      cwd: null
+    evaluator: auto
+    executor: claude-code-worker
+    depends_on: []
+    token_budget: 80000
+    max_iterations: 5
+    per_iteration_timeout_ms: 120000
+
+  - id: run-tests
+    description: "Run all tests to ensure no regressions"
+    completion_condition:
+      type: command_success
+      command: "npm"
+      args: ["test"]
+      cwd: null
+    evaluator: auto
+    executor: codex-worker
+    depends_on:
+      - fix-typescript
+    token_budget: 50000
+    max_iterations: 3
+    per_iteration_timeout_ms: 180000
+
+topology: chain
+"#;
+
+        let goal_file: GoalYamlFile = serde_yaml::from_str(yaml).unwrap();
+
+        assert_eq!(goal_file.name, "hello-swarm");
+        assert_eq!(goal_file.goals.len(), 2);
+        assert_eq!(goal_file.topology, "chain");
+
+        // Check first goal
+        let goal1 = &goal_file.goals[0];
+        assert_eq!(goal1.id, "fix-typescript");
+        assert_eq!(goal1.token_budget, 80000);
+        assert!(goal1.depends_on.is_empty());
+
+        // Check second goal with dependency
+        let goal2 = &goal_file.goals[1];
+        assert_eq!(goal2.id, "run-tests");
+        assert_eq!(goal2.depends_on, vec!["fix-typescript"]);
+    }
+
+    #[test]
+    fn goal_yaml_file_with_workers() {
+        let yaml = r#"
+name: test
+description: "Test workers"
+goals:
+  - id: g1
+    description: "Task 1"
+    completion_condition:
+      type: command_success
+      command: "echo"
+    evaluator: auto
+    depends_on: []
+    token_budget: 10000
+    max_iterations: 1
+workers:
+  - id: worker-001
+    type: claude_code
+    skills:
+      - name: code-generation
+        proficiency: 0.9
+        avg_duration_ms: 30000
+"#;
+
+        let goal_file: GoalYamlFile = serde_yaml::from_str(yaml).unwrap();
+
+        assert_eq!(goal_file.workers.len(), 1);
+        let worker = &goal_file.workers[0];
+        assert_eq!(worker.id, "worker-001");
+        assert_eq!(worker.worker_type, "claude_code");
+        assert_eq!(worker.skills.len(), 1);
+        assert_eq!(worker.skills[0].proficiency, 0.9);
     }
 }

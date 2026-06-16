@@ -23,6 +23,8 @@ impl ConditionInference {
                 Regex::new(r"(build|compile|make)").unwrap(),
                 CompletionConditionSpec::CommandSuccess {
                     command: "cargo build".to_string(),
+                    args: vec![],
+                    cwd: None,
                 },
             ),
             // Test tasks
@@ -30,6 +32,8 @@ impl ConditionInference {
                 Regex::new(r"(test|tests|testing)").unwrap(),
                 CompletionConditionSpec::CommandSuccess {
                     command: "cargo test".to_string(),
+                    args: vec![],
+                    cwd: None,
                 },
             ),
             // Lint/format tasks
@@ -37,20 +41,26 @@ impl ConditionInference {
                 Regex::new(r"(lint|format|style)").unwrap(),
                 CompletionConditionSpec::CommandSuccess {
                     command: "cargo clippy".to_string(),
+                    args: vec![],
+                    cwd: None,
                 },
             ),
             // File creation tasks
             (
                 Regex::new(r"(create|add|write)\s+(?:a\s+)?file").unwrap(),
-                CompletionConditionSpec::FileExists {
+                CompletionConditionSpec::FileCheck {
                     path: "output.txt".to_string(),
+                    content_contains: None,
+                    max_size_bytes: None,
                 },
             ),
             // Documentation tasks
             (
                 Regex::new(r"(document|docs|readme)").unwrap(),
-                CompletionConditionSpec::FileExists {
+                CompletionConditionSpec::FileCheck {
                     path: "README.md".to_string(),
+                    content_contains: None,
+                    max_size_bytes: None,
                 },
             ),
         ]
@@ -69,6 +79,8 @@ impl ConditionInference {
         // Default: command success with echo
         CompletionConditionSpec::CommandSuccess {
             command: "echo done".to_string(),
+            args: vec![],
+            cwd: None,
         }
     }
 
@@ -79,7 +91,11 @@ impl ConditionInference {
         if let Some(remainder) = description.strip_prefix("Run `") {
             if let Some(end) = remainder.find("`") {
                 let command = remainder[..end].to_string();
-                return CompletionConditionSpec::CommandSuccess { command };
+                return CompletionConditionSpec::CommandSuccess {
+                    command,
+                    args: vec![],
+                    cwd: None,
+                };
             }
         }
 
@@ -88,6 +104,8 @@ impl ConditionInference {
         if let Some(caps) = cmd_pattern.captures(description) {
             return CompletionConditionSpec::CommandSuccess {
                 command: caps[1].to_string(),
+                args: vec![],
+                cwd: None,
             };
         }
 
@@ -99,8 +117,10 @@ impl ConditionInference {
         // Try to extract file path
         let file_pattern = Regex::new(r"(?:file|path):\s*(\S+)").unwrap();
         if let Some(caps) = file_pattern.captures(description) {
-            return CompletionConditionSpec::FileExists {
+            return CompletionConditionSpec::FileCheck {
                 path: caps[1].to_string(),
+                content_contains: None,
+                max_size_bytes: None,
             };
         }
 
@@ -130,7 +150,7 @@ mod tests {
         let cond = inference.infer("Build the project");
 
         assert!(matches!(cond, CompletionConditionSpec::CommandSuccess { .. }));
-        if let CompletionConditionSpec::CommandSuccess { command } = cond {
+        if let CompletionConditionSpec::CommandSuccess { command, .. } = cond {
             assert!(command.contains("build"));
         }
     }
@@ -141,7 +161,7 @@ mod tests {
         let cond = inference.infer("Run all tests");
 
         assert!(matches!(cond, CompletionConditionSpec::CommandSuccess { .. }));
-        if let CompletionConditionSpec::CommandSuccess { command } = cond {
+        if let CompletionConditionSpec::CommandSuccess { command, .. } = cond {
             assert!(command.contains("test"));
         }
     }
@@ -151,7 +171,7 @@ mod tests {
         let inference = ConditionInference::new();
         let cond = inference.infer("Create a file for output");
 
-        assert!(matches!(cond, CompletionConditionSpec::FileExists { .. }));
+        assert!(matches!(cond, CompletionConditionSpec::FileCheck { .. }));
     }
 
     #[test]
@@ -167,7 +187,7 @@ mod tests {
         let inference = ConditionInference::new();
         let cond = inference.infer_with_command("Run `cargo build --release` for production");
 
-        if let CompletionConditionSpec::CommandSuccess { command } = cond {
+        if let CompletionConditionSpec::CommandSuccess { command, .. } = cond {
             assert_eq!(command, "cargo build --release");
         } else {
             panic!("Expected CommandSuccess");
@@ -179,10 +199,10 @@ mod tests {
         let inference = ConditionInference::new();
         let cond = inference.infer_with_path("Check file: src/main.rs");
 
-        if let CompletionConditionSpec::FileExists { path } = cond {
+        if let CompletionConditionSpec::FileCheck { path, .. } = cond {
             assert_eq!(path, "src/main.rs");
         } else {
-            panic!("Expected FileExists");
+            panic!("Expected FileCheck");
         }
     }
 
@@ -191,6 +211,6 @@ mod tests {
         let inference = ConditionInference::new();
         let cond = inference.infer("Update documentation");
 
-        assert!(matches!(cond, CompletionConditionSpec::FileExists { .. }));
+        assert!(matches!(cond, CompletionConditionSpec::FileCheck { .. }));
     }
 }

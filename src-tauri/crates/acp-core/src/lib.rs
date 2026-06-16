@@ -13,6 +13,7 @@
 //! - `GoalOutcome` - Final execution outcome
 //! - `GoalGraphSummary` - Graph status summary
 //! - `AcpEvent` - Event Protocol event type
+//! - `GoalYamlFile` - YAML file parser for .goal.yaml files
 
 pub mod message;
 pub mod worker_protocol;
@@ -24,6 +25,10 @@ pub use message::AcpMessage;
 pub use worker_protocol::{WorkerCapabilities, WorkerStatus, WorkerHeartbeat};
 pub use goal_protocol::{
     GoalSpec,
+    GoalYamlFile,
+    QueenConfig,
+    WorkerDefinition,
+    SkillDefinition,
     CompletionConditionSpec,
     EvaluatorSpec,
     GoalStatus,

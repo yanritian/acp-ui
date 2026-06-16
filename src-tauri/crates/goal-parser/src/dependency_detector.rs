@@ -1,6 +1,6 @@
 //! Dependency Detector - Detect task dependencies from natural language
 
-use acp_core::{GoalSpec, CompletionConditionSpec, EvaluatorSpec};
+use acp_core::GoalSpec;
 
 /// Dependency detector for goal ordering
 pub struct DependencyDetector;
@@ -110,7 +110,7 @@ impl Default for DependencyDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acp_core::CompletionConditionSpec;
+    use acp_core::{CompletionConditionSpec, EvaluatorSpec};
 
     fn make_goals(descriptions: &[&str]) -> Vec<GoalSpec> {
         descriptions
@@ -121,12 +121,15 @@ mod tests {
                 description: desc.to_string(),
                 completion_condition: CompletionConditionSpec::CommandSuccess {
                     command: "echo".to_string(),
+                    args: vec![],
+                    cwd: None,
                 },
                 evaluator: EvaluatorSpec::Auto,
                 executor: None,
                 depends_on: vec![],
                 token_budget: 50_000,
                 max_iterations: 5,
+                per_iteration_timeout_ms: 60_000,
             })
             .collect()
     }

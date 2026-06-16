@@ -670,7 +670,7 @@ impl AgentOrchestrator {
 
     fn generate_task_id(&mut self) -> String {
         self.task_counter += 1;
-        format!("task-{}-{}", self.task_counter, uuid::Uuid::new_v4().to_string()[..8].to_string())
+        format!("task-{}-{}", self.task_counter, &uuid::Uuid::new_v4().to_string()[..8])
     }
 
     /// Check if a CLI command is available on PATH
@@ -719,22 +719,20 @@ impl AgentOrchestrator {
             RouteTarget::HumanReview => 0,
         };
 
-        if cap.name.to_lowercase().contains("claude") {
-            if matches!(
+        if cap.name.to_lowercase().contains("claude")
+            && matches!(
                 decision.route_target,
                 RouteTarget::ClaudeCodeHaiku | RouteTarget::ClaudeCodeSonnet
             ) {
                 score += route_bonus;
             }
-        }
-        if cap.name.to_lowercase().contains("codex") {
-            if matches!(
+        if cap.name.to_lowercase().contains("codex")
+            && matches!(
                 decision.route_target,
                 RouteTarget::CodexHaiku | RouteTarget::CodexSonnet
             ) {
                 score += route_bonus;
             }
-        }
 
         score
     }
@@ -756,7 +754,7 @@ impl AgentOrchestrator {
         }
 
         // Fallback: pick any available agent
-        for agent_id in self.registry.keys() {
+        if let Some(agent_id) = self.registry.keys().next() {
             return Ok(agent_id.clone());
         }
 

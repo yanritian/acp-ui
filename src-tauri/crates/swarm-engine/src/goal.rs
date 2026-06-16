@@ -209,8 +209,10 @@ impl CompletionCondition {
 
 /// Evaluator（评估器）—— 4种类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Evaluator {
     /// 自动运行CompletionCondition
+    #[default]
     Auto,
     /// Queen Worker主观判断
     Queen,
@@ -225,11 +227,6 @@ pub enum Evaluator {
     },
 }
 
-impl Default for Evaluator {
-    fn default() -> Self {
-        Self::Auto
-    }
-}
 
 // GoalStatus is now re-exported from acp_core (see line 24)
 // The acp_core::GoalStatus includes all variants:

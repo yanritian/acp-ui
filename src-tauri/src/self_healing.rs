@@ -536,7 +536,7 @@ pub fn healing_execute(
 ) -> Result<serde_json::Value, String> {
     let mut executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
     let action = executor.execute_healing(&anomaly_id)?;
-    Ok(serde_json::to_value(action).map_err(|e| e.to_string())?)
+    serde_json::to_value(action).map_err(|e| e.to_string())
 }
 
 /// List all healing actions
@@ -546,7 +546,7 @@ pub fn healing_list_actions(
 ) -> Result<serde_json::Value, String> {
     let executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
     let actions = executor.get_action_history();
-    Ok(serde_json::to_value(actions).map_err(|e| e.to_string())?)
+    serde_json::to_value(actions).map_err(|e| e.to_string())
 }
 
 /// Resolve a healing action with a result
@@ -558,7 +558,7 @@ pub fn healing_resolve_action(
 ) -> Result<serde_json::Value, String> {
     let mut executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
     let action = executor.resolve_action(&action_id, &result)?;
-    Ok(serde_json::to_value(action).map_err(|e| e.to_string())?)
+    serde_json::to_value(action).map_err(|e| e.to_string())
 }
 
 /// Get healing statistics

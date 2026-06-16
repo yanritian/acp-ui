@@ -17,7 +17,7 @@
 
 use crate::goal::*;
 use crate::goal_evaluator::ConditionEvaluator;
-use crate::swarm_adapters::{SwarmAgentAdapter, TaskDescription, TaskStatus};
+use crate::swarm_adapters::{SwarmAgentAdapter, TaskDescription};
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -87,7 +87,7 @@ impl ReconcileLoop {
         let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration());
         let task = TaskDescription::new(task_id.clone(), prompt);
 
-        let handle = {
+        let _handle = {
             let workers = match self.workers.lock() {
                 Ok(w) => w,
                 Err(e) => {
@@ -351,7 +351,7 @@ impl ReconcileLoop {
             .with_timeout(60_000); // 60 seconds for Queen evaluation
 
         match queen_adapter.send_task(&queen_task) {
-            Ok(handle) => {
+            Ok(_handle) => {
                 // Poll for Queen response with timeout
                 let queen_timeout_ms = 90_000; // 90 seconds
                 let queen_poll_interval_ms = 500;
@@ -542,7 +542,7 @@ impl ReconcileLoop {
         let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration());
         let task = TaskDescription::new(task_id.clone(), prompt);
 
-        let handle = {
+        let _handle = {
             let workers = match self.workers.lock() {
                 Ok(w) => w,
                 Err(e) => {

@@ -1,6 +1,6 @@
 //! WebSocket transport - WebSocket传输层
 
-use crate::adapters::{TransportAdapter, TransportConfig};
+use crate::adapters::TransportAdapter;
 
 /// WebSocketAdapter - WebSocket连接适配器
 pub struct WebSocketAdapter {
@@ -24,7 +24,7 @@ impl WebSocketAdapter {
 }
 
 impl TransportAdapter for WebSocketAdapter {
-    fn send(&self, message: &str) -> Result<(), String> {
+    fn send(&self, _message: &str) -> Result<(), String> {
         if self.connected {
             // 简化实现：返回成功
             Ok(())

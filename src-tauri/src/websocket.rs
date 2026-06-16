@@ -1214,7 +1214,7 @@ async fn handle_remote_command(
                 if let Some(database) = guard.as_ref() {
                     let limit = request.payload.as_ref()
                         .and_then(|p| p.get("limit").and_then(|v| v.as_u64()))
-                        .map(|l| Some(l))
+                        .map(Some)
                         .unwrap_or(Some(50));
 
                     match database.load_executive_sessions(limit) {

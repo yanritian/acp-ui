@@ -1,0 +1,50 @@
+[package]
+name = "finance-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Financial system engine with double-entry bookkeeping"
+authors = ["ACP-UI Team"]
+license = "MIT"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Decimal arithmetic for financial calculations
+rust_decimal = { version = "1", features = ["serde", "maths"] }
+rust_decimal_macros = "1"
+
+# UUID for unique identifiers
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# SQLite storage
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Thread-safe mutex (faster than std::sync::Mutex)
+parking_lot = "0.12"
+
+# Async traits
+async-trait = "0.1"
+
+# Logging
+tracing = "0.1"
+
+# Internal dependencies
+acp-core = { path = "../acp-core", optional = true }
+
+[features]
+default = []
+acp-integration = ["acp-core"]
+
+[dev-dependencies]
+tokio-test = "0.4"

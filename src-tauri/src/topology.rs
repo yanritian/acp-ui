@@ -8,13 +8,12 @@
 //! These topologies operate on `GoalGraph` and use `ReconcileLoop` for
 //! individual goal execution.
 
-use crate::goal::{Goal, GoalStatus, CompletionCondition, Evaluator};
+use crate::goal::{Goal, GoalStatus, CompletionCondition};
 use crate::goal_graph::GoalGraph;
 use crate::reconcile::ReconcileLoop;
 use crate::swarm_adapters::WorkerId;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 /// Topology type for goal execution.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,7 +153,7 @@ fn is_terminal(status: &GoalStatus) -> bool {
 ///
 /// The parent goal is decomposed into N sub-goals that execute in parallel.
 pub fn build_star_goals(
-    parent_description: &str,
+    _parent_description: &str,
     sub_descriptions: Vec<(String, String, CompletionCondition)>,
     worker_assignments: HashMap<String, WorkerId>,
 ) -> Vec<Goal> {

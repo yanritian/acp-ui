@@ -7,7 +7,7 @@
 //! - `topological_order()` — linearize the graph for sequential execution
 
 use crate::goal::{Goal, GoalStatus};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 /// A directed acyclic graph of Goals with dependency tracking.
 pub struct GoalGraph {
@@ -53,7 +53,7 @@ impl GoalGraph {
         for dep in &deps {
             self.dependents
                 .entry(dep.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(id.clone());
         }
 

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use tauri::State;
 
 use crate::AppState;
-use crate::workflow_engine::{WorkflowEngine, WorkflowDefinition, WorkflowStage, WorkflowStatus, StageStrategy, StageAgent, StageResult};
+use crate::workflow_engine::{WorkflowEngine, WorkflowDefinition, WorkflowStage, WorkflowStatus, StageStrategy, StageAgent};
 
 // ---------------------------------------------------------------------------
 // Development Flow Types (mirrors frontend dev-flow-skills.ts)
@@ -400,7 +400,7 @@ impl HermesFlowOrchestrator {
         // Get ready stages (dependencies satisfied)
         let ready_stages = self.workflow_engine.get_ready_stages(flow_id)?;
 
-        for stage_id in ready_stages {
+        if let Some(stage_id) = ready_stages.into_iter().next() {
             println!("[HermesFlow] Executing stage '{}' in flow '{}'", stage_id, flow_id);
 
             // TODO(Phase 2): Replace with actual Executive Agent skill invocation.

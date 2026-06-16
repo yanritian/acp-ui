@@ -145,12 +145,10 @@ impl SandboxConfig {
         if pattern == "*" {
             return true;
         }
-        if pattern.starts_with("**/") {
-            let suffix = &pattern[3..];
+        if let Some(suffix) = pattern.strip_prefix("**/") {
             return path.ends_with(suffix) || path.contains(suffix);
         }
-        if pattern.ends_with("/**") {
-            let prefix = &pattern[..pattern.len() - 3];
+        if let Some(prefix) = pattern.strip_suffix("/**") {
             return path.starts_with(prefix);
         }
         path.contains(pattern)

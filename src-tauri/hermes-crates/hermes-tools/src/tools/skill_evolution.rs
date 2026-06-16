@@ -222,7 +222,7 @@ pub struct EvolutionSuggestion {
 
 /// Record user rating for a skill
 pub fn record_rating(stats: &mut SkillExecutionStats, rating: u8) {
-    if rating < 1 || rating > 5 {
+    if !(1..=5).contains(&rating) {
         return;
     }
 

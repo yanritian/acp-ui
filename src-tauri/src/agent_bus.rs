@@ -353,7 +353,7 @@ impl AgentBus {
         let subscribers = self
             .subscribers
             .entry(topic.to_string())
-            .or_insert_with(Vec::new);
+            .or_default();
 
         if !subscribers.contains(&agent_id.to_string()) {
             subscribers.push(agent_id.to_string());

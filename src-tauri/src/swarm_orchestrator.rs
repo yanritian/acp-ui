@@ -536,7 +536,7 @@ impl SwarmOrchestrator {
         match &task.consensus {
             ConsensusStrategy::FirstWins => {
                 // First result decides
-                if task.results.first().map_or(false, |r| r.success) {
+                if task.results.first().is_some_and(|r| r.success) {
                     Ok(SwarmTaskStatus::Completed)
                 } else {
                     Ok(SwarmTaskStatus::Failed)

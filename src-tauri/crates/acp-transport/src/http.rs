@@ -1,6 +1,6 @@
 //! HTTP transport - HTTP传输层
 
-use crate::adapters::{TransportAdapter, TransportConfig};
+use crate::adapters::TransportAdapter;
 
 /// HttpAdapter - HTTP请求适配器
 pub struct HttpAdapter {

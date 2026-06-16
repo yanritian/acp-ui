@@ -37,7 +37,7 @@ impl HookExecutor {
             .collect();
 
         // 按优先级排序
-        hooks_to_execute.sort_by(|a, b| a.priority.cmp(&b.priority));
+        hooks_to_execute.sort_by_key(|a| a.priority);
 
         for hook in hooks_to_execute {
             // 检查条件是否匹配

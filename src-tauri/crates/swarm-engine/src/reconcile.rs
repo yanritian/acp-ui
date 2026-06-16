@@ -214,7 +214,7 @@ impl AIWorkerExecutor {
                             let schema_name = content_contains.as_ref().unwrap();
                             prompt.push_str(&format!("   Content: export const {} = z.object({});\n", schema_name, schema_name.replace("Schema", "")));
                         }
-                        prompt.push_str("\n");
+                        prompt.push('\n');
                     } else {
                         prompt.push_str(&format!("{}. {}\n\n", i + 1, Self::describe_condition(cond)));
                     }
@@ -375,7 +375,7 @@ impl ReconcileLoop {
         println!("  Goal ID: {}", goal.id);
         println!("  MaxIterations: {}", goal.max_iterations);
         println!("  TokenBudget: {}", goal.token_budget);
-        println!("");
+        println!();
 
         loop {
             // 1. 预算检查
@@ -406,7 +406,7 @@ impl ReconcileLoop {
             println!("========================================");
             println!("  发送需求给 AI Worker...");
             println!("  (等待 AI 响应，可能需要较长时间)");
-            println!("");
+            println!();
 
             goal.status = GoalStatus::Active;
             let execution_result = {

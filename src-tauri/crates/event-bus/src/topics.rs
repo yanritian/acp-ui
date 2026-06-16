@@ -117,8 +117,7 @@ impl TopicMatcher {
         }
 
         // Multi-level wildcard (**)
-        if pattern.ends_with("**") {
-            let prefix = &pattern[..pattern.len() - 2];
+        if let Some(prefix) = pattern.strip_suffix("**") {
             return topic.starts_with(prefix);
         }
 

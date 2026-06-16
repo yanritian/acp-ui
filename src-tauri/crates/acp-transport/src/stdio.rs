@@ -1,6 +1,6 @@
 //! Stdio transport - 标准输入输出传输层
 
-use crate::adapters::{TransportAdapter, TransportConfig};
+use crate::adapters::TransportAdapter;
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};

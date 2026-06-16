@@ -9,8 +9,6 @@
 use crate::goal::{Goal, GoalStatus, CompletionCondition, GoalOutcome};
 use crate::goal_graph::GoalGraph;
 use crate::goal_evaluator::ConditionEvaluator;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use thiserror::Error;
 use std::path::Path;
 
@@ -207,7 +205,7 @@ impl ComplexGoalExecutor {
         let batch_size = self.batch_size as usize;
 
         // 计算批次
-        let total_batches = (total_tasks + batch_size - 1) / batch_size;
+        let total_batches = total_tasks.div_ceil(batch_size);
         println!("  总任务: {} 个, 分 {} 批执行 (每批 {} 个)\n", total_tasks, total_batches, batch_size);
 
         // 如果有恢复的进度，跳过已完成的任务
@@ -503,7 +501,7 @@ impl ComplexGoalExecutor {
                     prompt.push_str(&format!("  - {} ✓\n", id));
                 }
             }
-            prompt.push_str("\n");
+            prompt.push('\n');
         }
 
         prompt.push_str("Create the file as described. Focus on this single task only.\n");
@@ -756,7 +754,7 @@ impl ComplexGoalExecutor {
 
         // 检测需求中的文件路径关键词
         let file_keywords = ["README", "production", "inventory", "quality", "main", "index", "utils", "types"];
-        let ext_keywords = [".ts", ".js", ".md", ".tsx", ".jsx", ".py", ".rs"];
+        let _ext_keywords = [".ts", ".js", ".md", ".tsx", ".jsx", ".py", ".rs"];
 
         for keyword in &file_keywords {
             if requirement.contains(keyword) {

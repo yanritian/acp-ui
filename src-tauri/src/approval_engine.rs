@@ -264,7 +264,7 @@ impl ApprovalEngine {
                     Some(ApprovalDecision {
                         option_id: "".to_string(),
                         feedback,
-                        decided_at: decided_at.unwrap_or_else(|| Utc::now()),
+                        decided_at: decided_at.unwrap_or_else(Utc::now),
                         source: src,
                     })
                 }
@@ -505,18 +505,18 @@ fn parse_approval_row(
                 .ok();
 
             // Try to deserialize the full ApprovalDecision from JSON
-            let decision = serde_json::from_str::<ApprovalDecision>(&resp_json)
+            
+            serde_json::from_str::<ApprovalDecision>(&resp_json)
                 .ok()
                 .or_else(|| {
                     // Fallback: construct from partial data
                     Some(ApprovalDecision {
                         option_id: "".to_string(),
                         feedback: None,
-                        decided_at: decided_at.unwrap_or_else(|| Utc::now()),
+                        decided_at: decided_at.unwrap_or_else(Utc::now),
                         source: src,
                     })
-                });
-            decision
+                })
         }
         _ => None,
     };

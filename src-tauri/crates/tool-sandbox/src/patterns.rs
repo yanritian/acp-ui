@@ -100,12 +100,7 @@ impl DeniedPatterns {
 
     /// 检查路径是否被禁止
     pub fn is_denied(&self, path: &str) -> Option<&DeniedPattern> {
-        for pattern in &self.patterns {
-            if self.matches_pattern(path, &pattern.pattern) {
-                return Some(pattern);
-            }
-        }
-        None
+        self.patterns.iter().find(|&pattern| self.matches_pattern(path, &pattern.pattern)).map(|v| v as _)
     }
 
     /// 匹配glob模式
@@ -116,18 +111,15 @@ impl DeniedPatterns {
             return path.contains(&format!("{}/", middle)) || path.contains(middle);
         }
         // Handle **/*.ext patterns (path ends with .ext)
-        if pattern.starts_with("**/*.") {
-            let ext = &pattern[5..];
+        if let Some(ext) = pattern.strip_prefix("**/*.") {
             return path.ends_with(ext);
         }
         // Handle **/name patterns (path ends with name or contains name)
-        if pattern.starts_with("**/") {
-            let suffix = &pattern[3..];
+        if let Some(suffix) = pattern.strip_prefix("**/") {
             return path.ends_with(suffix) || path.contains(&format!("/{suffix}"));
         }
         // Handle dir/** patterns (path starts with dir/)
-        if pattern.ends_with("/**") {
-            let prefix = &pattern[..pattern.len() - 3];
+        if let Some(prefix) = pattern.strip_suffix("/**") {
             return path.starts_with(prefix) || path.starts_with(&format!("{}/", prefix));
         }
         // Exact match or substring match

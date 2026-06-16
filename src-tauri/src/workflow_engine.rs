@@ -313,14 +313,13 @@ impl WorkflowEngine {
         }
 
         for stage in &workflow.stages {
-            if !visited.contains(&stage.id) {
-                if self.has_cycle_dfs(&stage.id, &adj, &mut visited, &mut rec_stack) {
+            if !visited.contains(&stage.id)
+                && self.has_cycle_dfs(&stage.id, &adj, &mut visited, &mut rec_stack) {
                     return Err(format!(
                         "Cycle detected in workflow '{}' involving stage '{}'",
                         workflow_id, stage.id
                     ));
                 }
-            }
         }
 
         // 4. Check for orphan stages (no dependencies and nothing depends on them)

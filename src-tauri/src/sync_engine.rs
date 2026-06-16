@@ -325,7 +325,7 @@ impl SyncEngine {
             .unwrap();
 
         let rows = stmt
-            .query_map([&type_key], |row| row_to_entity(row))
+            .query_map([&type_key], row_to_entity)
             .unwrap();
 
         rows.filter_map(|r| r.ok()).collect()
@@ -491,10 +491,8 @@ impl SyncEngine {
                 Ok((key, count))
             })
             .unwrap();
-        for result in rows {
-            if let Ok((key, count)) = result {
-                entities_by_type.insert(key, count);
-            }
+        for (key, count) in rows.flatten() {
+            entities_by_type.insert(key, count);
         }
 
         let last_sync: Option<String> = db
@@ -628,7 +626,7 @@ fn query_entity(conn: &Connection, id: &str) -> Result<Option<SyncEntity>, Strin
              FROM sync_entities
              WHERE id = ?",
             [id],
-            |row| row_to_entity(row),
+            row_to_entity,
         )
         .optional();
 

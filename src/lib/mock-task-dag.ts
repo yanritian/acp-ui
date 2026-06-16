@@ -1,8 +1,16 @@
 /**
  * Mock Task DAG for demo visualization.
  * Creates a sample DAG showing a feature development workflow.
+ *
+ * @deprecated (M-2) DEMO DATA - This file is for demonstration only.
+ *             Do not use in production. Real DAG should come from task-parser
+ *             parsing actual user requests.
+ *
+ * Used by:
+ * - router.ts /task-graph demo page
+ * - Any visualization component that needs sample data
  */
-import type { TaskDAG } from '../lib/task-parser'
+import type { TaskDAG } from './task-parser'
 
 export function createMockTaskDag(): TaskDAG {
   // Create a sample DAG for visualization

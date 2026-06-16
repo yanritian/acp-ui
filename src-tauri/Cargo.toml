@@ -9,6 +9,7 @@ edition = "2021"
 members = [
     "crates/acp-core",
     "crates/acp-transport",
+    "crates/acp-cli",
     "crates/swarm-engine",
     "crates/workflow-engine",
     "crates/hook-runtime",

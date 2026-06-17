@@ -8,10 +8,15 @@
 //! - SkillRouter: Worker capability routing
 //! - ComplexGoalExecutor: Handles complex system requirements with planning/decomposition
 //!
-//! # Unified Types (from acp-core)
+//! # Unified Types (from acp-core, C-1 solution)
 //!
 //! The following types are re-exported from acp-core for unified usage:
+//! - `GoalRuntime` - Authoritative Goal execution type
+//! - `GoalSpec` - Goal submission specification
 //! - `GoalStatus`, `IterationRecord`, `EvaluationResult`, `GoalOutcome`
+//!
+//! **Note**: The local `Goal` struct in goal.rs is DEPRECATED.
+//! Use `GoalRuntime` from acp-core for new code.
 
 pub mod goal;
 pub mod goal_evaluator;
@@ -22,8 +27,10 @@ pub mod queen_lease;
 pub mod skill_registry;
 pub mod complex_executor;
 
-// Re-export from acp-core (unified types)
+// Re-export from acp-core (unified types - C-1 solution)
 pub use acp_core::{
+    GoalRuntime,  // NEW: Authoritative execution type
+    GoalSpec,     // NEW: Submission spec
     GoalStatus as UnifiedGoalStatus,
     IterationRecord as UnifiedIterationRecord,
     EvaluationResult as UnifiedEvaluationResult,
@@ -33,7 +40,8 @@ pub use acp_core::{
     AcpEvent,
 };
 
-// Re-export main types
+// Re-export main types (DEPRECATED - use acp_core types instead)
+#[deprecated(note = "Use GoalRuntime from acp-core instead")]
 pub use goal::{
     Goal, GoalStatus, CompletionCondition, Evaluator,
     IterationRecord, EvaluationResult, GoalOutcome

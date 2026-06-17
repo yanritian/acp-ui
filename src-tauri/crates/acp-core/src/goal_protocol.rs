@@ -1,6 +1,11 @@
 //! Goal Protocol - Goal definition and submission
 //!
 //! Unified Goal types for both src-tauri/src/ and swarm-engine crate.
+//!
+//! **Type Unification Strategy (C-1)**:
+//! - GoalSpec: Submission specification (input)
+//! - GoalRuntime: Execution state (runtime)
+//! - Both crates use these unified types from acp-core
 
 use serde::{Deserialize, Serialize};
 
@@ -33,8 +38,120 @@ pub struct GoalSpec {
     pub per_iteration_timeout_ms: u64,
 }
 
+/// GoalRuntime - Goal execution state (unified runtime type for C-1)
+///
+/// This is the authoritative Goal type for execution.
+/// Both src-tauri/src/ and swarm-engine should use this type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GoalRuntime {
+    // === Identity ===
+    /// Goal unique identifier
+    pub id: String,
+    /// Human-readable description
+    pub description: String,
+    /// Parent task ID (for grouping)
+    pub parent_task_id: Option<String>,
+    /// Parent goal ID (for sub-goals)
+    #[serde(alias = "parent_id", alias = "parent_goal_id")]
+    pub parent_goal_id: Option<String>,
+
+    // === Completion Condition ===
+    /// Condition for convergence
+    pub completion_condition: CompletionConditionSpec,
+
+    // === Role Assignment ===
+    /// Evaluator type
+    pub evaluator: EvaluatorSpec,
+    /// Assigned worker ID
+    #[serde(alias = "assigned_worker")]
+    pub executor: Option<String>,
+
+    // === Dependencies ===
+    /// Dependent goal IDs
+    #[serde(alias = "dependencies")]
+    pub depends_on: Vec<String>,
+
+    // === Budget & Limits ===
+    /// Token budget limit
+    pub token_budget: u64,
+    /// Tokens consumed
+    #[serde(alias = "token_used")]
+    pub tokens_used: u64,
+    /// Maximum iterations
+    pub max_iterations: u32,
+    /// Current iteration count
+    pub current_iteration: u32,
+    /// Per-iteration timeout (milliseconds)
+    pub per_iteration_timeout_ms: u64,
+
+    // === State ===
+    /// Execution status
+    pub status: GoalStatus,
+    /// Iteration history
+    #[serde(alias = "iterations")]
+    pub iteration_log: Vec<IterationRecord>,
+
+    // === Metadata ===
+    /// Creation timestamp (UNIX milliseconds)
+    pub created_at: u64,
+    /// Convergence timestamp
+    pub converged_at: Option<u64>,
+    /// Output file paths
+    pub output_files: Vec<String>,
+}
+
+impl GoalRuntime {
+    /// Create a new goal from spec
+    pub fn from_spec(spec: GoalSpec) -> Self {
+        Self {
+            id: spec.id,
+            description: spec.description,
+            parent_task_id: None,
+            parent_goal_id: None,
+            completion_condition: spec.completion_condition,
+            evaluator: spec.evaluator,
+            executor: spec.executor,
+            depends_on: spec.depends_on,
+            token_budget: spec.token_budget,
+            tokens_used: 0,
+            max_iterations: spec.max_iterations,
+            current_iteration: 0,
+            per_iteration_timeout_ms: spec.per_iteration_timeout_ms,
+            status: GoalStatus::Pending,
+            iteration_log: Vec::new(),
+            created_at: current_timestamp(),
+            converged_at: None,
+            output_files: Vec::new(),
+        }
+    }
+
+    /// Check if goal can start (no pending dependencies)
+    pub fn is_ready(&self, converged_ids: &[&str]) -> bool {
+        self.status == GoalStatus::Pending
+            && self.depends_on.iter().all(|dep| converged_ids.contains(&dep.as_str()))
+    }
+
+    /// Check if budget exhausted
+    pub fn budget_exhausted(&self) -> bool {
+        self.tokens_used >= self.token_budget
+    }
+
+    /// Check if max iterations reached
+    pub fn max_iter_reached(&self) -> bool {
+        self.current_iteration >= self.max_iterations
+    }
+}
+
 fn default_timeout() -> u64 {
     60_000
+}
+
+fn current_timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
 }
 
 /// Goal YAML file structure (完整的 .goal.yaml 文件格式)
@@ -656,5 +773,150 @@ workers:
         assert_eq!(worker.worker_type, "claude_code");
         assert_eq!(worker.skills.len(), 1);
         assert_eq!(worker.skills[0].proficiency, 0.9);
+    }
+
+    #[test]
+    fn goal_runtime_from_spec() {
+        let spec = GoalSpec {
+            id: "goal-001".to_string(),
+            description: "Test goal".to_string(),
+            completion_condition: CompletionConditionSpec::CommandSuccess {
+                command: "echo".to_string(),
+                args: vec![],
+                cwd: None,
+            },
+            evaluator: EvaluatorSpec::Auto,
+            executor: Some("worker-001".to_string()),
+            depends_on: vec!["goal-000".to_string()],
+            token_budget: 50_000,
+            max_iterations: 5,
+            per_iteration_timeout_ms: 60_000,
+        };
+
+        let runtime = GoalRuntime::from_spec(spec);
+
+        assert_eq!(runtime.id, "goal-001");
+        assert_eq!(runtime.description, "Test goal");
+        assert_eq!(runtime.status, GoalStatus::Pending);
+        assert_eq!(runtime.tokens_used, 0);
+        assert_eq!(runtime.current_iteration, 0);
+        assert_eq!(runtime.executor, Some("worker-001".to_string()));
+        assert_eq!(runtime.depends_on, vec!["goal-000"]);
+        assert!(runtime.iteration_log.is_empty());
+        assert!(runtime.output_files.is_empty());
+    }
+
+    #[test]
+    fn goal_runtime_is_ready() {
+        let spec = GoalSpec {
+            id: "goal-002".to_string(),
+            description: "Dependent goal".to_string(),
+            completion_condition: CompletionConditionSpec::CommandSuccess {
+                command: "echo".to_string(),
+                args: vec![],
+                cwd: None,
+            },
+            evaluator: EvaluatorSpec::Auto,
+            executor: None,
+            depends_on: vec!["goal-001".to_string()],
+            token_budget: 30_000,
+            max_iterations: 3,
+            per_iteration_timeout_ms: 60_000,
+        };
+
+        let runtime = GoalRuntime::from_spec(spec);
+
+        // Not ready if dependencies not converged
+        assert!(!runtime.is_ready(&[]));
+        assert!(!runtime.is_ready(&["other-goal"]));
+
+        // Ready when all dependencies converged
+        assert!(runtime.is_ready(&["goal-001"]));
+    }
+
+    #[test]
+    fn goal_runtime_budget_exhausted() {
+        let spec = GoalSpec {
+            id: "goal-003".to_string(),
+            description: "Budget test".to_string(),
+            completion_condition: CompletionConditionSpec::CommandSuccess {
+                command: "echo".to_string(),
+                args: vec![],
+                cwd: None,
+            },
+            evaluator: EvaluatorSpec::Auto,
+            executor: None,
+            depends_on: vec![],
+            token_budget: 1000,
+            max_iterations: 5,
+            per_iteration_timeout_ms: 60_000,
+        };
+
+        let mut runtime = GoalRuntime::from_spec(spec);
+
+        assert!(!runtime.budget_exhausted());
+
+        runtime.tokens_used = 500;
+        assert!(!runtime.budget_exhausted());
+
+        runtime.tokens_used = 1000;
+        assert!(runtime.budget_exhausted());
+    }
+
+    #[test]
+    fn goal_runtime_max_iter_reached() {
+        let spec = GoalSpec {
+            id: "goal-004".to_string(),
+            description: "Iter test".to_string(),
+            completion_condition: CompletionConditionSpec::CommandSuccess {
+                command: "echo".to_string(),
+                args: vec![],
+                cwd: None,
+            },
+            evaluator: EvaluatorSpec::Auto,
+            executor: None,
+            depends_on: vec![],
+            token_budget: 50_000,
+            max_iterations: 3,
+            per_iteration_timeout_ms: 60_000,
+        };
+
+        let mut runtime = GoalRuntime::from_spec(spec);
+
+        assert!(!runtime.max_iter_reached());
+
+        runtime.current_iteration = 2;
+        assert!(!runtime.max_iter_reached());
+
+        runtime.current_iteration = 3;
+        assert!(runtime.max_iter_reached());
+    }
+
+    #[test]
+    fn goal_runtime_serde_roundtrip() {
+        let spec = GoalSpec {
+            id: "goal-005".to_string(),
+            description: "Serde test".to_string(),
+            completion_condition: CompletionConditionSpec::CommandSuccess {
+                command: "cargo test".to_string(),
+                args: vec![],
+                cwd: None,
+            },
+            evaluator: EvaluatorSpec::Auto,
+            executor: Some("claude-worker".to_string()),
+            depends_on: vec!["goal-004".to_string()],
+            token_budget: 80_000,
+            max_iterations: 10,
+            per_iteration_timeout_ms: 120_000,
+        };
+
+        let runtime = GoalRuntime::from_spec(spec);
+        let json = serde_json::to_string(&runtime).unwrap();
+        let decoded: GoalRuntime = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(decoded.id, runtime.id);
+        assert_eq!(decoded.executor, runtime.executor);
+        assert_eq!(decoded.depends_on, runtime.depends_on);
+        assert_eq!(decoded.status, GoalStatus::Pending);
     }
 }

@@ -3,10 +3,11 @@
 //! This crate contains the core ACP protocol definitions with zero internal dependencies.
 //! It defines the message types, worker protocol, goal protocol, and event protocol.
 //!
-//! # Unified Goal Types
+//! # Unified Goal Types (C-1 Solution)
 //!
 //! This crate provides unified Goal types for both src-tauri/src/ and swarm-engine crate:
-//! - `GoalSpec` - Goal submission specification
+//! - `GoalSpec` - Goal submission specification (input)
+//! - `GoalRuntime` - Goal execution state (runtime, authoritative type)
 //! - `GoalStatus` - Execution status enum
 //! - `IterationRecord` - Iteration feedback record
 //! - `EvaluationResult` - Condition evaluation result
@@ -25,6 +26,7 @@ pub use message::AcpMessage;
 pub use worker_protocol::{WorkerCapabilities, WorkerStatus, WorkerHeartbeat};
 pub use goal_protocol::{
     GoalSpec,
+    GoalRuntime,
     GoalYamlFile,
     QueenConfig,
     WorkerDefinition,

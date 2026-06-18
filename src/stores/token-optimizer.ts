@@ -154,58 +154,22 @@ export const useTokenOptimizerStore = defineStore('token-optimizer', () => {
     config.value = mergedConfig
     tokenBudgetLimit.value = mergedConfig.maxContextTokens
     optimizer.value = createTokenOptimizer(mergedConfig)
-    initializeMockHistory()
+    // Initialize empty history - will be populated from backend
+    hourlyUsageHistory.value = []
+    dailyUsageHistory.value = []
     fetchStats()
   }
 
-  /** Initialize mock history data for demo (DEMO DATA - not production) */
-  function initializeMockHistory() {
-    // Generate hourly data for last 24 hours
-    const hourlyData: HourlyUsage[] = []
-    const now = new Date()
-    for (let i = 23; i >= 0; i--) {
-      const hour = new Date(now.getTime() - i * 60 * 60 * 1000)
-      const inputTokens = Math.floor(Math.random() * 5000) + 1000
-      const outputTokens = Math.floor(Math.random() * 2000) + 500
-      const cachedTokens = Math.floor(Math.random() * 3000) + 200
-      hourlyData.push({
-        hour: hour.getHours().toString().padStart(2, '0') + ':00',
-        inputTokens,
-        outputTokens,
-        cachedTokens,
-        totalTokens: inputTokens + outputTokens + cachedTokens,
-      })
-    }
-    hourlyUsageHistory.value = hourlyData
-
-    // Generate daily data for last 7 days
-    const dailyData: DailyUsage[] = []
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-      const inputTokens = Math.floor(Math.random() * 30000) + 5000
-      const outputTokens = Math.floor(Math.random() * 15000) + 2000
-      const cachedTokens = Math.floor(Math.random() * 20000) + 1000
-      dailyData.push({
-        date: date.toISOString().slice(0, 10),
-        inputTokens,
-        outputTokens,
-        cachedTokens,
-        totalTokens: inputTokens + outputTokens + cachedTokens,
-      })
-    }
-    dailyUsageHistory.value = dailyData
-  }
-
-  /** Fetch current stats from backend or use optimizer state */
+  /** Fetch current stats from backend */
   async function fetchStats() {
     loading.value = true
     error.value = null
     try {
-      // Try to call backend first
+      // Call backend for stats
       const result = await invokeOrProxy<TokenOptimizerState>('token_optimizer_get_stats')
       currentState.value = result
     } catch {
-      // Backend not available - use local optimizer stats or mock
+      // Backend not available - use local optimizer stats
       if (optimizer.value) {
         const cacheStats = optimizer.value.getCacheStats()
         const archive = optimizer.value.getArchive()
@@ -214,103 +178,64 @@ export const useTokenOptimizerStore = defineStore('token-optimizer', () => {
           cache: {
             systemCacheHits: Math.floor(cacheStats.hitRate * 100),
             systemCacheMisses: 100 - Math.floor(cacheStats.hitRate * 100),
-            contextCacheHits: 156,
-            contextCacheMisses: 44,
+            contextCacheHits: 0,
+            contextCacheMisses: 0,
           },
           compression: {
             totalTokensSaved: cacheStats.totalSaved,
-            compressionRatio: 0.63,
-            totalCompressions: 47,
-            avgTokensPerCompression: 265,
+            compressionRatio: 1.0,
+            totalCompressions: 0,
+            avgTokensPerCompression: 0,
           },
           archivedChunks: archive,
           idleTimer: {
-            active: true,
-            nextCompressionIn: 42,
+            active: false,
+            nextCompressionIn: 0,
             idleThreshold: 60,
           },
-          totalTokensUsed: 28400,
+          totalTokensUsed: 0,
           contextWindowLimit: tokenBudgetLimit.value,
           systemPrompt: {
-            frozen: true,
-            hash: 'a3f8c2e1b9d04567',
-            sizeBytes: 4820,
-            tokenCount: 1280,
+            frozen: false,
+            hash: '',
+            sizeBytes: 0,
+            tokenCount: 0,
           },
         }
       } else {
-        // Use mock data
-        currentState.value = getMockStats()
+        // No optimizer - return empty state
+        currentState.value = {
+          config: config.value,
+          cache: {
+            systemCacheHits: 0,
+            systemCacheMisses: 0,
+            contextCacheHits: 0,
+            contextCacheMisses: 0,
+          },
+          compression: {
+            totalTokensSaved: 0,
+            compressionRatio: 1.0,
+            totalCompressions: 0,
+            avgTokensPerCompression: 0,
+          },
+          archivedChunks: [],
+          idleTimer: {
+            active: false,
+            nextCompressionIn: 0,
+            idleThreshold: 60,
+          },
+          totalTokensUsed: 0,
+          contextWindowLimit: tokenBudgetLimit.value,
+          systemPrompt: {
+            frozen: false,
+            hash: '',
+            sizeBytes: 0,
+            tokenCount: 0,
+          },
+        }
       }
     } finally {
       loading.value = false
-    }
-  }
-
-  /** Get mock stats for demo (DEMO DATA - not production)
-   *
-   * TODO(M-2): Replace with real backend API when available.
-   * This mock data is used when the backend is not available or for demo pages.
-   * Production should call token_optimizer_get_stats() Tauri command.
-   */
-  function getMockStats(): TokenOptimizerState {
-    return {
-      config: config.value,
-      cache: {
-        systemCacheHits: 342,
-        systemCacheMisses: 18,
-        contextCacheHits: 156,
-        contextCacheMisses: 44,
-      },
-      compression: {
-        totalTokensSaved: 12480,
-        compressionRatio: 0.63,
-        totalCompressions: 47,
-        avgTokensPerCompression: 265,
-      },
-      archivedChunks: [
-        {
-          id: 'archive-001',
-          originalMessages: 5,
-          compressedSummary: 'Earlier conversation about project setup and dependency configuration.',
-          referencePath: 'archive://session/archive-001',
-          timestamp: '2026-06-04T10:23:00Z',
-        },
-        {
-          id: 'archive-002',
-          originalMessages: 8,
-          compressedSummary: 'Discussion of authentication flow and token refresh logic.',
-          referencePath: 'archive://session/archive-002',
-          timestamp: '2026-06-04T11:45:00Z',
-        },
-        {
-          id: 'archive-003',
-          originalMessages: 3,
-          compressedSummary: 'Code review of database migration scripts.',
-          referencePath: 'archive://session/archive-003',
-          timestamp: '2026-06-04T14:10:00Z',
-        },
-        {
-          id: 'archive-004',
-          originalMessages: 6,
-          compressedSummary: 'Refactoring suggestions for the API layer and error handling.',
-          referencePath: 'archive://session/archive-004',
-          timestamp: '2026-06-05T09:00:00Z',
-        },
-      ],
-      idleTimer: {
-        active: true,
-        nextCompressionIn: 42,
-        idleThreshold: 60,
-      },
-      totalTokensUsed: 28400,
-      contextWindowLimit: tokenBudgetLimit.value,
-      systemPrompt: {
-        frozen: true,
-        hash: 'a3f8c2e1b9d04567',
-        sizeBytes: 4820,
-        tokenCount: 1280,
-      },
     }
   }
 

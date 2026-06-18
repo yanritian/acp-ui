@@ -73,8 +73,9 @@ pub struct GoalRuntime {
     pub depends_on: Vec<String>,
 
     // === Budget & Limits ===
-    /// Token budget limit
-    pub token_budget: u64,
+    /// Token budget limit (None = unlimited, serialized as Option)
+    #[serde(alias = "tokenBudget")]
+    pub token_budget: Option<u64>,
     /// Tokens consumed
     #[serde(alias = "token_used")]
     pub tokens_used: u64,
@@ -95,6 +96,8 @@ pub struct GoalRuntime {
     // === Metadata ===
     /// Creation timestamp (UNIX milliseconds)
     pub created_at: u64,
+    /// When execution started (UNIX milliseconds)
+    pub started_at: Option<u64>,
     /// Convergence timestamp
     pub converged_at: Option<u64>,
     /// Output file paths
@@ -113,7 +116,7 @@ impl GoalRuntime {
             evaluator: spec.evaluator,
             executor: spec.executor,
             depends_on: spec.depends_on,
-            token_budget: spec.token_budget,
+            token_budget: Some(spec.token_budget),
             tokens_used: 0,
             max_iterations: spec.max_iterations,
             current_iteration: 0,
@@ -121,6 +124,7 @@ impl GoalRuntime {
             status: GoalStatus::Pending,
             iteration_log: Vec::new(),
             created_at: current_timestamp(),
+            started_at: None,
             converged_at: None,
             output_files: Vec::new(),
         }
@@ -134,12 +138,17 @@ impl GoalRuntime {
 
     /// Check if budget exhausted
     pub fn budget_exhausted(&self) -> bool {
-        self.tokens_used >= self.token_budget
+        self.token_budget.map(|b| self.tokens_used >= b).unwrap_or(false)
     }
 
     /// Check if max iterations reached
     pub fn max_iter_reached(&self) -> bool {
         self.current_iteration >= self.max_iterations
+    }
+
+    /// Get current iteration number (1-based)
+    pub fn current_iteration_number(&self) -> u32 {
+        self.iteration_log.len() as u32 + 1
     }
 }
 

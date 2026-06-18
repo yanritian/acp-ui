@@ -11,10 +11,13 @@ import type {
 /**
  * Mock Data Generator for Collaboration Network
  *
- * @deprecated DEMO DATA - This file is for demonstration/testing only.
- *             Do not use in production. Real data should come from backend APIs.
+ * @internal TESTING ONLY - This file is for testing only.
+ *             Do NOT use in production code. Real data must come from backend APIs.
+ *             Importing this in production code will cause test failures.
  *
- * Generates realistic mock data for testing and demonstration
+ * @deprecated Use swarm-api.ts to fetch real worker/collaboration data.
+ *
+ * Generates mock data for testing collaboration UI components.
  */
 export class CollaborationMockDataGenerator {
   private agentTypes: AgentType[] = [

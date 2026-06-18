@@ -229,7 +229,7 @@ impl GoalYamlFile {
 }
 
 /// Completion condition specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum CompletionConditionSpec {
     #[serde(rename = "command_success")]
@@ -296,8 +296,10 @@ enum EvaluatorRaw {
     String(String),
     QueenObj { queen_worker_id: String },
     AdversarialObj { primary: String, adversary: String },
+    HybridObj { auto_conditions: Vec<CompletionConditionSpec>, queen_criteria: String },
     QueenWrapped { Queen: QueenInner },
     AdversarialWrapped { Adversarial: AdversarialInner },
+    HybridWrapped { Hybrid: HybridInner },
     AutoWrapped { Auto: serde_json::Value },
 }
 
@@ -312,6 +314,12 @@ struct AdversarialInner {
     adversary: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct HybridInner {
+    auto_conditions: Vec<CompletionConditionSpec>,
+    queen_criteria: String,
+}
+
 impl From<EvaluatorRaw> for EvaluatorSpec {
     fn from(raw: EvaluatorRaw) -> Self {
         match raw {
@@ -319,8 +327,10 @@ impl From<EvaluatorRaw> for EvaluatorSpec {
             EvaluatorRaw::String(_) => EvaluatorSpec::Auto, // default fallback for unknown strings
             EvaluatorRaw::QueenObj { queen_worker_id } => EvaluatorSpec::Queen { queen_worker_id },
             EvaluatorRaw::AdversarialObj { primary, adversary } => EvaluatorSpec::Adversarial { primary, adversary },
+            EvaluatorRaw::HybridObj { auto_conditions, queen_criteria } => EvaluatorSpec::Hybrid { auto_conditions, queen_criteria },
             EvaluatorRaw::QueenWrapped { Queen: inner } => EvaluatorSpec::Queen { queen_worker_id: inner.queen_worker_id },
             EvaluatorRaw::AdversarialWrapped { Adversarial: inner } => EvaluatorSpec::Adversarial { primary: inner.primary, adversary: inner.adversary },
+            EvaluatorRaw::HybridWrapped { Hybrid: inner } => EvaluatorSpec::Hybrid { auto_conditions: inner.auto_conditions, queen_criteria: inner.queen_criteria },
             EvaluatorRaw::AutoWrapped { .. } => EvaluatorSpec::Auto,
         }
     }
@@ -333,6 +343,7 @@ pub enum EvaluatorSpec {
     Auto,
     Queen { queen_worker_id: String },
     Adversarial { primary: String, adversary: String },
+    Hybrid { auto_conditions: Vec<CompletionConditionSpec>, queen_criteria: String },
 }
 
 // ============================================================================

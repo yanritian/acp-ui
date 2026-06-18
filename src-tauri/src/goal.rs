@@ -183,6 +183,128 @@ impl Goal {
     pub fn latest_feedback(&self) -> Option<&str> {
         self.iterations.last().and_then(|i| i.feedback.as_deref())
     }
+
+    // =========================================================================
+    // GoalRuntime Conversion (C-1 integration)
+    // =========================================================================
+
+    /// Convert to unified GoalRuntime type
+    pub fn to_runtime(&self) -> acp_core::GoalRuntime {
+        use acp_core::{GoalRuntime, GoalStatus as RTStatus, IterationRecord as RTRecord};
+
+        // Convert GoalStatus
+        let rt_status = match &self.status {
+            GoalStatus::Pending => RTStatus::Pending,
+            GoalStatus::Active => RTStatus::Active,
+            GoalStatus::Evaluating => RTStatus::Evaluating,
+            GoalStatus::Converged => RTStatus::Converged,
+            GoalStatus::Iterating { feedback } => RTStatus::Iterating { feedback: feedback.clone() },
+            GoalStatus::Failed { reason } => RTStatus::Failed { reason: reason.clone() },
+            GoalStatus::BudgetExhausted => RTStatus::BudgetExhausted,
+            GoalStatus::Cancelled => RTStatus::Cancelled,
+        };
+
+        // Convert iterations
+        let rt_iterations: Vec<RTRecord> = self.iterations.iter().map(|i| {
+            RTRecord {
+                iteration: i.iteration,
+                worker_output: i.worker_output.clone(),
+                evaluation: acp_core::EvaluationResult {
+                    passed: i.evaluation.passed,
+                    explanation: i.evaluation.explanation.clone(),
+                    details: i.evaluation.details.iter().map(|d|
+                        acp_core::ConditionResult {
+                            description: d.description.clone(),
+                            passed: d.passed,
+                            evidence: d.evidence.clone(),
+                        }
+                    ).collect(),
+                },
+                timestamp: i.timestamp,
+                tokens_used: i.tokens_used,
+            }
+        }).collect();
+
+        GoalRuntime {
+            id: self.id.clone(),
+            description: self.description.clone(),
+            parent_task_id: None,
+            parent_goal_id: self.parent_id.clone(),
+            completion_condition: self.completion_condition.to_spec(),
+            evaluator: self.evaluator.to_spec(),
+            executor: self.assigned_worker.clone(),
+            depends_on: self.dependencies.clone(),
+            token_budget: self.token_budget.unwrap_or(100_000),
+            tokens_used: self.token_used,
+            max_iterations: self.max_iterations,
+            current_iteration: self.iterations.len() as u32,
+            per_iteration_timeout_ms: 60_000,
+            status: rt_status,
+            iteration_log: rt_iterations,
+            created_at: self.created_at,
+            converged_at: self.converged_at,
+            output_files: Vec::new(),
+        }
+    }
+
+    /// Convert from unified GoalRuntime type
+    pub fn from_runtime(rt: &acp_core::GoalRuntime) -> Self {
+        use acp_core::GoalStatus as RTStatus;
+
+        // Convert GoalStatus
+        let status = match &rt.status {
+            RTStatus::Pending => GoalStatus::Pending,
+            RTStatus::Active => GoalStatus::Active,
+            RTStatus::Evaluating => GoalStatus::Evaluating,
+            RTStatus::Converged => GoalStatus::Converged,
+            RTStatus::Iterating { feedback } => GoalStatus::Iterating { feedback: feedback.clone() },
+            RTStatus::Failed { reason } => GoalStatus::Failed { reason: reason.clone() },
+            RTStatus::BudgetExhausted => GoalStatus::BudgetExhausted,
+            RTStatus::MaxIterReached => GoalStatus::Failed { reason: "Max iterations reached".into() },
+            RTStatus::Cancelled => GoalStatus::Cancelled,
+        };
+
+        // Convert iterations
+        let iterations: Vec<IterationRecord> = rt.iteration_log.iter().map(|i| {
+            IterationRecord {
+                iteration: i.iteration,
+                worker_output: i.worker_output.clone(),
+                evaluation: EvaluationResult {
+                    passed: i.evaluation.passed,
+                    explanation: i.evaluation.explanation.clone(),
+                    details: i.evaluation.details.iter().map(|d|
+                        ConditionResult {
+                            description: d.description.clone(),
+                            passed: d.passed,
+                            evidence: d.evidence.clone(),
+                        }
+                    ).collect(),
+                },
+                timestamp: i.timestamp,
+                tokens_used: i.tokens_used,
+                feedback: if i.evaluation.passed { None } else { Some(i.evaluation.explanation.clone()) },
+                duration_ms: 0, // default
+            }
+        }).collect();
+
+        Self {
+            id: rt.id.clone(),
+            description: rt.description.clone(),
+            completion_condition: CompletionCondition::from_spec(&rt.completion_condition),
+            evaluator: Evaluator::from_spec(&rt.evaluator),
+            assigned_worker: rt.executor.clone(),
+            status,
+            iterations,
+            max_iterations: rt.max_iterations,
+            token_budget: Some(rt.token_budget),
+            token_used: rt.tokens_used,
+            created_at: rt.created_at,
+            started_at: None,
+            converged_at: rt.converged_at,
+            parent_id: rt.parent_goal_id.clone(),
+            dependencies: rt.depends_on.clone(),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +357,124 @@ pub enum CompletionCondition {
     },
 }
 
+impl CompletionCondition {
+    /// Convert to unified CompletionConditionSpec
+    pub fn to_spec(&self) -> acp_core::CompletionConditionSpec {
+        use acp_core::CompletionConditionSpec as Spec;
+
+        match self {
+            CompletionCondition::CommandSuccess { command, expected_exit_code } => {
+                Spec::CommandSuccess {
+                    command: command.clone(),
+                    args: vec![expected_exit_code.to_string()],
+                    cwd: None,
+                }
+            }
+            CompletionCondition::OutputContains { text, case_sensitive } => {
+                Spec::OutputContains {
+                    command: "".into(),
+                    pattern: text.clone(),
+                    case_sensitive: *case_sensitive,
+                }
+            }
+            CompletionCondition::OutputMatches { pattern } => {
+                Spec::OutputMatches {
+                    command: "".into(),
+                    regex: pattern.clone(),
+                }
+            }
+            CompletionCondition::All { conditions } => {
+                Spec::All {
+                    conditions: conditions.iter().map(|c| c.to_spec()).collect(),
+                }
+            }
+            CompletionCondition::Any { conditions } => {
+                Spec::Any {
+                    conditions: conditions.iter().map(|c| c.to_spec()).collect(),
+                }
+            }
+            CompletionCondition::FileCheck { path, content_contains, .. } => {
+                Spec::FileCheck {
+                    path: path.clone(),
+                    content_contains: content_contains.clone(),
+                    max_size_bytes: None,
+                }
+            }
+            CompletionCondition::HttpHealthCheck { url, expected_status } => {
+                Spec::HttpHealthCheck {
+                    url: url.clone(),
+                    method: "GET".into(),
+                    expected_status: Some(*expected_status),
+                }
+            }
+            CompletionCondition::QueenJudgment { criteria } => {
+                Spec::QueenJudgment {
+                    criteria: criteria.clone(),
+                }
+            }
+        }
+    }
+
+    /// Convert from unified CompletionConditionSpec
+    pub fn from_spec(spec: &acp_core::CompletionConditionSpec) -> Self {
+        use acp_core::CompletionConditionSpec as Spec;
+
+        match spec {
+            Spec::CommandSuccess { command, .. } => {
+                CompletionCondition::CommandSuccess {
+                    command: command.clone(),
+                    expected_exit_code: 0,
+                }
+            }
+            Spec::OutputContains { pattern, case_sensitive, .. } => {
+                CompletionCondition::OutputContains {
+                    text: pattern.clone(),
+                    case_sensitive: *case_sensitive,
+                }
+            }
+            Spec::OutputMatches { regex, .. } => {
+                CompletionCondition::OutputMatches {
+                    pattern: regex.clone(),
+                }
+            }
+            Spec::All { conditions } => {
+                CompletionCondition::All {
+                    conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
+                }
+            }
+            Spec::Any { conditions } => {
+                CompletionCondition::Any {
+                    conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
+                }
+            }
+            Spec::FileCheck { path, content_contains, .. } => {
+                CompletionCondition::FileCheck {
+                    path: path.clone(),
+                    must_exist: true,
+                    content_contains: content_contains.clone(),
+                }
+            }
+            Spec::HttpHealthCheck { url, expected_status, .. } => {
+                CompletionCondition::HttpHealthCheck {
+                    url: url.clone(),
+                    expected_status: expected_status.unwrap_or(200),
+                }
+            }
+            Spec::QueenJudgment { criteria } => {
+                CompletionCondition::QueenJudgment {
+                    criteria: criteria.clone(),
+                }
+            }
+            Spec::Custom { evaluator } => {
+                // Custom evaluator maps to QueenJudgment with evaluator as criteria
+                CompletionCondition::QueenJudgment {
+                    criteria: evaluator.clone(),
+                }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Evaluator
 // ---------------------------------------------------------------------------
@@ -259,6 +499,48 @@ pub enum Evaluator {
         auto_conditions: Vec<CompletionCondition>,
         queen_criteria: String,
     },
+}
+
+impl Evaluator {
+    /// Convert to unified EvaluatorSpec
+    pub fn to_spec(&self) -> acp_core::EvaluatorSpec {
+        use acp_core::EvaluatorSpec as Spec;
+
+        match self {
+            Evaluator::Auto => Spec::Auto,
+            Evaluator::Queen { queen_worker_id } => Spec::Queen {
+                queen_worker_id: queen_worker_id.clone(),
+            },
+            Evaluator::Adversarial { primary, adversary } => Spec::Adversarial {
+                primary: primary.clone(),
+                adversary: adversary.clone(),
+            },
+            Evaluator::Hybrid { auto_conditions, queen_criteria } => Spec::Hybrid {
+                auto_conditions: auto_conditions.iter().map(|c| c.to_spec()).collect(),
+                queen_criteria: queen_criteria.clone(),
+            },
+        }
+    }
+
+    /// Convert from unified EvaluatorSpec
+    pub fn from_spec(spec: &acp_core::EvaluatorSpec) -> Self {
+        use acp_core::EvaluatorSpec as Spec;
+
+        match spec {
+            Spec::Auto => Evaluator::Auto,
+            Spec::Queen { queen_worker_id } => Evaluator::Queen {
+                queen_worker_id: queen_worker_id.clone(),
+            },
+            Spec::Adversarial { primary, adversary } => Evaluator::Adversarial {
+                primary: primary.clone(),
+                adversary: adversary.clone(),
+            },
+            Spec::Hybrid { auto_conditions, queen_criteria } => Evaluator::Hybrid {
+                auto_conditions: auto_conditions.iter().map(|c| CompletionCondition::from_spec(c)).collect(),
+                queen_criteria: queen_criteria.clone(),
+            },
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

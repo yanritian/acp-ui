@@ -47,12 +47,15 @@ export class ACPServer {
     this.registerDefaultHandlers();
   }
 
-  // Start WebSocket server (requires Tauri plugin or sidecar)
-  // TODO(Phase 2): Implement real server startup via tauri-plugin-websocket
+  /**
+   * NOTE: Frontend does NOT start a WebSocket server.
+   * The Rust backend (src-tauri/src/lib.rs) auto-starts WebSocketServer on port 1421.
+   * Use connectToBackend() instead to connect as a client.
+   *
+   * This method is kept for API compatibility but does nothing.
+   */
   async start(_port: number = 8765): Promise<void> {
-    // Scaffold — server not yet implemented in current runtime.
-    // Callers should check isConnected before sending messages.
-    console.warn('[ACP Server] start() is a scaffold — real server not yet wired')
+    console.warn('[ACP Server] start() is deprecated — frontend should use connectToBackend() to connect to Rust backend')
   }
 
   /**

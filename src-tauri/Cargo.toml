@@ -6,18 +6,23 @@ authors = ["you"]
 edition = "2021"
 
 [workspace]
+# Only compile main crate and core dependencies by default (N-2 optimization)
+# Other crates (acp-transport, acp-cli, workflow-engine, hook-runtime, finance-engine)
+# are compiled only when explicitly targeted or when main crate depends on them.
+default-members = ["."]
+
 members = [
     # === ACP-Swarm Crates (9-crate per 总纲) ===
     "crates/acp-core",        # Core protocol definitions
-    "crates/acp-transport",   # Transport layer (stdio/websocket/http)
-    "crates/acp-cli",         # CLI inspector tool
+    "crates/acp-transport",   # Transport layer (stdio/websocket/http) — not in default
+    "crates/acp-cli",         # CLI inspector tool — not in default
     "crates/swarm-engine",    # Goal-driven orchestration engine
-    "crates/workflow-engine", # DAG executor + checkpoint manager
-    "crates/hook-runtime",    # Hook system (12 types)
+    "crates/workflow-engine", # DAG executor + checkpoint manager — not in default
+    "crates/hook-runtime",    # Hook system (12 types) — not in default
     "crates/tool-sandbox",    # Sandbox + permission check
     "crates/event-bus",       # EventBus pub/sub
     "crates/goal-parser",     # .goal.yaml parser
-    "crates/finance-engine",  # ERP Finance logic
+    "crates/finance-engine",  # ERP Finance logic — not in default
 
     # === Hermes Crates (L-3: AI Agent Framework, not in 总纲) ===
     # Hermes provides AI agent capabilities used by swarm-engine.

@@ -144,7 +144,7 @@ class Orchestrator {
 
     console.log(`Assigned ${node.id} to agent ${agent.id}`);
 
-    // Execute task — TODO(Phase 4): trigger actual agent execution
+    // Execute task
     this.executeTask(dag, node, agent);
   }
 

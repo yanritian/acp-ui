@@ -2,15 +2,16 @@
 //!
 //! Validates the full flow: Submit → Assign → Execute → Iterate → Converge
 
-use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionCondition, IterationRecord, EvaluationResult, ConditionResult};
+use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionConditionSpec, IterationRecord, EvaluationResult, ConditionResult};
 
 /// Helper to create a goal with OutputContains condition
 fn create_goal(id: &str, description: &str) -> Goal {
     Goal::new(
         id.to_string(),
         description.to_string(),
-        CompletionCondition::OutputContains {
-            text: "success".to_string(),
+        CompletionConditionSpec::OutputContains {
+            command: "".to_string(),
+            pattern: "success".to_string(),
             case_sensitive: false,
         },
     )
@@ -27,7 +28,7 @@ fn test_goal_submit_initial_status() {
     // Initial status should be Pending
     let stored = graph.get("g1").unwrap();
     assert_eq!(stored.status, GoalStatus::Pending);
-    assert!(stored.iterations.is_empty());
+    assert!(stored.iteration_log.is_empty());
     assert!(stored.started_at.is_none());
     assert!(stored.converged_at.is_none());
 }
@@ -44,7 +45,7 @@ fn test_goal_assign_worker_transitions_to_active() {
     // Should transition to Active
     let assigned = graph.get("g1").unwrap();
     assert_eq!(assigned.status, GoalStatus::Active);
-    assert_eq!(assigned.assigned_worker, Some("codex-worker-001".to_string()));
+    assert_eq!(assigned.executor, Some("codex-worker-001".to_string()));
     assert!(assigned.started_at.is_some());
 }
 
@@ -121,7 +122,7 @@ fn test_goal_iteration_flow_to_converged() {
     // Verify final state
     let final_goal = graph.get("g1").unwrap();
     assert_eq!(final_goal.status, GoalStatus::Converged);
-    assert_eq!(final_goal.iterations.len(), 3);
+    assert_eq!(final_goal.iteration_log.len(), 3);
 
     // Note: token_used is not automatically accumulated by GoalGraph.add_iteration
     // The actual reconciliation loop would handle this

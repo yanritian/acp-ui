@@ -4,15 +4,16 @@
 //! - GoalGraph: add_goal, remove_goal, ready_goals, topological_order
 //! - Goal lifecycle: submit → active → converged/failed
 
-use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator};
+use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionConditionSpec};
 
 /// Helper to create a simple goal
 fn create_goal(id: &str, description: &str) -> Goal {
     Goal::new(
         id.to_string(),
         description.to_string(),
-        CompletionCondition::OutputContains {
-            text: "done".to_string(),
+        CompletionConditionSpec::OutputContains {
+            command: "".to_string(),
+            pattern: "done".to_string(),
             case_sensitive: false,
         },
     )
@@ -41,7 +42,7 @@ fn test_goal_graph_duplicate_id() {
 fn test_goal_graph_dependency_missing() {
     let graph = GoalGraph::new();
     let mut goal = create_goal("g2", "Goal with missing dependency");
-    goal.dependencies.push("missing_dep".to_string());
+    goal.depends_on.push("missing_dep".to_string());
 
     let result = graph.submit(goal);
     assert!(result.is_err());
@@ -58,7 +59,7 @@ fn test_goal_graph_ready_goals() {
 
     // Submit child with dependency
     let mut child = create_goal("child", "Child goal");
-    child.dependencies.push("parent".to_string());
+    child.depends_on.push("parent".to_string());
     graph.submit(child).unwrap();
 
     // Only parent should be ready (no dependencies)
@@ -121,7 +122,7 @@ fn test_goal_assign_worker() {
     assert!(graph.assign_worker("g1", "worker_123".to_string()).is_ok());
 
     let assigned = graph.get("g1").unwrap();
-    assert_eq!(assigned.assigned_worker, Some("worker_123".to_string()));
+    assert_eq!(assigned.executor, Some("worker_123".to_string()));
     assert_eq!(assigned.status, GoalStatus::Active);
     assert!(assigned.started_at.is_some());
 }
@@ -133,8 +134,9 @@ fn test_goal_max_iterations() {
     // Default max iterations is 5
     assert_eq!(goal.max_iterations, 5);
 
-    // Custom max iterations
-    let goal_with_custom = goal.with_max_iterations(10);
+    // Custom max iterations via direct field assignment
+    let mut goal_with_custom = goal;
+    goal_with_custom.max_iterations = 10;
     assert_eq!(goal_with_custom.max_iterations, 10);
 }
 
@@ -142,17 +144,17 @@ fn test_goal_max_iterations() {
 fn test_goal_budget_tracking() {
     let goal = create_goal("g1", "Test goal");
 
-    // No budget by default
-    assert!(!goal.is_budget_exhausted());
+    // No budget by default (None = unlimited)
+    assert!(!goal.budget_exhausted());
 
-    // With budget
-    let goal_with_budget = goal.with_token_budget(1000);
-    assert!(!goal_with_budget.is_budget_exhausted());
+    // With budget set
+    let mut goal_with_budget = goal;
+    goal_with_budget.token_budget = Some(1000);
+    assert!(!goal_with_budget.budget_exhausted());
 
     // Simulate token usage
-    let mut used_goal = goal_with_budget;
-    used_goal.token_used = 1000;
-    assert!(used_goal.is_budget_exhausted());
+    goal_with_budget.tokens_used = 1000;
+    assert!(goal_with_budget.budget_exhausted());
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +166,7 @@ fn test_goal_status_budget_exhausted() {
     let graph = GoalGraph::new();
     let mut goal = create_goal("g1", "Expensive goal");
     goal.token_budget = Some(100);
-    goal.token_used = 100; // Already exhausted
+    goal.tokens_used = 100; // Already exhausted
 
     graph.submit(goal).unwrap();
 
@@ -173,7 +175,7 @@ fn test_goal_status_budget_exhausted() {
 
     let stored = graph.get("g1").unwrap();
     assert_eq!(stored.status, GoalStatus::BudgetExhausted);
-    assert!(stored.is_budget_exhausted());
+    assert!(stored.budget_exhausted());
 }
 
 #[test]

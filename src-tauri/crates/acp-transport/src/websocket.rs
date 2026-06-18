@@ -4,6 +4,7 @@ use crate::adapters::TransportAdapter;
 
 /// WebSocketAdapter - WebSocket连接适配器
 pub struct WebSocketAdapter {
+    #[allow(dead_code)] // Future: will be used for actual WebSocket connection
     url: String,
     connected: bool,
 }

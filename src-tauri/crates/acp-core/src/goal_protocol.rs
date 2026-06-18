@@ -161,8 +161,10 @@ impl GoalRuntime {
                 explanation: feedback.to_string(),
                 details: vec![],
             },
+            feedback: Some(feedback.to_string()),
             timestamp: current_timestamp(),
             tokens_used: tokens,
+            duration_ms: 0,
         };
         self.iteration_log.push(record);
         self.tokens_used += tokens;
@@ -458,6 +460,7 @@ pub enum EvaluatorSpec {
 
 /// Goal 执行状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case")]
 pub enum GoalStatus {
     Pending,
     Active,
@@ -491,6 +494,7 @@ impl GoalStatus {
 
 /// 迭代记录
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct IterationRecord {
     /// 迭代编号
     pub iteration: u32,
@@ -498,14 +502,21 @@ pub struct IterationRecord {
     pub worker_output: String,
     /// 评估结果
     pub evaluation: EvaluationResult,
-    /// 时间戳（UNIX 毫秒）
-    pub timestamp: u64,
+    /// 反馈信息（评估未通过时）
+    #[serde(default)]
+    pub feedback: Option<String>,
     /// 消耗的 token
     pub tokens_used: u64,
+    /// 时间戳（UNIX 毫秒）
+    pub timestamp: u64,
+    /// 本次迭代耗时（毫秒）
+    #[serde(default)]
+    pub duration_ms: u64,
 }
 
 /// 评估结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct EvaluationResult {
     /// 是否通过
     pub passed: bool,
@@ -517,6 +528,7 @@ pub struct EvaluationResult {
 
 /// 单个条件结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ConditionResult {
     /// 条件描述
     pub description: String,
@@ -778,8 +790,10 @@ content_contains: "hello-swarm"
                 explanation: "success".into(),
                 details: vec![],
             },
+            feedback: None,
             timestamp: 1000,
             tokens_used: 100,
+            duration_ms: 0,
         };
 
         let json = serde_json::to_string(&record).unwrap();

@@ -46,7 +46,6 @@ async fn main() {
             content_contains: Some("ProductionOrder".to_string()),
             max_size_bytes: None,
         },
-        "claude-worker",
     );
     goal.max_iterations = 2;
 
@@ -118,8 +117,8 @@ async fn main() {
                 println!("⚠️ Goal 收敛但部分文件缺失");
             }
         },
-        GoalOutcome::Failed(msg) => {
-            println!("❌ 执行失败: {}", msg);
+        GoalOutcome::Failed { reason, .. } => {
+            println!("执行失败: {}", reason);
         },
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("⚠️ 达到最大迭代次数 {}，但部分工作已完成", iterations);

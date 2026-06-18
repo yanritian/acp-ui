@@ -16,7 +16,7 @@ fn load_hello_swarm_yaml() -> GoalYamlFile {
 }
 
 fn convert_spec_to_goal(spec: &acp_core::GoalSpec) -> Goal {
-    Goal::from_runtime(&GoalRuntime {
+    let mut runtime = GoalRuntime {
         id: spec.id.clone(),
         description: spec.description.clone(),
         parent_task_id: None,
@@ -25,7 +25,7 @@ fn convert_spec_to_goal(spec: &acp_core::GoalSpec) -> Goal {
         evaluator: spec.evaluator.clone(),
         executor: spec.executor.clone(),
         depends_on: spec.depends_on.clone(),
-        token_budget: spec.token_budget,
+        token_budget: Some(spec.token_budget),
         tokens_used: 0,
         max_iterations: spec.max_iterations,
         current_iteration: 0,
@@ -33,9 +33,12 @@ fn convert_spec_to_goal(spec: &acp_core::GoalSpec) -> Goal {
         status: GoalStatus::Pending,
         iteration_log: vec![],
         created_at: 0,
+        started_at: None,
         converged_at: None,
         output_files: vec![],
-    })
+    };
+    runtime.executor = spec.executor.clone();
+    runtime // GoalRuntime is re-exported as Goal
 }
 
 /// Parse hello-swarm.goal.yaml and verify structure
@@ -91,7 +94,7 @@ fn test_hello_swarm_goal_conversion() {
     for spec in &parsed.goals {
         let goal = convert_spec_to_goal(spec);
         assert_eq!(goal.id, spec.id);
-        assert_eq!(goal.assigned_worker, spec.executor);
+        assert_eq!(goal.executor, spec.executor);
     }
 }
 

@@ -28,6 +28,7 @@ pub trait Topology {
 /// 所有无依赖的Goal同时启动执行，
 /// 等待所有Goal收敛后才完成。
 pub struct StarTopology {
+    #[allow(dead_code)] // Deprecated stub: executor not used in sync version
     executor: Arc<Mutex<dyn WorkerExecutor>>,
 }
 
@@ -86,6 +87,7 @@ impl StarTopologyAsync {
 /// Goal按拓扑排序顺序执行，
 /// 每个Goal必须等待其依赖Goal收敛后才能启动。
 pub struct ChainTopology {
+    #[allow(dead_code)] // Deprecated stub: executor not used in sync version
     executor: Arc<Mutex<dyn WorkerExecutor>>,
 }
 

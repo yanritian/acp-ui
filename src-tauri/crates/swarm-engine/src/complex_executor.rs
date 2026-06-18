@@ -94,6 +94,7 @@ pub struct ComplexGoalExecutor {
     task_timeout_secs: u64,
 }
 
+#[allow(dead_code)] // Some methods only used in tests or reserved for future use
 impl ComplexGoalExecutor {
     pub fn new(ai_command: impl Into<String>, working_dir: impl Into<String>) -> Self {
         let ai_cmd = ai_command.into();

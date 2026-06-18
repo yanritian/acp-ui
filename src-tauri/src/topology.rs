@@ -57,7 +57,7 @@ pub fn execute_chain(
 
     for mut goal in goals {
         if let Some(ref prev) = prev_id {
-            goal.dependencies.push(prev.clone());
+            goal.depends_on.push(prev.clone());
         }
         let id = goal.id.clone();
         prev_id = Some(id.clone());
@@ -160,9 +160,9 @@ pub fn build_star_goals(
     sub_descriptions
         .into_iter()
         .map(|(id, description, condition)| {
-            let mut goal = Goal::new(id, description, condition);
+            let mut goal = Goal::new(id, description, condition.to_spec());
             if let Some(worker_id) = worker_assignments.get(&goal.id) {
-                goal = goal.with_worker(worker_id.clone());
+                goal.executor = Some(worker_id.clone());
             }
             goal
         })
@@ -179,17 +179,17 @@ pub fn build_chain_goals(
     let mut goals: Vec<Goal> = Vec::new();
 
     for (i, (id, description, condition)) in steps.into_iter().enumerate() {
-        let mut goal = Goal::new(id.clone(), description, condition);
+        let mut goal = Goal::new(id.clone(), description, condition.to_spec());
 
         // Add dependency on previous step
         if i > 0 {
             if let Some(prev) = goals.last() {
-                goal = goal.with_dependency(prev.id.clone());
+                goal.depends_on.push(prev.id.clone());
             }
         }
 
         if let Some(worker_id) = worker_assignments.get(&id) {
-            goal = goal.with_worker(worker_id.clone());
+            goal.executor = Some(worker_id.clone());
         }
 
         goals.push(goal);
@@ -217,7 +217,7 @@ pub fn execute_pipeline(
         for mut goal in stage_goals {
             // Each goal in this stage depends on ALL goals from the previous stage
             for prev_id in &prev_stage_ids {
-                goal.dependencies.push(prev_id.clone());
+                goal.depends_on.push(prev_id.clone());
             }
             current_stage_ids.push(goal.id.clone());
             if let Err(e) = graph.add_goal(goal) {

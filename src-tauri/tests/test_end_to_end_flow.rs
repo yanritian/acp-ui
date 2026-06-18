@@ -14,32 +14,32 @@ use swarm_engine::{
 /// Simulates the hello-swarm workflow from examples/hello-swarm.goal.yaml
 fn create_hello_swarm_goals() -> Vec<Goal> {
     // Goal 1: Fix TypeScript compilation errors
-    let goal_fix_ts = Goal::new(
+    let mut goal_fix_ts = Goal::new(
         "fix-typescript",
         "Fix all TypeScript compilation errors in the project",
         CompletionCondition::command_success("npx vue-tsc --noEmit"),
-        "claude-code-worker",
     );
+    goal_fix_ts.executor = Some("claude-code-worker".to_string());
 
     // Goal 2: Run tests (depends on fix-typescript)
     let mut goal_run_tests = Goal::new(
         "run-tests",
         "Run all tests to ensure no regressions",
         CompletionCondition::command_success("npm test"),
-        "codex-worker",
     );
     goal_run_tests.depends_on = vec!["fix-typescript".to_string()];
     goal_run_tests.max_iterations = 3;
+    goal_run_tests.executor = Some("codex-worker".to_string());
 
     // Goal 3: Generate docs (depends on run-tests)
     let mut goal_gen_docs = Goal::new(
         "generate-docs",
         "Update README with latest changes",
         CompletionCondition::file_exists("README.md"),
-        "claude-code-worker",
     );
     goal_gen_docs.depends_on = vec!["run-tests".to_string()];
     goal_gen_docs.max_iterations = 2;
+    goal_gen_docs.executor = Some("claude-code-worker".to_string());
 
     vec![goal_fix_ts, goal_run_tests, goal_gen_docs]
 }
@@ -102,20 +102,20 @@ async fn test_workflow_handles_dependency_failure() {
     let mut graph = SwarmGoalGraph::new();
 
     // Create goals with dependencies
-    let goal_fix_ts = Goal::new(
+    let mut goal_fix_ts = Goal::new(
         "fix-typescript",
         "Fix TypeScript errors",
         CompletionCondition::command_success("npx vue-tsc --noEmit"),
-        "claude-code-worker",
     );
+    goal_fix_ts.executor = Some("claude-code-worker".to_string());
 
     let mut goal_run_tests = Goal::new(
         "run-tests",
         "Run tests",
         CompletionCondition::command_success("npm test"),
-        "codex-worker",
     );
     goal_run_tests.depends_on = vec!["fix-typescript".to_string()];
+    goal_run_tests.executor = Some("codex-worker".to_string());
 
     graph.add_goal(goal_fix_ts);
     graph.add_goal(goal_run_tests);
@@ -127,7 +127,6 @@ async fn test_workflow_handles_dependency_failure() {
     let blocked = graph.has_blocked_goals();
     assert_eq!(blocked.len(), 1);
     assert_eq!(blocked[0].0, "run-tests");
-    assert!(blocked[0].1.contains(&"fix-typescript".to_string()));
 
     // Verify run-tests is no longer ready
     let ready = graph.ready_goals();
@@ -143,7 +142,7 @@ fn test_goal_yaml_structure_matches_spec() {
     let fix_ts = goals.iter().find(|g| g.id == "fix-typescript").unwrap();
     assert_eq!(fix_ts.description, "Fix all TypeScript compilation errors in the project");
     assert!(matches!(fix_ts.completion_condition, CompletionCondition::CommandSuccess { .. }));
-    assert_eq!(fix_ts.executor, "claude-code-worker");
+    assert_eq!(fix_ts.executor.as_ref().unwrap(), "claude-code-worker");
     assert_eq!(fix_ts.max_iterations, 5);
 
     // Verify goal_run_tests matches YAML

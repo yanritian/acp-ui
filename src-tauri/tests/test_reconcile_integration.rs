@@ -14,7 +14,6 @@ fn make_goal(id: &str, depends_on: Vec<String>) -> Goal {
         id,
         "Test goal",
         CompletionCondition::command_success("echo"),
-        "test-worker",
     );
     goal.depends_on = depends_on;
     goal
@@ -59,7 +58,7 @@ async fn test_reconcile_graph_dag_order() {
 async fn test_reconcile_budget_exhausted() {
     let reconciler = ReconcileLoop::with_echo(true);
     let mut goal = make_goal("limited-goal", vec![]);
-    goal.token_budget = 0; // Zero budget forces immediate exhaustion
+    goal.token_budget = Some(0); // Zero budget forces immediate exhaustion
 
     let outcome = reconciler.reconcile_goal(&mut goal).await;
 

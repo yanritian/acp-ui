@@ -37,7 +37,7 @@ impl GoalGraph {
     /// Returns an error if a dependency references a non-existent goal.
     pub fn add_goal(&mut self, goal: Goal) -> Result<(), String> {
         let id = goal.id.clone();
-        let deps = goal.dependencies.clone();
+        let deps = goal.depends_on.clone();
 
         // Validate dependencies exist (warn on forward references)
         for dep in &deps {
@@ -243,7 +243,7 @@ impl GoalGraph {
                 GoalStatus::Pending => summary.pending += 1,
                 GoalStatus::Failed { .. } => summary.failed += 1,
                 GoalStatus::Iterating { .. } => summary.iterating += 1,
-                GoalStatus::BudgetExhausted | GoalStatus::Cancelled => summary.blocked += 1,
+                GoalStatus::BudgetExhausted | GoalStatus::Cancelled | GoalStatus::MaxIterReached => summary.blocked += 1,
             }
         }
 

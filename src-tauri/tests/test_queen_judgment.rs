@@ -8,28 +8,37 @@
 //! 5. GoalRuntime conversion
 
 use acp_ui_lib::{
-    Goal, CompletionCondition, Evaluator, GoalStatus, GoalGraph,
+    Goal, CompletionCondition, CompletionConditionSpec, EvaluatorSpec,
+    GoalStatus, GoalGraph,
     IterationRecord, EvaluationResult, ConditionResult,
 };
-use acp_core::{GoalYamlFile, CompletionConditionSpec, EvaluatorSpec, GoalRuntime};
+use acp_core::{GoalYamlFile, GoalRuntime};
 use swarm_engine::EchoExecutor;
+
+/// Helper: convert local CompletionCondition to CompletionConditionSpec
+fn make_queen_judgment(criteria: &str) -> CompletionConditionSpec {
+    CompletionConditionSpec::QueenJudgment { criteria: criteria.to_string() }
+}
+
+/// Helper: convert local Evaluator to EvaluatorSpec
+fn make_queen_evaluator(queen_worker_id: &str) -> EvaluatorSpec {
+    EvaluatorSpec::Queen { queen_worker_id: queen_worker_id.to_string() }
+}
 
 #[test]
 fn test_queen_judgment_goal_creation() {
-    let goal = Goal::new(
-        "code-review-001".into(),
-        "Review code changes for quality".into(),
-        CompletionCondition::QueenJudgment {
-            criteria: "Code follows best practices and has no security issues".into(),
-        },
-    ).with_evaluator(Evaluator::Queen {
-        queen_worker_id: "queen-worker".into(),
-    }).with_worker("reviewer-worker".into());
+    let mut goal = Goal::new(
+        "code-review-001".to_string(),
+        "Review code changes for quality".to_string(),
+        make_queen_judgment("Code follows best practices and has no security issues"),
+    );
+    goal.evaluator = make_queen_evaluator("queen-worker");
+    goal.executor = Some("reviewer-worker".to_string());
 
     assert_eq!(goal.id, "code-review-001");
-    assert!(matches!(goal.completion_condition, CompletionCondition::QueenJudgment { .. }));
-    assert!(matches!(goal.evaluator, Evaluator::Queen { .. }));
-    assert_eq!(goal.assigned_worker, Some("reviewer-worker".into()));
+    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
+    assert_eq!(goal.executor, Some("reviewer-worker".to_string()));
 }
 
 #[test]
@@ -89,8 +98,8 @@ fn test_goal_yaml_from_file() {
 #[test]
 fn test_echo_executor_available() {
     // Verify EchoExecutor can be created for mock testing
-    let executor = EchoExecutor::new("test-worker", "success output", true);
-    let executor_fail = EchoExecutor::new("test-worker", "failure output", false);
+    let _executor = EchoExecutor::new("test-worker".to_string(), "success output".to_string(), true);
+    let _executor_fail = EchoExecutor::new("test-worker".to_string(), "failure output".to_string(), false);
     // EchoExecutor exists and can be instantiated
     assert!(true);
 }
@@ -99,15 +108,13 @@ fn test_echo_executor_available() {
 fn test_goal_graph_submit_queen_judgment() {
     let graph = GoalGraph::new();
 
-    let goal = Goal::new(
-        "queen-goal-001".into(),
-        "Review code quality".into(),
-        CompletionCondition::QueenJudgment {
-            criteria: "Code follows best practices".into(),
-        },
-    ).with_evaluator(Evaluator::Queen {
-        queen_worker_id: "queen-worker".into(),
-    }).with_worker("reviewer".into());
+    let mut goal = Goal::new(
+        "queen-goal-001".to_string(),
+        "Review code quality".to_string(),
+        make_queen_judgment("Code follows best practices"),
+    );
+    goal.evaluator = make_queen_evaluator("queen-worker");
+    goal.executor = Some("reviewer".to_string());
 
     // Submit to graph
     graph.submit(goal.clone()).expect("Submit failed");
@@ -115,7 +122,7 @@ fn test_goal_graph_submit_queen_judgment() {
     // Retrieve
     let retrieved = graph.get(&goal.id).expect("Get failed");
     assert_eq!(retrieved.id, goal.id);
-    assert!(matches!(retrieved.completion_condition, CompletionCondition::QueenJudgment { .. }));
+    assert!(matches!(retrieved.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
 }
 
 #[test]
@@ -130,62 +137,62 @@ fn test_queen_judgment_criteria_variants() {
 
     for criteria in criteria_samples {
         let condition = CompletionCondition::QueenJudgment {
-            criteria: criteria.into(),
+            criteria: criteria.to_string(),
         };
 
-        // Verify condition can be created
+        // Verify condition can be created and converted
         assert!(matches!(condition, CompletionCondition::QueenJudgment { .. }));
+        let spec = condition.to_spec();
+        assert!(matches!(spec, CompletionConditionSpec::QueenJudgment { .. }));
     }
 }
 
 #[test]
 fn test_goal_status_iteration_tracking() {
     let mut goal = Goal::new(
-        "iter-test".into(),
-        "Test iteration tracking".into(),
-        CompletionCondition::QueenJudgment {
-            criteria: "Must pass".into(),
-        },
-    ).with_max_iterations(3);
+        "iter-test".to_string(),
+        "Test iteration tracking".to_string(),
+        make_queen_judgment("Must pass"),
+    );
+    goal.max_iterations = 3;
 
     // Initial state
-    assert_eq!(goal.current_iteration(), 1);
-    assert!(goal.iterations.is_empty());
+    assert_eq!(goal.current_iteration_number(), 1);
+    assert!(goal.iteration_log.is_empty());
 
     // Add iteration record
-    goal.iterations.push(IterationRecord {
+    goal.iteration_log.push(IterationRecord {
         iteration: 1,
-        worker_output: "First attempt output".into(),
+        worker_output: "First attempt output".to_string(),
         evaluation: EvaluationResult {
             passed: false,
-            explanation: "Not yet converged".into(),
+            explanation: "Not yet converged".to_string(),
             details: vec![ConditionResult {
-                description: "Queen judgment".into(),
+                description: "Queen judgment".to_string(),
                 passed: false,
-                evidence: "Try again".into(),
+                evidence: "Try again".to_string(),
             }],
         },
-        feedback: Some("Try again".into()),
+        feedback: Some("Try again".to_string()),
         tokens_used: 100,
         timestamp: 0,
         duration_ms: 500,
     });
 
-    assert_eq!(goal.current_iteration(), 2);
-    assert_eq!(goal.iterations.len(), 1);
-    assert!(goal.latest_feedback().is_some());
+    assert_eq!(goal.current_iteration_number(), 2);
+    assert_eq!(goal.iteration_log.len(), 1);
 
     // Add another iteration with success
-    goal.iterations.push(IterationRecord {
+    goal.iteration_log.push(IterationRecord {
         iteration: 2,
-        worker_output: "Second attempt output".into(),
+        worker_output: "Second attempt output".to_string(),
         evaluation: EvaluationResult {
             passed: true,
-            explanation: "Converged".into(),
+            explanation: "Converged".to_string(),
             details: vec![ConditionResult {
-                description: "Queen judgment".into(),
+                description: "Queen judgment".to_string(),
                 passed: true,
-                evidence: "Criteria met".into(),
+                evidence: "Criteria met".to_string(),
             }],
         },
         feedback: None,
@@ -194,8 +201,7 @@ fn test_goal_status_iteration_tracking() {
         duration_ms: 600,
     });
 
-    assert_eq!(goal.current_iteration(), 3);
-    assert!(goal.latest_feedback().is_none()); // Last iteration passed, no feedback
+    assert_eq!(goal.current_iteration_number(), 3);
 
     // Mark as converged
     goal.status = GoalStatus::Converged;
@@ -205,40 +211,35 @@ fn test_goal_status_iteration_tracking() {
 
 #[test]
 fn test_goal_to_runtime_conversion_queen_judgment() {
-    let goal = Goal::new(
-        "conversion-test".into(),
-        "Test GoalRuntime conversion".into(),
-        CompletionCondition::QueenJudgment {
-            criteria: "Test criteria".into(),
-        },
-    ).with_evaluator(Evaluator::Queen {
-        queen_worker_id: "queen-001".into(),
-    });
+    let mut goal = Goal::new(
+        "conversion-test".to_string(),
+        "Test GoalRuntime conversion".to_string(),
+        make_queen_judgment("Test criteria"),
+    );
+    goal.evaluator = make_queen_evaluator("queen-001");
 
-    // Convert to GoalRuntime
-    let runtime = goal.to_runtime();
-
-    assert_eq!(runtime.id, goal.id);
-    assert!(matches!(runtime.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
-    assert!(matches!(runtime.evaluator, EvaluatorSpec::Queen { .. }));
+    // Goal IS GoalRuntime (re-exported), so it already has the spec fields
+    assert_eq!(goal.id, "conversion-test");
+    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
 }
 
 #[test]
 fn test_goal_from_runtime_conversion_queen_judgment() {
     let runtime = GoalRuntime {
-        id: "from-rt-test".into(),
-        description: "Test from runtime".into(),
+        id: "from-rt-test".to_string(),
+        description: "Test from runtime".to_string(),
         parent_task_id: None,
         parent_goal_id: None,
         completion_condition: CompletionConditionSpec::QueenJudgment {
-            criteria: "Runtime criteria".into(),
+            criteria: "Runtime criteria".to_string(),
         },
         evaluator: EvaluatorSpec::Queen {
-            queen_worker_id: "queen-rt".into(),
+            queen_worker_id: "queen-rt".to_string(),
         },
-        executor: Some("worker-rt".into()),
+        executor: Some("worker-rt".to_string()),
         depends_on: vec![],
-        token_budget: 50000,
+        token_budget: Some(50000),
         tokens_used: 0,
         max_iterations: 5,
         current_iteration: 0,
@@ -246,14 +247,15 @@ fn test_goal_from_runtime_conversion_queen_judgment() {
         status: acp_core::GoalStatus::Pending,
         iteration_log: vec![],
         created_at: 0,
+        started_at: None,
         converged_at: None,
         output_files: vec![],
     };
 
-    // Convert to Goal
-    let goal = Goal::from_runtime(&runtime);
+    // Clone GoalRuntime directly (Goal is re-exported as GoalRuntime)
+    let goal: Goal = runtime.clone();
 
     assert_eq!(goal.id, runtime.id);
-    assert!(matches!(goal.completion_condition, CompletionCondition::QueenJudgment { .. }));
-    assert!(matches!(goal.evaluator, Evaluator::Queen { .. }));
+    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
 }

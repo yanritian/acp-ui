@@ -30,7 +30,6 @@ async fn main() {
             content_contains: Some("ProductionOrder".to_string()),
             max_size_bytes: None,
         },
-        "claude-worker",
     );
     goal.max_iterations = 1;
 

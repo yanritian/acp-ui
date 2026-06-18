@@ -174,7 +174,6 @@ async fn test_full_requirement_workflow() {
             content_contains: Some("workflow success".to_string()),
             max_size_bytes: None,
         },
-        "test-worker",
     );
     goal.max_iterations = 3;
 

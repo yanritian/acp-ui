@@ -30,7 +30,7 @@ fn test_goal_submit_to_converge_chain() {
         CompletionCondition::OutputContains {
             text: "Build successful".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
 
     // Simulate goal_submit Tauri command
@@ -52,7 +52,7 @@ fn test_goal_submit_to_converge_chain() {
 
     let assigned = graph.get("user-task-001").unwrap();
     assert_eq!(assigned.status, GoalStatus::Active);
-    assert_eq!(assigned.assigned_worker, Some("claude-code-worker".to_string()));
+    assert_eq!(assigned.executor, Some("claude-code-worker".to_string()));
     assert!(assigned.started_at.is_some());
 
     // === Step 5: Worker executes (iteration 1) ===
@@ -77,7 +77,7 @@ fn test_goal_submit_to_converge_chain() {
 
     // === Step 6: User checks iteration count ===
     let goal_with_iteration = graph.get("user-task-001").unwrap();
-    assert_eq!(goal_with_iteration.iterations.len(), 1);
+    assert_eq!(goal_with_iteration.iteration_log.len(), 1);
 
     // === Step 7: Worker executes (iteration 2 - success) ===
     let iteration2 = IterationRecord {
@@ -106,7 +106,7 @@ fn test_goal_submit_to_converge_chain() {
     let final_goal = graph.get("user-task-001").unwrap();
     assert_eq!(final_goal.status, GoalStatus::Converged);
     // Note: converged_at is not automatically set by update_status, only by the goal itself
-    assert_eq!(final_goal.iterations.len(), 2);
+    assert_eq!(final_goal.iteration_log.len(), 2);
 
     // === Step 10: User views summary ===
     let summary = graph.summary();
@@ -127,7 +127,7 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Tests written".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
     graph.submit(goal_a).unwrap();
 
@@ -137,9 +137,9 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Tests pass".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
-    goal_b.dependencies.push("goal-a".to_string());
+    goal_b.depends_on.push("goal-a".to_string());
     graph.submit(goal_b).unwrap();
 
     let mut goal_c = Goal::new(
@@ -148,9 +148,9 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Coverage report generated".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
-    goal_c.dependencies.push("goal-b".to_string());
+    goal_c.depends_on.push("goal-b".to_string());
     graph.submit(goal_c).unwrap();
 
     // === Chain: Only A is ready initially ===
@@ -331,7 +331,7 @@ fn test_goal_cancel_chain() {
         CompletionCondition::OutputContains {
             text: "done".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
     graph.submit(goal).unwrap();
 

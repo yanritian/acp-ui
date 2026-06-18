@@ -49,12 +49,12 @@ impl ReconcileLoop {
     /// and decide whether to call again.
     pub fn reconcile_once(&self, goal: &mut Goal) -> GoalStatus {
         // 1. Pre-checks
-        if goal.is_budget_exhausted() {
+        if goal.budget_exhausted() {
             goal.status = GoalStatus::BudgetExhausted;
             return GoalStatus::BudgetExhausted;
         }
 
-        if goal.is_max_iterations_reached() {
+        if goal.max_iter_reached() {
             goal.status = GoalStatus::Failed {
                 reason: format!(
                     "Max iterations ({}) exceeded without convergence",
@@ -64,7 +64,7 @@ impl ReconcileLoop {
             return goal.status.clone();
         }
 
-        let worker_id = match &goal.assigned_worker {
+        let worker_id = match &goal.executor {
             Some(id) => id.clone(),
             None => {
                 goal.status = GoalStatus::Failed {
@@ -84,7 +84,7 @@ impl ReconcileLoop {
         }
 
         // 4. Dispatch to worker
-        let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration());
+        let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration);
         let task = TaskDescription::new(task_id.clone(), prompt);
 
         let _handle = {
@@ -186,7 +186,8 @@ impl ReconcileLoop {
         goal.status = GoalStatus::Evaluating;
 
         // For QueenJudgment, send output to Queen worker for evaluation
-        let eval_result = match &goal.completion_condition {
+        let local_cc = CompletionCondition::from_spec(&goal.completion_condition);
+        let eval_result = match &local_cc {
             CompletionCondition::QueenJudgment { criteria } => {
                 self.eval_queen_judgment(&output, criteria, &worker_id)
             }
@@ -195,7 +196,7 @@ impl ReconcileLoop {
 
         // 7. Record iteration
         let iteration = IterationRecord {
-            iteration: goal.current_iteration(),
+            iteration: goal.current_iteration,
             worker_output: output.clone(),
             evaluation: eval_result.clone(),
             feedback: if eval_result.passed {
@@ -208,7 +209,7 @@ impl ReconcileLoop {
             duration_ms: crate::swarm_adapters::now_ms() - start,
         };
 
-        goal.iterations.push(iteration);
+        goal.iteration_log.push(iteration);
 
         // 8. Update status based on evaluation
         if eval_result.passed {
@@ -251,11 +252,11 @@ impl ReconcileLoop {
         // Add completion condition description
         prompt.push_str(&format!(
             "Success criteria: {}\n\n",
-            describe_condition(&goal.completion_condition)
+            describe_condition(&CompletionCondition::from_spec(&goal.completion_condition))
         ));
 
         // Add feedback from previous iteration
-        if let Some(feedback) = goal.latest_feedback() {
+        if let Some(feedback) = goal.iteration_log.last().and_then(|i| i.feedback.as_deref()) {
             prompt.push_str("--- Previous Attempt Feedback ---\n");
             prompt.push_str(feedback);
             prompt.push_str("\n\nPlease address the above issues and try again.\n");
@@ -264,9 +265,9 @@ impl ReconcileLoop {
         // Add iteration context
         prompt.push_str(&format!(
             "\nAttempt {}/{} (tokens used: {})\n",
-            goal.current_iteration(),
+            goal.current_iteration,
             goal.max_iterations,
-            goal.token_used,
+            goal.tokens_used,
         ));
 
         prompt
@@ -504,12 +505,12 @@ impl ReconcileLoop {
     /// blocking the executor. This is the preferred version for Tauri commands.
     pub async fn reconcile_once_async(&self, goal: &mut Goal) -> GoalStatus {
         // 1. Pre-checks
-        if goal.is_budget_exhausted() {
+        if goal.budget_exhausted() {
             goal.status = GoalStatus::BudgetExhausted;
             return GoalStatus::BudgetExhausted;
         }
 
-        if goal.is_max_iterations_reached() {
+        if goal.max_iter_reached() {
             goal.status = GoalStatus::Failed {
                 reason: format!(
                     "Max iterations ({}) exceeded without convergence",
@@ -519,7 +520,7 @@ impl ReconcileLoop {
             return goal.status.clone();
         }
 
-        let worker_id = match &goal.assigned_worker {
+        let worker_id = match &goal.executor {
             Some(id) => id.clone(),
             None => {
                 goal.status = GoalStatus::Failed {
@@ -539,7 +540,7 @@ impl ReconcileLoop {
         }
 
         // 4. Dispatch to worker
-        let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration());
+        let task_id = format!("goal-{}-iter-{}", goal.id, goal.current_iteration);
         let task = TaskDescription::new(task_id.clone(), prompt);
 
         let _handle = {
@@ -635,7 +636,7 @@ impl ReconcileLoop {
         // 6. Evaluate the result
         goal.status = GoalStatus::Evaluating;
 
-        let eval_result = match &goal.completion_condition {
+        let eval_result = match &CompletionCondition::from_spec(&goal.completion_condition) {
             CompletionCondition::QueenJudgment { criteria } => {
                 self.eval_queen_judgment(&output, criteria, &worker_id)
             }
@@ -644,7 +645,7 @@ impl ReconcileLoop {
 
         // 7. Record iteration
         let iteration = IterationRecord {
-            iteration: goal.current_iteration(),
+            iteration: goal.current_iteration,
             worker_output: output.clone(),
             evaluation: eval_result.clone(),
             feedback: if eval_result.passed {
@@ -657,7 +658,7 @@ impl ReconcileLoop {
             duration_ms: crate::swarm_adapters::now_ms() - start,
         };
 
-        goal.iterations.push(iteration);
+        goal.iteration_log.push(iteration);
 
         // 8. Update status
         if eval_result.passed {

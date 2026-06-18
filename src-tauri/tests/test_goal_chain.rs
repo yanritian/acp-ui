@@ -11,9 +11,9 @@ fn create_goal_with_dep(id: &str, description: &str, deps: Vec<String>) -> Goal 
         CompletionCondition::OutputContains {
             text: "done".to_string(),
             case_sensitive: false,
-        },
+        }.to_spec(),
     );
-    goal.dependencies = deps;
+    goal.depends_on = deps;
     goal
 }
 

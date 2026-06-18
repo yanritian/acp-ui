@@ -36,7 +36,6 @@ async fn main() {
             args: vec!["test".to_string(), "--package".to_string(), "swarm-engine".to_string()],
             cwd: Some("D:/dingsun/acp-ui/src-tauri".to_string()),
         },
-        "claude-worker",
     );
     goal.max_iterations = 3;
 
@@ -78,8 +77,8 @@ async fn main() {
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("⚠️ 达到最大迭代 {}，需要更多迭代", iterations);
         },
-        GoalOutcome::Failed(msg) => {
-            println!("❌ 执行失败: {}", msg);
+        GoalOutcome::Failed { reason, .. } => {
+            println!("执行失败: {}", reason);
         },
         _ => println!("结果: {:?}", outcome),
     }

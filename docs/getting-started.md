@@ -97,5 +97,7 @@ Worker 是实际执行 Goal 的 Agent：
 ## 下一步
 
 - [Worker 接入指南](./guides/build-a-worker.md)
+- [Goal 编写指南](./guides/write-goals.md)
+- [Goal 模板库](./guides/goal-templates.md)
 - [协议规范](./protocols/)
-- [RFC-001: Goal驱动架构](../rfcs/RFC-001-Goal驱动架构.md)
+- [RFC-001: Goal驱动架构](./rfcs/001-goal-driven-orchestration.md)

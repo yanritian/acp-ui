@@ -28,6 +28,7 @@
 pub mod publisher;
 pub mod subscriber;
 pub mod topics;
+pub mod websocket_adapter;
 
 use acp_core::AcpEvent;
 use parking_lot::Mutex;
@@ -37,6 +38,7 @@ use std::sync::Arc;
 pub use publisher::{EventPublisher, PublishError};
 pub use subscriber::{Subscriber, SubscriberHandle, SubscriberError};
 pub use topics::{EventTopic, TopicMatcher};
+pub use websocket_adapter::{EventPusher, NullPusher, create_push_subscriber};
 
 /// Event bus for publish/subscribe operations
 pub struct EventBus {

@@ -547,6 +547,7 @@ pub struct GoalGraphSummary {
     pub iterating: u32,
     pub failed: u32,
     pub budget_exhausted: u32,
+    pub max_iter_reached: u32,
     pub cancelled: u32,
 }
 

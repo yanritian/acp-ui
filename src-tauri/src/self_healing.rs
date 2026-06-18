@@ -458,23 +458,16 @@ impl HealingExecutor {
 
     /// Find an anomaly by ID.
     ///
-    /// TODO(Phase 4): Query from persistent storage instead of returning synthetic data.
+    /// Note: This is a placeholder implementation. Real anomaly detection
+    /// should query from persistent storage or EWMA metrics.
     fn find_anomaly_by_id(&self, anomaly_id: &str) -> Result<AnomalyRecord, String> {
-        // TODO(Phase 4): Replace with real database lookup.
-        // Currently returns a default record for compilation completeness.
-        Ok(AnomalyRecord {
-            id: anomaly_id.to_string(),
-            anomaly_type: AnomalyType::HighErrorRate, // Default type
-            severity: AnomalySeverity::Medium,
-            target: "unknown".to_string(),
-            target_type: "system".to_string(),
-            health_score: 50.0,
-            baseline_value: 100.0,
-            current_value: 150.0,
-            deviation: 50.0,
-            detected_at: Utc::now(),
-            resolved_at: None,
-        })
+        // TODO(Phase 4): Implement real anomaly lookup.
+        // AnomalyDetector currently only tracks baselines, not anomaly records.
+        // Real implementation should store anomalies in database and query by ID.
+        Err(format!(
+            "Anomaly lookup not implemented (id: '{}'). Self-healing anomaly detection stores baselines only, not individual anomaly records. See TODO(Phase 4) in self_healing.rs.",
+            anomaly_id
+        ))
     }
 
     /// Get all active (pending or executing) actions

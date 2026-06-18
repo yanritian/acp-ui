@@ -71,6 +71,8 @@ mod commands;         // Refactored command handlers organized by domain
 
 // ---- Public exports for integration tests ----
 pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary, ConditionResult};
+pub use reconcile::ReconcileLoop;
+pub use topology::{Topology, execute_star, execute_chain, execute_pipeline};
 pub use swarm_orchestrator::{
     SwarmOrchestrator, SwarmAgent, SwarmTask, SwarmTaskStatus,
     AgentRole, AgentSwarmStatus, AgentResult,

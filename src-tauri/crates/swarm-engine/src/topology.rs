@@ -1,13 +1,15 @@
 //! Topology - Swarm执行拓扑
 //!
-//! 提供两种核心拓扑模式：
-//! - Star: 并行扇出，所有Sub-Goal并行执行
-//! - Chain: 依赖链，按顺序逐个执行
+//! **DEPRECATED (C-1 Fix)**: This entire file is deprecated.
+//! Use `src-tauri/src/topology.rs` instead, which has the authoritative implementation:
+//! - `execute_star()` - real parallel execution
+//! - `execute_chain()` - real sequential execution
+//! - `execute_pipeline()` - real batch execution
 //!
-//! **IMPORTANT (H-3 Fix)**: The sync versions (StarTopology::execute, ChainTopology::execute)
-//! are stubs that return fake Converged outcomes. Use the Async versions instead:
-//! - StarTopologyAsync::execute_all() - real reconcile_goal() calls
-//! - ChainTopologyAsync::execute_chain() - real reconcile_graph() calls
+//! The sync versions in this file are stubs. The async versions use different
+//! Goal types that don't match the main application's Goal/GoalGraph.
+//!
+//! **Migration**: Replace imports from `swarm_engine::topology` with `acp_ui_lib::topology`.
 
 use crate::goal::{Goal, GoalStatus, GoalOutcome};
 use crate::goal_graph::GoalGraph;

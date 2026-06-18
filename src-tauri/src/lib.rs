@@ -138,6 +138,8 @@ pub struct AppState {
     pub swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>>,
     // Goal-Driven Architecture (RFC-001)
     pub goal_graph: Arc<Mutex<goal::GoalGraph>>,
+    // Reconcile Loop for Goal execution
+    pub reconcile_loop: Arc<Mutex<reconcile::ReconcileLoop>>,
 }
 
 impl AppState {
@@ -145,6 +147,9 @@ impl AppState {
         // Create anomaly_detector Arc first so we can share it with HealingExecutor
         let anomaly_detector = Arc::new(Mutex::new(self_healing::AnomalyDetector::new()));
         let healing_executor = Arc::new(Mutex::new(self_healing::HealingExecutor::new(anomaly_detector.clone())));
+        // Create swarm_workers Arc first so we can share it with ReconcileLoop
+        let swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
 
         Self {
             config_manager: Arc::new(RwLock::new(None)),
@@ -186,9 +191,11 @@ impl AppState {
             // Approval Engine
             approval_engine: Arc::new(Mutex::new(approval_engine::ApprovalEngine::new())),
             // Swarm Worker Registry (Day 1)
-            swarm_workers: Arc::new(Mutex::new(HashMap::new())),
+            swarm_workers: swarm_workers.clone(),
             // Goal-Driven Architecture (RFC-001)
             goal_graph: Arc::new(Mutex::new(goal::GoalGraph::new())),
+            // Reconcile Loop (initialized with swarm_workers)
+            reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(swarm_workers))),
         }
     }
 }
@@ -484,6 +491,8 @@ pub fn run() {
             goal::goal_get_ready,
             goal::goal_assign_worker,
             goal::goal_add_iteration,
+            goal::goal_execute_once,
+            goal::goal_execute_ready,
             // Workflow Engine commands
             workflow_engine::workflow_create,
             workflow_engine::workflow_validate,

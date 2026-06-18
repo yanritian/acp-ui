@@ -306,6 +306,24 @@ impl std::fmt::Display for GoalStatus {
     }
 }
 
+impl GoalStatus {
+    /// Check if this is a terminal state (no further changes)
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            GoalStatus::Converged
+                | GoalStatus::Failed { .. }
+                | GoalStatus::BudgetExhausted
+                | GoalStatus::Cancelled
+        )
+    }
+
+    /// Check if this is a successful terminal state
+    pub fn is_success(&self) -> bool {
+        matches!(self, GoalStatus::Converged)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // IterationRecord
 // ---------------------------------------------------------------------------
@@ -498,6 +516,46 @@ impl GoalGraph {
         goal.started_at = Some(now_ms());
         Ok(())
     }
+
+    /// Execute one reconcile iteration for a goal
+    pub fn execute_once(&self, id: &str, reconcile: &crate::reconcile::ReconcileLoop) -> Result<GoalStatus, String> {
+        let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
+
+        let goal = goals
+            .get_mut(id)
+            .ok_or_else(|| format!("Goal '{}' not found", id))?;
+
+        // Check if already terminal
+        if goal.status.is_terminal() {
+            return Ok(goal.status.clone());
+        }
+
+        // Execute reconcile iteration
+        reconcile.reconcile_once(goal);
+
+        Ok(goal.status.clone())
+    }
+
+    /// Get IDs of goals ready to execute (pending, all dependencies converged)
+    pub fn get_ready_ids(&self) -> Vec<String> {
+        let goals = match self.goals.lock() {
+            Ok(g) => g,
+            Err(_) => return Vec::new(),
+        };
+
+        let converged_ids: Vec<&str> = goals
+            .values()
+            .filter(|g| g.status.is_success())
+            .map(|g| g.id.as_str())
+            .collect();
+
+        goals
+            .values()
+            .filter(|g| g.status == GoalStatus::Pending)
+            .filter(|g| g.dependencies.iter().all(|dep| converged_ids.contains(&dep.as_str())))
+            .map(|g| g.id.clone())
+            .collect()
+    }
 }
 
 impl Default for GoalGraph {
@@ -601,4 +659,48 @@ pub fn goal_add_iteration(
 ) -> Result<(), String> {
     state.goal_graph.lock().map_err(|e| e.to_string())?
         .add_iteration(&id, record)
+}
+
+/// Execute a single iteration for a goal.
+///
+/// This triggers ReconcileLoop.reconcile_once() for the goal.
+/// The goal must have an assigned worker.
+/// Returns the updated GoalStatus after this iteration.
+#[tauri::command]
+pub fn goal_execute_once(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<GoalStatus, String> {
+    // Get reconcile loop from state
+    let reconcile = state.reconcile_loop.lock().map_err(|e| e.to_string())?;
+
+    // Get goal graph
+    let graph = state.goal_graph.lock().map_err(|e| e.to_string())?;
+
+    // Execute via GoalGraph method
+    graph.execute_once(&id, &reconcile)
+}
+
+/// Execute all ready goals in the graph.
+///
+/// Iterates through all pending goals with no pending dependencies,
+/// executes one iteration for each, and returns the statuses.
+#[tauri::command]
+pub fn goal_execute_ready(
+    state: State<'_, AppState>,
+) -> Result<Vec<(String, GoalStatus)>, String> {
+    let reconcile = state.reconcile_loop.lock().map_err(|e| e.to_string())?;
+    let graph = state.goal_graph.lock().map_err(|e| e.to_string())?;
+
+    // Get ready goal IDs
+    let ready_ids = graph.get_ready_ids();
+
+    let mut results = Vec::new();
+
+    for id in ready_ids {
+        let status = graph.execute_once(&id, &reconcile)?;
+        results.push((id, status));
+    }
+
+    Ok(results)
 }

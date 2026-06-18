@@ -94,6 +94,7 @@ hermes-memory = { path = "hermes-crates/hermes-memory" }
 acp-core = { path = "crates/acp-core" }
 swarm-engine = { path = "crates/swarm-engine" }
 tool-sandbox = { path = "crates/tool-sandbox" }
+event-bus = { path = "crates/event-bus" }  # EventBus pub/sub (M-3 WebSocket bridge)
 
 # `machine-uid` reads platform-specific machine identifiers and does not
 # support iOS / Android. Telemetry on mobile falls back to an anonymous id.

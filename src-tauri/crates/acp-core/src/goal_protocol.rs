@@ -150,6 +150,83 @@ impl GoalRuntime {
     pub fn current_iteration_number(&self) -> u32 {
         self.iteration_log.len() as u32 + 1
     }
+
+    /// Append iteration feedback (for reconcile loop)
+    pub fn append_feedback(&mut self, iteration: u32, feedback: &str, tokens: u64) {
+        let record = IterationRecord {
+            iteration,
+            worker_output: feedback.to_string(),
+            evaluation: EvaluationResult {
+                passed: false,
+                explanation: feedback.to_string(),
+                details: vec![],
+            },
+            timestamp: current_timestamp(),
+            tokens_used: tokens,
+        };
+        self.iteration_log.push(record);
+        self.tokens_used += tokens;
+        self.current_iteration = iteration;
+    }
+
+    /// Create a new goal with simple parameters (for testing convenience)
+    pub fn new(
+        id: impl Into<String>,
+        description: impl Into<String>,
+        completion_condition: CompletionConditionSpec,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            description: description.into(),
+            parent_task_id: None,
+            parent_goal_id: None,
+            completion_condition,
+            evaluator: EvaluatorSpec::Auto,
+            executor: None,
+            depends_on: vec![],
+            token_budget: Some(100_000),
+            tokens_used: 0,
+            max_iterations: 5,
+            current_iteration: 0,
+            per_iteration_timeout_ms: 60_000,
+            status: GoalStatus::Pending,
+            iteration_log: Vec::new(),
+            created_at: current_timestamp(),
+            started_at: None,
+            converged_at: None,
+            output_files: Vec::new(),
+        }
+    }
+
+    /// Create a new goal with executor assignment (for testing convenience)
+    pub fn with_executor(
+        id: impl Into<String>,
+        description: impl Into<String>,
+        completion_condition: CompletionConditionSpec,
+        executor: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            description: description.into(),
+            parent_task_id: None,
+            parent_goal_id: None,
+            completion_condition,
+            evaluator: EvaluatorSpec::Auto,
+            executor: Some(executor.into()),
+            depends_on: vec![],
+            token_budget: Some(100_000),
+            tokens_used: 0,
+            max_iterations: 5,
+            current_iteration: 0,
+            per_iteration_timeout_ms: 60_000,
+            status: GoalStatus::Pending,
+            iteration_log: Vec::new(),
+            created_at: current_timestamp(),
+            started_at: None,
+            converged_at: None,
+            output_files: Vec::new(),
+        }
+    }
 }
 
 fn default_timeout() -> u64 {
@@ -291,6 +368,26 @@ pub enum CompletionConditionSpec {
     Any { conditions: Vec<CompletionConditionSpec> },
     #[serde(rename = "custom")]
     Custom { evaluator: String },
+}
+
+impl CompletionConditionSpec {
+    /// Create a command success condition (helper for tests)
+    pub fn command_success(command: impl Into<String>) -> Self {
+        Self::CommandSuccess {
+            command: command.into(),
+            args: vec![],
+            cwd: None,
+        }
+    }
+
+    /// Create a file exists condition (helper for tests)
+    pub fn file_exists(path: impl Into<String>) -> Self {
+        Self::FileCheck {
+            path: path.into(),
+            content_contains: None,
+            max_size_bytes: None,
+        }
+    }
 }
 
 fn default_get_method() -> String {

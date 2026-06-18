@@ -50,7 +50,6 @@ impl Topology for StarTopology {
             results.push((goal.id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: format!("Star topology stub: {} (use Async version)", goal.id),
             }));
         }
 
@@ -123,7 +122,10 @@ impl ChainTopology {
                     .collect();
 
                 if goal.depends_on.iter().any(|dep| failed_deps.contains(&dep.as_str())) {
-                    results.push((goal_id, GoalOutcome::Failed("Dependency failed".to_string())));
+                    results.push((goal_id, GoalOutcome::Failed {
+                        reason: "Dependency failed".to_string(),
+                        iterations: 0,
+                    }));
                     continue;
                 }
             }
@@ -131,7 +133,6 @@ impl ChainTopology {
             results.push((goal_id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: format!("Chain topology: {} executed", goal_id),
             }));
             graph.update_goal_status(&goal_id, GoalStatus::Converged);
         }
@@ -153,7 +154,6 @@ impl Topology for ChainTopology {
             results.push((goal.id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: format!("Chain topology stub: {} (use Async version)", goal.id),
             }));
         }
 
@@ -189,8 +189,8 @@ mod tests {
         let topology = StarTopology::new(executor);
 
         let goals = vec![
-            Goal::new("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
-            Goal::new("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
+            Goal::with_executor("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
+            Goal::with_executor("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
         ];
 
         let results = topology.execute(goals);
@@ -207,8 +207,8 @@ mod tests {
         let topology = ChainTopology::new(executor);
 
         let goals = vec![
-            Goal::new("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
-            Goal::new("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
+            Goal::with_executor("g1", "Goal 1", CompletionCondition::command_success("echo"), "w1"),
+            Goal::with_executor("g2", "Goal 2", CompletionCondition::command_success("echo"), "w2"),
         ];
 
         let results = topology.execute(goals);
@@ -225,10 +225,10 @@ mod tests {
         let topology = ChainTopology::new(executor);
         let mut graph = GoalGraph::new();
 
-        let mut goal_a = Goal::new("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
+        let mut goal_a = Goal::with_executor("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
         goal_a.depends_on = vec![];
 
-        let mut goal_b = Goal::new("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
+        let mut goal_b = Goal::with_executor("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
         goal_b.depends_on = vec!["a".to_string()];
 
         graph.add_goal(goal_a);

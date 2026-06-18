@@ -48,6 +48,7 @@ mod approval_engine;     // Approval protocol for workflow stages
 mod smart_router;     // Three-layer complexity evaluation
 mod self_healing;     // EWMA anomaly detection
 mod event_router;     // Claw Code Event Router (clawhip layer)
+mod event_pusher;     // Tauri emit adapter for EventBus (M-3 WebSocket bridge)
 
 // ---- Plugin System ----
 mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters
@@ -73,6 +74,7 @@ mod commands;         // Refactored command handlers organized by domain
 pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary, ConditionResult};
 pub use reconcile::ReconcileLoop;
 pub use topology::{Topology, execute_star, execute_chain, execute_pipeline};
+pub use event_pusher::TauriEventPusher;
 pub use swarm_orchestrator::{
     SwarmOrchestrator, SwarmAgent, SwarmTask, SwarmTaskStatus,
     AgentRole, AgentSwarmStatus, AgentResult,

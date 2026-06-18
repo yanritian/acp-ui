@@ -11,12 +11,12 @@
 //! # Unified Types (from acp-core, C-1 solution)
 //!
 //! The following types are re-exported from acp-core for unified usage:
-//! - `GoalRuntime` - Authoritative Goal execution type
+//! - `GoalRuntime` (aliased as `Goal`) - Authoritative Goal execution type
 //! - `GoalSpec` - Goal submission specification
 //! - `GoalStatus`, `IterationRecord`, `EvaluationResult`, `GoalOutcome`
 //!
-//! **Note**: The local `Goal` struct in goal.rs is DEPRECATED.
-//! Use `GoalRuntime` from acp-core for new code.
+//! **Note**: The local Goal struct has been replaced with acp-core's GoalRuntime.
+//! Use `Goal` (alias) from this crate or `GoalRuntime` from acp-core.
 
 pub mod goal;
 pub mod goal_evaluator;
@@ -29,24 +29,21 @@ pub mod complex_executor;
 
 // Re-export from acp-core (unified types - C-1 solution)
 pub use acp_core::{
-    GoalRuntime,  // NEW: Authoritative execution type
-    GoalSpec,     // NEW: Submission spec
-    GoalStatus as UnifiedGoalStatus,
-    IterationRecord as UnifiedIterationRecord,
-    EvaluationResult as UnifiedEvaluationResult,
-    ConditionResult as UnifiedConditionResult,
-    GoalOutcome as UnifiedGoalOutcome,
-    GoalGraphSummary as UnifiedGoalGraphSummary,
+    GoalRuntime as Goal,  // Alias for backward compatibility
+    GoalSpec,             // Submission spec
+    GoalStatus,
+    IterationRecord,
+    EvaluationResult,
+    ConditionResult,
+    GoalOutcome,
+    GoalGraphSummary,
     AcpEvent,
 };
 
-// Re-export main types (DEPRECATED - use acp_core types instead)
-#[deprecated(note = "Use GoalRuntime from acp-core instead")]
-pub use goal::{
-    Goal, GoalStatus, CompletionCondition, Evaluator,
-    IterationRecord, EvaluationResult, GoalOutcome
-};
-pub use goal_evaluator::ConditionEvaluator;
+// Re-export swarm-engine specific types
+pub use goal::CompletionCondition;
+pub use goal::Evaluator;
+pub use goal_evaluator::{ConditionEvaluator, ConditionEvaluationResult};
 pub use goal_graph::GoalGraph;
 pub use reconcile::{ReconcileLoop, WorkerExecutor, EchoExecutor, CommandExecutor, AIWorkerExecutor, ReconcileError};
 pub use topology::{Topology, StarTopology, StarTopologyAsync, ChainTopology, ChainTopologyAsync};

@@ -2,6 +2,8 @@
 //!
 //! 根据RFC-001定义的Reconcile Loop算法：
 //! 执行 → 评估 → 反馈 → 再执行 → 直到收敛或预算耗尽。
+//!
+//! **C-1 Update**: Uses GoalRuntime from acp-core.
 
 use crate::goal::{Goal, GoalStatus, GoalOutcome, CompletionCondition};
 use crate::goal_evaluator::ConditionEvaluator;
@@ -9,6 +11,14 @@ use crate::goal_graph::GoalGraph;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use thiserror::Error;
+
+/// Helper to get current timestamp in milliseconds
+fn current_timestamp_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
 
 #[derive(Debug, Error)]
 pub enum ReconcileError {
@@ -374,18 +384,16 @@ impl ReconcileLoop {
         println!("\n【ReconcileLoop 开始执行】");
         println!("  Goal ID: {}", goal.id);
         println!("  MaxIterations: {}", goal.max_iterations);
-        println!("  TokenBudget: {}", goal.token_budget);
+        println!("  TokenBudget: {:?}", goal.token_budget);
         println!();
 
         loop {
             // 1. 预算检查
             if goal.budget_exhausted() {
                 println!("\n【预算耗尽】");
-                println!("  TokensUsed: {} / {}", goal.tokens_used, goal.token_budget);
+                println!("  TokensUsed: {} / {:?}", goal.tokens_used, goal.token_budget);
                 return GoalOutcome::BudgetExhausted {
-                    iterations: goal.current_iteration,
                     tokens_used: goal.tokens_used,
-                    last_feedback: "Token budget exhausted".to_string(),
                 };
             }
 
@@ -395,8 +403,6 @@ impl ReconcileLoop {
                 println!("  CurrentIteration: {} / {}", goal.current_iteration, goal.max_iterations);
                 return GoalOutcome::MaxIterReached {
                     iterations: goal.current_iteration,
-                    tokens_used: goal.tokens_used,
-                    last_feedback: "Maximum iterations reached".to_string(),
                 };
             }
 
@@ -434,11 +440,10 @@ impl ReconcileLoop {
                         println!("【✅ Goal 收敛成功！】");
                         println!("========================================");
                         goal.status = GoalStatus::Converged;
-                        goal.converged_at = Some(chrono::Utc::now());
+                        goal.converged_at = Some(current_timestamp_ms());
                         return GoalOutcome::Converged {
                             iterations: goal.current_iteration + 1,
                             tokens_used: goal.tokens_used + evaluation.tokens_used,
-                            final_feedback: evaluation.feedback,
                         };
                     }
 
@@ -453,7 +458,10 @@ impl ReconcileLoop {
                     println!("\n【执行失败】");
                     println!("  错误: {}", e);
                     goal.status = GoalStatus::Failed { reason: e.to_string() };
-                    return GoalOutcome::Failed(e.to_string());
+                    return GoalOutcome::Failed {
+                        reason: e.to_string(),
+                        iterations: goal.current_iteration,
+                    };
                 }
             }
         }
@@ -485,7 +493,10 @@ impl ReconcileLoop {
                 // 依赖失败，标记为Blocked
                 if goal.depends_on.iter().any(|dep| failed_deps.contains(&dep.as_str())) {
                     graph.update_goal_status(&goal_id, GoalStatus::Failed { reason: "Blocked by failed dependency".into() });
-                    results.push((goal_id, GoalOutcome::Failed("Blocked by failed dependency".to_string())));
+                    results.push((goal_id, GoalOutcome::Failed {
+                        reason: "Blocked by failed dependency".to_string(),
+                        iterations: 0,
+                    }));
                     continue;
                 }
 
@@ -500,7 +511,6 @@ impl ReconcileLoop {
             results.push((goal_id.clone(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 1000,
-                final_feedback: "Graph execution completed".to_string(),
             }));
             graph.update_goal_status(&goal_id, GoalStatus::Converged);
         }
@@ -517,7 +527,7 @@ mod tests {
     #[tokio::test]
     async fn reconcile_converges_with_echo_executor_success() {
         let reconciler = ReconcileLoop::with_echo(true);
-        let mut goal = Goal::new(
+        let mut goal = Goal::with_executor(
             "test-goal",
             "Test description",
             CompletionCondition::command_success("echo"),
@@ -533,7 +543,7 @@ mod tests {
     #[tokio::test]
     async fn reconcile_fails_with_echo_executor_error() {
         let reconciler = ReconcileLoop::with_echo(false);
-        let mut goal = Goal::new(
+        let mut goal = Goal::with_executor(
             "test-goal",
             "Test description",
             CompletionCondition::command_success("echo"),
@@ -542,20 +552,20 @@ mod tests {
 
         let outcome = reconciler.reconcile_goal(&mut goal).await;
 
-        assert!(matches!(outcome, GoalOutcome::Failed(_)));
+        assert!(matches!(outcome, GoalOutcome::Failed { .. }));
         assert!(matches!(goal.status, GoalStatus::Failed { .. }));
     }
 
     #[tokio::test]
     async fn reconcile_budget_exhausted() {
         let reconciler = ReconcileLoop::with_echo(true);
-        let mut goal = Goal::new(
+        let mut goal = Goal::with_executor(
             "test-goal",
             "Test description",
             CompletionCondition::command_success("echo"),
             "echo-worker",
         );
-        goal.token_budget = 0; // Zero budget
+        goal.token_budget = Some(0); // Zero budget
 
         let outcome = reconciler.reconcile_goal(&mut goal).await;
 
@@ -565,7 +575,7 @@ mod tests {
     #[tokio::test]
     async fn reconcile_max_iter_reached() {
         let reconciler = ReconcileLoop::with_echo(true);
-        let mut goal = Goal::new(
+        let mut goal = Goal::with_executor(
             "test-goal",
             "Test description",
             CompletionCondition::command_success("echo"),
@@ -587,7 +597,7 @@ mod tests {
     #[test]
     fn echo_executor_success() {
         let mut executor = EchoExecutor::new("worker", "test output", true);
-        let goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        let goal = Goal::with_executor("g1", "desc", CompletionCondition::command_success("echo"), "w1");
         let result = executor.execute(&goal);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test output");
@@ -596,7 +606,7 @@ mod tests {
     #[test]
     fn echo_executor_failure() {
         let mut executor = EchoExecutor::new("worker", "error message", false);
-        let goal = Goal::new("g1", "desc", CompletionCondition::command_success("echo"), "w1");
+        let goal = Goal::with_executor("g1", "desc", CompletionCondition::command_success("echo"), "w1");
         let result = executor.execute(&goal);
         assert!(result.is_err());
     }
@@ -612,10 +622,10 @@ mod tests {
         let reconciler = ReconcileLoop::with_echo(true);
         let mut graph = crate::goal_graph::GoalGraph::new();
 
-        let mut goal_a = Goal::new("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
+        let mut goal_a = Goal::with_executor("a", "Goal A", CompletionCondition::command_success("echo"), "w1");
         goal_a.depends_on = vec![];
 
-        let mut goal_b = Goal::new("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
+        let mut goal_b = Goal::with_executor("b", "Goal B", CompletionCondition::command_success("echo"), "w1");
         goal_b.depends_on = vec!["a".to_string()];
 
         graph.add_goal(goal_a);

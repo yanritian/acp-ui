@@ -184,7 +184,7 @@ mod tests {
     use crate::goal::CompletionCondition;
 
     fn make_goal(id: &str, depends_on: Vec<String>) -> Goal {
-        let mut goal = Goal::new(id, "Test goal", CompletionCondition::command_success("echo"), "worker-1");
+        let mut goal = Goal::with_executor(id, "Test goal", CompletionCondition::command_success("echo"), "worker-1");
         goal.depends_on = depends_on;
         goal
     }

@@ -85,8 +85,8 @@ async fn main() {
                     swarm_engine::GoalOutcome::Converged { .. } => {
                         println!("  ✅ {} - 成功", id);
                     },
-                    swarm_engine::GoalOutcome::Failed(msg) => {
-                        println!("  ❌ {} - 失败: {}", id, msg.chars().take(30).collect::<String>());
+                    swarm_engine::GoalOutcome::Failed { reason, .. } => {
+                        println!("  ❌ {} - 失败: {}", id, reason.chars().take(30).collect::<String>());
                     },
                     _ => println!("  ⚠️ {} - {:?}", id, outcome),
                 }

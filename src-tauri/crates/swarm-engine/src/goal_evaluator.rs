@@ -1,12 +1,28 @@
 //! ConditionEvaluator - 评估CompletionCondition是否满足
 //!
 //! 根据RFC-001定义的8种CompletionCondition类型，提供对应的评估方法。
+//!
+//! **C-1 Update**: Uses CompletionConditionSpec from acp-core.
+//! Note: ConditionEvaluationResult is a swarm-engine-specific type
+//! (differs from acp-core EvaluationResult which has passed/explanation/details).
 
-use crate::goal::{CompletionCondition, EvaluationResult};
+use crate::goal::CompletionCondition;
 use std::process::Command;
 use std::path::Path;
 use regex::Regex;
 use thiserror::Error;
+
+/// Swarm-engine specific evaluation result for condition checking
+/// (different from acp-core EvaluationResult)
+#[derive(Debug, Clone)]
+pub struct ConditionEvaluationResult {
+    /// Whether the condition is satisfied
+    pub converged: bool,
+    /// Feedback message (explanation of result)
+    pub feedback: String,
+    /// Tokens consumed during evaluation (usually 0 for auto-eval)
+    pub tokens_used: u64,
+}
 
 #[derive(Debug, Error)]
 pub enum EvaluationError {
@@ -39,7 +55,7 @@ impl ConditionEvaluator {
     }
 
     /// 评估任意CompletionCondition
-    pub fn evaluate(&self, condition: &CompletionCondition) -> EvaluationResult {
+    pub fn evaluate(&self, condition: &CompletionCondition) -> ConditionEvaluationResult {
         match condition {
             CompletionCondition::CommandSuccess { command, args, cwd } => {
                 self.eval_command(command, args, cwd.as_ref().or(self.default_cwd.as_ref()))
@@ -64,17 +80,17 @@ impl ConditionEvaluator {
             }
             CompletionCondition::QueenJudgment { criteria } => {
                 // QueenJudgment requires live Queen worker evaluation.
-                // The ConditionEvaluator cannot auto-evaluate this condition.
-                // Instead, ReconcileLoop.eval_queen_judgment() should be used:
-                // 1. Find a Queen worker (claude_code type)
-                // 2. Send evaluation task to Queen
-                // 3. Parse Queen's CONVERGED/NOT_CONVERGED response
-                //
-                // This method returns "pending" status for QueenJudgment.
-                // Real evaluation happens in src-tauri/src/reconcile.rs::eval_queen_judgment()
-                EvaluationResult {
+                ConditionEvaluationResult {
                     converged: false,
                     feedback: format!("QueenJudgment pending (requires Queen worker): {}", criteria),
+                    tokens_used: 0,
+                }
+            }
+            CompletionCondition::Custom { evaluator } => {
+                // Custom evaluator requires external evaluation
+                ConditionEvaluationResult {
+                    converged: false,
+                    feedback: format!("Custom evaluator pending (requires external system): {}", evaluator),
                     tokens_used: 0,
                 }
             }
@@ -82,7 +98,7 @@ impl ConditionEvaluator {
     }
 
     /// 评估命令成功条件（退出码为0）
-    pub fn eval_command(&self, command: &str, args: &[String], cwd: Option<&String>) -> EvaluationResult {
+    pub fn eval_command(&self, command: &str, args: &[String], cwd: Option<&String>) -> ConditionEvaluationResult {
         let mut cmd = Command::new(command);
         cmd.args(args);
 
@@ -93,14 +109,14 @@ impl ConditionEvaluator {
         match cmd.output() {
             Ok(output) => {
                 if output.status.success() {
-                    EvaluationResult {
+                    ConditionEvaluationResult {
                         converged: true,
                         feedback: String::new(),
                         tokens_used: 0,
                     }
                 } else {
                     let stderr = String::from_utf8_lossy(&output.stderr);
-                    EvaluationResult {
+                    ConditionEvaluationResult {
                         converged: false,
                         feedback: format!("Command failed with code {}: {}",
                             output.status.code().unwrap_or(-1), stderr),
@@ -109,7 +125,7 @@ impl ConditionEvaluator {
                 }
             }
             Err(e) => {
-                EvaluationResult {
+                ConditionEvaluationResult {
                     converged: false,
                     feedback: format!("Failed to execute command '{}': {}", command, e),
                     tokens_used: 0,
@@ -119,11 +135,11 @@ impl ConditionEvaluator {
     }
 
     /// 评估输出包含条件
-    pub fn eval_output_contains(&self, command: &str, pattern: &str, case_sensitive: bool) -> EvaluationResult {
+    pub fn eval_output_contains(&self, command: &str, pattern: &str, case_sensitive: bool) -> ConditionEvaluationResult {
         // 首先执行命令
         let output = match self.run_command(command, &[], None) {
             Ok(o) => o,
-            Err(e) => return EvaluationResult {
+            Err(e) => return ConditionEvaluationResult {
                 converged: false,
                 feedback: e.to_string(),
                 tokens_used: 0,
@@ -143,13 +159,13 @@ impl ConditionEvaluator {
         };
 
         if search_str.contains(&pattern_str) {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: true,
                 feedback: String::new(),
                 tokens_used: 0,
             }
         } else {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("Output does not contain '{}'", pattern),
                 tokens_used: 0,
@@ -158,10 +174,10 @@ impl ConditionEvaluator {
     }
 
     /// 评估输出匹配正则条件
-    pub fn eval_output_matches(&self, command: &str, regex: &str) -> EvaluationResult {
+    pub fn eval_output_matches(&self, command: &str, regex: &str) -> ConditionEvaluationResult {
         let output = match self.run_command(command, &[], None) {
             Ok(o) => o,
-            Err(e) => return EvaluationResult {
+            Err(e) => return ConditionEvaluationResult {
                 converged: false,
                 feedback: e.to_string(),
                 tokens_used: 0,
@@ -170,7 +186,7 @@ impl ConditionEvaluator {
 
         let re = match Regex::new(regex) {
             Ok(r) => r,
-            Err(e) => return EvaluationResult {
+            Err(e) => return ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("Invalid regex '{}': {}", regex, e),
                 tokens_used: 0,
@@ -180,13 +196,13 @@ impl ConditionEvaluator {
         let output_str = String::from_utf8_lossy(&output.stdout);
 
         if re.is_match(&output_str) {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: true,
                 feedback: String::new(),
                 tokens_used: 0,
             }
         } else {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("Output does not match regex '{}'", regex),
                 tokens_used: 0,
@@ -195,11 +211,11 @@ impl ConditionEvaluator {
     }
 
     /// 评估文件检查条件
-    pub fn eval_file_check(&self, path: &str, content_contains: Option<&String>, max_size_bytes: Option<u64>) -> EvaluationResult {
+    pub fn eval_file_check(&self, path: &str, content_contains: Option<&String>, max_size_bytes: Option<u64>) -> ConditionEvaluationResult {
         let file_path = Path::new(path);
 
         if !file_path.exists() {
-            return EvaluationResult {
+            return ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("File '{}' does not exist", path),
                 tokens_used: 0,
@@ -210,7 +226,7 @@ impl ConditionEvaluator {
         if let Some(max_size) = max_size_bytes {
             if let Ok(metadata) = file_path.metadata() {
                 if metadata.len() > max_size {
-                    return EvaluationResult {
+                    return ConditionEvaluationResult {
                         converged: false,
                         feedback: format!("File '{}' exceeds size limit ({} > {} bytes)",
                             path, metadata.len(), max_size),
@@ -225,20 +241,20 @@ impl ConditionEvaluator {
             match std::fs::read_to_string(file_path) {
                 Ok(content) => {
                     if content.contains(content_pattern) {
-                        EvaluationResult {
+                        ConditionEvaluationResult {
                             converged: true,
                             feedback: String::new(),
                             tokens_used: 0,
                         }
                     } else {
-                        EvaluationResult {
+                        ConditionEvaluationResult {
                             converged: false,
                             feedback: format!("File '{}' does not contain '{}'", path, content_pattern),
                             tokens_used: 0,
                         }
                     }
                 }
-                Err(e) => EvaluationResult {
+                Err(e) => ConditionEvaluationResult {
                     converged: false,
                     feedback: format!("Failed to read file '{}': {}", path, e),
                     tokens_used: 0,
@@ -246,7 +262,7 @@ impl ConditionEvaluator {
             }
         } else {
             // 只检查存在性
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: true,
                 feedback: String::new(),
                 tokens_used: 0,
@@ -255,7 +271,7 @@ impl ConditionEvaluator {
     }
 
     /// 评估HTTP健康检查条件
-    pub fn eval_http_health_check(&self, url: &str, method: &str, expected_status: Option<u16>) -> EvaluationResult {
+    pub fn eval_http_health_check(&self, url: &str, method: &str, expected_status: Option<u16>) -> ConditionEvaluationResult {
         // 使用ureq进行简单HTTP请求
         let expected = expected_status.unwrap_or(200);
 
@@ -269,20 +285,20 @@ impl ConditionEvaluator {
             Ok(resp) => {
                 let status = resp.status();
                 if status == expected {
-                    EvaluationResult {
+                    ConditionEvaluationResult {
                         converged: true,
                         feedback: String::new(),
                         tokens_used: 0,
                     }
                 } else {
-                    EvaluationResult {
+                    ConditionEvaluationResult {
                         converged: false,
                         feedback: format!("HTTP {} returned {} (expected {})", method, status, expected),
                         tokens_used: 0,
                     }
                 }
             }
-            Err(e) => EvaluationResult {
+            Err(e) => ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("HTTP request to '{}' failed: {}", url, e),
                 tokens_used: 0,
@@ -291,7 +307,7 @@ impl ConditionEvaluator {
     }
 
     /// 评估All条件（所有子条件都必须满足）
-    pub fn eval_all(&self, conditions: &[CompletionCondition]) -> EvaluationResult {
+    pub fn eval_all(&self, conditions: &[CompletionCondition]) -> ConditionEvaluationResult {
         let mut total_tokens = 0u64;
         let mut failed_feedbacks = Vec::new();
 
@@ -305,13 +321,13 @@ impl ConditionEvaluator {
         }
 
         if failed_feedbacks.is_empty() {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: true,
                 feedback: String::new(),
                 tokens_used: total_tokens,
             }
         } else {
-            EvaluationResult {
+            ConditionEvaluationResult {
                 converged: false,
                 feedback: format!("All condition failed: {}", failed_feedbacks.join("; ")),
                 tokens_used: total_tokens,
@@ -320,7 +336,7 @@ impl ConditionEvaluator {
     }
 
     /// 评估Any条件（任一子条件满足即可）
-    pub fn eval_any(&self, conditions: &[CompletionCondition]) -> EvaluationResult {
+    pub fn eval_any(&self, conditions: &[CompletionCondition]) -> ConditionEvaluationResult {
         let mut total_tokens = 0u64;
         let mut feedbacks = Vec::new();
 
@@ -329,7 +345,7 @@ impl ConditionEvaluator {
             total_tokens += result.tokens_used;
 
             if result.converged {
-                return EvaluationResult {
+                return ConditionEvaluationResult {
                     converged: true,
                     feedback: String::new(),
                     tokens_used: total_tokens,
@@ -338,7 +354,7 @@ impl ConditionEvaluator {
             feedbacks.push(result.feedback);
         }
 
-        EvaluationResult {
+        ConditionEvaluationResult {
             converged: false,
             feedback: format!("Any condition failed: {}", feedbacks.join("; ")),
             tokens_used: total_tokens,

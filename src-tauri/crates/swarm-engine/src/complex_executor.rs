@@ -167,7 +167,7 @@ impl ComplexGoalExecutor {
         let mut graph = GoalGraph::new();
 
         for subtask in &plan.subtasks {
-            let goal = Goal::new(
+            let goal = Goal::with_executor(
                 &subtask.id,
                 &subtask.description,
                 CompletionCondition::FileCheck {
@@ -312,13 +312,13 @@ impl ComplexGoalExecutor {
                         results.push((goal_id.clone(), GoalOutcome::Converged {
                             iterations: attempts,
                             tokens_used: 0,
-                            final_feedback: "Success".into(),
                         }));
                     } else {
                         graph.update_goal_status(goal_id, GoalStatus::Failed { reason: format!("Failed after {} attempts", attempts) });
-                        results.push((goal_id.clone(), GoalOutcome::Failed(
-                            format!("Failed after {} attempts", attempts)
-                        )));
+                        results.push((goal_id.clone(), GoalOutcome::Failed {
+                            reason: format!("Failed after {} attempts", attempts),
+                            iterations: attempts,
+                        }));
                     }
                 }
             }
@@ -956,7 +956,6 @@ mod tests {
             ("task-1".to_string(), GoalOutcome::Converged {
                 iterations: 1,
                 tokens_used: 100,
-                final_feedback: "Created README.md successfully".to_string(),
             }),
         ];
         let prompt = executor.build_execution_prompt_from_info("task-2", "Create index.ts (file: src/index.ts)", &completed);

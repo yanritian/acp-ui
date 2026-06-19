@@ -1,5 +1,14 @@
 /**
  * Task Parser - parses user requests into structured task DAGs
+ *
+ * @deprecated This module is NOT USED by actual execution flow.
+ *
+ * The actual execution uses:
+ * - AgentTeamsService for multi-agent tasks
+ * - workflowStore for workflow execution
+ * - swarmStore for swarm execution
+ *
+ * This file is kept for demo visualization (TaskGraphView) only.
  */
 
 interface TaskTemplate {

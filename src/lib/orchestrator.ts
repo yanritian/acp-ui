@@ -1,5 +1,14 @@
 /**
  * Orchestrator - manages task execution flow
+ *
+ * @deprecated This class is NOT USED by any component.
+ *
+ * The actual execution chain uses:
+ * - MultiAgentChat.vue → teamRuntime.runTeamTask() → AgentTeamsService → AcpSessionRunner
+ * - SwarmDashboard.vue → swarmStore → swarm-api → Tauri swarm commands
+ *
+ * This file is kept for reference only. Do not use in new code.
+ * Consider removing in future cleanup.
  */
 
 import { taskParser, TaskDAG, TaskNode } from './task-parser';

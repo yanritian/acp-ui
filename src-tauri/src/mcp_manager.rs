@@ -3,7 +3,7 @@
 //! Manages MCP server processes (Model Context Protocol).
 //! NOTE: Module is imported but commands not yet registered in lib.rs - marked for future use.
 
-#![allow(dead_code)]
+#![allow(dead_code)] // Reserved for future MCP integration
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

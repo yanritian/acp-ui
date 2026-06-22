@@ -8,6 +8,8 @@
 //! These topologies operate on `GoalGraph` and use `ReconcileLoop` for
 //! individual goal execution.
 
+#![allow(dead_code)] // Helper functions reserved for future topology builders
+
 use crate::goal::{Goal, GoalStatus, CompletionCondition};
 use crate::goal_graph::GoalGraph;
 use crate::reconcile::ReconcileLoop;
@@ -145,6 +147,7 @@ fn is_terminal(status: &GoalStatus) -> bool {
         GoalStatus::Converged
             | GoalStatus::Failed { .. }
             | GoalStatus::BudgetExhausted
+            | GoalStatus::MaxIterReached
             | GoalStatus::Cancelled
     )
 }

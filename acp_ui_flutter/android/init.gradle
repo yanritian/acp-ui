@@ -1,0 +1,53 @@
+// Gradle init script - Force all repositories to use Aliyun mirrors
+// This script is applied to all projects and pluginManagement
+
+allprojects {
+    buildscript {
+        repositories {
+            all { ArtifactRepository repo ->
+                if (repo instanceof MavenArtifactRepository) {
+                    def url = repo.url.toString()
+                    if (url.contains('repo.maven.apache.org') || url.contains('mavenCentral')) {
+                        remove repo
+                    }
+                }
+            }
+            maven { url 'https://maven.aliyun.com/repository/google' }
+            maven { url 'https://maven.aliyun.com/repository/public' }
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+            maven { url 'https://maven.aliyun.com/repository/jcenter' }
+            google()
+            mavenCentral()
+        }
+    }
+    repositories {
+        all { ArtifactRepository repo ->
+            if (repo instanceof MavenArtifactRepository) {
+                def url = repo.url.toString()
+                if (url.contains('repo.maven.apache.org') || url.contains('mavenCentral')) {
+                    remove repo
+                }
+            }
+        }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+        google()
+        mavenCentral()
+    }
+}
+
+settingsEvaluated { settings ->
+    settings.pluginManagement {
+        repositories {
+            maven { url 'https://maven.aliyun.com/repository/google' }
+            maven { url 'https://maven.aliyun.com/repository/public' }
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+            maven { url 'https://maven.aliyun.com/repository/jcenter' }
+            google()
+            mavenCentral()
+            gradlePluginPortal()
+        }
+    }
+}

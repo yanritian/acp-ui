@@ -359,11 +359,13 @@ impl SwarmAgentAdapter for ClaudeCodeAdapter {
 }
 
 /// Builder for ClaudeCodeAdapter with custom configuration
+#[allow(dead_code)] // Reserved for future builder pattern usage
 pub struct ClaudeCodeAdapterBuilder {
     worker_id: WorkerId,
     working_dir: Option<String>,
 }
 
+#[allow(dead_code)] // Reserved for future builder pattern usage
 impl ClaudeCodeAdapterBuilder {
     pub fn new(worker_id: WorkerId) -> Self {
         Self {

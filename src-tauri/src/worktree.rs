@@ -5,6 +5,8 @@
 //! - 隔离文件修改，避免冲突
 //! - 执行完成后清理 worktree
 
+#![allow(dead_code)] // Reserved for future worktree isolation feature
+
 use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;

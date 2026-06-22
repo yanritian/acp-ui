@@ -3,6 +3,8 @@
 //! This module defines the core types used across the swarm orchestration layer,
 //! including task shards, replica assignment, and fault tolerance structures.
 
+#![allow(dead_code)] // Reserved types for future shard-based execution
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

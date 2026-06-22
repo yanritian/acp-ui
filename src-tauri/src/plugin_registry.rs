@@ -4,6 +4,8 @@
 //! (Skills, MCP, Hooks, CLI, Bot Adapters) are modeled as plugins
 //! registered in this central registry.
 
+#![allow(dead_code)] // PluginMessage reserved for future plugin communication
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::State;

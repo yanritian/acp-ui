@@ -3,7 +3,7 @@
 //! Provides session persistence, compaction, and branch lock collision detection.
 //! NOTE: Module is imported but commands not yet registered in lib.rs - marked for future use.
 
-#![allow(dead_code)]
+#![allow(dead_code)] // Reserved for future session persistence feature
 
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, params, OptionalExtension};

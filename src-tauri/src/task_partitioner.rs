@@ -8,6 +8,8 @@
 //!
 //! The TaskShard/TaskPartitioner system will be removed in a future release.
 
+#![allow(dead_code)] // DEPRECATED - Use Goal-driven architecture instead
+
 use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, WorkerId};
 use crate::swarm_adapters::{WorkerCapabilities, SwarmError};
 use serde::{Deserialize, Serialize};

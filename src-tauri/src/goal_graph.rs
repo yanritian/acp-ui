@@ -6,6 +6,8 @@
 //! - `has_blocked_goals()` — detect deadlock (goals waiting on non-converging deps)
 //! - `topological_order()` — linearize the graph for sequential execution
 
+#![allow(dead_code)] // Some methods reserved for future graph queries
+
 use crate::goal::{Goal, GoalStatus};
 use std::collections::{HashMap, VecDeque};
 

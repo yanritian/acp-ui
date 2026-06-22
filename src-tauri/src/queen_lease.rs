@@ -8,6 +8,8 @@
 //!
 //! This prevents split-brain scenarios and ensures single Queen at any time.
 
+#![allow(dead_code)] // Reserved for future Queen election feature
+
 use crate::swarm_types::{WorkerId, HealthStatus};
 use crate::swarm_adapters::{WorkerCapabilities, SwarmError, InstantWrapper, now_ms};
 use serde::{Deserialize, Serialize};

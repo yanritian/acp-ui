@@ -47,6 +47,7 @@ mod approval_engine;     // Approval protocol for workflow stages
 // ---- Smart Routing & Self-Healing ----
 mod smart_router;     // Three-layer complexity evaluation
 mod self_healing;     // EWMA anomaly detection
+mod loop_engine;      // Loop Engine — unified orchestrator for all loops
 mod event_router;     // Claw Code Event Router (clawhip layer)
 mod event_pusher;     // Tauri emit adapter for EventBus (M-3 WebSocket bridge)
 
@@ -144,6 +145,8 @@ pub struct AppState {
     pub goal_graph: Arc<Mutex<goal::GoalGraph>>,
     // Reconcile Loop for Goal execution
     pub reconcile_loop: Arc<Mutex<reconcile::ReconcileLoop>>,
+    // Loop Engine — unified orchestrator (Phase 5)
+    pub loop_engine: Arc<Mutex<loop_engine::LoopEngine>>,
 }
 
 impl AppState {
@@ -199,7 +202,9 @@ impl AppState {
             // Goal-Driven Architecture (RFC-001)
             goal_graph: Arc::new(Mutex::new(goal::GoalGraph::new())),
             // Reconcile Loop (initialized with swarm_workers)
-            reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(swarm_workers))),
+            reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(swarm_workers.clone()))),
+            // Loop Engine (unified orchestrator for all loops)
+            loop_engine: Arc::new(Mutex::new(loop_engine::LoopEngine::new(swarm_workers))),
         }
     }
 }
@@ -459,6 +464,11 @@ pub fn run() {
             crate::self_healing::healing_list_actions,
             crate::self_healing::healing_resolve_action,
             crate::self_healing::healing_get_stats,
+            // Loop Engine commands
+            crate::loop_engine::loop_execute_goal,
+            crate::loop_engine::loop_get_state,
+            crate::loop_engine::loop_get_stats,
+            crate::loop_engine::loop_update_metrics,
             // Skill System Commands (OpenClacky pattern)
             skill_commands::skills_list,
             skill_commands::skill_view,

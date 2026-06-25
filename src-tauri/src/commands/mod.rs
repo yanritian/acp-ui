@@ -13,6 +13,7 @@ pub mod executive;
 pub mod teams;
 pub mod self_optimizing;  // Self-Optimizing Router + Project Context (Phase 1 Week 2)
 pub mod godot;            // Godot Game Development Commands (Phase 2)
+pub mod unity;            // Unity Game Development Commands (Phase 1 Day 4)
 
 // Re-export all public items from submodules for convenient access
 pub use config::*;
@@ -30,3 +31,4 @@ pub use executive::*;
 pub use teams::*;
 pub use self_optimizing::*;
 pub use godot::*;
+pub use unity::*;

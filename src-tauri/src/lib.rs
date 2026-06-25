@@ -28,6 +28,7 @@ mod game_engine;             // Unified game engine interface
 mod game_build_monitor;      // Real-time build progress monitoring
 mod game_launcher;           // Game launcher and process management
 mod game_process_monitor;    // Process metrics and performance monitoring
+mod game_error_handler;      // Comprehensive error handling and UX
 
 // ---- Security & Permissions ----
 mod permission_checker;

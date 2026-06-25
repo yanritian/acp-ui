@@ -26,6 +26,7 @@ mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, et
 mod game_detector;        // Game engine detection (Godot, Unity)
 mod game_engine;          // Unified game engine interface
 mod game_build_monitor;   // Real-time build progress monitoring
+mod game_launcher;        // Game launcher and process management
 
 // ---- Security & Permissions ----
 mod permission_checker;
@@ -534,6 +535,10 @@ pub fn run() {
             game_export,
             game_get_export_targets,
             game_validate_export,
+            game_launch,
+            game_stop,
+            game_get_status,
+            game_list_running,
             game_get_platforms,
             // Game Asset commands (Phase 3 Week 4)
             game_detect_assets,

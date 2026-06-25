@@ -3,7 +3,7 @@
 // Phase 4: Validate Kimi, Jimeng, Kling API integration
 
 import { describe, it, expect } from 'vitest';
-import { MarketingApi, KimiGenerateResult, JimengGenerateResult, KlingGenerateResult, KlingJobStatusResult } from '../api';
+import { MarketingApi, KimiGenerateResult, JimengGenerateResult, KlingGenerateResult, KlingJobStatusResult, JimengStyle, JimengImageSize, KlingMode, KlingTaskStatus } from '../index';
 
 describe('Marketing Development E2E', () => {
   describe('Kimi API', () => {

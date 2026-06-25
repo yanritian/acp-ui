@@ -3,7 +3,7 @@
 // Phase 5: One-Shot Interface + User Role Detection
 
 import { describe, it, expect } from 'vitest';
-import { OneShotApi, OneShotResponse, UserRoleResult, AgentRecommendation } from '../api';
+import { OneShotApi, OneShotResponse, UserRoleResult, AgentRecommendation, UserRoleType } from '../index';
 
 describe('One-Shot Interface E2E', () => {
   describe('Role Detection', () => {

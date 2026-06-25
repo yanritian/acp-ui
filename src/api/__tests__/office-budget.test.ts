@@ -3,7 +3,7 @@
 // Phase 4 Week 3-4: Validate WPS Office + Cost Tracker
 
 import { describe, it, expect } from 'vitest';
-import { OfficeApi, BudgetApi, WPSGenerateResult, ExcelAnalysisResult, CostUsage, CostForecast } from '../api';
+import { OfficeApi, BudgetApi, WPSGenerateResult, ExcelAnalysisResult, CostUsage, CostForecast, DocumentFormat, WpsDocumentType, TokenTotals } from '../index';
 
 describe('Office Development E2E', () => {
   describe('WPS API', () => {

@@ -3,7 +3,7 @@
 // Phase 3: Validate Unity and Godot detection + build commands
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { GameApi, GameFramework, UnityPlatform, GodotPlatform } from '../api';
+import { GameApi, GameFramework, UnityPlatform, GodotPlatform } from '../index';
 
 describe('Game Development E2E', () => {
   describe('GameApi', () => {

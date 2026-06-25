@@ -3,7 +3,7 @@
 // Phase 2: Validate Tauri and Electron detection + build commands
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { DesktopApi, DesktopDetectionResult } from '../api';
+import { DesktopApi, DesktopDetectionResult, DesktopFramework, DesktopBundle, ElectronPlatform, ElectronArch } from '../index';
 
 describe('Desktop Development E2E', () => {
   describe('DesktopApi', () => {

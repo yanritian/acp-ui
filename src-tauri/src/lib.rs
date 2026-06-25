@@ -22,6 +22,9 @@ mod agent_bus;
 mod session_manager;  // Claw Code Session Management
 mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, etc.)
 
+// ---- Game Development ----
+mod game_detector;    // Game engine detection (Godot, Unity)
+
 // ---- Security & Permissions ----
 mod permission_checker;
 mod circuit_breaker;  // Three-state failure protection
@@ -523,6 +526,7 @@ pub fn run() {
             godot_build_release,
             godot_get_scenes,
             godot_detect,
+            game_detect,
             game_get_platforms,
             // Game Asset commands (Phase 3 Week 4)
             game_detect_assets,

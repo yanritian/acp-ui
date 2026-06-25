@@ -23,10 +23,11 @@ mod session_manager;  // Claw Code Session Management
 mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, etc.)
 
 // ---- Game Development ----
-mod game_detector;        // Game engine detection (Godot, Unity)
-mod game_engine;          // Unified game engine interface
-mod game_build_monitor;   // Real-time build progress monitoring
-mod game_launcher;        // Game launcher and process management
+mod game_detector;           // Game engine detection (Godot, Unity)
+mod game_engine;             // Unified game engine interface
+mod game_build_monitor;      // Real-time build progress monitoring
+mod game_launcher;           // Game launcher and process management
+mod game_process_monitor;    // Process metrics and performance monitoring
 
 // ---- Security & Permissions ----
 mod permission_checker;

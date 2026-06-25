@@ -195,6 +195,10 @@ D:\dingsun\acp-ui\
 | Agent Teams 完成计划 | `docs/superpowers/plans/2026-05-04-agent-teams-platform-completion.md` | 12 个 Task 的实施计划 | ✅ 完成 |
 | 协作指南 | `docs/COLLABORATION-GUIDE.md` | 协作网络可视化使用手册 | ✅ 完成 |
 | 用户手册 | `docs/AGENT-TEAMS-USER-GUIDE.md` | 用户使用手册 | ✅ 完成 |
+| **Agent Platform PRD** | `docs/AGENT-PLATFORM-PRD.md` | **统一 Agent 调度平台产品规划** | ✅ **新增** |
+| **Agent Adapter 计划** | `docs/AGENT-ADAPTER-PLAN.md` | **Agent Adapter 实现计划** | ✅ **新增** |
+| **Agent Platform 思考** | `docs/AGENT-PLATFORM-THINKING.md` | **Orca 学习 + API 调研反思** | ✅ **新增** |
+| Loop Engine 架构 | `docs/loop-engine-architecture.md` | 4 层 Loop 系统架构设计 | ✅ 完成 |
 | 测试计划 | `docs/TEST-PLAN.md` | 测试覆盖计划 | ⚠️ 需更新 |
 | 测试报告 | `docs/TEST-REPORT.md` | 测试结果 | ⚠️ 需更新 |
 | 快速开始 | `docs/QUICK-START.md` | 项目启动指南 | ⚠️ 需更新 |

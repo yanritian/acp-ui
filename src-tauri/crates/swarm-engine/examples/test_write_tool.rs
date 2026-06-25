@@ -26,8 +26,8 @@ async fn main() {
             content_contains: Some("SUCCESS".to_string()),
             max_size_bytes: None,
         },
-        "claude-worker",
     );
+    goal.executor = Some("claude-worker".to_string());
     goal.max_iterations = 5;
 
     println!("【Goal】创建文件 D:/tmp/test-write-result.txt");
@@ -70,8 +70,8 @@ async fn main() {
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("\n⚠️ 达到最大迭代 {}", iterations);
         },
-        GoalOutcome::Failed(msg) => {
-            println!("\n❌ 失败: {}", msg);
+        GoalOutcome::Failed { reason, .. } => {
+            println!("\n❌ 失败: {}", reason);
         },
         _ => println!("\n结果: {:?}", outcome),
     }
@@ -80,6 +80,6 @@ async fn main() {
     for (i, record) in goal.iteration_log.iter().enumerate() {
         println!("  Iteration {}: feedback={}",
             i + 1,
-            record.evaluation_result.feedback.chars().take(100).collect::<String>());
+            record.feedback.as_deref().unwrap_or("").chars().take(100).collect::<String>());
     }
 }

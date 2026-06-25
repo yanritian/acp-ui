@@ -48,15 +48,15 @@ Use Write tool to create the file immediately.",
             content_contains: Some("ERP+MES+WMS".to_string()),
             max_size_bytes: None,
         },
-        "claude-worker",
     );
+    goal.executor = Some("claude-worker".to_string());
     goal.max_iterations = 3;
-    goal.token_budget = 50000;
+    goal.token_budget = Some(50000);
 
     println!("【Goal 配置】");
     println!("  ID: {}", goal.id);
     println!("  MaxIterations: {}", goal.max_iterations);
-    println!("  TokenBudget: {}", goal.token_budget);
+    println!("  TokenBudget: {:?}", goal.token_budget);
     println!("  验收条件: ARCHITECTURE.md 包含 'ERP+MES+WMS'\n");
 
     // 创建 AIWorkerExecutor
@@ -105,8 +105,8 @@ Use Write tool to create the file immediately.",
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("\n⚠️ 达到最大迭代 {}", iterations);
         },
-        GoalOutcome::Failed(msg) => {
-            println!("\n❌ 失败: {}", msg);
+        GoalOutcome::Failed { reason, .. } => {
+            println!("\n❌ 失败: {}", reason);
         },
         _ => println!("\n结果: {:?}", outcome),
     }
@@ -114,7 +114,7 @@ Use Write tool to create the file immediately.",
     println!("\n迭代历史:");
     for (i, record) in goal.iteration_log.iter().enumerate() {
         println!("  Iteration {}: converged={}",
-            i + 1, record.evaluation_result.converged);
+            i + 1, record.evaluation.passed);
     }
 
     println!("\n========================================");

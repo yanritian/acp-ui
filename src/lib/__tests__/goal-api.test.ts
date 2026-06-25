@@ -30,6 +30,11 @@ describe('goal-api helpers', () => {
       expect(isTerminalStatus(status)).toBe(true)
     })
 
+    it('returns true for max_iter_reached status', () => {
+      const status: GoalStatus = { status: 'max_iter_reached' }
+      expect(isTerminalStatus(status)).toBe(true)
+    })
+
     it('returns true for cancelled status', () => {
       const status: GoalStatus = { status: 'cancelled' }
       expect(isTerminalStatus(status)).toBe(true)
@@ -99,19 +104,17 @@ describe('goal-api helpers', () => {
 
       expect(goal.id).toBe('goal-001')
       expect(goal.description).toBe('Check README exists')
-      expect(goal.completionCondition.type).toBe('file_check')
-      if (goal.completionCondition.type === 'file_check') {
-        expect(goal.completionCondition.path).toBe('README.md')
-        expect(goal.completionCondition.mustExist).toBe(true)
-        expect(goal.completionCondition.contentContains).toBeNull()
+      expect(goal.completion_condition.type).toBe('file_check')
+      if (goal.completion_condition.type === 'file_check') {
+        expect(goal.completion_condition.path).toBe('README.md')
+        expect(goal.completion_condition.content_contains).toBeNull()
       }
-      expect(goal.evaluator.type).toBe('auto')
       expect(goal.status.status).toBe('pending')
-      expect(goal.iterations).toEqual([])
-      expect(goal.maxIterations).toBe(5)
-      expect(goal.tokenBudget).toBeNull()
-      expect(goal.tokenUsed).toBe(0)
-      expect(goal.dependencies).toEqual([])
+      expect(goal.iteration_log).toEqual([])
+      expect(goal.max_iterations).toBe(5)
+      expect(goal.token_budget).toBeNull()
+      expect(goal.tokens_used).toBe(0)
+      expect(goal.depends_on).toEqual([])
     })
 
     it('creates a goal with content_contains check', () => {
@@ -122,9 +125,9 @@ describe('goal-api helpers', () => {
         'API_KEY'
       )
 
-      expect(goal.completionCondition.type).toBe('file_check')
-      if (goal.completionCondition.type === 'file_check') {
-        expect(goal.completionCondition.contentContains).toBe('API_KEY')
+      expect(goal.completion_condition.type).toBe('file_check')
+      if (goal.completion_condition.type === 'file_check') {
+        expect(goal.completion_condition.content_contains).toBe('API_KEY')
       }
     })
 
@@ -133,34 +136,33 @@ describe('goal-api helpers', () => {
       const goal = createFileGoal('goal-003', 'Test', 'test.txt')
       const after = Date.now()
 
-      expect(goal.createdAt).toBeGreaterThanOrEqual(before)
-      expect(goal.createdAt).toBeLessThanOrEqual(after)
-      expect(goal.startedAt).toBeNull()
-      expect(goal.convergedAt).toBeNull()
+      expect(goal.created_at).toBeGreaterThanOrEqual(before)
+      expect(goal.created_at).toBeLessThanOrEqual(after)
+      expect(goal.started_at).toBeNull()
+      expect(goal.converged_at).toBeNull()
     })
   })
 
   describe('createCommandGoal', () => {
-    it('creates a goal with command_success condition (default exit code 0)', () => {
+    it('creates a goal with command_success condition', () => {
       const goal = createCommandGoal('goal-004', 'Run tests', 'npm test')
 
       expect(goal.id).toBe('goal-004')
       expect(goal.description).toBe('Run tests')
-      expect(goal.completionCondition.type).toBe('command_success')
-      if (goal.completionCondition.type === 'command_success') {
-        expect(goal.completionCondition.command).toBe('npm test')
-        expect(goal.completionCondition.expectedExitCode).toBe(0)
+      expect(goal.completion_condition.type).toBe('command_success')
+      if (goal.completion_condition.type === 'command_success') {
+        expect(goal.completion_condition.command).toBe('npm test')
+        expect(goal.completion_condition.args).toEqual([])
       }
-      expect(goal.evaluator.type).toBe('auto')
       expect(goal.status.status).toBe('pending')
-      expect(goal.maxIterations).toBe(3)
+      expect(goal.max_iterations).toBe(3)
     })
 
     it('creates a goal with custom expected exit code', () => {
       const goal = createCommandGoal('goal-005', 'Run command expecting failure', 'false', 1)
 
-      if (goal.completionCondition.type === 'command_success') {
-        expect(goal.completionCondition.expectedExitCode).toBe(1)
+      if (goal.completion_condition.type === 'command_success') {
+        expect(goal.completion_condition.args).toEqual(['1'])
       }
     })
   })
@@ -171,19 +173,23 @@ describe('Goal type validation', () => {
     const goal: Goal = {
       id: 'test-goal',
       description: 'Test goal',
-      completionCondition: { type: 'command_success', command: 'echo', expectedExitCode: 0 },
+      completion_condition: { type: 'command_success', command: 'echo', args: [], cwd: null },
       evaluator: { type: 'auto' },
-      assignedWorker: null,
+      executor: null,
       status: { status: 'pending' },
-      iterations: [],
-      maxIterations: 5,
-      tokenBudget: null,
-      tokenUsed: 0,
-      createdAt: Date.now(),
-      startedAt: null,
-      convergedAt: null,
-      parentId: null,
-      dependencies: [],
+      iteration_log: [],
+      max_iterations: 5,
+      token_budget: null,
+      tokens_used: 0,
+      created_at: Date.now(),
+      started_at: null,
+      converged_at: null,
+      parent_goal_id: null,
+      depends_on: [],
+      current_iteration: 0,
+      per_iteration_timeout_ms: 60000,
+      parent_task_id: null,
+      output_files: [],
     }
 
     expect(goal.id).toBe('test-goal')
@@ -199,6 +205,7 @@ describe('Goal type validation', () => {
       { status: 'iterating', feedback: 'test' },
       { status: 'failed', reason: 'error' },
       { status: 'budget_exhausted' },
+      { status: 'max_iter_reached' },
       { status: 'cancelled' },
     ]
 
@@ -209,11 +216,11 @@ describe('Goal type validation', () => {
 
   it('validates CompletionCondition variants', () => {
     const conditions = [
-      { type: 'command_success', command: 'echo', expectedExitCode: 0 },
-      { type: 'output_contains', text: 'hello', caseSensitive: true },
-      { type: 'output_matches', pattern: 'test' },
-      { type: 'file_check', path: 'test.txt', mustExist: true, contentContains: null },
-      { type: 'http_health_check', url: 'http://localhost', expectedStatus: 200 },
+      { type: 'command_success', command: 'echo', args: [], cwd: null },
+      { type: 'output_contains', command: '', pattern: 'hello', case_sensitive: true },
+      { type: 'output_matches', command: '', regex: 'test' },
+      { type: 'file_check', path: 'test.txt', content_contains: null, max_size_bytes: null },
+      { type: 'http_health_check', url: 'http://localhost', method: 'GET', expected_status: 200 },
       { type: 'queen_judgment', criteria: 'check result' },
       { type: 'all', conditions: [] },
       { type: 'any', conditions: [] },
@@ -221,19 +228,6 @@ describe('Goal type validation', () => {
 
     conditions.forEach((condition) => {
       expect(condition.type).toBeDefined()
-    })
-  })
-
-  it('validates Evaluator variants', () => {
-    const evaluators = [
-      { type: 'auto' },
-      { type: 'queen', queenWorkerId: 'queen-001' },
-      { type: 'adversarial', primary: 'worker-001', adversary: 'worker-002' },
-      { type: 'hybrid', autoConditions: [], queenCriteria: 'check' },
-    ]
-
-    evaluators.forEach((evaluator) => {
-      expect(evaluator.type).toBeDefined()
     })
   })
 })

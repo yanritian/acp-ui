@@ -12,19 +12,23 @@ import { invokeOrProxy } from './host';
 export interface Goal {
   id: string
   description: string
-  completionCondition: CompletionCondition
+  completion_condition: CompletionCondition
   evaluator: Evaluator
-  assignedWorker: string | null
+  executor: string | null
   status: GoalStatus
-  iterations: IterationRecord[]
-  maxIterations: number
-  tokenBudget: number | null
-  tokenUsed: number
-  createdAt: number
-  startedAt: number | null
-  convergedAt: number | null
-  parentId: string | null
-  dependencies: string[]
+  iteration_log: IterationRecord[]
+  max_iterations: number
+  token_budget: number | null
+  tokens_used: number
+  created_at: number
+  started_at: number | null
+  converged_at: number | null
+  parent_goal_id: string | null
+  depends_on: string[]
+  current_iteration: number
+  per_iteration_timeout_ms: number
+  parent_task_id: string | null
+  output_files: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -32,13 +36,13 @@ export interface Goal {
 // ---------------------------------------------------------------------------
 
 export type CompletionCondition =
-  | { type: 'command_success'; command: string; expectedExitCode: number }
-  | { type: 'output_contains'; text: string; caseSensitive: boolean }
-  | { type: 'output_matches'; pattern: string }
+  | { type: 'command_success'; command: string; args: string[]; cwd: string | null }
+  | { type: 'output_contains'; command: string; pattern: string; case_sensitive: boolean }
+  | { type: 'output_matches'; command: string; regex: string }
   | { type: 'all'; conditions: CompletionCondition[] }
   | { type: 'any'; conditions: CompletionCondition[] }
-  | { type: 'file_check'; path: string; mustExist: boolean; contentContains: string | null }
-  | { type: 'http_health_check'; url: string; expectedStatus: number }
+  | { type: 'file_check'; path: string; content_contains: string | null; max_size_bytes: number | null }
+  | { type: 'http_health_check'; url: string; method: string; expected_status: number | null }
   | { type: 'queen_judgment'; criteria: string }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +71,7 @@ export type GoalStatus =
   | { status: 'iterating'; feedback: string }
   | { status: 'failed'; reason: string }
   | { status: 'budget_exhausted' }
+  | { status: 'max_iter_reached' }
   | { status: 'cancelled' }
 
 // ---------------------------------------------------------------------------
@@ -75,12 +80,12 @@ export type GoalStatus =
 
 export interface IterationRecord {
   iteration: number
-  workerOutput: string
+  worker_output: string
   evaluation: EvaluationResult
   feedback: string | null
-  tokensUsed: number
+  tokens_used: number
   timestamp: number
-  durationMs: number
+  duration_ms: number
 }
 
 export interface EvaluationResult {
@@ -108,6 +113,7 @@ export interface GoalGraphSummary {
   iterating: number
   failed: number
   budget_exhausted: number
+  max_iter_reached: number
   cancelled: number
 }
 
@@ -117,7 +123,7 @@ export interface GoalGraphSummary {
 
 /** Check if a GoalStatus is terminal (no more iterations possible) */
 export function isTerminalStatus(status: GoalStatus): boolean {
-  return ['converged', 'failed', 'budget_exhausted', 'cancelled'].includes(status.status)
+  return ['converged', 'failed', 'budget_exhausted', 'max_iter_reached', 'cancelled'].includes(status.status)
 }
 
 /** Get a human-readable label for a goal status */
@@ -160,24 +166,28 @@ export function createFileGoal(
   return {
     id,
     description,
-    completionCondition: {
+    completion_condition: {
       type: 'file_check',
       path: filePath,
-      mustExist: true,
-      contentContains: contentContains ?? null,
+      content_contains: contentContains ?? null,
+      max_size_bytes: null,
     },
     evaluator: { type: 'auto' },
-    assignedWorker: null,
+    executor: null,
     status: { status: 'pending' },
-    iterations: [],
-    maxIterations: 5,
-    tokenBudget: null,
-    tokenUsed: 0,
-    createdAt: Date.now(),
-    startedAt: null,
-    convergedAt: null,
-    parentId: null,
-    dependencies: [],
+    iteration_log: [],
+    max_iterations: 5,
+    token_budget: null,
+    tokens_used: 0,
+    created_at: Date.now(),
+    started_at: null,
+    converged_at: null,
+    parent_goal_id: null,
+    depends_on: [],
+    current_iteration: 0,
+    per_iteration_timeout_ms: 60000,
+    parent_task_id: null,
+    output_files: [],
   }
 }
 
@@ -191,23 +201,28 @@ export function createCommandGoal(
   return {
     id,
     description,
-    completionCondition: {
+    completion_condition: {
       type: 'command_success',
       command,
-      expectedExitCode,
+      args: expectedExitCode !== 0 ? [String(expectedExitCode)] : [],
+      cwd: null,
     },
     evaluator: { type: 'auto' },
-    assignedWorker: null,
+    executor: null,
     status: { status: 'pending' },
-    iterations: [],
-    maxIterations: 3,
-    tokenBudget: null,
-    tokenUsed: 0,
-    createdAt: Date.now(),
-    startedAt: null,
-    convergedAt: null,
-    parentId: null,
-    dependencies: [],
+    iteration_log: [],
+    max_iterations: 3,
+    token_budget: null,
+    tokens_used: 0,
+    created_at: Date.now(),
+    started_at: null,
+    converged_at: null,
+    parent_goal_id: null,
+    depends_on: [],
+    current_iteration: 0,
+    per_iteration_timeout_ms: 60000,
+    parent_task_id: null,
+    output_files: [],
   }
 }
 

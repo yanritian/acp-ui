@@ -20,10 +20,12 @@ mod agent_registry;
 mod agent_config_parser;
 mod agent_bus;
 mod session_manager;  // Claw Code Session Management
+mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, etc.)
 
 // ---- Security & Permissions ----
 mod permission_checker;
 mod circuit_breaker;  // Three-state failure protection
+mod privacy_orchestrator; // Privacy-Preserving Orchestrator (Phase 1 Week 3)
 
 // ---- Workflow & Orchestration ----
 mod team_dag;         // Team DAG execution engine
@@ -44,12 +46,18 @@ mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 mod agent_orchestration; // Agent Orchestration Layer - "驾驭层"
 mod approval_engine;     // Approval protocol for workflow stages
 
-// ---- Smart Routing & Self-Healing ----
+// ---- Smart Routing & Self-Optimizing ----
 mod smart_router;     // Three-layer complexity evaluation
+mod self_optimizing_router; // Historical data-based intelligent routing (Phase 1 Week 2)
+mod project_context;  // Project context tracking (Phase 1 Week 2)
 mod self_healing;     // EWMA anomaly detection
 mod loop_engine;      // Loop Engine — unified orchestrator for all loops
 mod event_router;     // Claw Code Event Router (clawhip layer)
 mod event_pusher;     // Tauri emit adapter for EventBus (M-3 WebSocket bridge)
+mod game_assets;      // Game Asset Detection and Analysis (Phase 3 Week 4)
+mod cost_tracker;     // Cost Tracker - Budget management (Phase 4 Week 4)
+mod one_shot;         // One-Shot Interface + User Role Detection (Phase 5)
+mod http_server;      // HTTP Server - REST API for Web/Mobile (Phase 7)
 
 // ---- Plugin System ----
 mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters
@@ -147,6 +155,8 @@ pub struct AppState {
     pub reconcile_loop: Arc<Mutex<reconcile::ReconcileLoop>>,
     // Loop Engine — unified orchestrator (Phase 5)
     pub loop_engine: Arc<Mutex<loop_engine::LoopEngine>>,
+    // Agent Registry - Self-Optimizing capabilities (Phase 1 Week 2)
+    pub agent_registry: Arc<Mutex<agent_registry::AgentRegistry>>,
 }
 
 impl AppState {
@@ -205,6 +215,8 @@ impl AppState {
             reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(swarm_workers.clone()))),
             // Loop Engine (unified orchestrator for all loops)
             loop_engine: Arc::new(Mutex::new(loop_engine::LoopEngine::new(swarm_workers))),
+            // Agent Registry - Self-Optimizing capabilities (Phase 1 Week 2)
+            agent_registry: Arc::new(Mutex::new(agent_registry::AgentRegistry::new())),
         }
     }
 }
@@ -469,6 +481,76 @@ pub fn run() {
             crate::loop_engine::loop_get_state,
             crate::loop_engine::loop_get_stats,
             crate::loop_engine::loop_update_metrics,
+            // Self-Optimizing Router commands (Phase 1 Week 2)
+            self_optimizing_init,
+            self_optimizing_record,
+            self_optimizing_route,
+            self_optimizing_get_proficiencies,
+            self_optimizing_get_history,
+            self_optimizing_reset,
+            // Project Context commands (Phase 1 Week 2)
+            project_context_create,
+            project_context_update,
+            project_context_get_summary,
+            // Privacy Orchestrator commands (Phase 1 Week 3)
+            privacy_analyze_task,
+            privacy_get_active_zone,
+            privacy_set_zone,
+            privacy_check_path,
+            privacy_list_zones,
+            privacy_create_zone,
+            // Agent Adapter execution commands (Phase 1 Week 4)
+            agent_adapter_init_claude,
+            agent_adapter_init_codex,
+            agent_adapter_execute_claude,
+            agent_adapter_execute_codex,
+            agent_adapter_get_health,
+            agent_adapter_estimate_cost,
+            // Desktop Development commands (Phase 2)
+            desktop_detect_project,
+            desktop_tauri_dev,
+            desktop_tauri_build,
+            desktop_electron_dev,
+            desktop_electron_build,
+            desktop_get_platform,
+            desktop_get_targets,
+            // Game Development commands (Phase 3)
+            game_detect_framework,
+            unity_build_dev,
+            unity_build_release,
+            unity_get_scenes,
+            godot_build_dev,
+            godot_build_release,
+            godot_get_scenes,
+            game_get_platforms,
+            // Game Asset commands (Phase 3 Week 4)
+            game_detect_assets,
+            game_get_asset_stats,
+            game_get_optimization_suggestions,
+            game_get_asset_types,
+            // Marketing commands (Phase 4)
+            marketing_init_kimi,
+            kimi_generate_text,
+            kimi_translate,
+            marketing_init_jimeng,
+            jimeng_generate_image,
+            marketing_init_kling,
+            kling_generate_video,
+            kling_get_job_status,
+            // Office commands (Phase 4 Week 3)
+            office_init_wps,
+            wps_generate_doc,
+            wps_analyze_excel,
+            // Budget commands (Phase 4 Week 4)
+            budget_set_limit,
+            budget_get_usage,
+            budget_get_forecast,
+            budget_is_allowed,
+            // One-Shot Interface commands (Phase 5)
+            one_shot_execute,
+            one_shot_detect_role,
+            one_shot_detect_scene,
+            one_shot_get_recommendation,
             // Skill System Commands (OpenClacky pattern)
             skill_commands::skills_list,
             skill_commands::skill_view,

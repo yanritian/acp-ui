@@ -53,7 +53,7 @@ pub struct GoalRuntime {
     /// Parent task ID (for grouping)
     pub parent_task_id: Option<String>,
     /// Parent goal ID (for sub-goals)
-    #[serde(alias = "parent_id", alias = "parent_goal_id")]
+    #[serde(alias = "parent_id", alias = "parent_goal_id", alias = "parentId")]
     pub parent_goal_id: Option<String>,
 
     // === Completion Condition ===

@@ -11,6 +11,7 @@ pub mod permission;
 pub mod agent_config;
 pub mod executive;
 pub mod teams;
+pub mod self_optimizing;  // Self-Optimizing Router + Project Context (Phase 1 Week 2)
 
 // Re-export all public items from submodules for convenient access
 pub use config::*;
@@ -26,3 +27,4 @@ pub use permission::*;
 pub use agent_config::*;
 pub use executive::*;
 pub use teams::*;
+pub use self_optimizing::*;

@@ -94,15 +94,15 @@ Create D:/tmp/finance-goal/tsconfig.json",
                 },
             ],
         },
-        "claude-worker",
     );
+    goal.executor = Some("claude-worker".to_string());
     goal.max_iterations = 15;
-    goal.token_budget = 500000;
+    goal.token_budget = Some(500000);
 
     println!("【Goal 配置】");
     println!("  ID: {}", goal.id);
     println!("  MaxIterations: {}", goal.max_iterations);
-    println!("  TokenBudget: {}", goal.token_budget);
+    println!("  TokenBudget: {:?}", goal.token_budget);
     println!("  CompletionCondition: 7 个文件存在检查\n");
 
     // 创建 AIWorkerExecutor
@@ -159,16 +159,15 @@ Create D:/tmp/finance-goal/tsconfig.json",
             println!("  • 我只观察，未干预代码");
             println!("  • 所有工作由 AIWorkerExecutor 完成");
         },
-        GoalOutcome::MaxIterReached { iterations, tokens_used, .. } => {
+        GoalOutcome::MaxIterReached { iterations } => {
             println!("⚠️ 达到最大迭代 {}", iterations);
-            println!("  总 tokens: {}", tokens_used);
             println!("  需要更多迭代或调整需求");
         },
-        GoalOutcome::Failed(msg) => {
-            println!("❌ 执行失败: {}", msg);
+        GoalOutcome::Failed { reason, .. } => {
+            println!("❌ 执行失败: {}", reason);
         },
-        GoalOutcome::BudgetExhausted { iterations, tokens_used, .. } => {
-            println!("⚠️ Token 预算耗尽: {} tokens ({} iterations)", tokens_used, iterations);
+        GoalOutcome::BudgetExhausted { tokens_used } => {
+            println!("⚠️ Token 预算耗尽: {} tokens", tokens_used);
         },
         _ => println!("结果: {:?}", outcome),
     }
@@ -176,7 +175,7 @@ Create D:/tmp/finance-goal/tsconfig.json",
     println!("\n迭代历史:");
     for (i, record) in goal.iteration_log.iter().enumerate() {
         println!("  Iteration {}: tokens={}, feedback preview: {:?}",
-            i + 1, record.evaluation_result.tokens_used,
-            record.evaluation_result.feedback.chars().take(100).collect::<String>());
+            i + 1, record.tokens_used,
+            record.feedback.as_deref().unwrap_or("").chars().take(100).collect::<String>());
     }
 }

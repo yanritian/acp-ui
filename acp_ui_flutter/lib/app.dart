@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'shared/theme/app_theme.dart';
 import 'shared/widgets/sidebar.dart';
 import 'screens/main_screen.dart';
+import 'screens/agent_platform/one_shot_screen.dart';
+import 'screens/agent_platform/cost_dashboard_screen.dart';
 import 'features/multi_agent/multi_agent_view.dart';
 import 'features/history/history_view.dart';
 import 'features/settings/settings_view.dart';
@@ -70,6 +72,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/server-config',
             builder: (context, state) => const ServerConfigScreen(),
+          ),
+          // Agent Platform routes
+          GoRoute(
+            path: '/agent-platform',
+            builder: (context, state) => const OneShotScreen(),
+          ),
+          GoRoute(
+            path: '/cost-tracker',
+            builder: (context, state) => const CostDashboardScreen(),
           ),
         ],
       ),

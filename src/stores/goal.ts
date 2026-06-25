@@ -29,6 +29,7 @@ export const useGoalStore = defineStore('goal', () => {
     iterating: 0,
     failed: 0,
     budget_exhausted: 0,
+    max_iter_reached: 0,
     cancelled: 0,
   });
   const isLoading = ref(false);
@@ -48,7 +49,7 @@ export const useGoalStore = defineStore('goal', () => {
     goals.value.filter(g => g.status.status === 'failed')
   );
   const readyGoals = computed(() =>
-    goals.value.filter(g => g.status.status === 'pending' && g.dependencies.length === 0)
+    goals.value.filter(g => g.status.status === 'pending' && g.depends_on.length === 0)
   );
 
   // --- Actions ---

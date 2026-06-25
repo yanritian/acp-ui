@@ -5,6 +5,9 @@ import { createMockTaskDag } from './lib/mock-task-dag'
 const routes = [
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
+  // Agent Platform - One-Shot Interface
+  { path: '/agent-platform', name: 'agent-platform', component: () => import('./views/AgentPlatformView.vue') },
+  { path: '/cost-tracker', name: 'cost-tracker', component: () => import('./views/CostDashboardView.vue') },
   { path: '/chat', name: 'chat', component: () => import('./features/chat/ChatView.vue') },
   { path: '/multi-agent', name: 'multi-agent', component: () => import('./features/chat/MultiAgentChat.vue') },
   { path: '/multi-session', name: 'multi-session', component: () => import('./features/chat/MultiSessionChat.vue') },

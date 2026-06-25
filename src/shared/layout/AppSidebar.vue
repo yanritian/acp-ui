@@ -46,6 +46,7 @@ const emit = defineEmits<{
   (e: 'resume-session', session: SavedSession): void
   (e: 'delete-session', sessionId: string): void
   (e: 'update:selectedAgent', value: string): void
+  (e: 'open-tank-game'): void
 }>()
 
 const { t } = useI18n()
@@ -109,6 +110,13 @@ function handleAgentSelect(agentName: string) {
           title="ACP Traffic Monitor"
         >
           <span v-html="icon.activity"></span>
+        </button>
+        <button
+          class="settings-btn game-btn"
+          @click="emit('open-tank-game')"
+          title="坦克大战 Demo"
+        >
+          🎮
         </button>
         <button class="settings-btn" @click="emit('open-settings')" title="Settings">
           <span v-html="icon.settings"></span>
@@ -302,6 +310,14 @@ function handleAgentSelect(agentName: string) {
   color: var(--text-accent);
   background: var(--bg-hover);
   border-radius: 4px;
+}
+
+.game-btn {
+  font-size: 1.1rem;
+}
+
+.game-btn:hover {
+  color: #4CAF50;
 }
 
 .sidebar-content {

@@ -52,7 +52,7 @@ const statusLabels: Record<string, string> = {
 const dependencies = computed(() => {
   const deps: Array<{ from: string; to: string }> = []
   for (const goal of goalStore.goals) {
-    for (const depId of goal.dependencies) {
+    for (const depId of goal.depends_on) {
       deps.push({ from: depId, to: goal.id })
     }
   }
@@ -72,29 +72,32 @@ async function handleSubmitGoal() {
       completionCondition = {
         type: 'command_success',
         command: newGoal.value.command || 'echo done',
-        expectedExitCode: 0,
+        args: [],
+        cwd: null,
       }
       break
     case 'file_exists':
       completionCondition = {
         type: 'file_check',
         path: newGoal.value.command || 'output.txt',
-        mustExist: true,
-        contentContains: null,
+        content_contains: null,
+        max_size_bytes: null,
       }
       break
     case 'output_contains':
       completionCondition = {
         type: 'output_contains',
-        text: newGoal.value.command || 'success',
-        caseSensitive: false,
+        command: '',
+        pattern: newGoal.value.command || 'success',
+        case_sensitive: false,
       }
       break
     default:
       completionCondition = {
         type: 'command_success',
         command: 'echo done',
-        expectedExitCode: 0,
+        args: [],
+        cwd: null,
       }
   }
 
@@ -102,18 +105,22 @@ async function handleSubmitGoal() {
     id: newGoal.value.id,
     description: newGoal.value.description,
     status: { status: 'pending' },
-    completionCondition,
+    completion_condition: completionCondition,
     evaluator: { type: 'auto' },
-    iterations: [],
-    maxIterations: newGoal.value.maxIterations,
-    dependencies: [],
-    assignedWorker: null,
-    tokenBudget: null,
-    tokenUsed: 0,
-    createdAt: Date.now(),
-    startedAt: null,
-    convergedAt: null,
-    parentId: null,
+    iteration_log: [],
+    max_iterations: newGoal.value.maxIterations || 5,
+    depends_on: [],
+    executor: null,
+    token_budget: null,
+    tokens_used: 0,
+    created_at: Date.now(),
+    started_at: null,
+    converged_at: null,
+    parent_goal_id: null,
+    current_iteration: 0,
+    per_iteration_timeout_ms: 60000,
+    parent_task_id: null,
+    output_files: [],
   }
 
   await goalStore.submitGoal(goal)
@@ -199,13 +206,13 @@ function generateId() {
         </div>
         <div class="goal-description">{{ goal.description }}</div>
         <div class="goal-meta">
-          <span class="iteration">迭代: {{ goal.iterations.length }}/{{ goal.maxIterations }}</span>
-          <span class="executor">执行器: {{ goal.assignedWorker || '未分配' }}</span>
+          <span class="iteration">迭代: {{ goal.iteration_log.length }}/{{ goal.max_iterations }}</span>
+          <span class="executor">执行器: {{ goal.executor || '未分配' }}</span>
         </div>
         <!-- 依赖关系 -->
-        <div class="dependencies" v-if="goal.dependencies.length > 0">
+        <div class="dependencies" v-if="goal.depends_on.length > 0">
           <span class="dep-label">依赖:</span>
-          <span class="dep-item" v-for="dep in goal.dependencies" :key="dep">{{ dep }}</span>
+          <span class="dep-item" v-for="dep in goal.depends_on" :key="dep">{{ dep }}</span>
         </div>
       </div>
     </div>

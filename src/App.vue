@@ -27,6 +27,7 @@ import SettingsView from './shared/ui/SettingsView.vue'
 import AuthMethodDialog from './shared/dialogs/AuthMethodDialog.vue'
 import TrafficMonitor from './features/monitoring/TrafficMonitor.vue'
 import LogStreamView from './features/monitoring/LogStreamView.vue'
+import TankBattleDialog from './features/games/TankBattleDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -49,6 +50,7 @@ const showSettings = ref(false)
 const showTrafficMonitor = ref(false)
 const showStartupDetails = ref(false)
 const showLogStream = ref(false)
+const showTankGame = ref(false)
 
 // Computed properties from stores
 const isConnected = computed(() => sessionStore.isConnected)
@@ -230,6 +232,7 @@ function clearError() {
       @disconnect="handleDisconnect"
       @resume-session="handleResumeSession"
       @delete-session="handleDeleteSession"
+      @open-tank-game="showTankGame = true"
     />
     
     <!-- Backdrop behind the drawer on narrow viewports. Only intercepts
@@ -326,6 +329,13 @@ function clearError() {
       v-if="showLogStream"
       @close="showLogStream = false"
       @resize="() => {}"
+    />
+
+    <!-- Tank Battle Game Demo -->
+    <TankBattleDialog
+      v-if="showTankGame"
+      :visible="showTankGame"
+      @close="showTankGame = false"
     />
   </div>
 </template>

@@ -2,14 +2,20 @@
 //!
 //! Implements Base → Template → Instance architecture for Agent configuration.
 //!
-//! NOTE: This module is reserved for future Agent Teams orchestration.
-//! Currently not used in production execution flow.
+//! Features:
+//! - Agent Base/Template/Instance hierarchy (Phase 1 Week 1)
+//! - Self-Optimizing capabilities tracking (Phase 1 Week 2)
+//! - Scene/platform specific performance metrics
 
 #![allow(dead_code)] // Reserved for future Agent Teams orchestration
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+
+// Re-export for self-optimizing router integration
+pub use crate::self_optimizing_router::{ProficiencyScore, SelfOptimizingConfig};
+pub use crate::agent_adapter::types::{SceneType, Platform};
 
 /// Agent Base - the "Image" layer
 /// Defines the foundational agent configuration (e.g., claude-code-base, codex-base)
@@ -193,6 +199,10 @@ pub struct AgentRegistry {
     templates: HashMap<String, AgentTemplate>,
     instances: HashMap<String, AgentInstance>,
     max_derivation_depth: u32, // Limit to 3 layers
+    /// Agent proficiency scores (for Self-Optimizing Router)
+    proficiency_scores: HashMap<String, HashMap<String, ProficiencyScore>>, // agent_id -> (scene:platform) -> score
+    /// Self-optimizing config
+    optimizing_config: SelfOptimizingConfig,
 }
 
 
@@ -204,6 +214,20 @@ impl AgentRegistry {
             templates: HashMap::new(),
             instances: HashMap::new(),
             max_derivation_depth: 3,
+            proficiency_scores: HashMap::new(),
+            optimizing_config: SelfOptimizingConfig::default(),
+        }
+    }
+
+    /// Create with custom self-optimizing config
+    pub fn with_optimizing_config(config: SelfOptimizingConfig) -> Self {
+        Self {
+            bases: HashMap::new(),
+            templates: HashMap::new(),
+            instances: HashMap::new(),
+            max_derivation_depth: 3,
+            proficiency_scores: HashMap::new(),
+            optimizing_config: config,
         }
     }
 
@@ -394,6 +418,109 @@ impl AgentRegistry {
     /// List all instances
     pub fn list_instances(&self) -> Vec<&AgentInstance> {
         self.instances.values().collect()
+    }
+
+    // === Self-Optimizing Router Integration (Phase 1 Week 2) ===
+
+    /// Record execution for proficiency tracking
+    pub fn record_execution(
+        &mut self,
+        agent_id: &str,
+        scene: SceneType,
+        platform: Platform,
+        success: bool,
+        latency_ms: u64,
+        cost: f32,
+    ) {
+        let key = format!("{}:{}", scene_to_short(&scene), platform_to_short(&platform));
+
+        // Get or create agent's proficiency map
+        let agent_scores = self.proficiency_scores.entry(agent_id.to_string()).or_insert_with(HashMap::new);
+
+        // Get or create proficiency score for this scene+platform
+        let score = agent_scores.entry(key.clone()).or_insert_with(|| {
+            ProficiencyScore::new(agent_id.to_string(), scene, platform)
+        });
+
+        // Update proficiency
+        score.update(success, latency_ms, cost, self.optimizing_config.ewma_alpha);
+    }
+
+    /// Get best agent for scene+platform based on proficiency
+    pub fn get_best_agent_for(&self, scene: SceneType, platform: Platform) -> Option<String> {
+        let key = format!("{}:{}", scene_to_short(&scene), platform_to_short(&platform));
+
+        // Find agent with highest proficiency for this scene+platform
+        let mut best: Option<(String, f32)> = None;
+
+        for (agent_id, scores) in &self.proficiency_scores {
+            if let Some(score) = scores.get(&key) {
+                let composite = score.composite_score(&self.optimizing_config);
+                if best.is_none() || composite > best.as_ref().unwrap().1 {
+                    best = Some((agent_id.clone(), composite));
+                }
+            }
+        }
+
+        best.map(|(id, _)| id)
+    }
+
+    /// Get agent proficiency scores
+    pub fn get_agent_proficiencies(&self, agent_id: &str) -> Option<Vec<ProficiencyScore>> {
+        self.proficiency_scores.get(agent_id).map(|scores| scores.values().cloned().collect())
+    }
+
+    /// Get all proficiency scores
+    pub fn get_all_proficiencies(&self) -> Vec<ProficiencyScore> {
+        self.proficiency_scores.values()
+            .flat_map(|scores| scores.values().cloned())
+            .collect()
+    }
+
+    /// Reset proficiency scores
+    pub fn reset_proficiencies(&mut self) {
+        self.proficiency_scores.clear();
+    }
+
+    /// Get agents capable of handling a scene
+    pub fn get_agents_for_scene(&self, scene: SceneType) -> Vec<String> {
+        let scene_str = scene_to_short(&scene);
+
+        self.proficiency_scores.keys()
+            .filter(|agent_id| {
+                self.proficiency_scores.get(*agent_id)
+                    .map(|scores| scores.keys().any(|k| k.starts_with(&scene_str)))
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+// Helper functions for scene/platform conversion
+
+fn scene_to_short(scene: &SceneType) -> &'static str {
+    match scene {
+        SceneType::WebDevelopment => "web",
+        SceneType::MiniProgramDevelopment => "mini",
+        SceneType::DesktopDevelopment => "desktop",
+        SceneType::GameDevelopment => "game",
+        SceneType::GameArtGeneration => "game_art",
+        SceneType::GameCrossPlatform => "game_cross",
+        SceneType::GamePerformanceOptimization => "game_perf",
+        SceneType::Marketing => "marketing",
+        SceneType::Finance => "finance",
+        SceneType::Design => "design",
+    }
+}
+
+fn platform_to_short(platform: &Platform) -> &'static str {
+    match platform {
+        Platform::Web => "web",
+        Platform::MiniProgram => "mini",
+        Platform::Desktop => "desktop",
+        Platform::Mobile => "mobile",
+        Platform::Game => "game",
     }
 }
 

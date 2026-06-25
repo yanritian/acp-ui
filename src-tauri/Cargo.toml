@@ -81,9 +81,11 @@ rust_decimal = "1"  # ERP Finance: decimal precision
 thiserror = "1"     # ERP Finance: error handling
 ureq = { version = "2", features = ["json", "tls"] }  # tls uses rustls by default in ureq 2.x
 reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }  # NEW: For Feishu rich message API
-axum = "0.7"  # Webhook HTTP server for Feishu event callbacks
+axum = { version = "0.7", features = ["ws"] }  # HTTP Server with WebSocket support
+tower-http = { version = "0.5", features = ["cors"] }  # CORS for HTTP Server
 tracing = "0.1"  # Structured logging for webhook handlers
 serde_yaml = "0.9"  # NEW: For proper YAML parsing (nested structures support)
+async-trait = "0.1"  # Agent Adapter: async trait support
 
 # Hermes crates - local dependencies
 hermes-agent = { path = "hermes-crates/hermes-agent" }

@@ -55,6 +55,7 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'skills', labelKey: 'navigation.skills', icon: '🧩', requiresAgent: false, descriptionKey: 'navigationDescriptions.skills', group: 'lab' },
   { id: 'plugins', labelKey: 'navigation.plugins', icon: '🔌', requiresAgent: false, descriptionKey: 'navigationDescriptions.plugins', group: 'lab' },
   { id: 'swarm-dashboard', labelKey: 'navigation.swarmDashboard', icon: '🐝', requiresAgent: false, descriptionKey: 'navigationDescriptions.swarmDashboard', group: 'lab' },
+  { id: 'games', labelKey: 'navigation.games', icon: '🎮', requiresAgent: false, descriptionKey: 'navigationDescriptions.games', group: 'lab' },
 ]
 
 export const CORE_FEATURES = FEATURES.filter(f => f.isCore)

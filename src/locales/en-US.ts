@@ -157,6 +157,7 @@ export const enUS: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +193,7 @@ export const enUS: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management (Godot/Unity)',
   },
   hermes: {
     title: 'Hermes Dashboard',

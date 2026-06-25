@@ -211,7 +211,7 @@ impl GameErrorHandler {
         self.error_history.clear();
     }
 
-    pub fn get_frequent_errors(&self, limit: usize) -> Vec<(&String, usize)> {
+    pub fn get_frequent_errors(&self, limit: usize) -> Vec<(String, usize)> {
         let mut error_counts: HashMap<String, usize> = HashMap::new();
 
         for error in &self.error_history {

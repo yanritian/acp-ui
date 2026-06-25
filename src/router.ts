@@ -45,6 +45,7 @@ const routes = [
   { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./features/workflow/WorkflowEditor.vue') },
   // Demo page - token optimizer backend commands not implemented
   { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue'), meta: { isDemo: true } },
+  { path: '/games', name: 'games', component: () => import('./features/games/GameManager.vue') },
   { path: '/settings', name: 'settings', component: () => import('./shared/ui/UnifiedSettingsView.vue') },
 ]
 

@@ -530,6 +530,9 @@ pub fn run() {
             game_detect,
             unity_build,
             unity_get_targets,
+            game_export,
+            game_get_export_targets,
+            game_validate_export,
             game_get_platforms,
             // Game Asset commands (Phase 3 Week 4)
             game_detect_assets,

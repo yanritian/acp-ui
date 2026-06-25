@@ -24,6 +24,7 @@ mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, et
 
 // ---- Game Development ----
 mod game_detector;    // Game engine detection (Godot, Unity)
+mod game_engine;      // Unified game engine interface
 
 // ---- Security & Permissions ----
 mod permission_checker;

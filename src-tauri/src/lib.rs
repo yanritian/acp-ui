@@ -522,6 +522,7 @@ pub fn run() {
             godot_build_dev,
             godot_build_release,
             godot_get_scenes,
+            godot_detect,
             game_get_platforms,
             // Game Asset commands (Phase 3 Week 4)
             game_detect_assets,

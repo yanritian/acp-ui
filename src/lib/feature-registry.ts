@@ -56,6 +56,9 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'plugins', labelKey: 'navigation.plugins', icon: '🔌', requiresAgent: false, descriptionKey: 'navigationDescriptions.plugins', group: 'lab' },
   { id: 'swarm-dashboard', labelKey: 'navigation.swarmDashboard', icon: '🐝', requiresAgent: false, descriptionKey: 'navigationDescriptions.swarmDashboard', group: 'lab' },
   { id: 'games', labelKey: 'navigation.games', icon: '🎮', requiresAgent: false, descriptionKey: 'navigationDescriptions.games', group: 'lab' },
+  { id: 'games-renpy', labelKey: 'navigation.gamesRenpy', icon: '🎭', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesRenpy', group: 'lab' },
+  { id: 'games-designer', labelKey: 'navigation.gamesDesigner', icon: '🎨', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesDesigner', group: 'lab' },
+  { id: 'games-developer', labelKey: 'navigation.gamesDeveloper', icon: '💻', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesDeveloper', group: 'lab' },
 ]
 
 export const CORE_FEATURES = FEATURES.filter(f => f.isCore)

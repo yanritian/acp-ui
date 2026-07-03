@@ -158,6 +158,9 @@ export const enUS: MessageSchema = {
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
     games: 'Games',
+    gamesRenpy: 'RenRen\'Py Manager',
+    gamesDesigner: 'AI Game Designer',
+    gamesDeveloper: 'AI Code Generator',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -194,6 +197,9 @@ export const enUS: MessageSchema = {
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
     games: 'Game development workflow management (Godot/Unity)',
+    gamesRenpy: 'RenRen\'Py visual novel development',
+    gamesDesigner: 'AI game design document generation',
+    gamesDeveloper: 'AI game code generation',
   },
   hermes: {
     title: 'Hermes Dashboard',

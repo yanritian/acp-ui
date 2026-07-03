@@ -156,6 +156,10 @@ export type MessageSchema = {
     swarmDashboard: string
     workflowEditor: string
     tokenOptimizer: string
+    games: string
+    gamesRenpy: string
+    gamesDesigner: string
+    gamesDeveloper: string
   }
   navigationGroup: {
     chat: string
@@ -191,6 +195,10 @@ export type MessageSchema = {
     swarmDashboard: string
     workflowEditor: string
     tokenOptimizer: string
+    games: string
+    gamesRenpy: string
+    gamesDesigner: string
+    gamesDeveloper: string
   }
   hermes: {
     title: string

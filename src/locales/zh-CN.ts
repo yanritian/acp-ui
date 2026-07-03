@@ -157,6 +157,10 @@ export const zhCN: MessageSchema = {
     swarmDashboard: '蜂群面板',
     workflowEditor: '工作流编辑器',
     tokenOptimizer: 'Token 优化',
+    games: '游戏开发',
+    gamesRenpy: 'Ren\'Py 管理器',
+    gamesDesigner: 'AI 游戏设计师',
+    gamesDeveloper: 'AI 代码生成器',
   },
   navigationGroup: {
     chat: '对话',
@@ -192,6 +196,10 @@ export const zhCN: MessageSchema = {
     swarmDashboard: 'Agent 蜂群协调与任务管理',
     workflowEditor: '创建和监控多阶段编排工作流',
     tokenOptimizer: '上下文压缩与 Token 节省统计',
+    games: '游戏开发工作流管理（Godot/Unity）',
+    gamesRenpy: 'Ren\'Py 视觉小说开发',
+    gamesDesigner: 'AI 游戏设计文档生成',
+    gamesDeveloper: 'AI 游戏代码生成',
   },
   hermes: {
     title: 'Hermes Dashboard',

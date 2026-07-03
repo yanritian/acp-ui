@@ -22,6 +22,9 @@ pub mod tauri_adapter;  // Phase 2: Desktop Development
 pub mod electron_adapter;  // Phase 2: Electron Desktop
 pub mod unity_adapter;  // Phase 3: Game Development
 pub mod godot_adapter;  // Phase 3: Game Development
+pub mod renpy_adapter;  // Phase 3: Game Development - Visual Novel
+pub mod game_designer_agent;  // Phase 3: Game Design AI Agent
+pub mod game_developer_agent;  // Phase 3: Game Development AI Agent
 pub mod kimi_adapter;   // Phase 4: Marketing & Finance
 pub mod jimeng_adapter; // Phase 4: Marketing & Finance
 pub mod kling_adapter;  // Phase 4: Marketing & Finance
@@ -40,6 +43,9 @@ pub use tauri_adapter::{TauriDesktopAdapter, DesktopPlatform, BundleType};
 pub use electron_adapter::{ElectronDesktopAdapter, ElectronPlatform, ElectronArch};
 pub use unity_adapter::{UnityAdapter, UnityPlatform, UnityBuildConfig};
 pub use godot_adapter::{GodotAdapter, GodotPlatform, GodotExportConfig};
+pub use renpy_adapter::{RenPyAdapter, RenPyPlatform, StorySpec, CharacterSpec, SceneSpec};
+pub use game_designer_agent::{GameDesignerAgent, GameDesignDoc, GameConcept, GameEngine};
+pub use game_developer_agent::{GameDeveloperAgent, CodeGenRequest, CodeOutputFormat, GeneratedCode, CodeFile};
 pub use kimi_adapter::{KimiAdapter, KimiConfig};
 pub use jimeng_adapter::{JimengAdapter, JimengConfig, JimengStyle, ImageSize};
 pub use kling_adapter::{KlingAdapter, KlingConfig, KlingMode, VideoResolution, KlingTaskStatus};

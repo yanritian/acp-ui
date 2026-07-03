@@ -242,6 +242,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(app_state)
+        .manage(commands::renpy::RenPyState::new())
+        .manage(commands::game_designer::GameDesignerState::new())
+        .manage(commands::game_developer::GameDeveloperState::new())
         .setup(|app| {
             let app_handle = app.handle().clone();
             let state: State<AppState> = app.state();
@@ -547,6 +550,22 @@ pub fn run() {
             game_get_asset_stats,
             game_get_optimization_suggestions,
             game_get_asset_types,
+            // Ren'Py Visual Novel commands (Phase 3)
+            renpy_get_version,
+            renpy_create_project,
+            renpy_generate_script,
+            renpy_run_game,
+            renpy_compile_game,
+            renpy_lint_game,
+            renpy_detect_project,
+            // Game Designer AI Agent commands (Phase 3)
+            game_designer_generate_gdd,
+            game_designer_generate_concept,
+            game_designer_recommend_engine,
+            // Game Developer AI Agent commands (Phase 3)
+            game_developer_generate_code,
+            game_developer_generate_file,
+            game_developer_get_supported_engines,
             // Marketing commands (Phase 4)
             marketing_init_kimi,
             kimi_generate_text,

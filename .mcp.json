@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tauri-mcp": {
+      "command": "npx",
+      "args": ["tauri-mcp"],
+      "env": {
+        "TAURI_APP_DIR": "."
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@
     "opener:default",
     "store:default",
     "dialog:default",
+    "mcp:default",
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [{ "path": "**" }]

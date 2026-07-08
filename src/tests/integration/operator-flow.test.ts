@@ -318,14 +318,14 @@ describe('Full Flow Integration Tests', () => {
         taskId: 'task_hermes_1',
         goal: 'Add double jump',
         steps: [
-          { id: 1, description: 'Analyze Player.gd', files: ['scripts/Player.gd'], estimated_time_seconds: 30, requires_approval: false },
-          { id: 2, description: 'Add jump logic', files: ['scripts/Player.gd'], estimated_time_seconds: 60, requires_approval: true }
+          { id: 1, description: 'Analyze Player.gd', files: ['scripts/Player.gd'], estimatedTimeSeconds: 30, requiresApproval: false },
+          { id: 2, description: 'Add jump logic', files: ['scripts/Player.gd'], estimatedTimeSeconds: 60, requiresApproval: true }
         ],
-        total_estimated_time_seconds: 90
+        totalEstimatedTimeSeconds: 90
       })
       const plan = await HermesCliApi.generatePlan('task_hermes_1', 'Add double jump')
       expect(plan.steps.length).toBe(2)
-      expect(plan.total_estimated_time_seconds).toBe(90)
+      expect(plan.totalEstimatedTimeSeconds).toBe(90)
     })
   })
 })

@@ -115,6 +115,39 @@ export const OperatorApi = {
   async deleteMemory(memoryId: string): Promise<void> {
     return invoke<void>('operator_delete_memory', { memoryId })
   },
+
+  // ============================================================================
+  // File Tools
+  // ============================================================================
+
+  // Read a file safely
+  async fileRead(path: string, allowedRoots: string[]): Promise<any> {
+    return invoke<any>('operator_file_read', { path, allowedRoots })
+  },
+
+  // Apply a patch to a file
+  async filePatch(
+    path: string,
+    newContent: string,
+    allowedRoots: string[],
+    createBackup: boolean = true
+  ): Promise<any> {
+    return invoke<any>('operator_file_patch', { path, newContent, allowedRoots, createBackup })
+  },
+
+  // Preview a patch without applying
+  async filePatchPreview(
+    path: string,
+    newContent: string,
+    allowedRoots: string[]
+  ): Promise<any> {
+    return invoke<any>('operator_file_patch_preview', { path, newContent, allowedRoots })
+  },
+
+  // List files in a directory
+  async fileList(path: string, allowedRoots: string[]): Promise<any> {
+    return invoke<any>('operator_file_list', { path, allowedRoots })
+  },
 }
 
 // ============================================================================

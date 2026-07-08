@@ -294,6 +294,61 @@ pub async fn operator_get_task_summary(
 }
 
 // ============================================================================
+// File Tool Commands
+// ============================================================================
+
+#[tauri::command]
+pub async fn operator_file_read(
+    path: String,
+    allowed_roots: Vec<String>,
+) -> Result<FileReadResult, String> {
+    let path = std::path::Path::new(&path);
+    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let path_guard = PathGuard::new(roots);
+
+    file_read(path, &path_guard).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn operator_file_patch(
+    path: String,
+    new_content: String,
+    allowed_roots: Vec<String>,
+    create_backup: bool,
+) -> Result<FilePatchResult, String> {
+    let path = std::path::Path::new(&path);
+    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let path_guard = PathGuard::new(roots);
+
+    file_patch(path, &new_content, &path_guard, create_backup).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn operator_file_patch_preview(
+    path: String,
+    new_content: String,
+    allowed_roots: Vec<String>,
+) -> Result<FilePatch, String> {
+    let path = std::path::Path::new(&path);
+    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let path_guard = PathGuard::new(roots);
+
+    file_patch_preview(path, &new_content, &path_guard).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn operator_file_list(
+    path: String,
+    allowed_roots: Vec<String>,
+) -> Result<FileListResult, String> {
+    let path = std::path::Path::new(&path);
+    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let path_guard = PathGuard::new(roots);
+
+    file_list(path, &path_guard).map_err(|e| e.to_string())
+}
+
+// ============================================================================
 // Godot Commands
 // ============================================================================
 

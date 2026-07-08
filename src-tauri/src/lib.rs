@@ -30,6 +30,10 @@ mod game_launcher;           // Game launcher and process management
 mod game_process_monitor;    // Process metrics and performance monitoring
 mod game_error_handler;      // Comprehensive error handling and UX
 
+// ---- Hermes Game Operator (Phase 1 MVP) ----
+mod operator;                // Operator Control Plane - Task state machine, events, approval
+mod domains;                 // Domain Packs - Vertical-specific capabilities (Godot, Unity, etc.)
+
 // ---- Security & Permissions ----
 mod permission_checker;
 mod circuit_breaker;  // Three-state failure protection
@@ -241,11 +245,10 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_mcp::init())
+        // .plugin(tauri_plugin_mcp::init()) // Disabled: compilation errors
         .manage(app_state)
         .manage(commands::renpy::RenPyState::new())
-        .manage(commands::game_designer::GameDesignerState::new())
-        .manage(commands::game_developer::GameDeveloperState::new())
+        .manage(std::sync::Arc::new(std::sync::Mutex::new(operator::OperatorState::new())))
         .setup(|app| {
             let app_handle = app.handle().clone();
             let state: State<AppState> = app.state();
@@ -559,14 +562,6 @@ pub fn run() {
             renpy_compile_game,
             renpy_lint_game,
             renpy_detect_project,
-            // Game Designer AI Agent commands (Phase 3)
-            game_designer_generate_gdd,
-            game_designer_generate_concept,
-            game_designer_recommend_engine,
-            // Game Developer AI Agent commands (Phase 3)
-            game_developer_generate_code,
-            game_developer_generate_file,
-            game_developer_get_supported_engines,
             // Marketing commands (Phase 4)
             marketing_init_kimi,
             kimi_generate_text,
@@ -714,7 +709,26 @@ pub fn run() {
             swarm_health_check,
             swarm_worker_cancel_task,
             swarm_get_task_output,
-            swarm_shutdown_worker
+            swarm_shutdown_worker,
+            // Hermes Game Operator commands (Phase 1 MVP)
+            operator::operator_start_task,
+            operator::operator_get_task,
+            operator::operator_list_tasks,
+            operator::operator_pause_task,
+            operator::operator_resume_task,
+            operator::operator_stop_task,
+            operator::operator_redirect_task,
+            operator::operator_approve,
+            operator::operator_get_pending_approvals,
+            operator::operator_list_events,
+            operator::operator_get_task_summary,
+            operator::godot_detect_project,
+            operator::godot_analyze_project,
+            // File tool commands
+            operator::operator_file_read,
+            operator::operator_file_patch,
+            operator::operator_file_patch_preview,
+            operator::operator_file_list
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

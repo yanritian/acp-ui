@@ -2,6 +2,7 @@
 // This module bridges the Operator Control Plane with the Hermes Agent execution engine
 
 use crate::operator::{OperatorTask, OperatorEvent, OperatorEventType, EventLevel, TaskMode};
+use crate::domains::games::godot::GodotProjectAnalyzer;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
@@ -29,35 +30,110 @@ impl HermesAgentBridge {
     /// Execute a task using Hermes Agent
     /// Returns a stream of events
     pub async fn execute_task(&self) -> Result<TaskExecutionResult, AgentBridgeError> {
-        // TODO: Integrate with actual Hermes Agent
-        // For now, return a mock execution result
+        let mut events = Vec::new();
 
-        let events = vec![
-            self.create_event(OperatorEventType::TaskStarted, "Task execution started"),
-            self.create_event(OperatorEventType::ProjectAnalyzed, "Project analyzed successfully"),
-            self.create_event(OperatorEventType::PlanReady, "Execution plan ready"),
-        ];
+        // Step 1: Task started
+        events.push(self.create_event(OperatorEventType::TaskStarted, "Task execution started"));
 
-        Ok(TaskExecutionResult {
-            task_id: self.task_id.clone(),
-            events,
-            success: true,
-            summary: Some("Task completed successfully".to_string()),
-        })
+        // Step 2: Analyze project
+        events.push(self.create_event(OperatorEventType::ProjectAnalyzing, "Analyzing Godot project..."));
+
+        match self.analyze_project().await {
+            Ok(analysis) => {
+                events.push(self.create_event(
+                    OperatorEventType::ProjectAnalyzed,
+                    &format!("Project analyzed: {} scripts, {} scenes", analysis.scripts.len(), analysis.scenes.len())
+                ));
+
+                // Step 3: Generate plan
+                events.push(self.create_event(OperatorEventType::PlanGenerating, "Generating execution plan..."));
+
+                match self.generate_plan(&analysis).await {
+                    Ok(plan) => {
+                        events.push(self.create_event(
+                            OperatorEventType::PlanReady,
+                            &format!("Execution plan ready with {} steps", plan.steps.len())
+                        ));
+
+                        // Step 4: Execute plan steps
+                        for step in &plan.steps {
+                            events.push(self.create_event(
+                                OperatorEventType::StepStarted,
+                                &format!("Executing step {}: {}", step.id, step.description)
+                            ));
+
+                            match self.execute_step(step).await {
+                                Ok(result) => {
+                                    if result.success {
+                                        events.push(self.create_event(
+                                            OperatorEventType::StepCompleted,
+                                            &format!("Step {} completed", step.id)
+                                        ));
+                                    } else {
+                                        events.push(self.create_event(
+                                            OperatorEventType::StepFailed,
+                                            &format!("Step {} failed", step.id)
+                                        ));
+                                    }
+                                }
+                                Err(e) => {
+                                    events.push(self.create_event(
+                                        OperatorEventType::StepFailed,
+                                        &format!("Step {} error: {}", step.id, e)
+                                    ));
+                                }
+                            }
+                        }
+
+                        Ok(TaskExecutionResult {
+                            task_id: self.task_id.clone(),
+                            events,
+                            success: true,
+                            summary: Some(format!("Task completed: {} steps executed", plan.steps.len())),
+                        })
+                    }
+                    Err(e) => {
+                        events.push(self.create_event(OperatorEventType::PlanFailed, &format!("Plan generation failed: {}", e)));
+                        Ok(TaskExecutionResult {
+                            task_id: self.task_id.clone(),
+                            events,
+                            success: false,
+                            summary: Some(format!("Task failed: {}", e)),
+                        })
+                    }
+                }
+            }
+            Err(e) => {
+                events.push(self.create_event(OperatorEventType::ProjectAnalysisFailed, &format!("Project analysis failed: {}", e)));
+                Ok(TaskExecutionResult {
+                    task_id: self.task_id.clone(),
+                    events,
+                    success: false,
+                    summary: Some(format!("Task failed: {}", e)),
+                })
+            }
+        }
     }
 
-    /// Analyze the Godot project
+    /// Analyze the Godot project using GodotProjectAnalyzer
     pub async fn analyze_project(&self) -> Result<ProjectAnalysisResult, AgentBridgeError> {
-        // TODO: Integrate with GodotProjectAnalyzer
-        // For now, return mock analysis
+        let analyzer = GodotProjectAnalyzer::new();
 
-        Ok(ProjectAnalysisResult {
-            project_name: "Test Project".to_string(),
-            godot_version: "4.2".to_string(),
-            scripts: vec![],
-            scenes: vec![],
-            player_controllers: vec![],
-        })
+        match analyzer.analyze_project(&self.project_path) {
+            Ok(project_info) => {
+                // Find player controllers
+                let player_controllers = analyzer.find_player_controllers(&project_info);
+
+                Ok(ProjectAnalysisResult {
+                    project_name: project_info.project_name,
+                    godot_version: project_info.godot_version.unwrap_or_else(|| "unknown".to_string()),
+                    scripts: project_info.scripts.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+                    scenes: project_info.scenes.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+                    player_controllers: player_controllers.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+                })
+            }
+            Err(e) => Err(AgentBridgeError::AnalysisFailed(e.to_string()))
+        }
     }
 
     /// Generate an execution plan

@@ -88,8 +88,46 @@ Ctrl + L  → 切换语言
 
 ---
 
+## 🎮 Hermes Game Operator 快速入门
+
+### 第一步：选择 Godot 项目
+
+1. 点击 **Browse** 按钮
+2. 选择包含 `project.godot` 的目录
+3. 验证项目结构
+
+### 第二步：输入任务目标
+
+```
+示例目标：
+- "Add double jump to player"
+- "Change enemy speed from 100 to 150"
+- "Create menu scene with buttons"
+```
+
+### 第三步：启动任务
+
+点击 **Start Task** 按钮
+
+### 第四步：审批计划
+
+审查执行计划并批准修改
+
+### 第五步：监控进度
+
+观察进度时间线和审批请求
+
+### 第六步：审查结果
+
+检查修改的文件并测试功能
+
+---
+
 ## 下一步
 
 - 📖 阅读 [完整使用手册](./AGENT-TEAMS-USER-GUIDE.md)
 - 📖 查看 [协作功能指南](./COLLABORATION-GUIDE.md)
 - 📖 了解 [系统架构](./system-architecture.md)
+- 🎮 查看 [Game Operator 用户手册](./USER-MANUAL.md)
+- 📚 阅读 [API 参考文档](./api.md)
+- ❓ 查看 [常见问题](./FAQ.md)

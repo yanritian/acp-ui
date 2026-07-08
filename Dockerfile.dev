@@ -1,0 +1,29 @@
+# Development Dockerfile for Hermes Game Operator
+# Note: Tauri apps are desktop apps, this is for development/testing only
+
+FROM node:20-slim
+
+# Install dependencies for Playwright
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Build
+RUN npm run build
+
+# Expose port for dev server
+EXPOSE 1420
+
+# Start dev server
+CMD ["npm", "run", "dev"]

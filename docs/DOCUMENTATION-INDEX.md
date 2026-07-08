@@ -5,6 +5,7 @@
 | 文档 | 描述 |
 |------|------|
 | [HERMES-README.md](HERMES-README.md) | 项目概述和快速开始 |
+| [INSTALLATION-GUIDE.md](INSTALLATION-GUIDE.md) | 安装指南 |
 | [QUICK-REFERENCE.md](QUICK-REFERENCE.md) | 开发者快速参考卡片 |
 | [PROJECT-SUMMARY.md](PROJECT-SUMMARY.md) | 项目摘要 |
 
@@ -12,6 +13,7 @@
 
 | 文档 | 描述 |
 |------|------|
+| [INSTALLATION-GUIDE.md](INSTALLATION-GUIDE.md) | 完整安装指南 |
 | [setup/configuration-guide.md](setup/configuration-guide.md) | 详细配置指南 |
 | [setup/windows-sdk-install.md](setup/windows-sdk-install.md) | Windows SDK 安装指南 |
 | [.env.example](../.env.example) | 环境变量模板 |
@@ -51,12 +53,14 @@
 | 文档 | 描述 |
 |------|------|
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 常见问题解决 |
+| [FIX-REPORT-2026-07-09.md](FIX-REPORT-2026-07-09.md) | 修复报告 |
 
 ## 执行报告
 
 | 文档 | 描述 |
 |------|------|
 | [execution-reports/](execution-reports/) | 执行报告目录 |
+| [FIX-REPORT-2026-07-09.md](FIX-REPORT-2026-07-09.md) | 2026-07-09 修复报告 |
 
 ## 开发脚本
 
@@ -73,7 +77,7 @@
 
 | 类型 | 数量 |
 |------|------|
-| 文档文件 | 30+ |
+| 文档文件 | 35+ |
 | 测试文件 | 22 |
 | 测试用例 | 410 |
 | 脚本文件 | 15+ |
@@ -84,4 +88,4 @@
 
 - 项目: ACP-UI / Hermes Operator
 - 分支: cleanup/project-snapshot-2026-06-25
-- 提交: 95+ (本次会话)
+- 提交: 100+ (本次会话)

@@ -157,6 +157,10 @@ export const viVN: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'Trình quản lý Ren\'Py',
+    gamesDesigner: 'Nhà thiết kế game AI',
+    gamesDeveloper: 'Trình tạo mã AI',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const viVN: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'Phát triển tiểu thuyết trực quan Ren\'Py',
+    gamesDesigner: 'Tạo tài liệu thiết kế game AI',
+    gamesDeveloper: 'Tạo mã game AI',
   },
   hermes: {
     title: 'Hermes Dashboard',

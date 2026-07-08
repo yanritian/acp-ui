@@ -120,3 +120,22 @@ acp_ui_flutter_new/
 # Cargo / tool caches
 .cargo/
 .tauri-tools/
+
+# MCP test config
+.mcp-gui-test.json
+
+# Chinese filename temp files
+提示词*.txt
+
+# PDB debug files
+*.pdb
+
+# Binary tools directory (not for git)
+bin/
+
+# Claude memory (project-specific, auto-generated)
+memory/
+
+# Temp docs directories
+docs/glm52/
+docs/qwen/

@@ -157,6 +157,10 @@ export const deDE: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'RenRen\'Py Manager',
+    gamesDesigner: 'KI-Spieldesigner',
+    gamesDeveloper: 'KI-Code-Generator',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const deDE: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'RenRen\'Py Visual Novel Entwicklung',
+    gamesDesigner: 'KI-Spieldesign-Dokumentgenerierung',
+    gamesDeveloper: 'KI-Spielcode-Generierung',
   },
   hermes: {
     title: 'Hermes Dashboard',

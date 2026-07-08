@@ -47,8 +47,9 @@ const emit = defineEmits<{
 const { onNodeClick, onEdgeClick, onNodeDragStop, fitView } = useVueFlow()
 
 // Use reactive refs for Vue Flow (required for v-model)
-const flowNodes = ref<Node[]>([])
-const flowEdges = ref<Edge[]>([])
+// Use any[] to avoid deep type inference issues with VueFlow generics
+const flowNodes = ref<any[]>([])
+const flowEdges = ref<any[]>([])
 
 // Convert collaboration nodes/edges to Vue Flow format and update refs
 function updateFlowData() {
@@ -187,10 +188,12 @@ onMounted(() => {
   }, 300)
 })
 
-// Custom node types
-const nodeTypes = { agent: AgentNode }
-// Custom edge types
-const edgeTypes = { task: TaskEdge }
+// Custom node types - use Record to avoid deep type inference
+const nodeTypes: Record<string, any> = { agent: AgentNode }
+// Custom edge types - use Record to avoid deep type inference
+const edgeTypes: Record<string, any> = { task: TaskEdge }
+// Default edge options - isolate type to avoid deep inference
+const defaultEdgeOptions: Record<string, any> = { type: 'task', animated: props.config?.animationEnabled }
 </script>
 
 <template>
@@ -200,7 +203,7 @@ const edgeTypes = { task: TaskEdge }
       v-model:edges="flowEdges"
       :node-types="nodeTypes"
       :edge-types="edgeTypes"
-      :default-edge-options="{ type: 'task', animated: config.animationEnabled }"
+      :default-edge-options="defaultEdgeOptions"
       :fit-view-on-init="true"
       :snap-to-grid="false"
       :nodes-draggable="true"

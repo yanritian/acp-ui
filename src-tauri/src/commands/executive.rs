@@ -30,6 +30,7 @@ pub fn init_executive_agent(
 #[tauri::command]
 pub async fn execute_development_task(
     request: String,
+    mode: Option<String>,
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<TaskResult, String> {
@@ -49,7 +50,11 @@ pub async fn execute_development_task(
     let manager = ExecutiveAgentManager::new(workspace_path);
 
     // Execute workflow (async operation with no locks held)
-    let result = manager.execute_workflow(request, app_handle).await?;
+    let result = if let Some(mode_str) = mode {
+        manager.execute_workflow_with_mode(request, mode_str, app_handle).await?
+    } else {
+        manager.execute_workflow(request, app_handle).await?
+    };
 
     // Update state with the manager that has results
     {

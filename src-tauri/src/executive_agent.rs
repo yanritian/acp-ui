@@ -226,6 +226,10 @@ impl ExecutiveAgentManager {
     }
 
     pub async fn execute_workflow(&self, request: String, app_handle: AppHandle) -> Result<TaskResult, String> {
+        self.execute_workflow_with_mode(request, "coder".to_string(), app_handle).await
+    }
+
+    pub async fn execute_workflow_with_mode(&self, request: String, mode: String, app_handle: AppHandle) -> Result<TaskResult, String> {
         let task_id = uuid::Uuid::new_v4().to_string();
         self.logs.write().clear();
         self.generated_files.write().clear();
@@ -241,7 +245,7 @@ impl ExecutiveAgentManager {
             "taskId": task_id,
             "request": request,
             "workspace": self.workspace.to_string_lossy().to_string(),
-            "mode": "HermesNative"
+            "mode": mode.clone()
         }));
 
         self.agent_status.write().insert(AgentType::Coder, AgentStatus::Busy);
@@ -260,10 +264,16 @@ impl ExecutiveAgentManager {
             error: None,
         });
 
+        // 根据 mode 选择系统提示词
+        let system_prompt = match mode.as_str() {
+            "godot" | "godot-expert" => GODOT_EXPERT_PROMPT,
+            _ => CODER_PROMPT,
+        };
+
         // 构建提示词
         let full_prompt = format!(
             "{}\n\n## 用户需求\n{}\n\n请根据需求生成完整的代码实现。使用 ### FILE: 路径 格式标记每个文件。",
-            CODER_PROMPT, request
+            system_prompt, request
         );
 
         // 使用 Hermes AgentLoop 原生执行
@@ -479,3 +489,33 @@ fn main() {
 ```
 
 用中文注释，提供完整可运行的代码。"#;
+
+const GODOT_EXPERT_PROMPT: &str = r#"你是 Godot 游戏开发专家助手。
+
+你的职责：
+1. 根据用户需求生成 GDScript 代码
+2. 遵循 Godot 最佳实践（节点结构、信号、场景组织）
+3. 代码必须完整可运行，直接放到项目里能用
+4. 解释关键代码和设计决策
+
+Godot 最佳实践：
+- 使用 @export 暴露参数到编辑器
+- 使用 signal 进行节点间通信
+- 场景职责单一，避免"Godot 对象"
+- 使用 _ready()、_process()、_physics_process() 生命周期
+- 物理相关逻辑用 _physics_process()
+- 输入用 Input.is_action_pressed() 等
+
+输出格式：
+使用 ### FILE: 路径 格式标记每个文件：
+### FILE: player.gd
+```gdscript
+extends CharacterBody2D
+
+@export var speed: float = 300.0
+@export var jump_velocity: float = -400.0
+
+# ... 代码 ...
+```
+
+用中文注释，提供完整可运行的 GDScript 代码。"#;

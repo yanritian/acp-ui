@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Types
 interface GameInfo {
@@ -204,6 +207,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 跳转到开发助手（Executive Session）
+function openDevAssistant() {
+  if (!cwd.value) {
+    error.value = '请先设置项目目录';
+    return;
+  }
+  // 跳转到 ExecutiveSession，带上游戏项目路径和 godot mode
+  router.push({
+    path: '/executive-session',
+    query: {
+      workspace: cwd.value,
+      mode: 'godot'
+    }
+  });
+}
+
 // Lifecycle
 onMounted(() => {
   // Refresh running games every 5 seconds
@@ -218,6 +237,14 @@ onMounted(() => {
     <div class="header">
       <h2>🎮 Game Manager</h2>
       <div class="status">
+        <button
+          v-if="hasGame"
+          class="dev-assistant-btn"
+          @click="openDevAssistant"
+          title="打开 AI 开发助手"
+        >
+          🤖 开发助手
+        </button>
         <span v-if="hasGame" class="badge success">
           {{ engineName }} Project Detected
         </span>
@@ -430,6 +457,23 @@ onMounted(() => {
 .badge.warning {
   background: #fff3cd;
   color: #856404;
+}
+
+.dev-assistant-btn {
+  padding: 6px 12px;
+  margin-right: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dev-assistant-btn:hover {
+  background: #0056b3;
 }
 
 .section {

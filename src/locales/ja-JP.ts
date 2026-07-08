@@ -157,6 +157,10 @@ export const jaJP: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'RenRen\'Py マネージャー',
+    gamesDesigner: 'AI ゲームデザイナー',
+    gamesDeveloper: 'AI コードジェネレーター',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const jaJP: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'RenRen\'Py ビジュアルノベル開発',
+    gamesDesigner: 'AI ゲームデザインドキュメント生成',
+    gamesDeveloper: 'AI ゲームコード生成',
   },
   hermes: {
     title: 'Hermes Dashboard',

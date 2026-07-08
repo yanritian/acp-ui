@@ -15,8 +15,6 @@ pub mod self_optimizing;  // Self-Optimizing Router + Project Context (Phase 1 W
 pub mod godot;            // Godot Game Development Commands (Phase 2)
 pub mod unity;            // Unity Game Development Commands (Phase 1 Day 4)
 pub mod renpy;            // Ren'Py Visual Novel Commands (Phase 3)
-pub mod game_designer;    // Game Designer AI Agent Commands (Phase 3)
-pub mod game_developer;   // Game Developer AI Agent Commands (Phase 3)
 pub mod game_export;      // Game Export Commands (Phase 2 Day 6)
 pub mod game_launcher_cmds; // Game Launcher Commands (Phase 3 Day 8)
 
@@ -38,7 +36,5 @@ pub use self_optimizing::*;
 pub use godot::*;
 pub use unity::*;
 pub use renpy::*;
-pub use game_designer::*;
-pub use game_developer::*;
 pub use game_export::*;
 pub use game_launcher_cmds::*;

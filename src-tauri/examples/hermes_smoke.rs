@@ -1,0 +1,110 @@
+// hermes_smoke.rs - 独立验证 hermes AgentLoop + qwen
+// 运行：cargo run --example hermes_smoke
+//
+// 这是 Week 1 Spike 1：验证 hermes 能不能跑通
+// 不依赖 Tauri 应用，独立测试 hermes 引擎
+
+use hermes_agent::agent_loop::AgentLoop;
+use hermes_config::load_config;
+use hermes_core::Message;
+use hermes_tools::ToolRegistry;
+use std::sync::Arc;
+
+// 复用 executive_agent 里的构建函数
+mod builder {
+    use hermes_agent::provider::{AnthropicLikeProvider, LlmProvider};
+    use hermes_agent::AgentConfig;
+    use hermes_config::GatewayConfig;
+    use std::sync::Arc;
+
+    pub fn build_agent_config(
+        gateway_config: &GatewayConfig,
+        model_name: &str,
+        agent_name: Option<&str>,
+    ) -> AgentConfig {
+        // 简化的配置构建
+        AgentConfig {
+            name: agent_name.unwrap_or("hermes-smoke").to_string(),
+            model: model_name.to_string(),
+            max_turns: 5,
+            ..Default::default()
+        }
+    }
+
+    pub fn build_provider(
+        gateway_config: &GatewayConfig,
+        model_name: &str,
+    ) -> Arc<dyn LlmProvider> {
+        // 从配置里找对应的 provider
+        let provider_name = model_name.split(':').next().unwrap_or("alibaba-coding-plan");
+
+        if let Some(provider_config) = gateway_config.llm_providers.get(provider_name) {
+            Arc::new(AnthropicLikeProvider::new(
+                provider_config.base_url.clone(),
+                provider_config.api_key.clone(),
+                model_name.to_string(),
+            ))
+        } else {
+            panic!("Provider not found: {}. Check hermes/config.yaml", provider_name);
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("=== Hermes Smoke Test ===\n");
+
+    // 1. 加载配置
+    println!("[1/5] 加载配置...");
+    let config_dir = Some("D:/dingsun/acp-ui/hermes");
+    let gateway_config = load_config(config_dir)?;
+    println!("  ✓ 配置加载成功");
+    println!("  默认模型: {}", gateway_config.model);
+
+    // 2. 构建 AgentConfig
+    println!("\n[2/5] 构建 AgentConfig...");
+    let agent_config = builder::build_agent_config(&gateway_config, &gateway_config.model, Some("hermes-smoke"));
+    println!("  ✓ AgentConfig 构建成功");
+    println!("  max_turns: {}", agent_config.max_turns);
+
+    // 3. 构建 LLM Provider
+    println!("\n[3/5] 构建 LLM Provider...");
+    let llm_provider = builder::build_provider(&gateway_config, &gateway_config.model);
+    println!("  ✓ LLM Provider 构建成功");
+
+    // 4. 创建 AgentLoop（空工具注册表）
+    println!("\n[4/5] 创建 AgentLoop...");
+    let tools = ToolRegistry::new();
+    let tool_registry = Arc::new(tools);
+    let agent_loop = AgentLoop::new(agent_config, tool_registry, llm_provider);
+    println!("  ✓ AgentLoop 创建成功");
+
+    // 5. 执行测试
+    println!("\n[5/5] 执行测试 (发送 'hello' 给 qwen)...");
+    let messages = vec![Message::user("你好，请用一句话介绍自己。")];
+
+    match agent_loop.run(messages, None).await {
+        Ok(result) => {
+            println!("\n=== 成功！ ===");
+            println!("回复消息数: {}", result.messages.len());
+
+            // 提取 assistant 回复
+            for msg in &result.messages {
+                if msg.role == hermes_core::MessageRole::Assistant {
+                    println!("\nAssistant 回复:");
+                    println!("{}", msg.content.clone().unwrap_or_else(|| "(空)".to_string()));
+                }
+            }
+
+            println!("\n✓ hermes + qwen 工作正常！");
+            println!("  可以集成到 Tauri 应用中使用。");
+        }
+        Err(e) => {
+            eprintln!("\n=== 失败！ ===");
+            eprintln!("错误: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}

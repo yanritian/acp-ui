@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useI18n } from '@/locales';
 import { invokeOrProxy } from '@/lib/host';
+
+const route = useRoute();
+
+// 从 query 参数读取工作目录和模式（如果从 GameManager 跳转过来）
+const queryWorkspace = route.query.workspace as string | undefined;
+const queryMode = (route.query.mode as string | undefined) || 'coder';
 
 // Tauri event API (conditionally available)
 let listen: ((event: string, handler: (event: unknown) => void) => Promise<() => void>) | null = null;
@@ -147,8 +154,13 @@ onMounted(async () => {
   // 初始化 Executive Agent（设置工作目录）
   if (tauriReady) {
     try {
-      await invokeOrProxy('init_executive_agent', { workspace: WORKSPACE_PATH });
-      console.log('[ExecutiveSessionView] Executive Agent initialized with workspace:', WORKSPACE_PATH);
+      // 使用 query 参数的工作目录，或者默认工作目录
+      const workspace = queryWorkspace || WORKSPACE_PATH;
+      await invokeOrProxy('init_executive_agent', { workspace });
+      console.log('[ExecutiveSessionView] Executive Agent initialized with workspace:', workspace);
+      if (queryWorkspace) {
+        console.log('[ExecutiveSessionView] Using game project from GameManager, mode:', queryMode);
+      }
     } catch (e) {
       console.error('[ExecutiveSessionView] Failed to initialize Executive Agent:', e);
     }
@@ -400,8 +412,8 @@ async function executeTask() {
   isLoading.value = true;
 
   try {
-    console.log('[ExecutiveSessionView] Executing task:', request);
-    const result = await invokeOrProxy('execute_development_task', { request });
+    console.log('[ExecutiveSessionView] Executing task:', request, 'mode:', queryMode);
+    const result = await invokeOrProxy('execute_development_task', { request, mode: queryMode });
     console.log('[ExecutiveSessionView] Task result:', result);
   } catch (e) {
     console.error('[ExecutiveSessionView] Task execution failed:', e);

@@ -157,6 +157,10 @@ export const msMY: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'Pengurus RenRen\'Py',
+    gamesDesigner: 'Pereka Permainan AI',
+    gamesDeveloper: 'Penjana Kod AI',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const msMY: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'Pembangunan novel visual RenRen\'Py',
+    gamesDesigner: 'Penjanaan dokumen reka bentuk permainan AI',
+    gamesDeveloper: 'Penjanaan kod permainan AI',
   },
   hermes: {
     title: 'Hermes Dashboard',

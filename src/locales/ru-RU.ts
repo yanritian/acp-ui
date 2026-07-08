@@ -157,6 +157,10 @@ export const ruRU: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'Менеджер RenRen\'Py',
+    gamesDesigner: 'ИИ дизайнер игр',
+    gamesDeveloper: 'ИИ генератор кода',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const ruRU: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'Разработка визуальных новелл RenRen\'Py',
+    gamesDesigner: 'Генерация документов дизайна игры ИИ',
+    gamesDeveloper: 'Генерация кода игры ИИ',
   },
   hermes: {
     title: 'Hermes Dashboard',

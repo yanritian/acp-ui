@@ -157,6 +157,10 @@ export const thTH: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'ผู้จัดการ RenRen\'Py',
+    gamesDesigner: 'นักออกแบบเกม AI',
+    gamesDeveloper: 'ตัวสร้างโค้ด AI',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const thTH: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'การพัฒนา视觉小说 RenRen\'Py',
+    gamesDesigner: 'การสร้างเอกสารออกแบบเกม AI',
+    gamesDeveloper: 'การสร้างโค้ดเกม AI',
   },
   hermes: {
     title: 'Hermes Dashboard',

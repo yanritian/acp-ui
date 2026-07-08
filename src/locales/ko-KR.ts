@@ -157,6 +157,10 @@ export const koKR: MessageSchema = {
     swarmDashboard: 'Swarm',
     workflowEditor: 'Workflow Editor',
     tokenOptimizer: 'Token Optimizer',
+    games: 'Games',
+    gamesRenpy: 'RenRen\'Py 관리자',
+    gamesDesigner: 'AI 게임 디자이너',
+    gamesDeveloper: 'AI 코드 생성기',
   },
   navigationGroup: {
     chat: 'Chat',
@@ -192,6 +196,10 @@ export const koKR: MessageSchema = {
     swarmDashboard: 'Agent swarm coordination and task management',
     workflowEditor: 'Create and monitor multi-stage orchestrated workflows',
     tokenOptimizer: 'Context compression and token savings statistics',
+    games: 'Game development workflow management',
+    gamesRenpy: 'RenRen\'Py 비주얼 노벨 개발',
+    gamesDesigner: 'AI 게임 디자인 문서 생성',
+    gamesDeveloper: 'AI 게임 코드 생성',
   },
   hermes: {
     title: 'Hermes Dashboard',

@@ -63,7 +63,8 @@ tauri-plugin-opener = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-mcp = { git = "https://github.com/DaveDev42/tauri-plugin-mcp" }
+# tauri-plugin-mcp = { git = "https://github.com/DaveDev42/tauri-plugin-mcp" }
+# Disabled: has compilation errors with Tauri 2.x devtools API
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 notify = { version = "6", features = ["macos_fsevent"] }
@@ -112,3 +113,10 @@ machine-uid = "0.5"
 [dev-dependencies]
 tempfile = "3"
 
+
+# Optimization profile to reduce exported symbols
+[profile.release]
+lto = true                    # Link-time optimization - merges crates
+codegen-units = 1             # Single codegen unit for better optimization
+strip = "symbols"             # Strip debug symbols
+opt-level = 3                 # Maximum optimization

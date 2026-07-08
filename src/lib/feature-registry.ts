@@ -18,6 +18,9 @@ export const FEATURE_GROUPS = {
 }
 
 export const FEATURES: FeatureEntry[] = [
+  // === Game Operator (Primary Entry) ===
+  { id: 'games', labelKey: 'navigation.games', icon: '🎮', requiresAgent: false, descriptionKey: 'navigationDescriptions.games', group: 'workflow', isCore: true },
+
   // === Dashboard (Home) ===
   { id: 'dashboard', labelKey: 'navigation.dashboard', icon: '🏠', requiresAgent: false, descriptionKey: 'navigationDescriptions.dashboard', group: 'chat', isCore: true },
 
@@ -32,20 +35,20 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'gateway', labelKey: 'navigation.gateway', icon: '🌐', requiresAgent: false, descriptionKey: 'navigationDescriptions.gateway', group: 'agent', isCore: true },
   { id: 'bot', labelKey: 'navigation.botConfig', icon: '🤖', requiresAgent: false, descriptionKey: 'navigationDescriptions.botConfig', group: 'agent', isCore: true },
 
-  // === Workflow Group ===
-  { id: 'workflow', labelKey: 'navigation.workflow', icon: '⚡', requiresAgent: true, descriptionKey: 'navigationDescriptions.workflow', group: 'workflow' },
-  { id: 'orchestration', labelKey: 'navigation.orchestration', icon: '🎬', requiresAgent: false, descriptionKey: 'navigationDescriptions.orchestration', group: 'workflow' },
-  { id: 'workflow-editor', labelKey: 'navigation.workflowEditor', icon: '🔧', requiresAgent: false, descriptionKey: 'navigationDescriptions.workflowEditor', group: 'workflow' },
-  { id: 'task-graph', labelKey: 'navigation.taskGraph', icon: '🔗', requiresAgent: false, descriptionKey: 'navigationDescriptions.taskGraph', group: 'workflow' },
-  { id: 'agent-teams', labelKey: 'navigation.agentTeams', icon: '🚀', requiresAgent: false, descriptionKey: 'navigationDescriptions.agentTeams', group: 'workflow' },
-  { id: 'executive-session', labelKey: 'navigation.executiveSession', icon: '🚀', requiresAgent: false, descriptionKey: 'navigationDescriptions.executiveSession', group: 'workflow' },
+  // === Workflow Group (moved to experiments) ===
+  { id: 'workflow', labelKey: 'navigation.workflow', icon: '⚡', requiresAgent: true, descriptionKey: 'navigationDescriptions.workflow', group: 'lab' },
+  { id: 'orchestration', labelKey: 'navigation.orchestration', icon: '🎬', requiresAgent: false, descriptionKey: 'navigationDescriptions.orchestration', group: 'lab' },
+  { id: 'workflow-editor', labelKey: 'navigation.workflowEditor', icon: '🔧', requiresAgent: false, descriptionKey: 'navigationDescriptions.workflowEditor', group: 'lab' },
+  { id: 'task-graph', labelKey: 'navigation.taskGraph', icon: '🔗', requiresAgent: false, descriptionKey: 'navigationDescriptions.taskGraph', group: 'lab' },
+  { id: 'agent-teams', labelKey: 'navigation.agentTeams', icon: '🚀', requiresAgent: false, descriptionKey: 'navigationDescriptions.agentTeams', group: 'lab' },
+  { id: 'executive-session', labelKey: 'navigation.executiveSession', icon: '🚀', requiresAgent: false, descriptionKey: 'navigationDescriptions.executiveSession', group: 'lab' },
 
-  // === Monitor Group ===
-  { id: 'status', labelKey: 'navigation.status', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.status', group: 'monitor' },
-  { id: 'monitor', labelKey: 'navigation.monitor', icon: '📡', requiresAgent: false, descriptionKey: 'navigationDescriptions.monitor', group: 'monitor' },
-  { id: 'history', labelKey: 'navigation.history', icon: '📚', requiresAgent: false, descriptionKey: 'navigationDescriptions.history', group: 'monitor' },
-  { id: 'hermes', labelKey: 'navigation.hermes', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.hermes', group: 'monitor' },
-  { id: 'token-optimizer', labelKey: 'navigation.tokenOptimizer', icon: '🪙', requiresAgent: false, descriptionKey: 'navigationDescriptions.tokenOptimizer', group: 'monitor' },
+  // === Monitor Group (moved to experiments) ===
+  { id: 'status', labelKey: 'navigation.status', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.status', group: 'lab' },
+  { id: 'monitor', labelKey: 'navigation.monitor', icon: '📡', requiresAgent: false, descriptionKey: 'navigationDescriptions.monitor', group: 'lab' },
+  { id: 'history', labelKey: 'navigation.history', icon: '📚', requiresAgent: false, descriptionKey: 'navigationDescriptions.history', group: 'lab' },
+  { id: 'hermes', labelKey: 'navigation.hermes', icon: '📊', requiresAgent: false, descriptionKey: 'navigationDescriptions.hermes', group: 'lab' },
+  { id: 'token-optimizer', labelKey: 'navigation.tokenOptimizer', icon: '🪙', requiresAgent: false, descriptionKey: 'navigationDescriptions.tokenOptimizer', group: 'lab' },
 
   // === Lab Group (Experimental) ===
   { id: 'memory', labelKey: 'navigation.memory', icon: '💡', requiresAgent: false, descriptionKey: 'navigationDescriptions.memory', group: 'lab', experimental: true },
@@ -55,10 +58,7 @@ export const FEATURES: FeatureEntry[] = [
   { id: 'skills', labelKey: 'navigation.skills', icon: '🧩', requiresAgent: false, descriptionKey: 'navigationDescriptions.skills', group: 'lab' },
   { id: 'plugins', labelKey: 'navigation.plugins', icon: '🔌', requiresAgent: false, descriptionKey: 'navigationDescriptions.plugins', group: 'lab' },
   { id: 'swarm-dashboard', labelKey: 'navigation.swarmDashboard', icon: '🐝', requiresAgent: false, descriptionKey: 'navigationDescriptions.swarmDashboard', group: 'lab' },
-  { id: 'games', labelKey: 'navigation.games', icon: '🎮', requiresAgent: false, descriptionKey: 'navigationDescriptions.games', group: 'lab' },
   { id: 'games-renpy', labelKey: 'navigation.gamesRenpy', icon: '🎭', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesRenpy', group: 'lab' },
-  { id: 'games-designer', labelKey: 'navigation.gamesDesigner', icon: '🎨', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesDesigner', group: 'lab' },
-  { id: 'games-developer', labelKey: 'navigation.gamesDeveloper', icon: '💻', requiresAgent: false, descriptionKey: 'navigationDescriptions.gamesDeveloper', group: 'lab' },
 ]
 
 export const CORE_FEATURES = FEATURES.filter(f => f.isCore)

@@ -1,0 +1,134 @@
+// Hermes Game Operator API
+// Frontend API layer for communicating with the Operator backend
+
+import type {
+  StartTaskRequest,
+  StartTaskResponse,
+  ApproveRequest,
+  RedirectRequest,
+  OperatorTask,
+  OperatorEvent,
+  ApprovalRequest,
+  TaskSummary,
+} from '@/types/operator'
+
+// ============================================================================
+// Tauri Invoke Helper
+// ============================================================================
+
+async function invoke<T>(command: string, args?: Record<string, any>): Promise<T> {
+  try {
+    // @ts-ignore - Tauri invoke is available in desktop context
+    if (window.__TAURI_INTERNALS__) {
+      // @ts-ignore
+      return await window.__TAURI_INTERNALS__.invoke(command, args)
+    }
+    throw new Error('Tauri internals not available')
+  } catch (error) {
+    console.error(`Operator API error [${command}]:`, error)
+    throw error
+  }
+}
+
+// ============================================================================
+// Task Management
+// ============================================================================
+
+export const OperatorApi = {
+  // Start a new operator task
+  async startTask(request: StartTaskRequest): Promise<StartTaskResponse> {
+    return invoke<StartTaskResponse>('operator_start_task', { request })
+  },
+
+  // Get task details
+  async getTask(taskId: string): Promise<OperatorTask> {
+    return invoke<OperatorTask>('operator_get_task', { taskId })
+  },
+
+  // List all tasks
+  async listTasks(): Promise<OperatorTask[]> {
+    return invoke<OperatorTask[]>('operator_list_tasks')
+  },
+
+  // Pause a running task
+  async pauseTask(taskId: string): Promise<void> {
+    return invoke<void>('operator_pause_task', { taskId })
+  },
+
+  // Resume a paused task
+  async resumeTask(taskId: string): Promise<void> {
+    return invoke<void>('operator_resume_task', { taskId })
+  },
+
+  // Stop a running task
+  async stopTask(taskId: string): Promise<void> {
+    return invoke<void>('operator_stop_task', { taskId })
+  },
+
+  // Redirect task to new goal
+  async redirectTask(request: RedirectRequest): Promise<void> {
+    return invoke<void>('operator_redirect_task', { request })
+  },
+
+  // ============================================================================
+  // Approval
+  // ============================================================================
+
+  // Approve or reject an action
+  async approve(request: ApproveRequest): Promise<void> {
+    return invoke<void>('operator_approve', { request })
+  },
+
+  // Get pending approvals for a task
+  async getPendingApprovals(taskId: string): Promise<ApprovalRequest[]> {
+    return invoke<ApprovalRequest[]>('operator_get_pending_approvals', { taskId })
+  },
+
+  // ============================================================================
+  // Events
+  // ============================================================================
+
+  // List events for a task
+  async listEvents(taskId: string, limit?: number): Promise<OperatorEvent[]> {
+    return invoke<OperatorEvent[]>('operator_list_events', { taskId, limit })
+  },
+
+  // ============================================================================
+  // Summary
+  // ============================================================================
+
+  // Get task summary
+  async getTaskSummary(taskId: string): Promise<TaskSummary> {
+    return invoke<TaskSummary>('operator_get_task_summary', { taskId })
+  },
+
+  // ============================================================================
+  // Memory
+  // ============================================================================
+
+  // Get memory records for a task
+  async getMemory(taskId: string): Promise<any[]> {
+    return invoke<any[]>('operator_get_memory', { taskId })
+  },
+
+  // Delete a memory record
+  async deleteMemory(memoryId: string): Promise<void> {
+    return invoke<void>('operator_delete_memory', { memoryId })
+  },
+}
+
+// ============================================================================
+// Godot-Specific API
+// ============================================================================
+
+export const GodotOperatorApi = {
+  // Analyze a Godot project
+  async analyzeProject(projectPath: string): Promise<any> {
+    return invoke<any>('godot_analyze_project', { projectPath })
+  },
+
+  // Detect if a directory is a Godot project
+  async detectProject(path: string): Promise<boolean> {
+    return invoke<boolean>('godot_detect_project', { path })
+  },
+}

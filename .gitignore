@@ -31,7 +31,7 @@ src-tauri/gen/apple
 
 # Rust
 *.rs.bk
-Cargo.lock
+# Cargo.lock - Tauri apps should commit Cargo.lock
 
 # Environment files (may contain secrets)
 .env

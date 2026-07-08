@@ -33,7 +33,13 @@ export default defineConfig(async ({ mode }) => {
       setupFiles: ['src/test/setup.ts'],
       globals: true,
       include: ['**/*.test.?(c|m)[jt]s?(x)'],
-      exclude: ['**/tests/functional/**', '**/node_modules/**', '**/dist/**'],
+      exclude: [
+        '**/tests/functional/**',
+        '**/node_modules/**',
+        '**/dist/**',
+        // Integration tests requiring Tauri runtime - run separately
+        'src/api/__tests__/**',
+      ],
     },
 
     define: {

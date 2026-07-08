@@ -3,7 +3,7 @@ import { createMockTaskDag } from './lib/mock-task-dag'
 
 // Use lazy loading for code splitting
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', redirect: '/games' },  // Default to Game Operator
   { path: '/dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
   // Agent Platform - One-Shot Interface
   { path: '/agent-platform', name: 'agent-platform', component: () => import('./views/AgentPlatformView.vue') },
@@ -45,10 +45,8 @@ const routes = [
   { path: '/workflow-editor', name: 'workflow-editor', component: () => import('./features/workflow/WorkflowEditor.vue') },
   // Demo page - token optimizer backend commands not implemented
   { path: '/token-optimizer', name: 'token-optimizer', component: () => import('./features/plugins/TokenOptimizerPanel.vue'), meta: { isDemo: true } },
-  { path: '/games', name: 'games', component: () => import('./features/games/GameManager.vue') },
+  { path: '/games', name: 'games', component: () => import('./features/game-operator/views/GameOperatorView.vue') },
   { path: '/games/renpy', name: 'games-renpy', component: () => import('./features/games/RenPyManager.vue') },
-  { path: '/games/designer', name: 'games-designer', component: () => import('./features/games/GameDesigner.vue') },
-  { path: '/games/developer', name: 'games-developer', component: () => import('./features/games/GameDeveloper.vue') },
   { path: '/settings', name: 'settings', component: () => import('./shared/ui/UnifiedSettingsView.vue') },
 ]
 

@@ -79,3 +79,69 @@ test.describe('Game Operator Components', () => {
     await expect(subtitle).toContainText('Godot MVP')
   })
 })
+
+test.describe('Game Operator Form Validation', () => {
+  test('should clear error when project path is filled', async ({ page }) => {
+    await page.goto('http://localhost:1420/#/games')
+
+    // Fill project path
+    await page.fill('input[placeholder*="godot"]', 'D:/tmp/test-godot-project')
+
+    // Fill goal
+    await page.fill('textarea[placeholder*="double jump"]', 'Add jump feature')
+
+    // No error should be visible
+    const errorElement = page.locator('.error-message')
+    await expect(errorElement).not.toBeVisible()
+  })
+
+  test('should have Browse button for project selection', async ({ page }) => {
+    await page.goto('http://localhost:1420/#/games')
+
+    const browseButton = page.locator('button:has-text("Browse")')
+    await expect(browseButton).toBeVisible()
+  })
+})
+
+test.describe('Game Operator UI Layout', () => {
+  test('should have responsive layout', async ({ page }) => {
+    await page.goto('http://localhost:1420/#/games')
+
+    // Check main container exists
+    const view = page.locator('.game-operator-view')
+    await expect(view).toBeVisible()
+
+    // Check form group exists
+    const formGroups = page.locator('.form-group')
+    await expect(formGroups.first()).toBeVisible()
+  })
+
+  test('should show correct placeholder text', async ({ page }) => {
+    await page.goto('http://localhost:1420/#/games')
+
+    // Check project path placeholder
+    const pathInput = page.locator('input[placeholder*="godot"]')
+    await expect(pathInput).toHaveAttribute('placeholder', /godot/i)
+
+    // Check goal placeholder
+    const goalInput = page.locator('textarea[placeholder*="double jump"]')
+    await expect(goalInput).toHaveAttribute('placeholder', /double jump/i)
+  })
+})
+
+test.describe('Game Operator Navigation', () => {
+  test('should be default route', async ({ page }) => {
+    await page.goto('http://localhost:1420')
+
+    // Should redirect to /games
+    await expect(page).toHaveURL(/#\/games/)
+  })
+
+  test('should show active state for games nav', async ({ page }) => {
+    await page.goto('http://localhost:1420/#/games')
+
+    // Games nav should be visible and active
+    const gamesNav = page.locator('button:has-text("games")')
+    await expect(gamesNav).toBeVisible()
+  })
+})

@@ -7,6 +7,7 @@ pub mod commands;
 pub mod security;
 pub mod file_tools;
 pub mod agent_bridge;
+pub mod task_executor;
 
 // Re-export commonly used types
 pub use types::*;
@@ -15,3 +16,4 @@ pub use commands::*;
 pub use security::{PathGuard, PathGuardError, CommandGuard, CommandGuardError, ValidatedCommand};
 pub use file_tools::*;
 pub use agent_bridge::*;
+pub use task_executor::*;

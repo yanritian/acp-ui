@@ -18,22 +18,26 @@ export const FEATURE_GROUPS = {
 }
 
 export const FEATURES: FeatureEntry[] = [
-  // === Game Operator (Primary Entry) ===
+  // === Game Operator (Primary Entry - Phase 1 MVP) ===
   { id: 'games', labelKey: 'navigation.games', icon: '🎮', requiresAgent: false, descriptionKey: 'navigationDescriptions.games', group: 'workflow', isCore: true },
 
   // === Dashboard (Home) ===
   { id: 'dashboard', labelKey: 'navigation.dashboard', icon: '🏠', requiresAgent: false, descriptionKey: 'navigationDescriptions.dashboard', group: 'chat', isCore: true },
 
-  // === Chat Group ===
+  // === Chat (Agent Communication) ===
   { id: 'chat', labelKey: 'navigation.chat', icon: '💬', requiresAgent: true, descriptionKey: 'navigationDescriptions.chat', group: 'chat', isCore: true },
-  { id: 'multi-agent', labelKey: 'navigation.multiAgent', icon: '🤖', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiAgent', group: 'chat', isCore: true },
-  { id: 'multi-session', labelKey: 'navigation.multiSession', icon: '📋', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiSession', group: 'chat' },
-  { id: 'collaboration', labelKey: 'navigation.collaboration', icon: '🕸️', requiresAgent: false, descriptionKey: 'navigationDescriptions.collaboration', group: 'chat' },
 
-  // === Agent Group ===
+  // === Agent Configuration ===
   { id: 'agent-config', labelKey: 'navigation.agentConfig', icon: '⚙️', requiresAgent: false, descriptionKey: 'navigationDescriptions.agentConfig', group: 'agent', isCore: true },
-  { id: 'gateway', labelKey: 'navigation.gateway', icon: '🌐', requiresAgent: false, descriptionKey: 'navigationDescriptions.gateway', group: 'agent', isCore: true },
-  { id: 'bot', labelKey: 'navigation.botConfig', icon: '🤖', requiresAgent: false, descriptionKey: 'navigationDescriptions.botConfig', group: 'agent', isCore: true },
+
+  // === Advanced Chat (moved to lab) ===
+  { id: 'multi-agent', labelKey: 'navigation.multiAgent', icon: '🤖', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiAgent', group: 'lab' },
+  { id: 'multi-session', labelKey: 'navigation.multiSession', icon: '📋', requiresAgent: true, descriptionKey: 'navigationDescriptions.multiSession', group: 'lab' },
+  { id: 'collaboration', labelKey: 'navigation.collaboration', icon: '🕸️', requiresAgent: false, descriptionKey: 'navigationDescriptions.collaboration', group: 'lab' },
+
+  // === Agent Group (moved to lab for Phase 1) ===
+  { id: 'gateway', labelKey: 'navigation.gateway', icon: '🌐', requiresAgent: false, descriptionKey: 'navigationDescriptions.gateway', group: 'lab' },
+  { id: 'bot', labelKey: 'navigation.botConfig', icon: '🤖', requiresAgent: false, descriptionKey: 'navigationDescriptions.botConfig', group: 'lab' },
 
   // === Workflow Group (moved to experiments) ===
   { id: 'workflow', labelKey: 'navigation.workflow', icon: '⚡', requiresAgent: true, descriptionKey: 'navigationDescriptions.workflow', group: 'lab' },

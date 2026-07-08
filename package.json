@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "build:only": "vite build",
+    "lint": "eslint src --ext .ts,.vue",
+    "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite --mode web",
     "build:web": "vue-tsc --noEmit && vite build --mode web",
     "build:web:only": "vite build --mode web",

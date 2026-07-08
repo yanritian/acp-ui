@@ -18,17 +18,48 @@ impl PathGuard {
 
     /// Check if a path is within any allowed root
     pub fn validate_path(&self, path: &Path) -> Result<(), PathGuardError> {
-        // Canonicalize the path to resolve symlinks and relative components
-        let canonical = path.canonicalize()
-            .map_err(|_| PathGuardError::InvalidPath(path.to_path_buf()))?;
+        // For non-existent paths, validate parent directory exists and check against allowed roots
+        let canonical = if path.exists() {
+            path.canonicalize()
+                .map_err(|_| PathGuardError::InvalidPath(path.to_path_buf()))?
+        } else {
+            // Path doesn't exist yet - validate parent directory
+            let parent = path.parent()
+                .ok_or_else(|| PathGuardError::InvalidPath(path.to_path_buf()))?;
+
+            if !parent.exists() {
+                return Err(PathGuardError::ParentNotFound(path.to_path_buf()));
+            }
+
+            let canonical_parent = parent.canonicalize()
+                .map_err(|_| PathGuardError::InvalidPath(parent.to_path_buf()))?;
+
+            // Check parent is within allowed boundaries
+            let parent_valid = self.allowed_roots.iter().any(|root| {
+                if let Ok(canonical_root) = root.canonicalize() {
+                    canonical_parent.starts_with(&canonical_root)
+                } else {
+                    false
+                }
+            });
+
+            if !parent_valid {
+                return Err(PathGuardError::PathOutsideBoundary {
+                    path: path.to_path_buf(),
+                    allowed: self.allowed_roots.clone(),
+                });
+            }
+
+            // Return success - parent is valid, so child path will be valid when created
+            return Ok(());
+        };
 
         // Check if the canonical path starts with any allowed root
         for root in &self.allowed_roots {
-            let canonical_root = root.canonicalize()
-                .map_err(|_| PathGuardError::InvalidPath(root.clone()))?;
-
-            if canonical.starts_with(&canonical_root) {
-                return Ok(());
+            if let Ok(canonical_root) = root.canonicalize() {
+                if canonical.starts_with(&canonical_root) {
+                    return Ok(());
+                }
             }
         }
 
@@ -84,6 +115,7 @@ impl PathGuard {
 #[derive(Debug)]
 pub enum PathGuardError {
     InvalidPath(PathBuf),
+    ParentNotFound(PathBuf),
     PathOutsideBoundary {
         path: PathBuf,
         allowed: Vec<PathBuf>,
@@ -97,6 +129,7 @@ impl std::fmt::Display for PathGuardError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PathGuardError::InvalidPath(p) => write!(f, "Invalid path: {}", p.display()),
+            PathGuardError::ParentNotFound(p) => write!(f, "Parent directory not found: {}", p.display()),
             PathGuardError::PathOutsideBoundary { path, allowed } => {
                 write!(f, "Path {} is outside allowed boundaries: {:?}",
                     path.display(),
@@ -150,6 +183,14 @@ impl CommandGuard {
 
     /// Validate a command string
     pub fn validate_command(&self, command: &str) -> Result<ValidatedCommand, CommandGuardError> {
+        // Prevent injection by checking for dangerous characters first
+        let dangerous_patterns = [";", "|", "&", "$", "`", "'", "\"", "\n", "\r", "..", "~"];
+        for pattern in &dangerous_patterns {
+            if command.contains(pattern) {
+                return Err(CommandGuardError::InjectionAttempt(pattern.to_string()));
+            }
+        }
+
         let parts: Vec<&str> = command.split_whitespace().collect();
 
         if parts.is_empty() {
@@ -168,9 +209,17 @@ impl CommandGuard {
             return Err(CommandGuardError::UnknownCommand(base_command.to_string()));
         }
 
+        // Validate arguments - check for path traversal attempts
+        let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
+        for arg in &args {
+            if arg.contains("..") || arg.contains("~") {
+                return Err(CommandGuardError::InjectionAttempt("path traversal".to_string()));
+            }
+        }
+
         Ok(ValidatedCommand {
             command: base_command.to_string(),
-            args: parts[1..].iter().map(|s| s.to_string()).collect(),
+            args,
             requires_approval: self.requires_approval(base_command),
         })
     }
@@ -209,6 +258,7 @@ pub enum CommandGuardError {
     EmptyCommand,
     ForbiddenCommand(String),
     UnknownCommand(String),
+    InjectionAttempt(String),
 }
 
 impl std::fmt::Display for CommandGuardError {
@@ -220,6 +270,9 @@ impl std::fmt::Display for CommandGuardError {
             }
             CommandGuardError::UnknownCommand(cmd) => {
                 write!(f, "Command is not in allowlist: {}", cmd)
+            }
+            CommandGuardError::InjectionAttempt(pattern) => {
+                write!(f, "Injection attempt detected: {}", pattern)
             }
         }
     }

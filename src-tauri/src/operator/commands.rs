@@ -83,7 +83,9 @@ pub async fn operator_start_task(
         source: "operator".to_string(),
         payload: None,
     };
-    state.events.get_mut(&task_id).unwrap().push(event);
+    if let Some(events) = state.events.get_mut(&task_id) {
+        events.push(event);
+    }
 
     // Emit planning started event
     let event = OperatorEvent {
@@ -97,7 +99,9 @@ pub async fn operator_start_task(
         source: "operator".to_string(),
         payload: None,
     };
-    state.events.get_mut(&task_id).unwrap().push(event);
+    if let Some(events) = state.events.get_mut(&task_id) {
+        events.push(event);
+    }
 
     Ok(StartTaskResponse {
         task_id,

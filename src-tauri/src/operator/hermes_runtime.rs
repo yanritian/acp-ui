@@ -20,10 +20,17 @@ pub struct HermesConfig {
 
 impl Default for HermesConfig {
     fn default() -> Self {
+        let api_key = std::env::var("ANTHROPIC_API_KEY")
+            .expect("ANTHROPIC_API_KEY environment variable must be set");
+
+        if api_key.is_empty() {
+            panic!("ANTHROPIC_API_KEY environment variable is empty");
+        }
+
         Self {
             model: "claude-3-5-sonnet-20241022".to_string(),
             api_endpoint: "https://api.anthropic.com".to_string(),
-            api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+            api_key,
             max_tokens: 4096,
             temperature: 0.7,
         }

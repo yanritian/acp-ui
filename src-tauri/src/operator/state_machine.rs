@@ -28,8 +28,12 @@ impl TaskStateMachine {
         &self.current_status
     }
 
-    pub fn event_history(&self) -> Vec<OperatorEvent> {
-        self.event_history.lock().unwrap().clone()
+    pub fn event_history(&self) -> Result<Vec<OperatorEvent>, StateError> {
+        self.event_history.lock()
+            .map(|guard| guard.clone())
+            .map_err(|_| StateError::LockError {
+                reason: "Failed to acquire lock on event history".to_string(),
+            })
     }
 
     // ========================================================================
@@ -132,6 +136,16 @@ impl TaskStateMachine {
     }
 
     pub fn fail(&mut self, error: &str) -> Result<(), StateError> {
+        if self.current_status != OperatorTaskStatus::Running
+            && self.current_status != OperatorTaskStatus::Paused
+            && self.current_status != OperatorTaskStatus::Planning
+        {
+            return Err(StateError::InvalidTransition {
+                from: self.current_status.clone(),
+                to: OperatorTaskStatus::Failed,
+                reason: "Can only fail from Running, Paused, or Planning state".to_string(),
+            });
+        }
         self.transition(OperatorTaskStatus::Failed, &format!("Task failed: {}", error))
     }
 
@@ -164,7 +178,13 @@ impl TaskStateMachine {
             payload: None,
         };
 
-        self.event_history.lock().unwrap().push(event);
+        {
+            let mut history = self.event_history.lock()
+                .map_err(|_| StateError::LockError {
+                    reason: "Failed to acquire lock on event history".to_string(),
+                })?;
+            history.push(event);
+        }
         self.event_counter += 1;
         self.current_status = new_status;
 
@@ -198,6 +218,9 @@ pub enum StateError {
         to: OperatorTaskStatus,
         reason: String,
     },
+    LockError {
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for StateError {
@@ -205,6 +228,9 @@ impl std::fmt::Display for StateError {
         match self {
             StateError::InvalidTransition { from, to, reason } => {
                 write!(f, "Invalid state transition from {:?} to {:?}: {}", from, to, reason)
+            }
+            StateError::LockError { reason } => {
+                write!(f, "Lock error: {}", reason)
             }
         }
     }

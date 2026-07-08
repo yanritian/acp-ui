@@ -8,6 +8,10 @@ pub mod security;
 pub mod file_tools;
 pub mod agent_bridge;
 pub mod task_executor;
+pub mod hermes_runtime;
+
+#[cfg(test)]
+pub mod e2e_tests;
 
 // Re-export commonly used types
 pub use types::*;
@@ -17,3 +21,4 @@ pub use security::{PathGuard, PathGuardError, CommandGuard, CommandGuardError, V
 pub use file_tools::*;
 pub use agent_bridge::*;
 pub use task_executor::*;
+pub use hermes_runtime::*;

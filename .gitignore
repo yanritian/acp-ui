@@ -89,6 +89,7 @@ screen_base64.txt
 # Python scripts and batch files (root-level only)
 /*.py
 /*.bat
+!/build.bat
 /*.cmd
 
 # Agent result files

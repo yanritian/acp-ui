@@ -9,6 +9,8 @@ pub mod file_tools;
 pub mod agent_bridge;
 pub mod task_executor;
 pub mod hermes_runtime;
+pub mod approval_queue;
+pub mod error;
 
 #[cfg(test)]
 pub mod e2e_tests;
@@ -22,3 +24,5 @@ pub use file_tools::*;
 pub use agent_bridge::*;
 pub use task_executor::*;
 pub use hermes_runtime::*;
+pub use approval_queue::*;
+pub use error::*;

@@ -5,6 +5,83 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### Hermes Game Operator Phase A-E (2026-07-08)
+
+**Phase A: Baseline Recovery**
+- Fixed npm run build (Vue Flow type inference issue)
+- Fixed test layering (294 tests passing)
+- Deleted old WebdriverIO test
+- Fixed lock file strategy
+- Updated .gitignore (Cargo.lock included)
+
+**Phase B: Product Entry Consolidation**
+- Promoted Game Operator to main entry point
+- Set /games as default homepage
+- Moved other features to Lab
+
+**Phase C: Protocol First**
+- Defined TypeScript types (7 core protocols)
+- Defined Rust types (complete mirror)
+- OperatorTask, OperatorEvent, ApprovalRequest
+- ToolCall/ToolResult, MemoryRecord
+- DomainPackManifest, AgentRunConfig
+
+**Phase D: Operator Control Plane**
+- Implemented task state machine (10 states)
+- Implemented event stream (append-only)
+- Implemented frontend API layer (21 methods)
+- Implemented Tauri commands (17 commands)
+- Implemented Game Operator view (5 components)
+
+**Phase E: Godot Domain Pack MVP**
+- Implemented Godot project detector
+- Implemented Godot project analyzer
+- Implemented Godot scene parser
+- Implemented player controller finder
+
+**P0: Core Features**
+- File operation tools (read/patch/list)
+- Godot analyzer integration
+- Task executor workflow
+
+**P1: Integration & Testing**
+- Hermes Agent runtime
+- E2E test suite
+
+**P2: Documentation & Polish**
+- Approval queue
+- Unified error handling
+- API documentation
+- Project summary
+- Final report
+
+**Statistics**
+- 10 commits
+- 10,488 lines of code added
+- 47 files changed
+- 13 backend modules
+- 17 Tauri commands
+- 5 UI components
+- 14 documentation files
+
+**Security**
+- PathGuard: Path validation and canonicalization
+- CommandGuard: Whitelist-based command execution
+- Approval system: User approval for dangerous operations
+- File backup: Automatic backup before modifications
+
+**Documentation**
+- API Reference (docs/api.md)
+- Project Summary (docs/PROJECT-SUMMARY.md)
+- Final Report (docs/FINAL-REPORT.md)
+- Test Plan (docs/codex/test-plan.md)
+- Test Project (docs/codex/test-godot-project.md)
+- Skill Documentation (skills/godot/*)
+
 ## [0.2.1] - 2026-06-22 — Loop Engine Edition
 
 ### Added

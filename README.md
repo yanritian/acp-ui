@@ -360,6 +360,87 @@ iOS doesn't ship a binary today because it requires per-developer signing and an
 - [Agent Client Protocol](https://agentclientprotocol.com/)
 - [Tauri Documentation](https://tauri.app/)
 
-## 📄 License
+## 🎮 Hermes Game Operator
+
+Hermes Game Operator is an AI-powered game development assistant integrated into ACP UI. It helps developers create, modify, and manage Godot Engine projects through natural language commands and automated workflows.
+
+### Features
+
+- **🎮 Godot Project Analysis** - Automatically detect and analyze Godot project structure
+- **📝 Intelligent Planning** - Generate execution plans for game development tasks
+- **🔧 Code Generation** - Use Hermes Agent to generate GDScript code
+- **🛡️ Safe Execution** - PathGuard and CommandGuard ensure safe file operations
+- **👤 User Control** - Pause, resume, stop, and approve operations
+- **📊 Event Tracking** - Complete event stream for all operations
+- **📁 File Operations** - Safe read, write, and patch operations with backup
+- **✅ Approval Queue** - Manage dangerous operations with user approval
+
+### Quick Start
+
+1. Launch ACP UI
+2. Navigate to Game Operator (default homepage)
+3. Select a Godot project directory
+4. Enter your task goal (e.g., "Add double jump to player")
+5. Review the execution plan
+6. Approve file modifications
+7. View results and event stream
+
+### Documentation
+
+- [API Reference](docs/api.md) - Complete API documentation
+- [Project Summary](docs/PROJECT-SUMMARY.md) - Full project overview
+- [Final Report](docs/FINAL-REPORT.md) - Completion status
+- [Test Plan](docs/codex/test-plan.md) - Testing strategy
+- [Test Project](docs/codex/test-godot-project.md) - Minimal Godot test project
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│           Frontend (Vue 3 + TypeScript)      │
+│  ┌────────────────────────────────────────┐ │
+│  │ GameOperatorView                        │ │
+│  │  ├─ OperatorControlBar                  │ │
+│  │  ├─ ProgressTimeline                    │ │
+│  │  ├─ PlanPanel                           │ │
+│  │  └─ ApprovalDrawer                      │ │
+│  └────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+                      ↓
+┌─────────────────────────────────────────────┐
+│         Backend (Rust + Tauri)               │
+│  ┌────────────────────────────────────────┐ │
+│  │ Operator Control Plane                  │ │
+│  │  ├─ State Machine (10 states)           │ │
+│  │  ├─ Event Stream (append-only)          │ │
+│  │  ├─ Approval Queue                      │ │
+│  │  └─ Error Handler                       │ │
+│  ├────────────────────────────────────────┤ │
+│  │ Security Layer                          │ │
+│  │  ├─ PathGuard                           │ │
+│  │  └─ CommandGuard                        │ │
+│  ├────────────────────────────────────────┤ │
+│  │ Tools                                   │ │
+│  │  ├─ File Tools (read/patch/list)        │ │
+│  │  └─ Godot Analyzer                      │ │
+│  ├────────────────────────────────────────┤ │
+│  │ Agent Runtime                           │ │
+│  │  ├─ Hermes Agent Bridge                 │ │
+│  │  └─ Task Executor                       │ │
+│  └────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+```
+
+### Statistics
+
+- **10 commits**
+- **10,488 lines of code**
+- **47 files changed**
+- **13 backend modules**
+- **17 Tauri commands**
+- **5 UI components**
+- **14 documentation files**
+
+### License
 
 MIT License

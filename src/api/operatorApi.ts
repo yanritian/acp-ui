@@ -151,3 +151,72 @@ export const GodotOperatorApi = {
     return invoke<boolean>('godot_detect_project', { path })
   },
 }
+
+// ============================================================================
+// Hermes CLI Connection API
+// ============================================================================
+
+export interface HermesConnectionStatus {
+  available: boolean
+  version?: string
+  path?: string
+  error?: string
+}
+
+export interface HermesAnalysisResult {
+  projectName: string
+  godotVersion: string
+  scripts: string[]
+  scenes: string[]
+  playerControllers: string[]
+  analysisTimeMs: number
+}
+
+export interface HermesPlan {
+  taskId: string
+  goal: string
+  steps: HermesPlanStep[]
+  totalEstimatedTimeSeconds: number
+}
+
+export interface HermesPlanStep {
+  id: number
+  description: string
+  files: string[]
+  estimatedTimeSeconds: number
+  requiresApproval: boolean
+}
+
+export const HermesCliApi = {
+  // Check if Hermes CLI is available
+  async checkConnection(): Promise<HermesConnectionStatus> {
+    try {
+      return await invoke<HermesConnectionStatus>('hermes_check_connection')
+    } catch (error) {
+      return {
+        available: false,
+        error: String(error),
+      }
+    }
+  },
+
+  // Execute a task with Hermes CLI
+  async executeTask(taskId: string, goal: string, projectPath: string): Promise<void> {
+    return invoke<void>('hermes_execute_task', { taskId, goal, projectPath })
+  },
+
+  // Analyze project using Hermes
+  async analyzeProject(taskId: string): Promise<HermesAnalysisResult> {
+    return invoke<HermesAnalysisResult>('hermes_analyze_project', { taskId })
+  },
+
+  // Generate execution plan
+  async generatePlan(taskId: string, goal: string): Promise<HermesPlan> {
+    return invoke<HermesPlan>('hermes_generate_plan', { taskId, goal })
+  },
+
+  // Execute a single step
+  async executeStep(taskId: string, stepId: number, approve: boolean): Promise<void> {
+    return invoke<void>('hermes_execute_step', { taskId, stepId, approve })
+  },
+}

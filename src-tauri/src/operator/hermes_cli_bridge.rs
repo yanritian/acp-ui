@@ -278,6 +278,14 @@ impl HermesEvent {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HermesConnectionStatus {
+    pub available: bool,
+    pub version: Option<String>,
+    pub path: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HermesAnalysisResult {
     pub project_name: String,
     pub godot_version: String,

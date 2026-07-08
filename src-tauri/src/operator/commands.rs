@@ -449,3 +449,93 @@ pub async fn godot_analyze_project(project_path: String) -> Result<GodotProjectI
     let path = std::path::Path::new(&project_path);
     GodotProjectAnalyzer::analyze_project(path).map_err(|e| e.to_string())
 }
+
+// ============================================================================
+// Hermes CLI Commands
+// ============================================================================
+
+use crate::operator::hermes_cli_bridge::{HermesCliBridge, HermesConnectionStatus};
+
+#[tauri::command]
+pub async fn hermes_check_connection() -> Result<HermesConnectionStatus, String> {
+    // Try to find Hermes CLI in PATH
+    let cli_path = which::which("hermes")
+        .or_else(|_| which::which("hermes-cli"))
+        .map_err(|e| format!("Hermes CLI not found: {}", e))?;
+
+    let bridge = HermesCliBridge::new(
+        cli_path.clone(),
+        std::path::PathBuf::new(),
+        String::new(),
+    );
+
+    if bridge.is_available() {
+        // Get version
+        let version = std::process::Command::new(&cli_path)
+            .arg("--version")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_else(|_| "unknown".to_string());
+
+        Ok(HermesConnectionStatus {
+            available: true,
+            version: Some(version),
+            path: Some(cli_path.to_string_lossy().to_string()),
+            error: None,
+        })
+    } else {
+        Ok(HermesConnectionStatus {
+            available: false,
+            version: None,
+            path: Some(cli_path.to_string_lossy().to_string()),
+            error: Some("Hermes CLI found but not executable".to_string()),
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn hermes_analyze_project(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
+) -> Result<crate::operator::hermes_cli_bridge::HermesAnalysisResult, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
+    let cli_path = which::which("hermes")
+        .or_else(|_| which::which("hermes-cli"))
+        .map_err(|e| format!("Hermes CLI not found: {}", e))?;
+
+    let bridge = HermesCliBridge::new(
+        cli_path,
+        std::path::PathBuf::from(&task.project_path),
+        task_id.clone(),
+    );
+
+    bridge.analyze_project().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn hermes_generate_plan(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
+    goal: String,
+) -> Result<crate::operator::hermes_cli_bridge::HermesPlan, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
+    let cli_path = which::which("hermes")
+        .or_else(|_| which::which("hermes-cli"))
+        .map_err(|e| format!("Hermes CLI not found: {}", e))?;
+
+    let bridge = HermesCliBridge::new(
+        cli_path,
+        std::path::PathBuf::from(&task.project_path),
+        task_id.clone(),
+    );
+
+    bridge.generate_plan(&goal).map_err(|e| e.to_string())
+}

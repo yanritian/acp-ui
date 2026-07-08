@@ -17,11 +17,19 @@ use std::collections::HashMap;
 // Application State
 // ============================================================================
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileChangeRecord {
+    pub path: String,
+    pub change_type: String, // "modified", "created", "deleted"
+    pub timestamp: String,
+}
+
 pub struct OperatorState {
     pub tasks: HashMap<String, OperatorTask>,
     pub state_machines: HashMap<String, TaskStateMachine>,
     pub events: HashMap<String, Vec<OperatorEvent>>,
     pub approvals: HashMap<String, Vec<ApprovalRequest>>,
+    pub file_changes: HashMap<String, Vec<FileChangeRecord>>,
 }
 
 impl OperatorState {
@@ -31,6 +39,7 @@ impl OperatorState {
             state_machines: HashMap::new(),
             events: HashMap::new(),
             approvals: HashMap::new(),
+            file_changes: HashMap::new(),
         }
     }
 }
@@ -72,6 +81,7 @@ pub async fn operator_start_task(
 
     state.events.insert(task_id.clone(), Vec::new());
     state.approvals.insert(task_id.clone(), Vec::new());
+    state.file_changes.insert(task_id.clone(), Vec::new());
 
     // Emit initial event
     let event = OperatorEvent {
@@ -328,6 +338,21 @@ pub async fn operator_get_task_summary(
         .ok_or_else(|| format!("Task not found: {}", task_id))?;
 
     let events = state.events.get(&task_id).cloned().unwrap_or_default();
+    let file_changes = state.file_changes.get(&task_id).cloned().unwrap_or_default();
+
+    // Categorize file changes
+    let files_changed: Vec<String> = file_changes.iter()
+        .filter(|c| c.change_type == "modified")
+        .map(|c| c.path.clone())
+        .collect();
+    let files_created: Vec<String> = file_changes.iter()
+        .filter(|c| c.change_type == "created")
+        .map(|c| c.path.clone())
+        .collect();
+    let files_deleted: Vec<String> = file_changes.iter()
+        .filter(|c| c.change_type == "deleted")
+        .map(|c| c.path.clone())
+        .collect();
 
     // Calculate duration
     let duration_seconds = if let (Some(started), Some(completed)) = (&task.started_at, &task.completed_at) {
@@ -338,18 +363,28 @@ pub async fn operator_get_task_summary(
         0
     };
 
+    // Extract errors and warnings from events
+    let errors: Vec<String> = events.iter()
+        .filter(|e| matches!(e.level, crate::operator::EventLevel::Error))
+        .map(|e| e.title.clone())
+        .collect();
+    let warnings: Vec<String> = events.iter()
+        .filter(|e| matches!(e.level, crate::operator::EventLevel::Warning))
+        .map(|e| e.title.clone())
+        .collect();
+
     Ok(TaskSummary {
         task_id: task_id.clone(),
         status: task.status.clone(),
         goal: task.goal.clone(),
         summary: task.summary.clone().unwrap_or_else(|| "Task completed".to_string()),
-        files_changed: Vec::new(), // TODO: Track file changes
-        files_created: Vec::new(),
-        files_deleted: Vec::new(),
+        files_changed,
+        files_created,
+        files_deleted,
         duration_seconds,
         iterations: events.len() as u32,
-        errors: Vec::new(),
-        warnings: Vec::new(),
+        errors,
+        warnings,
     })
 }
 
@@ -384,17 +419,32 @@ pub async fn operator_file_patch(
     new_content: String,
     create_backup: bool,
 ) -> Result<FilePatchResult, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
+    let mut state = state.lock().map_err(|e| e.to_string())?;
 
     // Get project_path from task state (not from frontend)
     let task = state.tasks.get(&task_id)
         .ok_or_else(|| format!("Task not found: {}", task_id))?;
 
-    let path = std::path::Path::new(&path);
+    let path_obj = std::path::Path::new(&path);
     let roots = vec![std::path::PathBuf::from(&task.project_path)];
     let path_guard = PathGuard::new(roots);
 
-    file_patch(path, &new_content, &path_guard, create_backup).map_err(|e| e.to_string())
+    let result = file_patch(path_obj, &new_content, &path_guard, create_backup)
+        .map_err(|e| e.to_string())?;
+
+    // Record file change
+    if result.success {
+        let change_record = FileChangeRecord {
+            path: path.clone(),
+            change_type: "modified".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
+        if let Some(changes) = state.file_changes.get_mut(&task_id) {
+            changes.push(change_record);
+        }
+    }
+
+    Ok(result)
 }
 
 #[tauri::command]

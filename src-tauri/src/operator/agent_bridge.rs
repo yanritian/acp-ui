@@ -137,6 +137,10 @@ impl HermesAgentBridge {
     }
 
     /// Generate an execution plan
+    ///
+    /// **MOCK IMPLEMENTATION** - This is a mock that returns a simulated plan.
+    /// In a real implementation, this would call Hermes Agent API to generate an actual plan.
+    /// TODO: Integrate with Hermes Agent API when available.
     pub async fn generate_plan(&self, analysis: &ProjectAnalysisResult) -> Result<ExecutionPlan, AgentBridgeError> {
         // TODO: Integrate with Hermes Agent for actual planning
         // For now, return a mock plan
@@ -170,6 +174,10 @@ impl HermesAgentBridge {
     }
 
     /// Execute a single plan step
+    ///
+    /// **MOCK IMPLEMENTATION** - This is a mock that returns a simulated result.
+    /// In a real implementation, this would call Hermes Agent API to execute the step.
+    /// TODO: Integrate with Hermes Agent API when available.
     pub async fn execute_step(&self, step: &PlanStep) -> Result<StepResult, AgentBridgeError> {
         // TODO: Integrate with Hermes Agent for actual execution
         // For now, return mock result

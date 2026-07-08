@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { OperatorApi, GodotOperatorApi } from '@/api/operatorApi'
+import { open } from '@tauri-apps/plugin-dialog'
 import type { OperatorTask, OperatorEvent, ApprovalRequest } from '@/types/operator'
 import OperatorControlBar from '../components/OperatorControlBar.vue'
 import ProgressTimeline from '../components/ProgressTimeline.vue'
@@ -24,12 +25,21 @@ let eventPollInterval: number | null = null
 // ============================================================================
 
 async function handleSelectProject() {
-  // TODO: Implement folder picker using Tauri dialog
-  // For now, use a hardcoded path for testing
-  selectedProjectPath.value = '/path/to/godot/project'
-
-  // Detect if it's a Godot project
+  // Use Tauri dialog to select folder
   try {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select Godot Project Directory'
+    })
+
+    if (!selected) {
+      return // User cancelled
+    }
+
+    selectedProjectPath.value = selected as string
+
+    // Detect if it's a Godot project
     const isGodot = await GodotOperatorApi.detectProject(selectedProjectPath.value)
     if (!isGodot) {
       error.value = 'Selected directory is not a Godot project'
@@ -37,7 +47,7 @@ async function handleSelectProject() {
     }
     error.value = null
   } catch (e: any) {
-    error.value = e.message
+    error.value = `Failed to select project: ${e.message}`
   }
 }
 

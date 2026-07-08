@@ -22,7 +22,7 @@ pub use state_machine::{TaskStateMachine, StateError};
 pub use commands::*;
 pub use security::{PathGuard, PathGuardError, CommandGuard, CommandGuardError, ValidatedCommand};
 pub use file_tools::*;
-pub use agent_bridge::*;
+pub use agent_bridge::{HermesAgentBridge, ProjectAnalysisResult, ExecutionPlan, PlanStep, StepResult, StepStatus};
 pub use task_executor::*;
 pub use hermes_runtime::*;
 pub use hermes_cli_bridge::*;

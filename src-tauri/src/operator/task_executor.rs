@@ -4,7 +4,7 @@ use crate::operator::{
     OperatorTask, OperatorEvent, OperatorEventType, EventLevel,
     TaskStateMachine, TaskMode, ApprovalPolicy,
     PathGuard, FileReadResult, FilePatchResult,
-    HermesAgentBridge, ProjectAnalysisResult, ExecutionPlan,
+    HermesAgentBridge, ProjectAnalysisResult, ExecutionPlan, PlanStep,
 };
 use crate::domains::games::godot::GodotProjectAnalyzer;
 use std::path::PathBuf;
@@ -48,13 +48,13 @@ impl GodotTaskExecutor {
     }
 
     /// Analyze the Godot project (delegates to bridge)
-    pub async fn analyze_project(&mut self) -> Result<crate::operator::hermes_runtime::HermesAnalysisResult, TaskExecutorError> {
+    pub async fn analyze_project(&mut self) -> Result<ProjectAnalysisResult, TaskExecutorError> {
         self.bridge.analyze_project().await
             .map_err(|e| TaskExecutorError::AnalysisError(e.to_string()))
     }
 
     /// Generate execution plan (delegates to bridge)
-    pub async fn generate_plan(&mut self, analysis: &crate::operator::hermes_runtime::HermesAnalysisResult) -> Result<crate::operator::hermes_runtime::HermesPlan, TaskExecutorError> {
+    pub async fn generate_plan(&mut self, analysis: &ProjectAnalysisResult) -> Result<ExecutionPlan, TaskExecutorError> {
         self.bridge.generate_plan(analysis).await
             .map_err(|e| TaskExecutorError::PlanningError(e.to_string()))
     }

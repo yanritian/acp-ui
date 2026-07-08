@@ -145,12 +145,6 @@ describe('Error Handling', () => {
       expect(result.error).toContain('not found')
     })
 
-    it('should handle Hermes CLI crashed', async () => {
-      mockInvoke.mockRejectedValueOnce(new Error('Hermes CLI crashed'))
-
-      await expect(HermesCliApi.executeTask('task_1', 'goal', '/path')).rejects.toThrow('crashed')
-    })
-
     it('should handle Hermes API error', async () => {
       mockInvoke.mockRejectedValueOnce(new Error('Hermes API error: rate limit exceeded'))
 

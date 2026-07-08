@@ -5,6 +5,8 @@ use crate::operator::{
     OperatorTask, OperatorTaskStatus, OperatorEvent, ApprovalRequest,
     TaskStateMachine, StartTaskRequest, StartTaskResponse,
     ApproveRequest, RedirectRequest, TaskSummary,
+    PathGuard, CommandGuard,
+    file_tools::{file_read, file_patch, file_patch_preview, file_list, FileReadResult, FilePatchResult, FilePatch, FileListResult},
 };
 use crate::domains::games::godot::{GodotProjectAnalyzer, GodotProjectInfo};
 use tauri::State;

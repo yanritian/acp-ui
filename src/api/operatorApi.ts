@@ -207,11 +207,6 @@ export const HermesCliApi = {
     }
   },
 
-  // Execute a task with Hermes CLI
-  async executeTask(taskId: string, goal: string, projectPath: string): Promise<void> {
-    return invoke<void>('hermes_execute_task', { taskId, goal, projectPath })
-  },
-
   // Analyze project using Hermes
   async analyzeProject(taskId: string): Promise<HermesAnalysisResult> {
     return invoke<HermesAnalysisResult>('hermes_analyze_project', { taskId })
@@ -220,10 +215,5 @@ export const HermesCliApi = {
   // Generate execution plan
   async generatePlan(taskId: string, goal: string): Promise<HermesPlan> {
     return invoke<HermesPlan>('hermes_generate_plan', { taskId, goal })
-  },
-
-  // Execute a single step
-  async executeStep(taskId: string, stepId: number, approve: boolean): Promise<void> {
-    return invoke<void>('hermes_execute_step', { taskId, stepId, approve })
   },
 }

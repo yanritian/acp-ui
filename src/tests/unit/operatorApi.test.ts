@@ -374,18 +374,6 @@ describe('HermesCliApi', () => {
     expect(result.error).toContain('Hermes CLI not found')
   })
 
-  it('should execute task', async () => {
-    mockInvoke.mockResolvedValueOnce(undefined)
-
-    await HermesCliApi.executeTask('task_123', 'Add double jump', 'D:/tmp/test-godot-project')
-
-    expect(mockInvoke).toHaveBeenCalledWith('hermes_execute_task', {
-      taskId: 'task_123',
-      goal: 'Add double jump',
-      projectPath: 'D:/tmp/test-godot-project'
-    })
-  })
-
   it('should generate plan', async () => {
     const mockPlan = {
       taskId: 'task_123',
@@ -405,17 +393,5 @@ describe('HermesCliApi', () => {
       goal: 'Add double jump'
     })
     expect(result.steps).toHaveLength(2)
-  })
-
-  it('should execute step', async () => {
-    mockInvoke.mockResolvedValueOnce(undefined)
-
-    await HermesCliApi.executeStep('task_123', 1, true)
-
-    expect(mockInvoke).toHaveBeenCalledWith('hermes_execute_step', {
-      taskId: 'task_123',
-      stepId: 1,
-      approve: true
-    })
   })
 })

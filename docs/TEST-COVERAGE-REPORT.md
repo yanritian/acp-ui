@@ -18,7 +18,7 @@
 | E2E 测试 | game-operator.spec.ts | 14 | UI 测试 |
 | 集成测试 | game-operator.test.ts | 14 | 集成测试 |
 | 类型测试 | operator-types.test.ts | 3 | 类型定义测试 |
-| 其他测试 | *.test.ts | 287+ | 业务逻辑测试 |
+| 其他测试 | *.test.ts | 282+ | 业务逻辑测试 |
 
 ---
 

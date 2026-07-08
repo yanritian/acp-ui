@@ -68,8 +68,8 @@ test.describe('Game Operator Components', () => {
   test('should show correct page title', async ({ page }) => {
     await page.goto('http://localhost:1420/#/games')
 
-    const title = page.locator('h1')
-    await expect(title).toContainText('Hermes Game Operator')
+    const title = page.locator('h1:has-text("Hermes Game Operator")')
+    await expect(title).toBeVisible()
   })
 
   test('should show MVP subtitle', async ({ page }) => {

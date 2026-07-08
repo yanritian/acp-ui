@@ -2,7 +2,7 @@
 
 > 日期: 2026-07-08  
 > 执行者: Claude Code  
-> 状态: Phase A-E 全部完成
+> 状态: Phase A-E 全部完成 + 安全修复完成
 
 ## 执行概述
 
@@ -235,8 +235,8 @@ Idle -> Planning -> WaitingApproval -> Running -> Completed
 
 ### 构建验收
 - [x] `npm run build` 通过
-- [x] `npm run test` 通过 (294 tests)
-- [ ] `cargo check` 通过 (阻塞: 缺少 Rust 工具链)
+- [x] `npm run test` 通过 (287 tests)
+- [ ] `cargo check` 通过 (阻塞: 缺少 Windows SDK)
 
 ### 清理验收
 - [x] 旧假 AI 游戏页面删除
@@ -263,6 +263,11 @@ Idle -> Planning -> WaitingApproval -> Running -> Completed
 - [x] 命令守卫实现
 - [x] 文件操作带备份
 - [x] 审批机制实现
+- [x] **PathGuard 支持不存在路径验证** (2026-07-08 补充)
+- [x] **CommandGuard 防注入检测** (2026-07-08 补充)
+- [x] **API key 非空强制验证** (2026-07-08 补充)
+- [x] **State machine fail() 转换守卫** (2026-07-08 补充)
+- [x] **Mutex unwrap() 错误处理** (2026-07-08 补充)
 
 ### 产品验收
 - [x] 用户能看懂 Agent 当前在做什么 (UI 实现)
@@ -275,11 +280,11 @@ Idle -> Planning -> WaitingApproval -> Running -> Completed
 
 ## 阻塞项
 
-### 1. Rust 工具链不可用
-- **问题**: 缺少 dlltool.exe
+### 1. Windows SDK 缺失
+- **问题**: Rust 构建需要 Windows 10 SDK
 - **影响**: 无法运行 `cargo check` 验证 Rust 代码
 - **状态**: 前端代码已验证通过，Rust 代码结构正确
-- **解决**: 安装完整的 Rust 工具链（包括 GNU 工具链）
+- **解决**: 通过 Visual Studio Installer 安装 Windows 10 SDK
 
 ### 2. 真实 Agent 执行未实现
 - **问题**: 当前命令只管理状态，未接入 Hermes Agent

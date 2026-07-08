@@ -47,6 +47,18 @@ impl GodotTaskExecutor {
         }
     }
 
+    /// Analyze the Godot project (delegates to bridge)
+    pub async fn analyze_project(&mut self) -> Result<crate::operator::hermes_runtime::HermesAnalysisResult, TaskExecutorError> {
+        self.bridge.analyze_project().await
+            .map_err(|e| TaskExecutorError::AnalysisError(e.to_string()))
+    }
+
+    /// Generate execution plan (delegates to bridge)
+    pub async fn generate_plan(&mut self, analysis: &crate::operator::hermes_runtime::HermesAnalysisResult) -> Result<crate::operator::hermes_runtime::HermesPlan, TaskExecutorError> {
+        self.bridge.generate_plan(analysis).await
+            .map_err(|e| TaskExecutorError::PlanningError(e.to_string()))
+    }
+
     /// Execute complete task workflow
     pub async fn execute(&mut self) -> Result<TaskExecutionReport, TaskExecutorError> {
         // Phase 1: Initialize

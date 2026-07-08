@@ -193,6 +193,33 @@ D:/tmp/test-godot-project/
 
 **执行完成度：98%**
 
-- 剩余阻塞项：Windows SDK 安装 (用户操作)
-- 所有代码审查 CRITICAL/HIGH 问题已修复
-- 构建和测试通过
+- ✅ Phase A-E 全部完成
+- ✅ 安全修复 CRITICAL/HIGH 全部解决
+- ✅ E2E 测试全部通过 (7/7)
+- ✅ npm run build 通过
+- ✅ npm run test 通过 (287 tests)
+- ⏳ cargo check 阻塞 (需要 Windows SDK)
+- ⏳ Hermes Agent 真实集成 (需要 Hermes CLI/API)
+
+---
+
+## 11. 下一步行动 (优先级排序)
+
+### P0 - MVP 闭环必需
+1. 安装 Windows 10 SDK (用户操作)
+2. 验证 cargo check 通过
+3. 安装 Hermes CLI 或部署 Hermes 服务
+4. 实现 HermesCliBridge (见 docs/codex/hermes-agent-integration-plan.md)
+5. E2E 验证真实 Godot 任务执行
+
+### P1 - 功能完善
+6. 实现真实审批流程 UI 连接
+7. 实现真实 diff 展示
+8. 添加任务执行单元测试
+9. 优化大项目分析性能
+
+### P2 - 扩展
+10. VSCode 插件连接 Operator Core
+11. Unity Domain Pack
+12. Ren'Py Domain Pack
+13. IDEA 插件原型

@@ -103,50 +103,36 @@ export const OperatorApi = {
   },
 
   // ============================================================================
-  // Memory
-  // ============================================================================
-
-  // Get memory records for a task
-  async getMemory(taskId: string): Promise<any[]> {
-    return invoke<any[]>('operator_get_memory', { taskId })
-  },
-
-  // Delete a memory record
-  async deleteMemory(memoryId: string): Promise<void> {
-    return invoke<void>('operator_delete_memory', { memoryId })
-  },
-
-  // ============================================================================
   // File Tools
   // ============================================================================
 
   // Read a file safely
-  async fileRead(path: string, allowedRoots: string[]): Promise<any> {
-    return invoke<any>('operator_file_read', { path, allowedRoots })
+  async fileRead(taskId: string, path: string): Promise<any> {
+    return invoke<any>('operator_file_read', { taskId, path })
   },
 
   // Apply a patch to a file
   async filePatch(
+    taskId: string,
     path: string,
     newContent: string,
-    allowedRoots: string[],
     createBackup: boolean = true
   ): Promise<any> {
-    return invoke<any>('operator_file_patch', { path, newContent, allowedRoots, createBackup })
+    return invoke<any>('operator_file_patch', { taskId, path, newContent, createBackup })
   },
 
   // Preview a patch without applying
   async filePatchPreview(
+    taskId: string,
     path: string,
-    newContent: string,
-    allowedRoots: string[]
+    newContent: string
   ): Promise<any> {
-    return invoke<any>('operator_file_patch_preview', { path, newContent, allowedRoots })
+    return invoke<any>('operator_file_patch_preview', { taskId, path, newContent })
   },
 
   // List files in a directory
-  async fileList(path: string, allowedRoots: string[]): Promise<any> {
-    return invoke<any>('operator_file_list', { path, allowedRoots })
+  async fileList(taskId: string, path: string): Promise<any> {
+    return invoke<any>('operator_file_list', { taskId, path })
   },
 }
 

@@ -354,11 +354,18 @@ pub async fn operator_get_task_summary(
 
 #[tauri::command]
 pub async fn operator_file_read(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
     path: String,
-    allowed_roots: Vec<String>,
 ) -> Result<FileReadResult, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    // Get project_path from task state (not from frontend)
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
     let path = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let roots = vec![std::path::PathBuf::from(&task.project_path)];
     let path_guard = PathGuard::new(roots);
 
     file_read(path, &path_guard).map_err(|e| e.to_string())
@@ -366,13 +373,20 @@ pub async fn operator_file_read(
 
 #[tauri::command]
 pub async fn operator_file_patch(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
     path: String,
     new_content: String,
-    allowed_roots: Vec<String>,
     create_backup: bool,
 ) -> Result<FilePatchResult, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    // Get project_path from task state (not from frontend)
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
     let path = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let roots = vec![std::path::PathBuf::from(&task.project_path)];
     let path_guard = PathGuard::new(roots);
 
     file_patch(path, &new_content, &path_guard, create_backup).map_err(|e| e.to_string())
@@ -380,12 +394,19 @@ pub async fn operator_file_patch(
 
 #[tauri::command]
 pub async fn operator_file_patch_preview(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
     path: String,
     new_content: String,
-    allowed_roots: Vec<String>,
 ) -> Result<FilePatch, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    // Get project_path from task state (not from frontend)
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
     let path = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let roots = vec![std::path::PathBuf::from(&task.project_path)];
     let path_guard = PathGuard::new(roots);
 
     file_patch_preview(path, &new_content, &path_guard).map_err(|e| e.to_string())
@@ -393,11 +414,18 @@ pub async fn operator_file_patch_preview(
 
 #[tauri::command]
 pub async fn operator_file_list(
+    state: State<'_, Arc<Mutex<OperatorState>>>,
+    task_id: String,
     path: String,
-    allowed_roots: Vec<String>,
 ) -> Result<FileListResult, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+
+    // Get project_path from task state (not from frontend)
+    let task = state.tasks.get(&task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
     let path = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots.iter().map(|s| std::path::PathBuf::from(s)).collect();
+    let roots = vec![std::path::PathBuf::from(&task.project_path)];
     let path_guard = PathGuard::new(roots);
 
     file_list(path, &path_guard).map_err(|e| e.to_string())

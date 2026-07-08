@@ -98,7 +98,6 @@ pub async fn operator_start_task(
         payload: None,
     };
     state.events.get_mut(&task_id).unwrap().push(event);
-    state.events.get_mut(&task_id).unwrap().push(event);
 
     Ok(StartTaskResponse {
         task_id,

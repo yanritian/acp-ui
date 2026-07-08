@@ -158,8 +158,13 @@ async function refreshTask() {
   if (!currentTask.value) return
   try {
     currentTask.value = await OperatorApi.getTask(currentTask.value.task_id)
+    // Stop polling when task reaches terminal state
+    const terminalStates = ['completed', 'failed', 'cancelled']
+    if (currentTask.value.status && terminalStates.includes(currentTask.value.status)) {
+      stopEventPolling()
+    }
   } catch (e: any) {
-    console.error('Failed to refresh task:', e)
+    // Silent fail - task may not exist yet
   }
 }
 
@@ -168,7 +173,7 @@ async function refreshEvents() {
   try {
     events.value = await OperatorApi.listEvents(currentTask.value.task_id, 100)
   } catch (e: any) {
-    console.error('Failed to refresh events:', e)
+    // Silent fail - events may not be available yet
   }
 }
 
@@ -177,7 +182,7 @@ async function refreshApprovals() {
   try {
     pendingApprovals.value = await OperatorApi.getPendingApprovals(currentTask.value.task_id)
   } catch (e: any) {
-    console.error('Failed to refresh approvals:', e)
+    // Silent fail - approvals may not be available yet
   }
 }
 

@@ -728,7 +728,11 @@ pub fn run() {
             operator::operator_file_read,
             operator::operator_file_patch,
             operator::operator_file_patch_preview,
-            operator::operator_file_list
+            operator::operator_file_list,
+            // Hermes CLI commands
+            operator::hermes_check_connection,
+            operator::hermes_analyze_project,
+            operator::hermes_generate_plan
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

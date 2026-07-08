@@ -111,7 +111,7 @@ Idle → Planning → WaitingApproval → Running → Completed
 | 检查项 | 状态 |
 |--------|------|
 | `npm run build` | ✅ 通过 |
-| `npm run test` | ✅ 418 tests passed |
+| `npm run test` | ✅ 433 tests passed |
 | 旧假 AI 游戏页面删除 | ✅ |
 | 导航收束到 Game Operator | ✅ |
 | TypeScript 协议类型 | ✅ |

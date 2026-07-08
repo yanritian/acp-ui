@@ -15,7 +15,7 @@ Hermes Game Operator 是一个基于 Tauri + Vue 3 + Rust 的 Godot 游戏开发
 | 指标 | 数值 |
 |------|------|
 | 提交数 | 50 |
-| 测试 | 418 passed |
+| 测试 | 433 passed |
 | 测试文件 | 20 |
 | Vue 组件 | 88 |
 | TypeScript 文件 | 164 |

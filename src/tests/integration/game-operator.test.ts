@@ -112,7 +112,7 @@ describe('Game Operator Integration', () => {
         'event_id',
         'task_id',
         'timestamp',
-        'event_type',
+        'type',
         'level',
         'title',
         'source'

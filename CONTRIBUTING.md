@@ -1,243 +1,102 @@
-# Contributing to ACP UI
+# Contributing to Hermes Game Operator
 
-Thank you for your interest in contributing to ACP UI! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing!
 
-## 🎯 Project Overview
-
-ACP UI is a modern, cross-platform client for the Agent Client Protocol (ACP). It includes the Hermes Game Operator, an AI-powered game development assistant for Godot Engine.
-
-## 🚀 Getting Started
+## Development Setup
 
 ### Prerequisites
 
-- Node.js 18+
-- Rust 1.70+
-- Platform-specific build tools (see [Tauri Prerequisites](https://tauri.app/start/prerequisites/))
+- Node.js >= 18.x
+- Rust >= 1.70
+- Windows 10 SDK (for Windows builds)
+- pnpm or npm
 
-### Setup
+### Getting Started
 
 ```bash
 # Clone the repository
-git clone https://github.com/formulahendry/acp-ui.git
+git clone https://github.com/your-org/acp-ui.git
 cd acp-ui
 
 # Install dependencies
 npm install
 
-# Run in development mode
+# Start development server
 npm run tauri dev
 ```
 
-## 📋 Development Workflow
+## Project Structure
 
-### 1. Fork and Clone
+```
+src/                     # Vue frontend
+├── features/
+│   └── game-operator/   # Game Operator components
+├── api/                 # API layer
+└── types/               # TypeScript types
 
-1. Fork the repository on GitHub
-2. Clone your fork locally
-3. Add the upstream repository as a remote
+src-tauri/               # Rust backend
+└── src/
+    ├── operator/        # Operator control plane
+    └── domains/         # Domain packs (Godot, etc.)
 
-```bash
-git remote add upstream https://github.com/formulahendry/acp-ui.git
+docs/                    # Documentation
+tests/                   # Test files
 ```
 
-### 2. Create a Branch
+## Coding Standards
 
-Create a branch for your changes:
+### TypeScript/Vue
+- Use composition API
+- Follow Prettier formatting
+- Add types for all props and returns
+- No console.log in production code
 
-```bash
-git checkout -b feature/your-feature-name
-```
+### Rust
+- Follow standard Rust conventions
+- Use Result for error handling
+- No unwrap() in production code
+- Add tests for new functions
 
-Branch naming conventions:
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation changes
-- `refactor/` - Code refactoring
-- `test/` - Test additions or changes
+## Commit Guidelines
 
-### 3. Make Changes
-
-- Write clean, readable code
-- Follow existing code style
-- Add tests for new functionality
-- Update documentation as needed
-
-### 4. Test Your Changes
-
-```bash
-# Run TypeScript type checking
-npm run typecheck
-
-# Run tests
-npm run test
-
-# Build the project
-npm run build
-```
-
-### 5. Commit Your Changes
-
-Use conventional commit messages:
+Use conventional commits:
 
 ```
 feat: add new feature
 fix: resolve bug
 docs: update documentation
 test: add tests
-refactor: refactor code
-chore: update dependencies
+refactor: code cleanup
 ```
 
-### 6. Push and Create PR
+## Pull Request Process
+
+1. Create a feature branch
+2. Make your changes
+3. Run tests: `npm run test`
+4. Run build: `npm run build`
+5. Submit PR with description
+
+## Testing
 
 ```bash
-git push origin feature/your-feature-name
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Rust tests
+cd src-tauri && cargo test
 ```
 
-Then create a Pull Request on GitHub.
+## Security
 
-## 🎮 Hermes Game Operator
+- Never hardcode secrets
+- Validate all user input
+- Use PathGuard for file operations
+- Use CommandGuard for shell commands
 
-The Hermes Game Operator is a key component of ACP UI. When contributing to this area:
+## Questions?
 
-### Architecture
-
-- **Frontend**: Vue 3 + TypeScript
-  - `src/features/game-operator/` - UI components
-  - `src/api/operatorApi.ts` - API client
-  - `src/types/operator.ts` - Type definitions
-
-- **Backend**: Rust + Tauri
-  - `src-tauri/src/operator/` - Operator modules
-  - `src-tauri/src/domains/games/godot/` - Godot domain pack
-
-### Key Modules
-
-1. **State Machine** (`state_machine.rs`)
-   - 10-state task lifecycle
-   - State transitions and validation
-
-2. **Commands** (`commands.rs`)
-   - 17 Tauri commands
-   - Task management and control
-
-3. **Security** (`security.rs`)
-   - PathGuard for path validation
-   - CommandGuard for command whitelisting
-
-4. **File Tools** (`file_tools.rs`)
-   - Safe file operations
-   - Backup and diff generation
-
-5. **Agent Bridge** (`agent_bridge.rs`)
-   - Hermes Agent integration
-   - Task execution
-
-### Testing
-
-- Unit tests in each module
-- E2E tests in `e2e_tests.rs`
-- Test project in `test-godot-project/`
-
-## 📝 Code Style
-
-### TypeScript/Vue
-
-- Use TypeScript for all new code
-- Follow Vue 3 Composition API patterns
-- Use proper type definitions
-- No `any` types unless absolutely necessary
-
-### Rust
-
-- Follow Rust naming conventions
-- Use proper error handling
-- Document public APIs
-- Write unit tests
-
-### Documentation
-
-- Update README.md for user-facing changes
-- Update API docs for API changes
-- Add inline comments for complex logic
-- Keep documentation in sync with code
-
-## 🐛 Reporting Bugs
-
-When reporting bugs, please include:
-
-1. **Description**: Clear description of the issue
-2. **Steps to Reproduce**: Step-by-step instructions
-3. **Expected Behavior**: What you expected to happen
-4. **Actual Behavior**: What actually happened
-5. **Environment**: OS, version, etc.
-6. **Logs**: Any relevant error messages
-
-## 💡 Feature Requests
-
-For feature requests:
-
-1. Check existing issues first
-2. Describe the problem you're trying to solve
-3. Explain your proposed solution
-4. Consider alternative approaches
-5. Be open to discussion
-
-## 📚 Documentation
-
-When adding new features:
-
-1. Update API documentation
-2. Add usage examples
-3. Update relevant guides
-4. Add inline code comments
-
-## 🔒 Security
-
-If you discover a security vulnerability:
-
-1. **DO NOT** open a public issue
-2. Email security@example.com
-3. Include detailed description
-4. Wait for response before disclosing
-
-## 📊 Pull Request Process
-
-1. **Review**: Your PR will be reviewed by maintainers
-2. **Changes**: Address any requested changes
-3. **Tests**: Ensure all tests pass
-4. **Documentation**: Update documentation as needed
-5. **Merge**: Once approved, your PR will be merged
-
-## 🎯 Review Guidelines
-
-When reviewing PRs:
-
-- Check code quality and style
-- Verify tests are included
-- Ensure documentation is updated
-- Test the changes locally
-- Provide constructive feedback
-
-## 📖 Resources
-
-- [API Documentation](docs/api.md)
-- [Project Summary](docs/PROJECT-SUMMARY.md)
-- [Test Plan](docs/codex/test-plan.md)
-- [Tauri Documentation](https://tauri.app/)
-- [Vue 3 Documentation](https://vuejs.org/)
-
-## 🤝 Community
-
-- Be respectful and inclusive
-- Help others learn and grow
-- Share knowledge and experience
-- Celebrate contributions
-
-## 📄 License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
-
-Thank you for contributing to ACP UI! 🎉
+Open an issue on GitHub.

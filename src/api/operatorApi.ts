@@ -1,6 +1,15 @@
 // Hermes Game Operator API
 // Frontend API layer for communicating with the Operator backend
 
+// Tauri internals type declaration
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: {
+      invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>
+    }
+  }
+}
+
 import type {
   StartTaskRequest,
   StartTaskResponse,
@@ -16,12 +25,10 @@ import type {
 // Tauri Invoke Helper
 // ============================================================================
 
-async function invoke<T>(command: string, args?: Record<string, any>): Promise<T> {
+async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   try {
-    // @ts-ignore - Tauri invoke is available in desktop context
     if (window.__TAURI_INTERNALS__) {
-      // @ts-ignore
-      return await window.__TAURI_INTERNALS__.invoke(command, args)
+      return await window.__TAURI_INTERNALS__.invoke(command, args) as T
     }
     throw new Error('Tauri internals not available')
   } catch (error) {

@@ -190,8 +190,23 @@ async function refreshApprovals() {
 // Lifecycle
 // ============================================================================
 
-onMounted(() => {
-  // TODO: Load saved tasks from backend
+onMounted(async () => {
+  // Load saved tasks from backend
+  try {
+    const tasks = await OperatorApi.listTasks()
+    if (tasks.length > 0) {
+      // Find the most recent non-terminal task
+      const activeTask = tasks.find(t =>
+        !['completed', 'failed', 'cancelled'].includes(t.status)
+      )
+      if (activeTask) {
+        currentTask.value = activeTask
+        startEventPolling()
+      }
+    }
+  } catch (e) {
+    // Silent fail - tasks may not be available yet
+  }
 })
 
 onUnmounted(() => {

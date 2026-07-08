@@ -12,21 +12,69 @@ const planEvents = computed(() => {
   return props.events.filter(e =>
     e.type === 'plan_started' ||
     e.type === 'plan_ready' ||
-    e.type === 'project_analyzed'
+    e.type === 'project_analyzed' ||
+    e.type === 'tool_call_started' ||
+    e.type === 'tool_call_succeeded' ||
+    e.type === 'tool_call_failed'
   )
 })
 
-// Extract steps from plan events (simplified - real implementation would parse payload)
+// Parse steps from events payload or generate default steps based on task status
 const steps = computed(() => {
-  // TODO: Parse actual plan from events
-  return [
+  // Try to extract steps from plan_ready event payload
+  const planReadyEvent = props.events.find(e => e.type === 'plan_ready')
+  if (planReadyEvent?.payload?.steps) {
+    return planReadyEvent.payload.steps.map((s: any, idx: number) => ({
+      id: s.id || idx + 1,
+      text: s.description || s.text || `Step ${idx + 1}`,
+      status: getStepStatus(s.id || idx + 1)
+    }))
+  }
+
+  // Generate default steps based on task status
+  const taskStatus = props.task.status
+  const defaultSteps = [
     { id: 1, text: 'Analyze project structure', status: 'done' },
     { id: 2, text: 'Find player controller', status: 'done' },
     { id: 3, text: 'Generate implementation plan', status: 'running' },
     { id: 4, text: 'Wait for user approval', status: 'pending' },
     { id: 5, text: 'Apply changes', status: 'pending' },
   ]
+
+  // Update step status based on task status
+  if (taskStatus === 'waiting_approval') {
+    defaultSteps[2].status = 'done'
+    defaultSteps[3].status = 'running'
+  } else if (taskStatus === 'running') {
+    defaultSteps[2].status = 'done'
+    defaultSteps[3].status = 'done'
+    defaultSteps[4].status = 'running'
+  } else if (taskStatus === 'completed') {
+    defaultSteps.forEach(s => s.status = 'done')
+  } else if (taskStatus === 'failed') {
+    defaultSteps[4].status = 'failed'
+  }
+
+  return defaultSteps
 })
+
+// Helper to get step status from events
+function getStepStatus(stepId: number): string {
+  const startedEvent = props.events.find(e =>
+    e.type === 'tool_call_started' && e.payload?.step_id === stepId
+  )
+  const succeededEvent = props.events.find(e =>
+    e.type === 'tool_call_succeeded' && e.payload?.step_id === stepId
+  )
+  const failedEvent = props.events.find(e =>
+    e.type === 'tool_call_failed' && e.payload?.step_id === stepId
+  )
+
+  if (failedEvent) return 'failed'
+  if (succeededEvent) return 'done'
+  if (startedEvent) return 'running'
+  return 'pending'
+}
 </script>
 
 <template>

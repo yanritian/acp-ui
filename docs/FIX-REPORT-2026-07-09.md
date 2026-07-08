@@ -67,12 +67,21 @@ let has_main = result.scenes.iter().any(|s| s.contains("Main.tscn") || s.contain
 pub use agent_bridge::{HermesAgentBridge, ProjectAnalysisResult, ExecutionPlan, PlanStep, StepResult, StepStatus};
 ```
 
+### 6. lib.rs 命令注册
+
+```rust
+// 添加 Hermes CLI 命令注册
+operator::hermes_check_connection,
+operator::hermes_analyze_project,
+operator::hermes_generate_plan
+```
+
 ---
 
 ## 验证结果
 
 ```
-✓ npm run build: 成功 (10.23s)
+✓ npm run build: 成功 (9.79s)
 ✓ npm run test: 410 passed (22 files)
 ✓ TypeScript: 无错误
 ```
@@ -98,13 +107,13 @@ cargo check
 
 ## 下一步行动
 
-1. ✅ 安装 Windows 10 SDK（用户手动操作）
+1. ⏳ 安装 Windows 10 SDK（用户手动操作）
 2. ⏳ 验证 cargo check 通过
 3. ⏳ 安装 Hermes CLI
 4. ⏳ 使用测试项目验证闭环
 
 ---
 
-**修复提交**: `0f2554d`
+**修复提交**: `2c147df`
 **测试数量**: 410 passed
 **构建状态**: ✅ 成功

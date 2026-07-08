@@ -21,7 +21,7 @@
 | 7 | GameOperatorView 项目选择写死 | ✅ 无问题 | 使用 Tauri dialog 选择，非硬编码 |
 | 8 | operatorApi.ts 有没有后端的API | ✅ 已修复 | 删除 executeTask 和 executeStep |
 | 9 | allowed_roots 权限问题 | ✅ 无问题 | 正确使用 task.project_path 作为 allowed_roots |
-| 10 | 真实验证结果 | ✅ 通过 | 410 tests passed, build passed |
+| 10 | 真实验证结果 | ✅ 通过 | 418 tests passed, build passed |
 
 ---
 
@@ -82,7 +82,7 @@ operator::hermes_generate_plan
 
 ```
 ✓ npm run build: 成功 (9.79s)
-✓ npm run test: 410 passed (22 files)
+✓ npm run test: 418 passed (22 files)
 ✓ TypeScript: 无错误
 ```
 
@@ -115,5 +115,5 @@ cargo check
 ---
 
 **修复提交**: `2c147df`
-**测试数量**: 410 passed
+**测试数量**: 418 passed
 **构建状态**: ✅ 成功

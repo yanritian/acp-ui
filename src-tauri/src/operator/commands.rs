@@ -62,7 +62,12 @@ pub async fn operator_start_task(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.tasks.insert(task_id.clone(), task);
-    state.state_machines.insert(task_id.clone(), TaskStateMachine::new(task_id.clone()));
+
+    // Create state machine and transition to Planning
+    let mut state_machine = TaskStateMachine::new(task_id.clone());
+    state_machine.start_task().map_err(|e| e.to_string())?; // Idle -> Planning
+    state.state_machines.insert(task_id.clone(), state_machine);
+
     state.events.insert(task_id.clone(), Vec::new());
     state.approvals.insert(task_id.clone(), Vec::new());
 
@@ -78,6 +83,21 @@ pub async fn operator_start_task(
         source: "operator".to_string(),
         payload: None,
     };
+    state.events.get_mut(&task_id).unwrap().push(event);
+
+    // Emit planning started event
+    let event = OperatorEvent {
+        event_id: format!("evt_{}_1", task_id),
+        task_id: task_id.clone(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        event_type: crate::operator::OperatorEventType::PlanStarted,
+        level: crate::operator::EventLevel::Info,
+        title: "Planning started".to_string(),
+        message: Some("Task is now in planning phase".to_string()),
+        source: "operator".to_string(),
+        payload: None,
+    };
+    state.events.get_mut(&task_id).unwrap().push(event);
     state.events.get_mut(&task_id).unwrap().push(event);
 
     Ok(StartTaskResponse {
@@ -207,20 +227,55 @@ pub async fn operator_approve(
         }
     }
 
-    // Update task status based on decision
-    if let Some(task) = state.tasks.get_mut(&request.task_id) {
-        match request.decision {
-            crate::operator::ApprovalDecision::Approve => {
-                task.status = OperatorTaskStatus::Running;
+    // Drive state machine based on decision
+    let new_status = match request.decision {
+        crate::operator::ApprovalDecision::Approve => {
+            if let Some(machine) = state.state_machines.get_mut(&request.task_id) {
+                machine.approve().map_err(|e| e.to_string())?; // WaitingApproval -> Running
             }
-            crate::operator::ApprovalDecision::Reject => {
-                task.status = OperatorTaskStatus::Cancelled;
-            }
-            crate::operator::ApprovalDecision::RequestChanges => {
-                task.status = OperatorTaskStatus::Planning;
-            }
+            OperatorTaskStatus::Running
         }
+        crate::operator::ApprovalDecision::Reject => {
+            if let Some(machine) = state.state_machines.get_mut(&request.task_id) {
+                machine.reject().map_err(|e| e.to_string())?; // WaitingApproval -> Cancelled
+            }
+            OperatorTaskStatus::Cancelled
+        }
+        crate::operator::ApprovalDecision::RequestChanges => {
+            if let Some(machine) = state.state_machines.get_mut(&request.task_id) {
+                machine.replan().map_err(|e| e.to_string())?; // WaitingApproval -> Planning
+            }
+            OperatorTaskStatus::Planning
+        }
+    };
+
+    // Update task status
+    if let Some(task) = state.tasks.get_mut(&request.task_id) {
+        task.status = new_status;
         task.updated_at = chrono::Utc::now().to_rfc3339();
+    }
+
+    // Emit approval event
+    let event_type = match request.decision {
+        crate::operator::ApprovalDecision::Approve => crate::operator::OperatorEventType::ApprovalGranted,
+        crate::operator::ApprovalDecision::Reject => crate::operator::OperatorEventType::ApprovalRejected,
+        crate::operator::ApprovalDecision::RequestChanges => crate::operator::OperatorEventType::ApprovalRequested,
+    };
+
+    let event = OperatorEvent {
+        event_id: format!("evt_approve_{}", request.approval_id),
+        task_id: request.task_id.clone(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        event_type,
+        level: crate::operator::EventLevel::Info,
+        title: format!("Approval {:?}", request.decision),
+        message: request.comment,
+        source: "operator".to_string(),
+        payload: None,
+    };
+
+    if let Some(events) = state.events.get_mut(&request.task_id) {
+        events.push(event);
     }
 
     Ok(())

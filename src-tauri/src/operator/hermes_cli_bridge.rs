@@ -49,7 +49,7 @@ impl HermesCliBridge {
 
         thread::spawn(move || {
             if let Err(e) = Self::run_hermes_process(&cli_path, &project_path, &task_id, &goal, tx.clone()) {
-                let _ = tx.send(HermesEvent::Error(e.to_string()));
+                let _ = tx.send(HermesEvent::Error { message: e.to_string() });
             }
         });
 
@@ -92,7 +92,7 @@ impl HermesCliBridge {
                     }
                 }
                 Err(e) => {
-                    let _ = tx.send(HermesEvent::Error(format!("Read error: {}", e)));
+                    let _ = tx.send(HermesEvent::Error { message: format!("Read error: {}", e) });
                     break;
                 }
             }
@@ -227,10 +227,10 @@ impl HermesEvent {
                 (OperatorEventType::TaskStarted, "Task started".to_string(), Some("Task execution started".to_string()))
             }
             HermesEvent::PhaseChanged { phase, .. } => {
-                (OperatorEventType::PhaseChanged, format!("Phase: {}", phase), Some(format!("Entered {} phase", phase)))
+                (OperatorEventType::StepStarted, format!("Phase: {}", phase), Some(format!("Entered {} phase", phase)))
             }
             HermesEvent::Progress { message, percentage, .. } => {
-                (OperatorEventType::Progress, message.clone(), Some(format!("{}% - {}", percentage, message)))
+                (OperatorEventType::StepExecuting, message.clone(), Some(format!("{}% - {}", percentage, message)))
             }
             HermesEvent::FileRead { path, .. } => {
                 (OperatorEventType::FileRead, format!("Read: {}", path), Some(format!("Reading file: {}", path)))
@@ -239,10 +239,10 @@ impl HermesEvent {
                 (OperatorEventType::FileModified, format!("Modified: {}", path), diff.clone())
             }
             HermesEvent::ToolCall { tool, input, .. } => {
-                (OperatorEventType::ToolCall, format!("Call: {}", tool), Some(format!("{:?}", input)))
+                (OperatorEventType::ToolCallStarted, format!("Call: {}", tool), Some(format!("{:?}", input)))
             }
             HermesEvent::ToolResult { tool, output, .. } => {
-                (OperatorEventType::ToolResult, format!("Result: {}", tool), Some(format!("{:?}", output)))
+                (OperatorEventType::ToolCallSucceeded, format!("Result: {}", tool), Some(format!("{:?}", output)))
             }
             HermesEvent::ApprovalRequired { approval_id, message, .. } => {
                 (OperatorEventType::ApprovalRequested, format!("Approval: {}", approval_id), Some(message.clone()))

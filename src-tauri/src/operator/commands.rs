@@ -12,6 +12,7 @@ use crate::domains::games::godot::{GodotProjectAnalyzer, GodotProjectInfo};
 use tauri::State;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
 // ============================================================================
 // Application State
@@ -115,10 +116,12 @@ pub async fn operator_start_task(
         events.push(event);
     }
 
+    let event_stream = format!("operator://tasks/{}/events", task_id);
+
     Ok(StartTaskResponse {
         task_id,
         status: OperatorTaskStatus::Planning,
-        event_stream: format!("operator://tasks/{}/events", task_id),
+        event_stream,
     })
 }
 

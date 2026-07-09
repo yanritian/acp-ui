@@ -128,21 +128,21 @@ describe('Operator State Machine', () => {
   describe('Event History', () => {
     it('should track event history', async () => {
       mockInvoke.mockResolvedValueOnce([
-        { event_id: 'evt_001', event_type: 'task_created', title: 'Task created' },
-        { event_id: 'evt_002', event_type: 'plan_started', title: 'Planning started' },
-        { event_id: 'evt_003', event_type: 'plan_ready', title: 'Plan ready' }
+        { event_id: 'evt_001', type: 'task_created', title: 'Task created' },
+        { event_id: 'evt_002', type: 'plan_started', title: 'Planning started' },
+        { event_id: 'evt_003', type: 'plan_ready', title: 'Plan ready' }
       ])
 
       const { OperatorApi } = await import('@/api/operatorApi')
       const events = await OperatorApi.listEvents('task_008', 100)
 
       expect(events).toHaveLength(3)
-      expect(events[0].event_type).toBe('task_created')
+      expect(events[0].type).toBe('task_created')
     })
 
     it('should limit event history', async () => {
       mockInvoke.mockResolvedValueOnce([
-        { event_id: 'evt_001', event_type: 'task_created', title: 'Task created' }
+        { event_id: 'evt_001', type: 'task_created', title: 'Task created' }
       ])
 
       const { OperatorApi } = await import('@/api/operatorApi')

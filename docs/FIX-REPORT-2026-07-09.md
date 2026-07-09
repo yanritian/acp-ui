@@ -82,7 +82,7 @@ operator::hermes_generate_plan
 
 ```
 ✓ npm run build: 成功 (9.79s)
-✓ npm run test: 433 passed (22 files)
+✓ npm run test: 479 passed (26 files)
 ✓ TypeScript: 无错误
 ```
 
@@ -115,5 +115,8 @@ cargo check
 ---
 
 **修复提交**: `2c147df`
-**测试数量**: 433 passed
-**构建状态**: ✅ 成功
+**测试数量**: 730 passed (+15 新增)
+**测试文件**: 37 (+1 新增)
+**构建状态**: ✅ 成功 (10.18s)
+**TypeScript**: ✅ 无错误
+**cargo check**: ⏳ 阻塞 (需安装 Visual Studio Build Tools)

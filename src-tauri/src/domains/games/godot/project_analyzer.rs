@@ -58,7 +58,7 @@ impl GodotProjectAnalyzer {
             project_file,
             project_name,
             godot_version,
-            main_scene,
+            main_scene: main_scene.clone(),
             scripts,
             scenes,
             assets,
@@ -73,7 +73,7 @@ impl GodotProjectAnalyzer {
         project.scripts.iter()
             .filter(|path| {
                 if let Some(filename) = path.file_stem() {
-                    let name = filename.to_string_loss().to_lowercase();
+                    let name = filename.to_string_lossy().to_lowercase();
                     keywords.iter().any(|kw| name.contains(kw))
                 } else {
                     false
@@ -134,7 +134,7 @@ impl GodotProjectAnalyzer {
                             walk_dir(&path, extensions, files)?;
                         }
                     } else if let Some(ext) = path.extension() {
-                        let ext_str = ext.to_string_loss().to_lowercase();
+                        let ext_str = ext.to_string_lossy().to_lowercase();
                         if extensions.iter().any(|e| *e == ext_str) {
                             files.push(path);
                         }

@@ -117,12 +117,10 @@ impl HermesAgentBridge {
 
     /// Analyze the Godot project using GodotProjectAnalyzer
     pub async fn analyze_project(&self) -> Result<ProjectAnalysisResult, AgentBridgeError> {
-        let analyzer = GodotProjectAnalyzer::new();
-
-        match analyzer.analyze_project(&self.project_path) {
+        match GodotProjectAnalyzer::analyze_project(&self.project_path) {
             Ok(project_info) => {
                 // Find player controllers
-                let player_controllers = analyzer.find_player_controllers(&project_info);
+                let player_controllers = GodotProjectAnalyzer::find_player_controllers(&project_info);
 
                 Ok(ProjectAnalysisResult {
                     project_name: project_info.project_name,

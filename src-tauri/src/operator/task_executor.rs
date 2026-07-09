@@ -37,10 +37,10 @@ impl GodotTaskExecutor {
         );
 
         Self {
-            task_id,
+            task_id: task_id.clone(),
             project_path,
             goal,
-            state_machine: TaskStateMachine::new(task_id.clone()),
+            state_machine: TaskStateMachine::new(task_id),
             events: Vec::new(),
             path_guard,
             bridge,

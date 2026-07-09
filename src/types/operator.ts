@@ -215,6 +215,7 @@ export interface ApproveRequest {
   approval_id: string
   decision: ApprovalDecision
   comment?: string
+  reason?: string
 }
 
 export interface RedirectRequest {

@@ -88,6 +88,7 @@ tower-http = { version = "0.5", features = ["cors"] }  # CORS for HTTP Server
 tracing = "0.1"  # Structured logging for webhook handlers
 serde_yaml = "0.9"  # NEW: For proper YAML parsing (nested structures support)
 async-trait = "0.1"  # Agent Adapter: async trait support
+which = "4.4"  # For finding executables in PATH
 
 # Hermes crates - local dependencies
 hermes-agent = { path = "hermes-crates/hermes-agent" }

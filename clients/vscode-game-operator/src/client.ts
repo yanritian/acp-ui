@@ -67,58 +67,139 @@ export class GameOperatorClient {
 
   async listTasks(): Promise<OperatorTask[]> {
     if (!this.client) throw new Error('Not connected')
-    const response = await this.client.get('/api/tasks')
-    return response.data
+    try {
+      const response = await this.client.get('/api/tasks')
+      return response.data.tasks || response.data || []
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please check your token.')
+      }
+      if (error.response?.status === 403) {
+        throw new Error('Access denied. You do not have permission to list tasks.')
+      }
+      throw new Error(`Failed to list tasks: ${error.message}`)
+    }
   }
 
   async getTask(taskId: string): Promise<OperatorTask> {
     if (!this.client) throw new Error('Not connected')
-    const response = await this.client.get(`/api/tasks/${taskId}`)
-    return response.data
+    try {
+      const response = await this.client.get(`/api/tasks/${taskId}`)
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Task not found: ${taskId}`)
+      }
+      throw new Error(`Failed to get task: ${error.message}`)
+    }
   }
 
   async startTask(goal: string, projectPath?: string): Promise<OperatorTask> {
     if (!this.client) throw new Error('Not connected')
-    const response = await this.client.post('/api/tasks', {
-      domain: 'game.godot',
-      project_path: projectPath || '',
-      goal,
-      mode: 'propose_then_apply',
-      approval_policy: 'safe_default'
-    })
-    return response.data
+    try {
+      const response = await this.client.post('/api/tasks', {
+        domain: 'game.godot',
+        project_path: projectPath || '',
+        goal,
+        mode: 'propose_then_apply',
+        approval_policy: 'safe_default'
+      })
+      return response.data
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        throw new Error(`Invalid task request: ${error.response.data.message || 'Bad request'}`)
+      }
+      if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.')
+      }
+      throw new Error(`Failed to start task: ${error.message}`)
+    }
   }
 
   async pauseTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
-    await this.client.post(`/api/tasks/${taskId}/pause`)
+    try {
+      await this.client.post(`/api/tasks/${taskId}/pause`)
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Task not found: ${taskId}`)
+      }
+      if (error.response?.status === 409) {
+        throw new Error('Task cannot be paused in its current state')
+      }
+      throw new Error(`Failed to pause task: ${error.message}`)
+    }
   }
 
   async resumeTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
-    await this.client.post(`/api/tasks/${taskId}/resume`)
+    try {
+      await this.client.post(`/api/tasks/${taskId}/resume`)
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Task not found: ${taskId}`)
+      }
+      if (error.response?.status === 409) {
+        throw new Error('Task cannot be resumed in its current state')
+      }
+      throw new Error(`Failed to resume task: ${error.message}`)
+    }
   }
 
   async stopTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
-    await this.client.post(`/api/tasks/${taskId}/stop`)
+    try {
+      await this.client.post(`/api/tasks/${taskId}/stop`)
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Task not found: ${taskId}`)
+      }
+      if (error.response?.status === 409) {
+        throw new Error('Task cannot be stopped in its current state')
+      }
+      throw new Error(`Failed to stop task: ${error.message}`)
+    }
   }
 
   async listEvents(taskId: string): Promise<OperatorEvent[]> {
     if (!this.client) throw new Error('Not connected')
-    const response = await this.client.get(`/api/tasks/${taskId}/events`)
-    return response.data
+    try {
+      const response = await this.client.get(`/api/tasks/${taskId}/events`)
+      return response.data.events || response.data || []
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Task not found: ${taskId}`)
+      }
+      throw new Error(`Failed to list events: ${error.message}`)
+    }
   }
 
   async getPendingApprovals(taskId?: string): Promise<ApprovalRequest[]> {
     if (!this.client) throw new Error('Not connected')
-    const url = taskId ? `/api/tasks/${taskId}/approvals` : '/api/approvals'
-    const response = await this.client.get(url)
-    return response.data
+    try {
+      const url = taskId ? `/api/tasks/${taskId}/approvals` : '/api/approvals'
+      const response = await this.client.get(url)
+      return response.data.approvals || response.data || []
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return []
+      }
+      throw new Error(`Failed to get approvals: ${error.message}`)
+    }
   }
 
   async approve(approvalId: string, decision: 'approve' | 'reject' | 'request_changes'): Promise<void> {
     if (!this.client) throw new Error('Not connected')
-    await this.client.post(`/api/approvals/${approvalId}`, { decision })
+    try {
+      await this.client.post(`/api/approvals/${approvalId}`, { decision })
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error(`Approval not found: ${approvalId}`)
+      }
+      if (error.response?.status === 409) {
+        throw new Error('Approval already processed')
+      }
+      throw new Error(`Failed to approve: ${error.message}`)
+    }
   }
 }

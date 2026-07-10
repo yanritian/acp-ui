@@ -1,0 +1,113 @@
+{
+  "name": "vscode-game-operator",
+  "displayName": "Hermes Game Operator",
+  "description": "VSCode client for Hermes Game Operator - Control Godot game development tasks",
+  "version": "0.1.0",
+  "publisher": "yan_fan_tian",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:gameOperator.tasks",
+    "onCommand:gameOperator.connect"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gameOperator",
+          "title": "Game Operator",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "gameOperator": [
+        {
+          "id": "gameOperator.tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "gameOperator.timeline",
+          "name": "Timeline"
+        },
+        {
+          "id": "gameOperator.approvals",
+          "name": "Approvals"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "gameOperator.connect",
+        "title": "Connect to Game Operator"
+      },
+      {
+        "command": "gameOperator.disconnect",
+        "title": "Disconnect from Game Operator"
+      },
+      {
+        "command": "gameOperator.startTask",
+        "title": "Start New Task"
+      },
+      {
+        "command": "gameOperator.pauseTask",
+        "title": "Pause Task"
+      },
+      {
+        "command": "gameOperator.resumeTask",
+        "title": "Resume Task"
+      },
+      {
+        "command": "gameOperator.stopTask",
+        "title": "Stop Task"
+      },
+      {
+        "command": "gameOperator.approve",
+        "title": "Approve"
+      },
+      {
+        "command": "gameOperator.reject",
+        "title": "Reject"
+      }
+    ],
+    "configuration": {
+      "title": "Hermes Game Operator",
+      "properties": {
+        "gameOperator.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8080",
+          "description": "Game Operator server URL"
+        },
+        "gameOperator.authToken": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  }
+}

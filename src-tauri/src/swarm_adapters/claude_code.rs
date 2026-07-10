@@ -111,18 +111,18 @@ impl ClaudeCodeAdapter {
             cmd.current_dir(dir);
         }
 
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| SwarmError::ProcessStartFailed(format!("Failed to spawn claude: {}", e)))?;
+        let mut child = cmd.spawn().map_err(|e| {
+            SwarmError::ProcessStartFailed(format!("Failed to spawn claude: {}", e))
+        })?;
 
         // Write prompt to stdin
         if let Some(ref mut stdin) = child.stdin {
-            stdin
-                .write_all(prompt.as_bytes())
-                .map_err(|e| SwarmError::CommunicationError(format!("stdin write failed: {}", e)))?;
-            stdin
-                .flush()
-                .map_err(|e| SwarmError::CommunicationError(format!("stdin flush failed: {}", e)))?;
+            stdin.write_all(prompt.as_bytes()).map_err(|e| {
+                SwarmError::CommunicationError(format!("stdin write failed: {}", e))
+            })?;
+            stdin.flush().map_err(|e| {
+                SwarmError::CommunicationError(format!("stdin flush failed: {}", e))
+            })?;
         }
         // Drop stdin to send EOF — claude --print needs EOF to start processing
         child.stdin.take();

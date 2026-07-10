@@ -1,8 +1,8 @@
 // Game Development Commands
 // Phase 1: Game engine detection and integration
 
-use crate::game_detector::{GameDetector, GameEngine, GameInfo, GameSize};
 use crate::agent_adapter::godot_adapter::GodotAdapter;
+use crate::game_detector::{GameDetector, GameEngine, GameInfo, GameSize};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -55,16 +55,14 @@ pub async fn game_detect(cwd: String) -> Result<GameDetectResponse, String> {
                 version: info.version,
             })
         }
-        Err(_) => {
-            Ok(GameDetectResponse {
-                is_game: false,
-                engine: None,
-                size: None,
-                scenes: Vec::new(),
-                project_name: "Unknown".to_string(),
-                version: None,
-            })
-        }
+        Err(_) => Ok(GameDetectResponse {
+            is_game: false,
+            engine: None,
+            size: None,
+            scenes: Vec::new(),
+            project_name: "Unknown".to_string(),
+            version: None,
+        }),
     }
 }
 

@@ -4,10 +4,12 @@
 // Supports Tauri app build, dev, and cross-platform compilation
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -70,7 +72,10 @@ impl DesktopPlatform {
     pub fn build_targets(&self) -> Vec<String> {
         match self {
             DesktopPlatform::Windows => vec!["x86_64-pc-windows-msvc".to_string()],
-            DesktopPlatform::MacOS => vec!["x86_64-apple-darwin".to_string(), "aarch64-apple-darwin".to_string()],
+            DesktopPlatform::MacOS => vec![
+                "x86_64-apple-darwin".to_string(),
+                "aarch64-apple-darwin".to_string(),
+            ],
             DesktopPlatform::Linux => vec!["x86_64-unknown-linux-gnu".to_string()],
             DesktopPlatform::CrossPlatform => vec![
                 "x86_64-pc-windows-msvc".to_string(),
@@ -94,13 +99,13 @@ pub struct DesktopBuildConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BundleType {
-    None,       // Just build, no bundle
-    Msi,        // Windows MSI
-    Dmg,        // macOS DMG
-    AppImage,   // Linux AppImage
-    Deb,        // Linux DEB
-    Rpm,        // Linux RPM
-    Nsis,       // Windows NSIS
+    None,     // Just build, no bundle
+    Msi,      // Windows MSI
+    Dmg,      // macOS DMG
+    AppImage, // Linux AppImage
+    Deb,      // Linux DEB
+    Rpm,      // Linux RPM
+    Nsis,     // Windows NSIS
 }
 
 impl BundleType {
@@ -121,7 +126,9 @@ impl BundleType {
             DesktopPlatform::Windows => vec![BundleType::Msi, BundleType::Nsis],
             DesktopPlatform::MacOS => vec![BundleType::Dmg],
             DesktopPlatform::Linux => vec![BundleType::AppImage, BundleType::Deb, BundleType::Rpm],
-            DesktopPlatform::CrossPlatform => vec![BundleType::Msi, BundleType::Dmg, BundleType::AppImage],
+            DesktopPlatform::CrossPlatform => {
+                vec![BundleType::Msi, BundleType::Dmg, BundleType::AppImage]
+            }
         }
     }
 }
@@ -206,7 +213,11 @@ impl TauriDesktopAdapter {
     }
 
     /// Build Tauri app in release mode
-    pub async fn build_release(&self, cwd: &PathBuf, bundle: Option<BundleType>) -> Result<String, AgentError> {
+    pub async fn build_release(
+        &self,
+        cwd: &PathBuf,
+        bundle: Option<BundleType>,
+    ) -> Result<String, AgentError> {
         let mut args = vec!["tauri", "build"];
 
         if let Some(b) = bundle {
@@ -235,8 +246,7 @@ impl TauriDesktopAdapter {
 
     /// Detect Tauri project
     pub fn detect_tauri_project(cwd: &PathBuf) -> bool {
-        cwd.join("src-tauri/tauri.conf.json").exists() ||
-        cwd.join("tauri.conf.json").exists()
+        cwd.join("src-tauri/tauri.conf.json").exists() || cwd.join("tauri.conf.json").exists()
     }
 
     /// Get build output directory
@@ -299,7 +309,10 @@ impl AgentAdapter for TauriDesktopAdapter {
         })?;
 
         let cwd = PathBuf::from(config.cwd.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap().to_string_lossy().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }));
 
         let start = Instant::now();
@@ -352,7 +365,10 @@ impl AgentAdapter for TauriDesktopAdapter {
                 .unwrap()
                 .as_millis() as u64,
             metadata: HashMap::from([
-                ("platform".to_string(), self.build_target.as_str().to_string()),
+                (
+                    "platform".to_string(),
+                    self.build_target.as_str().to_string(),
+                ),
                 ("cwd".to_string(), cwd.to_string_lossy().to_string()),
             ]),
         })
@@ -390,7 +406,12 @@ impl AgentAdapter for TauriDesktopAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -434,8 +455,14 @@ mod tests {
 
     #[test]
     fn test_desktop_platform_from_str() {
-        assert_eq!(DesktopPlatform::from_str("windows").unwrap(), DesktopPlatform::Windows);
-        assert_eq!(DesktopPlatform::from_str("macos").unwrap(), DesktopPlatform::MacOS);
+        assert_eq!(
+            DesktopPlatform::from_str("windows").unwrap(),
+            DesktopPlatform::Windows
+        );
+        assert_eq!(
+            DesktopPlatform::from_str("macos").unwrap(),
+            DesktopPlatform::MacOS
+        );
         assert!(DesktopPlatform::from_str("unknown").is_err());
     }
 

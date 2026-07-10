@@ -2,8 +2,8 @@
 //! 完整正确的命令格式
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use serde_json::json;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +13,7 @@ async fn main() {
     let ws_url = "ws://127.0.0.1:1421";
     println!("连接 WebSocket: {}", ws_url);
 
-    let (ws_stream, _) = connect_async(ws_url)
-        .await
-        .expect("无法连接 WebSocket");
+    let (ws_stream, _) = connect_async(ws_url).await.expect("无法连接 WebSocket");
 
     println!("✅ WebSocket 连接成功\n");
 
@@ -34,7 +32,8 @@ async fn main() {
         }
     });
 
-    write.send(Message::Text(init_cmd.to_string().into()))
+    write
+        .send(Message::Text(init_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
@@ -42,10 +41,11 @@ async fn main() {
 
     // 等待响应
     println!("等待响应...");
-    if let Some(msg) = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        read.next()
-    ).await.ok().flatten() {
+    if let Some(msg) = tokio::time::timeout(std::time::Duration::from_secs(10), read.next())
+        .await
+        .ok()
+        .flatten()
+    {
         match msg {
             Ok(Message::Text(text)) => {
                 println!("✅ 收到响应: {}\n", text);
@@ -53,7 +53,7 @@ async fn main() {
             Ok(Message::Close(_)) => {
                 println!("WebSocket被关闭");
             }
-            _ => println!("收到其他类型消息\n")
+            _ => println!("收到其他类型消息\n"),
         }
     } else {
         println!("⚠ 未收到响应（可能没有token要求）\n");
@@ -81,7 +81,8 @@ fn main() {
         }
     });
 
-    write.send(Message::Text(execute_cmd.to_string().into()))
+    write
+        .send(Message::Text(execute_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
@@ -93,31 +94,26 @@ fn main() {
 
     let mut event_count = 0;
     loop {
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(60),
-            read.next()
-        ).await {
-            Ok(Some(msg)) => {
-                match msg {
-                    Ok(Message::Text(text)) => {
-                        event_count += 1;
-                        println!("[{}] 收到: {}", event_count, text);
-                        if text.contains("task-completed") || text.contains("\"ok\":true") {
-                            println!("\n✅ 任务完成!");
-                            break;
-                        }
-                    }
-                    Ok(Message::Close(_)) => {
-                        println!("WebSocket关闭");
+        match tokio::time::timeout(std::time::Duration::from_secs(60), read.next()).await {
+            Ok(Some(msg)) => match msg {
+                Ok(Message::Text(text)) => {
+                    event_count += 1;
+                    println!("[{}] 收到: {}", event_count, text);
+                    if text.contains("task-completed") || text.contains("\"ok\":true") {
+                        println!("\n✅ 任务完成!");
                         break;
                     }
-                    Err(e) => {
-                        println!("错误: {}", e);
-                        break;
-                    }
-                    _ => {}
                 }
-            }
+                Ok(Message::Close(_)) => {
+                    println!("WebSocket关闭");
+                    break;
+                }
+                Err(e) => {
+                    println!("错误: {}", e);
+                    break;
+                }
+                _ => {}
+            },
             Ok(None) => {
                 println!("连接结束");
                 break;

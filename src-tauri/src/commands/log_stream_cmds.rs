@@ -1,5 +1,5 @@
-use crate::AppState;
 use crate::log_stream::{LogEntry, LogType};
+use crate::AppState;
 use tauri::State;
 
 // ===== LogStream Commands =====
@@ -7,7 +7,9 @@ use tauri::State;
 #[tauri::command]
 pub fn subscribe_logs(agent_id: String, state: State<AppState>) -> Result<(), String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     manager.subscribe(&agent_id);
     Ok(())
 }
@@ -15,18 +17,19 @@ pub fn subscribe_logs(agent_id: String, state: State<AppState>) -> Result<(), St
 #[tauri::command]
 pub fn unsubscribe_logs(agent_id: String, state: State<AppState>) -> Result<(), String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     manager.unsubscribe(&agent_id);
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_logs(
-    limit: Option<u64>,
-    state: State<AppState>,
-) -> Result<Vec<LogEntry>, String> {
+pub fn get_logs(limit: Option<u64>, state: State<AppState>) -> Result<Vec<LogEntry>, String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
 
     let count = limit.unwrap_or(100) as usize;
     Ok(manager.get_latest_logs(count))
@@ -39,7 +42,9 @@ pub fn search_logs(
     state: State<AppState>,
 ) -> Result<Vec<LogEntry>, String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     Ok(manager.search_logs(&keyword, limit))
 }
 
@@ -50,7 +55,9 @@ pub fn get_logs_by_agent(
     state: State<AppState>,
 ) -> Result<Vec<LogEntry>, String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     Ok(manager.get_logs_from_db(Some(&agent_id), None, limit))
 }
 
@@ -61,7 +68,9 @@ pub fn get_logs_by_type(
     state: State<AppState>,
 ) -> Result<Vec<LogEntry>, String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     let lt = LogType::from_str(&log_type);
     Ok(manager.get_logs_from_db(None, Some(lt), limit))
 }
@@ -69,7 +78,9 @@ pub fn get_logs_by_type(
 #[tauri::command]
 pub fn clear_log_buffer(state: State<AppState>) -> Result<(), String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     manager.clear_buffer();
     Ok(())
 }
@@ -77,6 +88,8 @@ pub fn clear_log_buffer(state: State<AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn flush_log_batch(state: State<AppState>) -> Result<Vec<LogEntry>, String> {
     let log_manager = state.log_stream_manager.lock().unwrap();
-    let manager = log_manager.as_ref().ok_or_else(|| "LogStreamManager not initialized".to_string())?;
+    let manager = log_manager
+        .as_ref()
+        .ok_or_else(|| "LogStreamManager not initialized".to_string())?;
     Ok(manager.flush_batch())
 }

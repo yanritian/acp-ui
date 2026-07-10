@@ -1,10 +1,10 @@
 // Hermes Agent Bridge - Connects Operator to Hermes Agent Runtime
 // This module bridges the Operator Control Plane with the Hermes Agent execution engine
 
-use crate::operator::{OperatorTask, OperatorEvent, OperatorEventType, EventLevel, TaskMode};
 use crate::domains::games::godot::GodotProjectAnalyzer;
-use std::path::PathBuf;
+use crate::operator::{EventLevel, OperatorEvent, OperatorEventType, OperatorTask, TaskMode};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 // ============================================================================
 // Agent Bridge
@@ -36,30 +36,40 @@ impl HermesAgentBridge {
         events.push(self.create_event(OperatorEventType::TaskStarted, "Task execution started"));
 
         // Step 2: Analyze project
-        events.push(self.create_event(OperatorEventType::ProjectAnalyzing, "Analyzing Godot project..."));
+        events.push(self.create_event(
+            OperatorEventType::ProjectAnalyzing,
+            "Analyzing Godot project...",
+        ));
 
         match self.analyze_project().await {
             Ok(analysis) => {
                 events.push(self.create_event(
                     OperatorEventType::ProjectAnalyzed,
-                    &format!("Project analyzed: {} scripts, {} scenes", analysis.scripts.len(), analysis.scenes.len())
+                    &format!(
+                        "Project analyzed: {} scripts, {} scenes",
+                        analysis.scripts.len(),
+                        analysis.scenes.len()
+                    ),
                 ));
 
                 // Step 3: Generate plan
-                events.push(self.create_event(OperatorEventType::PlanGenerating, "Generating execution plan..."));
+                events.push(self.create_event(
+                    OperatorEventType::PlanGenerating,
+                    "Generating execution plan...",
+                ));
 
                 match self.generate_plan(&analysis).await {
                     Ok(plan) => {
                         events.push(self.create_event(
                             OperatorEventType::PlanReady,
-                            &format!("Execution plan ready with {} steps", plan.steps.len())
+                            &format!("Execution plan ready with {} steps", plan.steps.len()),
                         ));
 
                         // Step 4: Execute plan steps
                         for step in &plan.steps {
                             events.push(self.create_event(
                                 OperatorEventType::StepStarted,
-                                &format!("Executing step {}: {}", step.id, step.description)
+                                &format!("Executing step {}: {}", step.id, step.description),
                             ));
 
                             match self.execute_step(step).await {
@@ -67,19 +77,19 @@ impl HermesAgentBridge {
                                     if result.success {
                                         events.push(self.create_event(
                                             OperatorEventType::StepCompleted,
-                                            &format!("Step {} completed", step.id)
+                                            &format!("Step {} completed", step.id),
                                         ));
                                     } else {
                                         events.push(self.create_event(
                                             OperatorEventType::StepFailed,
-                                            &format!("Step {} failed", step.id)
+                                            &format!("Step {} failed", step.id),
                                         ));
                                     }
                                 }
                                 Err(e) => {
                                     events.push(self.create_event(
                                         OperatorEventType::StepFailed,
-                                        &format!("Step {} error: {}", step.id, e)
+                                        &format!("Step {} error: {}", step.id, e),
                                     ));
                                 }
                             }
@@ -89,11 +99,17 @@ impl HermesAgentBridge {
                             task_id: self.task_id.clone(),
                             events,
                             success: true,
-                            summary: Some(format!("Task completed: {} steps executed", plan.steps.len())),
+                            summary: Some(format!(
+                                "Task completed: {} steps executed",
+                                plan.steps.len()
+                            )),
                         })
                     }
                     Err(e) => {
-                        events.push(self.create_event(OperatorEventType::PlanFailed, &format!("Plan generation failed: {}", e)));
+                        events.push(self.create_event(
+                            OperatorEventType::PlanFailed,
+                            &format!("Plan generation failed: {}", e),
+                        ));
                         Ok(TaskExecutionResult {
                             task_id: self.task_id.clone(),
                             events,
@@ -104,7 +120,10 @@ impl HermesAgentBridge {
                 }
             }
             Err(e) => {
-                events.push(self.create_event(OperatorEventType::ProjectAnalysisFailed, &format!("Project analysis failed: {}", e)));
+                events.push(self.create_event(
+                    OperatorEventType::ProjectAnalysisFailed,
+                    &format!("Project analysis failed: {}", e),
+                ));
                 Ok(TaskExecutionResult {
                     task_id: self.task_id.clone(),
                     events,
@@ -120,17 +139,31 @@ impl HermesAgentBridge {
         match GodotProjectAnalyzer::analyze_project(&self.project_path) {
             Ok(project_info) => {
                 // Find player controllers
-                let player_controllers = GodotProjectAnalyzer::find_player_controllers(&project_info);
+                let player_controllers =
+                    GodotProjectAnalyzer::find_player_controllers(&project_info);
 
                 Ok(ProjectAnalysisResult {
                     project_name: project_info.project_name,
-                    godot_version: project_info.godot_version.unwrap_or_else(|| "unknown".to_string()),
-                    scripts: project_info.scripts.iter().map(|p| p.to_string_lossy().to_string()).collect(),
-                    scenes: project_info.scenes.iter().map(|p| p.to_string_lossy().to_string()).collect(),
-                    player_controllers: player_controllers.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+                    godot_version: project_info
+                        .godot_version
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    scripts: project_info
+                        .scripts
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect(),
+                    scenes: project_info
+                        .scenes
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect(),
+                    player_controllers: player_controllers
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect(),
                 })
             }
-            Err(e) => Err(AgentBridgeError::AnalysisFailed(e.to_string()))
+            Err(e) => Err(AgentBridgeError::AnalysisFailed(e.to_string())),
         }
     }
 
@@ -144,7 +177,10 @@ impl HermesAgentBridge {
     /// - Pass project context and goal to Hermes
     /// - Parse Hermes response into ExecutionPlan
     /// - Handle streaming responses for long-running tasks
-    pub async fn generate_plan(&self, analysis: &ProjectAnalysisResult) -> Result<ExecutionPlan, AgentBridgeError> {
+    pub async fn generate_plan(
+        &self,
+        analysis: &ProjectAnalysisResult,
+    ) -> Result<ExecutionPlan, AgentBridgeError> {
         // TODO: Integrate with Hermes Agent for actual planning
         // For now, return a mock plan
 
@@ -205,7 +241,11 @@ impl HermesAgentBridge {
 
     fn create_event(&self, event_type: OperatorEventType, title: &str) -> OperatorEvent {
         OperatorEvent {
-            event_id: format!("evt_{}_{}", self.task_id, chrono::Utc::now().timestamp_millis()),
+            event_id: format!(
+                "evt_{}_{}",
+                self.task_id,
+                chrono::Utc::now().timestamp_millis()
+            ),
             task_id: self.task_id.clone(),
             timestamp: chrono::Utc::now().to_rfc3339(),
             event_type,

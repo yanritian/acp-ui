@@ -32,33 +32,39 @@ impl AutonomyLevel {
     /// Get description of this autonomy level
     pub fn description(&self) -> &'static str {
         match self {
-            AutonomyLevel::Level0AnswerOnly =>
-                "Manual approval for all actions. Agent reads and answers only.",
-            AutonomyLevel::Level1DraftOnly =>
-                "Approval for write/external actions. Agent drafts, humans commit.",
-            AutonomyLevel::Level2ApprovalGated =>
-                "Approval only for destructive/external actions. Agent can read/write within scope.",
-            AutonomyLevel::Level3PolicyBounded =>
-                "Budget-based gates only. Agent executes within policy boundaries.",
-            AutonomyLevel::Level4Autonomous =>
-                "Full autonomy with logging. Agent pursues goals with budgets and checkpoints.",
+            AutonomyLevel::Level0AnswerOnly => {
+                "Manual approval for all actions. Agent reads and answers only."
+            }
+            AutonomyLevel::Level1DraftOnly => {
+                "Approval for write/external actions. Agent drafts, humans commit."
+            }
+            AutonomyLevel::Level2ApprovalGated => {
+                "Approval only for destructive/external actions. Agent can read/write within scope."
+            }
+            AutonomyLevel::Level3PolicyBounded => {
+                "Budget-based gates only. Agent executes within policy boundaries."
+            }
+            AutonomyLevel::Level4Autonomous => {
+                "Full autonomy with logging. Agent pursues goals with budgets and checkpoints."
+            }
         }
     }
 
     /// Check if planning mode is required for this level
     pub fn requires_planning_mode(&self) -> bool {
-        matches!(self,
-            AutonomyLevel::Level0AnswerOnly |
-            AutonomyLevel::Level1DraftOnly |
-            AutonomyLevel::Level2ApprovalGated
+        matches!(
+            self,
+            AutonomyLevel::Level0AnswerOnly
+                | AutonomyLevel::Level1DraftOnly
+                | AutonomyLevel::Level2ApprovalGated
         )
     }
 
     /// Check if mutation tools are blocked in this level
     pub fn blocks_mutation_tools(&self) -> bool {
-        matches!(self,
-            AutonomyLevel::Level0AnswerOnly |
-            AutonomyLevel::Level1DraftOnly
+        matches!(
+            self,
+            AutonomyLevel::Level0AnswerOnly | AutonomyLevel::Level1DraftOnly
         )
     }
 }
@@ -130,7 +136,9 @@ pub struct PermissionConfig {
 impl PermissionConfig {
     /// Get effective autonomy level (explicit or derived from mode)
     pub fn get_autonomy_level(&self) -> AutonomyLevel {
-        self.autonomy_level.clone().unwrap_or_else(|| self.mode.to_autonomy_level())
+        self.autonomy_level
+            .clone()
+            .unwrap_or_else(|| self.mode.to_autonomy_level())
     }
 
     /// Check if mutation tools should be blocked based on autonomy level or planning mode
@@ -157,7 +165,8 @@ pub struct PermissionChecker {
 impl PermissionChecker {
     pub fn new(config: PermissionConfig) -> Result<Self, String> {
         // Compile regex patterns
-        let allow_patterns: Vec<(Regex, String)> = config.allow
+        let allow_patterns: Vec<(Regex, String)> = config
+            .allow
             .iter()
             .filter_map(|rule| {
                 Regex::new(&rule.pattern)
@@ -166,7 +175,8 @@ impl PermissionChecker {
             })
             .collect();
 
-        let deny_patterns: Vec<(Regex, String)> = config.deny
+        let deny_patterns: Vec<(Regex, String)> = config
+            .deny
             .iter()
             .filter_map(|rule| {
                 Regex::new(&rule.pattern)
@@ -193,8 +203,10 @@ impl PermissionChecker {
                     reason: if self.config.is_planning_mode {
                         "Planning mode: mutation tools blocked until approval".to_string()
                     } else {
-                        format!("Autonomy level {:?}: mutation tools require approval",
-                            self.config.get_autonomy_level())
+                        format!(
+                            "Autonomy level {:?}: mutation tools require approval",
+                            self.config.get_autonomy_level()
+                        )
                     },
                     matched_rule: Some("planning-mode-block".to_string()),
                 };
@@ -206,8 +218,8 @@ impl PermissionChecker {
             PermissionMode::ReadOnly => {
                 // Only allow read operations - exact match or proper namespace prefix
                 // "Read" or "Read:*" only, NOT "Readme" or "Reader"
-                let is_read_tool = tool_name == "Read" ||
-                    (tool_name.starts_with("Read:") && tool_name.len() > 5);  // "Read:something" valid
+                let is_read_tool =
+                    tool_name == "Read" || (tool_name.starts_with("Read:") && tool_name.len() > 5); // "Read:something" valid
                 if !is_read_tool {
                     return PermissionResult {
                         allowed: false,
@@ -222,7 +234,10 @@ impl PermissionChecker {
                     if !args.starts_with(cwd) && self.is_path_in_args(args) {
                         return PermissionResult {
                             allowed: false,
-                            reason: format!("WorkspaceWrite mode: path '{}' outside workspace '{}'", args, cwd),
+                            reason: format!(
+                                "WorkspaceWrite mode: path '{}' outside workspace '{}'",
+                                args, cwd
+                            ),
                             matched_rule: Some("mode-WorkspaceWrite".to_string()),
                         };
                     }
@@ -253,7 +268,8 @@ impl PermissionChecker {
 
         // First check deny rules (they override allow)
         for (pattern, pattern_str) in &self.deny_patterns {
-            if pattern.is_match(&operation) || pattern.is_match(tool_name) || pattern.is_match(args) {
+            if pattern.is_match(&operation) || pattern.is_match(tool_name) || pattern.is_match(args)
+            {
                 return PermissionResult {
                     allowed: false,
                     reason: "Denied by rule".to_string(),
@@ -273,7 +289,8 @@ impl PermissionChecker {
 
         // Then check allow rules
         for (pattern, pattern_str) in &self.allow_patterns {
-            if pattern.is_match(&operation) || pattern.is_match(tool_name) || pattern.is_match(args) {
+            if pattern.is_match(&operation) || pattern.is_match(tool_name) || pattern.is_match(args)
+            {
                 return PermissionResult {
                     allowed: true,
                     reason: "Allowed by rule".to_string(),
@@ -417,18 +434,38 @@ impl PermissionChecker {
         // Mutation tool categories (from MVP Blueprint checklist)
         let mutation_tools = [
             // Write operations
-            "Write", "Write:", "Edit", "Edit:",
-            "write_file", "edit_file", "create_file",
+            "Write",
+            "Write:",
+            "Edit",
+            "Edit:",
+            "write_file",
+            "edit_file",
+            "create_file",
             // Destructive operations
-            "Delete", "Delete:", "delete_file", "rm",
+            "Delete",
+            "Delete:",
+            "delete_file",
+            "rm",
             // External send operations
-            "Send", "Send:", "send_message", "sendMessage",
+            "Send",
+            "Send:",
+            "send_message",
+            "sendMessage",
             // Shell execution (can have mutation side effects)
-            "Bash", "bash_command", "execute", "shell",
+            "Bash",
+            "bash_command",
+            "execute",
+            "shell",
             // Database mutations
-            "Update", "Update:", "Insert", "Insert:",
+            "Update",
+            "Update:",
+            "Insert",
+            "Insert:",
             // Permission changes
-            "Chmod", "chmod", "Chown", "chown",
+            "Chmod",
+            "chmod",
+            "Chown",
+            "chown",
         ];
 
         for pattern in &mutation_tools {
@@ -543,20 +580,16 @@ pub fn get_default_permissions(agent_type: &str) -> PermissionConfig {
             mode: PermissionMode::Allow,
             autonomy_level: Some(AutonomyLevel::Level3PolicyBounded),
             deny_by_default: true,
-            allow: vec![
-                PermissionRule {
-                    pattern: "tool:Bash:.*browser.*".to_string(),
-                    allow: true,
-                    description: Some("Can control browser".to_string()),
-                },
-            ],
-            deny: vec![
-                PermissionRule {
-                    pattern: "tool:Bash:rm.*".to_string(),
-                    allow: false,
-                    description: Some("Cannot delete files".to_string()),
-                },
-            ],
+            allow: vec![PermissionRule {
+                pattern: "tool:Bash:.*browser.*".to_string(),
+                allow: true,
+                description: Some("Can control browser".to_string()),
+            }],
+            deny: vec![PermissionRule {
+                pattern: "tool:Bash:rm.*".to_string(),
+                allow: false,
+                description: Some("Cannot delete files".to_string()),
+            }],
             cwd: None,
             ask_override: false,
             is_planning_mode: false,
@@ -633,8 +666,10 @@ mod tests {
     #[test]
     fn test_autonomy_level_classification() {
         // Test autonomy level descriptions
-        assert_eq!(AutonomyLevel::Level0AnswerOnly.description(),
-            "Manual approval for all actions. Agent reads and answers only.");
+        assert_eq!(
+            AutonomyLevel::Level0AnswerOnly.description(),
+            "Manual approval for all actions. Agent reads and answers only."
+        );
         assert!(AutonomyLevel::Level0AnswerOnly.requires_planning_mode());
         assert!(AutonomyLevel::Level0AnswerOnly.blocks_mutation_tools());
 
@@ -644,11 +679,26 @@ mod tests {
 
     #[test]
     fn test_permission_mode_to_autonomy() {
-        assert_eq!(PermissionMode::ReadOnly.to_autonomy_level(), AutonomyLevel::Level0AnswerOnly);
-        assert_eq!(PermissionMode::WorkspaceWrite.to_autonomy_level(), AutonomyLevel::Level1DraftOnly);
-        assert_eq!(PermissionMode::Prompt.to_autonomy_level(), AutonomyLevel::Level2ApprovalGated);
-        assert_eq!(PermissionMode::Allow.to_autonomy_level(), AutonomyLevel::Level3PolicyBounded);
-        assert_eq!(PermissionMode::DangerFullAccess.to_autonomy_level(), AutonomyLevel::Level4Autonomous);
+        assert_eq!(
+            PermissionMode::ReadOnly.to_autonomy_level(),
+            AutonomyLevel::Level0AnswerOnly
+        );
+        assert_eq!(
+            PermissionMode::WorkspaceWrite.to_autonomy_level(),
+            AutonomyLevel::Level1DraftOnly
+        );
+        assert_eq!(
+            PermissionMode::Prompt.to_autonomy_level(),
+            AutonomyLevel::Level2ApprovalGated
+        );
+        assert_eq!(
+            PermissionMode::Allow.to_autonomy_level(),
+            AutonomyLevel::Level3PolicyBounded
+        );
+        assert_eq!(
+            PermissionMode::DangerFullAccess.to_autonomy_level(),
+            AutonomyLevel::Level4Autonomous
+        );
     }
 
     #[test]
@@ -751,20 +801,16 @@ mod tests {
             mode: PermissionMode::Allow,
             autonomy_level: None,
             deny_by_default: false,
-            allow: vec![
-                PermissionRule {
-                    pattern: "Bash:.*".to_string(),
-                    allow: true,
-                    description: Some("Allow all bash".to_string()),
-                },
-            ],
-            deny: vec![
-                PermissionRule {
-                    pattern: "Bash:rm.*".to_string(),
-                    allow: false,
-                    description: Some("Deny rm".to_string()),
-                },
-            ],
+            allow: vec![PermissionRule {
+                pattern: "Bash:.*".to_string(),
+                allow: true,
+                description: Some("Allow all bash".to_string()),
+            }],
+            deny: vec![PermissionRule {
+                pattern: "Bash:rm.*".to_string(),
+                allow: false,
+                description: Some("Deny rm".to_string()),
+            }],
             cwd: None,
             ask_override: false,
             is_planning_mode: false,

@@ -1,9 +1,9 @@
 //! 完整工作流程测试 - Hermes Native 执行 + 文件写入 + 编译运行
 
-use std::sync::Arc;
-use std::fs;
-use regex::Regex;
 use hermes_core::Message;
+use regex::Regex;
+use std::fs;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +22,8 @@ async fn main() {
 
     // 加载配置并构建 Agent
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
-    let agent_config = hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
+    let agent_config =
+        hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -50,7 +51,10 @@ async fn main() {
 2. main.rs 调用 fibonacci 函数并打印结果
 3. 使用中文注释"#;
 
-    println!("需求: {}\n", request.lines().take(2).collect::<Vec<_>>().join("\n"));
+    println!(
+        "需求: {}\n",
+        request.lines().take(2).collect::<Vec<_>>().join("\n")
+    );
 
     // 执行
     println!("执行 AgentLoop...\n");
@@ -60,18 +64,28 @@ async fn main() {
     println!("✅ AgentLoop 执行成功 (turns: {})\n", result.total_turns);
 
     // 提取响应
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
         .find_map(|m| {
-            if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None }
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
         })
         .unwrap_or_default();
 
-    println!("AI 响应:\n{}\n", response.lines().take(20).collect::<Vec<_>>().join("\n"));
+    println!(
+        "AI 响应:\n{}\n",
+        response.lines().take(20).collect::<Vec<_>>().join("\n")
+    );
 
     // 提取文件并写入
     println!("--- 提取并写入文件 ---");
-    let pattern = Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]*```[\w]*\s*([\s\S]*?)```").unwrap();
+    let pattern =
+        Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]*```[\w]*\s*([\s\S]*?)```").unwrap();
     let mut files_written = 0;
 
     for caps in pattern.captures_iter(&response) {
@@ -93,13 +107,17 @@ async fn main() {
 
     // 创建 Cargo.toml
     let cargo_toml = workspace.parent().unwrap().join("Cargo.toml");
-    fs::write(&cargo_toml, r#"[package]
+    fs::write(
+        &cargo_toml,
+        r#"[package]
 name = "fibonacci-test"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     println!("✅ 写入 Cargo.toml\n");
 
     // 编译
@@ -124,7 +142,10 @@ edition = "2021"
                 if let Ok(run_output) = run_result {
                     if run_output.status.success() {
                         println!("✅ 运行成功!");
-                        println!("\n程序输出:\n{}\n", String::from_utf8_lossy(&run_output.stdout));
+                        println!(
+                            "\n程序输出:\n{}\n",
+                            String::from_utf8_lossy(&run_output.stdout)
+                        );
                     } else {
                         println!("运行失败:\n{}", String::from_utf8_lossy(&run_output.stderr));
                     }

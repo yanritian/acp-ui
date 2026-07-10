@@ -3,7 +3,7 @@
 //! Handles bot commands via Telegram long polling.
 //! Uses reqwest to poll Telegram API for updates.
 
-use crate::bot_adapters::{BotAdapter, BotCommand, BotResponse, format_response};
+use crate::bot_adapters::{format_response, BotAdapter, BotCommand, BotResponse};
 use crate::commands::gateway::TelegramConfig;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -92,7 +92,8 @@ impl TelegramAdapter {
             parse_mode: None,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&request)
             .send()
@@ -111,12 +112,10 @@ impl TelegramAdapter {
         let url = self.api_url("getUpdates");
         let last_id = *self.last_update_id.read().await;
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
-            .query(&[
-                ("offset", last_id + 1),
-                ("timeout", timeout),
-            ])
+            .query(&[("offset", last_id + 1), ("timeout", timeout)])
             .send()
             .await
             .map_err(|e| e.to_string())?;
@@ -125,10 +124,8 @@ impl TelegramAdapter {
             return Err(format!("Telegram API error: {}", response.status()));
         }
 
-        let result: TelegramResponse<Vec<TelegramUpdate>> = response
-            .json()
-            .await
-            .map_err(|e| e.to_string())?;
+        let result: TelegramResponse<Vec<TelegramUpdate>> =
+            response.json().await.map_err(|e| e.to_string())?;
 
         Ok(result.result)
     }
@@ -190,16 +187,19 @@ impl BotAdapter for TelegramAdapter {
 
                                     // Parse and handle command
                                     let cmd = crate::bot_adapters::parse_bot_text(&text);
-                                    let response = adapter.handle_command(cmd, &app_handle_clone).await;
+                                    let response =
+                                        adapter.handle_command(cmd, &app_handle_clone).await;
                                     let formatted = format_response(&response, "telegram");
 
                                     // Send response
                                     let _ = adapter.send_message(message.chat.id, &formatted).await;
                                 } else {
-                                    let _ = adapter.send_message(
-                                        message.chat.id,
-                                        "此 Chat ID 未授权。请在桌面端配置中添加。"
-                                    ).await;
+                                    let _ = adapter
+                                        .send_message(
+                                            message.chat.id,
+                                            "此 Chat ID 未授权。请在桌面端配置中添加。",
+                                        )
+                                        .await;
                                 }
                             }
                         }

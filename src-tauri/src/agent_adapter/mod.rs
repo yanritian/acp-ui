@@ -14,46 +14,55 @@
 // - Token tracking
 // - Cost estimation
 
-pub mod types;
 pub mod claude_adapter;
 pub mod codex_adapter;
-pub mod health_tracker;
-pub mod tauri_adapter;  // Phase 2: Desktop Development
-pub mod electron_adapter;  // Phase 2: Electron Desktop
-pub mod unity_adapter;  // Phase 3: Game Development
-pub mod godot_adapter;  // Phase 3: Game Development
-pub mod renpy_adapter;  // Phase 3: Game Development - Visual Novel
-pub mod kimi_adapter;   // Phase 4: Marketing & Finance
-pub mod jimeng_adapter; // Phase 4: Marketing & Finance
-pub mod kling_adapter;  // Phase 4: Marketing & Finance
-pub mod wps_adapter;    // Phase 4: Office Automation
-pub mod wechat_adapter; // Phase 8: Mini Program Development
+pub mod dingtalk_adapter; // Phase 9: Enterprise Platform - DingTalk
+pub mod docker_adapter; // Phase 8: Containerized Deployment
+pub mod douyin_adapter; // Phase 9: Enterprise Platform - Douyin
+pub mod electron_adapter; // Phase 2: Electron Desktop
+pub mod feishu_adapter;
 pub mod flutter_adapter; // Phase 8: Mobile SDK Integration
-pub mod docker_adapter;  // Phase 8: Containerized Deployment
+pub mod godot_adapter; // Phase 3: Game Development
+pub mod health_tracker;
+pub mod jimeng_adapter; // Phase 4: Marketing & Finance
+pub mod kimi_adapter; // Phase 4: Marketing & Finance
+pub mod kling_adapter; // Phase 4: Marketing & Finance
+pub mod kuaishou_adapter; // Phase 9: Enterprise Platform - Kuaishou
 pub mod kubernetes_adapter; // Phase 8: Distributed Orchestration
-pub mod douyin_adapter;    // Phase 9: Enterprise Platform - Douyin
-pub mod kuaishou_adapter;  // Phase 9: Enterprise Platform - Kuaishou
-pub mod dingtalk_adapter;  // Phase 9: Enterprise Platform - DingTalk
-pub mod feishu_adapter;    // Phase 9: Enterprise Platform - Feishu/Lark
+pub mod renpy_adapter; // Phase 3: Game Development - Visual Novel
+pub mod tauri_adapter; // Phase 2: Desktop Development
+pub mod types;
+pub mod unity_adapter; // Phase 3: Game Development
+pub mod wechat_adapter; // Phase 8: Mini Program Development
+pub mod wps_adapter; // Phase 4: Office Automation // Phase 9: Enterprise Platform - Feishu/Lark
 
-pub use types::*;
-pub use tauri_adapter::{TauriDesktopAdapter, DesktopPlatform, BundleType};
-pub use electron_adapter::{ElectronDesktopAdapter, ElectronPlatform, ElectronArch};
-pub use unity_adapter::{UnityAdapter, UnityPlatform, UnityBuildConfig};
-pub use godot_adapter::{GodotAdapter, GodotPlatform, GodotExportConfig};
-pub use renpy_adapter::{RenPyAdapter, RenPyPlatform, StorySpec, CharacterSpec, SceneSpec};
+pub use dingtalk_adapter::{
+    DingTalkAction, DingTalkAdapter, DingTalkApproval, DingTalkConfig, DingTalkMessage,
+};
+pub use docker_adapter::{DockerAction, DockerAdapter, DockerConfig, PortMapping, Protocol};
+pub use douyin_adapter::{DouyinAction, DouyinAdapter, DouyinAnalytics, DouyinConfig, DouyinVideo};
+pub use electron_adapter::{ElectronArch, ElectronDesktopAdapter, ElectronPlatform};
+pub use feishu_adapter::{
+    FeishuAction, FeishuAdapter, FeishuBitableRecord, FeishuConfig, FeishuDocument,
+};
+pub use flutter_adapter::{
+    FlutterAction, FlutterAdapter, FlutterBuildMode, FlutterConfig, FlutterPlatform,
+};
+pub use godot_adapter::{GodotAdapter, GodotExportConfig, GodotPlatform};
+pub use jimeng_adapter::{ImageSize, JimengAdapter, JimengConfig, JimengStyle};
 pub use kimi_adapter::{KimiAdapter, KimiConfig};
-pub use jimeng_adapter::{JimengAdapter, JimengConfig, JimengStyle, ImageSize};
-pub use kling_adapter::{KlingAdapter, KlingConfig, KlingMode, VideoResolution, KlingTaskStatus};
-pub use wps_adapter::{WPSAdapter, WPSConfig, DocumentFormat, DocumentType};
-pub use wechat_adapter::{WeChatMiniProgramAdapter, WeChatConfig, WeChatCompileMode, WeChatAction};
-pub use flutter_adapter::{FlutterAdapter, FlutterConfig, FlutterPlatform, FlutterBuildMode, FlutterAction};
-pub use docker_adapter::{DockerAdapter, DockerConfig, DockerAction, PortMapping, Protocol};
-pub use kubernetes_adapter::{KubernetesAdapter, KubernetesConfig, KubernetesAction, ServiceType, ResourceLimits, IngressConfig};
-pub use douyin_adapter::{DouyinAdapter, DouyinConfig, DouyinVideo, DouyinAnalytics, DouyinAction};
-pub use kuaishou_adapter::{KuaishouAdapter, KuaishouConfig, KuaishouVideo, KuaishouAction};
-pub use dingtalk_adapter::{DingTalkAdapter, DingTalkConfig, DingTalkMessage, DingTalkApproval, DingTalkAction};
-pub use feishu_adapter::{FeishuAdapter, FeishuConfig, FeishuDocument, FeishuBitableRecord, FeishuAction};
+pub use kling_adapter::{KlingAdapter, KlingConfig, KlingMode, KlingTaskStatus, VideoResolution};
+pub use kuaishou_adapter::{KuaishouAction, KuaishouAdapter, KuaishouConfig, KuaishouVideo};
+pub use kubernetes_adapter::{
+    IngressConfig, KubernetesAction, KubernetesAdapter, KubernetesConfig, ResourceLimits,
+    ServiceType,
+};
+pub use renpy_adapter::{CharacterSpec, RenPyAdapter, RenPyPlatform, SceneSpec, StorySpec};
+pub use tauri_adapter::{BundleType, DesktopPlatform, TauriDesktopAdapter};
+pub use types::*;
+pub use unity_adapter::{UnityAdapter, UnityBuildConfig, UnityPlatform};
+pub use wechat_adapter::{WeChatAction, WeChatCompileMode, WeChatConfig, WeChatMiniProgramAdapter};
+pub use wps_adapter::{DocumentFormat, DocumentType, WPSAdapter, WPSConfig};
 
 use async_trait::async_trait;
 

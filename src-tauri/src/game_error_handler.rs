@@ -75,9 +75,7 @@ impl GameErrorHandler {
                     "Click 'Download and Install'".to_string(),
                     "Wait for download to complete".to_string(),
                 ],
-                commands: vec![
-                    "godot --install-export-templates".to_string(),
-                ],
+                commands: vec!["godot --install-export-templates".to_string()],
             },
         );
 
@@ -109,9 +107,7 @@ impl GameErrorHandler {
                     "Add to PATH environment variable".to_string(),
                     "Or set GODOT_PATH environment variable".to_string(),
                 ],
-                commands: vec![
-                    "set GODOT_PATH=\"C:\\path\\to\\godot.exe\"".to_string(),
-                ],
+                commands: vec!["set GODOT_PATH=\"C:\\path\\to\\godot.exe\"".to_string()],
             },
         );
 
@@ -141,9 +137,7 @@ impl GameErrorHandler {
                     "Move large files to another drive".to_string(),
                     "Try building to a different output directory".to_string(),
                 ],
-                commands: vec![
-                    "cleanmgr".to_string(),
-                ],
+                commands: vec!["cleanmgr".to_string()],
             },
         );
     }
@@ -158,7 +152,10 @@ impl GameErrorHandler {
             enhanced_error.suggestion = Some(format!(
                 "{}\n\nSolution:\n{}\n\nCommands:\n{}",
                 solution.description,
-                solution.steps.iter().enumerate()
+                solution
+                    .steps
+                    .iter()
+                    .enumerate()
                     .map(|(i, s)| format!("{}. {}", i + 1, s))
                     .collect::<Vec<_>>()
                     .join("\n"),
@@ -283,12 +280,15 @@ mod tests {
                 None,
                 true,
             );
-            handler.handle_error(error, &ErrorContext {
-                engine: None,
-                project_path: None,
-                build_target: None,
-                process_id: None,
-            });
+            handler.handle_error(
+                error,
+                &ErrorContext {
+                    engine: None,
+                    project_path: None,
+                    build_target: None,
+                    process_id: None,
+                },
+            );
         }
 
         assert_eq!(handler.get_error_history().len(), 5);

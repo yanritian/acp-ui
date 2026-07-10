@@ -1,13 +1,18 @@
 // Self-Optimizing Router Commands - Tauri commands for intelligent routing
 
-use tauri::State;
+use crate::agent_adapter::types::{
+    AgentConfig, AgentResult, AgentTask, ExecutionRecord, Platform, SceneType, TaskConstraints,
+    TaskInput,
+};
+use crate::privacy_orchestrator::{
+    PrivacyDecision, PrivacyLevel, PrivacyOrchestrator, PrivacyZone,
+};
+use crate::project_context::{ContextSummary, FileInfo, ProjectContext};
+use crate::self_optimizing_router::{HistorySummary, ProficiencyScore, SelfOptimizingConfig};
 use crate::AppState;
-use crate::self_optimizing_router::{SelfOptimizingConfig, ProficiencyScore, HistorySummary};
-use crate::agent_adapter::types::{ExecutionRecord, SceneType, Platform, AgentConfig, AgentTask, AgentResult, TaskInput, TaskConstraints};
-use crate::project_context::{ProjectContext, FileInfo, ContextSummary};
-use crate::privacy_orchestrator::{PrivacyOrchestrator, PrivacyZone, PrivacyLevel, PrivacyDecision};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tauri::State;
 
 /// Initialize Self-Optimizing Router with config
 #[tauri::command]
@@ -61,7 +66,14 @@ pub async fn self_optimizing_record(
     // Record in agent registry for proficiency tracking
     {
         let mut registry = state.agent_registry.lock().map_err(|e| e.to_string())?;
-        registry.record_execution(&record.agent_id, record.scene_type.clone(), record.platform.clone(), record.success, record.duration_ms, record.cost);
+        registry.record_execution(
+            &record.agent_id,
+            record.scene_type.clone(),
+            record.platform.clone(),
+            record.success,
+            record.duration_ms,
+            record.cost,
+        );
     }
 
     Ok(())
@@ -115,7 +127,10 @@ pub async fn self_optimizing_route(
 
     let selected_agent = best_agent.unwrap_or_else(|| {
         // Default to first available
-        available_agents.first().cloned().unwrap_or_else(|| "claude-code".to_string())
+        available_agents
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "claude-code".to_string())
     });
 
     Ok(SelfOptimizingRouteResult {
@@ -123,7 +138,10 @@ pub async fn self_optimizing_route(
         optimization_applied: proficiencies_len >= 10,
         proficiency_scores: proficiencies,
         reason: if proficiencies_len >= 10 {
-            format!("Selected {} based on historical performance", selected_agent)
+            format!(
+                "Selected {} based on historical performance",
+                selected_agent
+            )
         } else {
             format!("Selected {} (insufficient history)", selected_agent)
         },
@@ -155,20 +173,30 @@ pub async fn self_optimizing_get_history(
     let registry = state.agent_registry.lock().map_err(|e| e.to_string())?;
     let proficiencies = registry.get_all_proficiencies();
 
-    let total = proficiencies.iter().map(|p| p.success_count + p.failure_count).sum::<u32>() as usize;
+    let total = proficiencies
+        .iter()
+        .map(|p| p.success_count + p.failure_count)
+        .sum::<u32>() as usize;
     let successes = proficiencies.iter().map(|p| p.success_count).sum::<u32>() as usize;
     let avg_latency = if total > 0 {
         proficiencies.iter().map(|p| p.avg_latency_ms).sum::<u64>() / proficiencies.len() as u64
     } else {
         0
     };
-    let total_cost = proficiencies.iter().map(|p| p.avg_cost * (p.success_count + p.failure_count) as f32).sum();
+    let total_cost = proficiencies
+        .iter()
+        .map(|p| p.avg_cost * (p.success_count + p.failure_count) as f32)
+        .sum();
 
     Ok(HistorySummary {
         total_executions: total,
         success_count: successes,
         failure_count: total - successes,
-        success_rate: if total > 0 { successes as f32 / total as f32 } else { 0.0 },
+        success_rate: if total > 0 {
+            successes as f32 / total as f32
+        } else {
+            0.0
+        },
         avg_latency_ms: avg_latency,
         total_cost,
     })
@@ -176,9 +204,7 @@ pub async fn self_optimizing_get_history(
 
 /// Reset proficiency scores
 #[tauri::command]
-pub async fn self_optimizing_reset(
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn self_optimizing_reset(state: State<'_, AppState>) -> Result<(), String> {
     let mut registry = state.agent_registry.lock().map_err(|e| e.to_string())?;
     registry.reset_proficiencies();
     Ok(())
@@ -195,7 +221,11 @@ pub async fn project_context_create(
     root_path: String,
 ) -> Result<ProjectContext, String> {
     // In real implementation, we'd store in AppState
-    Ok(ProjectContext::new(id, name, std::path::PathBuf::from(root_path)))
+    Ok(ProjectContext::new(
+        id,
+        name,
+        std::path::PathBuf::from(root_path),
+    ))
 }
 
 /// Update project context with file info
@@ -205,17 +235,24 @@ pub async fn project_context_update(
     id: String,
     files: Vec<FileInfoInput>,
 ) -> Result<ContextSummary, String> {
-    let files: Vec<FileInfo> = files.iter().map(|f| FileInfo {
-        path: f.path.clone(),
-        line_count: f.line_count,
-        is_source: f.is_source,
-        is_test: f.is_test,
-        is_config: f.is_config,
-        is_doc: f.is_doc,
-    }).collect();
+    let files: Vec<FileInfo> = files
+        .iter()
+        .map(|f| FileInfo {
+            path: f.path.clone(),
+            line_count: f.line_count,
+            is_source: f.is_source,
+            is_test: f.is_test,
+            is_config: f.is_config,
+            is_doc: f.is_doc,
+        })
+        .collect();
 
     // Create context and detect from files
-    let mut ctx = ProjectContext::new(id.clone(), "Project".to_string(), std::path::PathBuf::from("."));
+    let mut ctx = ProjectContext::new(
+        id.clone(),
+        "Project".to_string(),
+        std::path::PathBuf::from("."),
+    );
     ctx.detect_from_files(&files);
 
     Ok(ctx.get_summary())
@@ -300,12 +337,7 @@ pub async fn privacy_analyze_task(
     command: Option<String>,
 ) -> Result<PrivacyDecision, String> {
     let orchestrator = PrivacyOrchestrator::new();
-    let decision = orchestrator.analyze_task(
-        &task_id,
-        &content,
-        &file_paths,
-        command.as_deref(),
-    );
+    let decision = orchestrator.analyze_task(&task_id, &content, &file_paths, command.as_deref());
     Ok(decision)
 }
 
@@ -320,29 +352,21 @@ pub async fn privacy_get_active_zone(
 
 /// Set active privacy zone
 #[tauri::command]
-pub async fn privacy_set_zone(
-    state: State<'_, AppState>,
-    zone_id: String,
-) -> Result<(), String> {
+pub async fn privacy_set_zone(state: State<'_, AppState>, zone_id: String) -> Result<(), String> {
     // In real implementation, we'd store orchestrator in AppState
     Ok(())
 }
 
 /// Check if path is safe for external processing
 #[tauri::command]
-pub async fn privacy_check_path(
-    state: State<'_, AppState>,
-    path: String,
-) -> Result<bool, String> {
+pub async fn privacy_check_path(state: State<'_, AppState>, path: String) -> Result<bool, String> {
     let orchestrator = PrivacyOrchestrator::new();
     Ok(orchestrator.is_path_safe(&path))
 }
 
 /// List all privacy zones
 #[tauri::command]
-pub async fn privacy_list_zones(
-    state: State<'_, AppState>,
-) -> Result<Vec<PrivacyZone>, String> {
+pub async fn privacy_list_zones(state: State<'_, AppState>) -> Result<Vec<PrivacyZone>, String> {
     let orchestrator = PrivacyOrchestrator::new();
     Ok(orchestrator.list_zones())
 }
@@ -370,11 +394,11 @@ pub async fn privacy_create_zone(
 // === Agent Adapter Execution Commands (Phase 1 Week 4) ===
 
 use crate::agent_adapter::{
-    AgentAdapter,
     claude_adapter::ClaudeCodeAdapter,
     codex_adapter::CodexAdapter,
-    tauri_adapter::{TauriDesktopAdapter, DesktopPlatform, BundleType},
-    electron_adapter::{ElectronDesktopAdapter, ElectronPlatform, ElectronArch},
+    electron_adapter::{ElectronArch, ElectronDesktopAdapter, ElectronPlatform},
+    tauri_adapter::{BundleType, DesktopPlatform, TauriDesktopAdapter},
+    AgentAdapter,
 };
 
 /// Initialize Claude Code adapter
@@ -607,17 +631,17 @@ pub async fn desktop_detect_project(
     Ok(DesktopDetectionResult {
         framework: framework.to_string(),
         platform: platform.as_str().to_string(),
-        recommended_bundles: recommended_bundles.iter().map(|b| b.as_str().to_string()).collect(),
+        recommended_bundles: recommended_bundles
+            .iter()
+            .map(|b| b.as_str().to_string())
+            .collect(),
         cwd,
     })
 }
 
 /// Build Tauri app in dev mode
 #[tauri::command]
-pub async fn desktop_tauri_dev(
-    state: State<'_, AppState>,
-    cwd: String,
-) -> Result<String, String> {
+pub async fn desktop_tauri_dev(state: State<'_, AppState>, cwd: String) -> Result<String, String> {
     let adapter = TauriDesktopAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
@@ -644,7 +668,10 @@ pub async fn desktop_tauri_build(
         _ => BundleType::None,
     });
 
-    adapter.build_release(&path, bundle_type).await.map_err(|e| e.to_string())
+    adapter
+        .build_release(&path, bundle_type)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Start Electron in dev mode
@@ -670,18 +697,24 @@ pub async fn desktop_electron_build(
     let adapter = ElectronDesktopAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
-    let target_platform = platform.map(|p| ElectronPlatform::from_str(&p))
+    let target_platform = platform
+        .map(|p| ElectronPlatform::from_str(&p))
         .transpose()?
         .unwrap_or(ElectronPlatform::current());
 
-    let target_arch = arch.map(|a| match a.to_lowercase().as_str() {
-        "x64" => ElectronArch::X64,
-        "arm64" => ElectronArch::Arm64,
-        "universal" => ElectronArch::Universal,
-        _ => ElectronArch::X64,
-    }).unwrap_or(ElectronArch::X64);
+    let target_arch = arch
+        .map(|a| match a.to_lowercase().as_str() {
+            "x64" => ElectronArch::X64,
+            "arm64" => ElectronArch::Arm64,
+            "universal" => ElectronArch::Universal,
+            _ => ElectronArch::X64,
+        })
+        .unwrap_or(ElectronArch::X64);
 
-    adapter.build(&path, target_platform, target_arch).await.map_err(|e| e.to_string())
+    adapter
+        .build(&path, target_platform, target_arch)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get current desktop platform
@@ -692,9 +725,7 @@ pub async fn desktop_get_platform() -> Result<String, String> {
 
 /// Get available build targets for platform
 #[tauri::command]
-pub async fn desktop_get_targets(
-    platform: String,
-) -> Result<Vec<String>, String> {
+pub async fn desktop_get_targets(platform: String) -> Result<Vec<String>, String> {
     let plat = DesktopPlatform::from_str(&platform)?;
     Ok(plat.build_targets())
 }
@@ -711,8 +742,8 @@ pub struct DesktopDetectionResult {
 
 // === Game Development Commands (Phase 3) ===
 
-use crate::agent_adapter::unity_adapter::{UnityAdapter, UnityPlatform};
 use crate::agent_adapter::godot_adapter::{GodotAdapter, GodotPlatform};
+use crate::agent_adapter::unity_adapter::{UnityAdapter, UnityPlatform};
 
 /// Detect game framework (Unity or Godot)
 #[tauri::command]
@@ -760,11 +791,15 @@ pub async fn unity_build_dev(
     let adapter = UnityAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
-    let target = platform.map(|p| UnityPlatform::from_str(&p))
+    let target = platform
+        .map(|p| UnityPlatform::from_str(&p))
         .transpose()?
         .unwrap_or(UnityPlatform::Windows);
 
-    adapter.build(&path, target, true).await.map_err(|e| e.to_string())
+    adapter
+        .build(&path, target, true)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Build Unity project (release mode)
@@ -777,18 +812,20 @@ pub async fn unity_build_release(
     let adapter = UnityAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
-    let target = platform.map(|p| UnityPlatform::from_str(&p))
+    let target = platform
+        .map(|p| UnityPlatform::from_str(&p))
         .transpose()?
         .unwrap_or(UnityPlatform::Windows);
 
-    adapter.build(&path, target, false).await.map_err(|e| e.to_string())
+    adapter
+        .build(&path, target, false)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get Unity scenes in project
 #[tauri::command]
-pub async fn unity_get_scenes(
-    cwd: String,
-) -> Result<Vec<String>, String> {
+pub async fn unity_get_scenes(cwd: String) -> Result<Vec<String>, String> {
     let path = std::path::PathBuf::from(&cwd);
     Ok(UnityAdapter::get_scenes(&path))
 }
@@ -803,11 +840,15 @@ pub async fn godot_build_dev(
     let adapter = GodotAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
-    let target = platform.map(|p| GodotPlatform::from_str(&p))
+    let target = platform
+        .map(|p| GodotPlatform::from_str(&p))
         .transpose()?
         .unwrap_or(GodotPlatform::Windows);
 
-    adapter.export(&path, target, true).await.map_err(|e| e.to_string())
+    adapter
+        .export(&path, target, true)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Export Godot project (release mode)
@@ -820,18 +861,20 @@ pub async fn godot_build_release(
     let adapter = GodotAdapter::new();
     let path = std::path::PathBuf::from(&cwd);
 
-    let target = platform.map(|p| GodotPlatform::from_str(&p))
+    let target = platform
+        .map(|p| GodotPlatform::from_str(&p))
         .transpose()?
         .unwrap_or(GodotPlatform::Windows);
 
-    adapter.export(&path, target, false).await.map_err(|e| e.to_string())
+    adapter
+        .export(&path, target, false)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get Godot scenes in project
 #[tauri::command]
-pub async fn godot_get_scenes(
-    cwd: String,
-) -> Result<Vec<String>, String> {
+pub async fn godot_get_scenes(cwd: String) -> Result<Vec<String>, String> {
     let path = std::path::PathBuf::from(&cwd);
     Ok(GodotAdapter::get_scenes(&path))
 }
@@ -860,14 +903,13 @@ pub struct GameDetectionResult {
 
 // === Game Asset Commands (Phase 3 Week 4) ===
 
-use crate::game_assets::{GameAssetDetector, GameAsset, GameAssetType, AssetStats, AssetOptimization};
+use crate::game_assets::{
+    AssetOptimization, AssetStats, GameAsset, GameAssetDetector, GameAssetType,
+};
 
 /// Detect game assets in project
 #[tauri::command]
-pub async fn game_detect_assets(
-    cwd: String,
-    framework: String,
-) -> Result<Vec<GameAsset>, String> {
+pub async fn game_detect_assets(cwd: String, framework: String) -> Result<Vec<GameAsset>, String> {
     let detector = GameAssetDetector::new();
     let path = std::path::PathBuf::from(&cwd);
     Ok(detector.detect_assets(&path, &framework))
@@ -875,10 +917,7 @@ pub async fn game_detect_assets(
 
 /// Get game asset statistics
 #[tauri::command]
-pub async fn game_get_asset_stats(
-    cwd: String,
-    framework: String,
-) -> Result<AssetStats, String> {
+pub async fn game_get_asset_stats(cwd: String, framework: String) -> Result<AssetStats, String> {
     let detector = GameAssetDetector::new();
     let path = std::path::PathBuf::from(&cwd);
     let assets = detector.detect_assets(&path, &framework);
@@ -916,16 +955,13 @@ pub async fn game_get_asset_types() -> Result<Vec<String>, String> {
 
 // === Marketing Commands (Phase 4) ===
 
+use crate::agent_adapter::jimeng_adapter::{ImageSize, JimengAdapter, JimengConfig, JimengStyle};
 use crate::agent_adapter::kimi_adapter::{KimiAdapter, KimiConfig, KimiUsage};
-use crate::agent_adapter::jimeng_adapter::{JimengAdapter, JimengConfig, JimengStyle, ImageSize};
 use crate::agent_adapter::kling_adapter::{KlingAdapter, KlingConfig, KlingMode};
 
 /// Initialize Kimi adapter with API key
 #[tauri::command]
-pub async fn marketing_init_kimi(
-    api_key: String,
-    model: Option<String>,
-) -> Result<String, String> {
+pub async fn marketing_init_kimi(api_key: String, model: Option<String>) -> Result<String, String> {
     let mut adapter = KimiAdapter::new();
 
     let config = AgentConfig {
@@ -934,7 +970,10 @@ pub async fn marketing_init_kimi(
         max_retries: 3,
         metadata: HashMap::from([
             ("api_key".to_string(), api_key),
-            ("model".to_string(), model.unwrap_or_else(|| "moonshot-v1-8k".to_string())),
+            (
+                "model".to_string(),
+                model.unwrap_or_else(|| "moonshot-v1-8k".to_string()),
+            ),
         ]),
         ..Default::default()
     };
@@ -959,7 +998,8 @@ pub async fn kimi_generate_text(
         max_tokens: 4096,
     });
 
-    let (content, usage) = adapter.generate(&prompt, system_prompt.as_deref())
+    let (content, usage) = adapter
+        .generate(&prompt, system_prompt.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -986,8 +1026,12 @@ pub async fn kimi_translate(
         max_tokens: 4096,
     });
 
-    let system_prompt = format!("你是一个翻译助手，请将文本翻译成{}，保持原文风格。", target_language);
-    let (content, _) = adapter.generate(&text, Some(&system_prompt))
+    let system_prompt = format!(
+        "你是一个翻译助手，请将文本翻译成{}，保持原文风格。",
+        target_language
+    );
+    let (content, _) = adapter
+        .generate(&text, Some(&system_prompt))
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1008,7 +1052,10 @@ pub async fn marketing_init_jimeng(
         max_retries: 3,
         metadata: HashMap::from([
             ("api_key".to_string(), api_key),
-            ("style".to_string(), default_style.unwrap_or_else(|| "realistic".to_string())),
+            (
+                "style".to_string(),
+                default_style.unwrap_or_else(|| "realistic".to_string()),
+            ),
         ]),
         ..Default::default()
     };
@@ -1025,14 +1072,20 @@ pub async fn jimeng_generate_image(
     style: Option<String>,
     size: Option<String>,
 ) -> Result<JimengGenerateResult, String> {
-    let jimeng_style = style.as_ref().map(|s| JimengStyle::from_str(s)).unwrap_or(JimengStyle::Realistic);
-    let jimeng_size = size.as_ref().map(|s| match s.as_str() {
-        "512" => ImageSize::Square512,
-        "portrait" => ImageSize::Portrait768x1024,
-        "landscape" => ImageSize::Landscape1024x768,
-        "wide" => ImageSize::Wide1920x1080,
-        _ => ImageSize::Square1024,
-    }).unwrap_or(ImageSize::Square1024);
+    let jimeng_style = style
+        .as_ref()
+        .map(|s| JimengStyle::from_str(s))
+        .unwrap_or(JimengStyle::Realistic);
+    let jimeng_size = size
+        .as_ref()
+        .map(|s| match s.as_str() {
+            "512" => ImageSize::Square512,
+            "portrait" => ImageSize::Portrait768x1024,
+            "landscape" => ImageSize::Landscape1024x768,
+            "wide" => ImageSize::Wide1920x1080,
+            _ => ImageSize::Square1024,
+        })
+        .unwrap_or(ImageSize::Square1024);
 
     let adapter = JimengAdapter::with_config(crate::agent_adapter::jimeng_adapter::JimengConfig {
         api_key,
@@ -1041,7 +1094,8 @@ pub async fn jimeng_generate_image(
         default_size: jimeng_size,
     });
 
-    let (urls, cost) = adapter.generate_image(&prompt, None, jimeng_style, jimeng_size)
+    let (urls, cost) = adapter
+        .generate_image(&prompt, None, jimeng_style, jimeng_size)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1066,7 +1120,10 @@ pub async fn marketing_init_kling(
         max_retries: 3,
         metadata: HashMap::from([
             ("api_key".to_string(), api_key),
-            ("duration".to_string(), default_duration.unwrap_or(5).to_string()),
+            (
+                "duration".to_string(),
+                default_duration.unwrap_or(5).to_string(),
+            ),
         ]),
         ..Default::default()
     };
@@ -1089,15 +1146,18 @@ pub async fn kling_generate_video(
         default_resolution: crate::agent_adapter::kling_adapter::VideoResolution::HD1080,
     });
 
-    let kling_mode = mode.map(|m| match m.to_lowercase().as_str() {
-        "avatar" => KlingMode::Avatar,
-        "extend" => KlingMode::Extend,
-        "image" => KlingMode::ImageToVideo,
-        _ => KlingMode::TextToVideo,
-    }).unwrap_or(KlingMode::TextToVideo);
+    let kling_mode = mode
+        .map(|m| match m.to_lowercase().as_str() {
+            "avatar" => KlingMode::Avatar,
+            "extend" => KlingMode::Extend,
+            "image" => KlingMode::ImageToVideo,
+            _ => KlingMode::TextToVideo,
+        })
+        .unwrap_or(KlingMode::TextToVideo);
 
     // Create job
-    let job_response = adapter.create_video_job(&prompt, kling_mode, None)
+    let job_response = adapter
+        .create_video_job(&prompt, kling_mode, None)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1122,7 +1182,10 @@ pub async fn kling_get_job_status(
         default_resolution: crate::agent_adapter::kling_adapter::VideoResolution::HD1080,
     });
 
-    let result = adapter.get_job_status(&task_id).await.map_err(|e| e.to_string())?;
+    let result = adapter
+        .get_job_status(&task_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(KlingJobStatusResult {
         task_id: result.task_id,
@@ -1132,7 +1195,8 @@ pub async fn kling_get_job_status(
             crate::agent_adapter::kling_adapter::KlingTaskStatus::Completed => "completed",
             crate::agent_adapter::kling_adapter::KlingTaskStatus::Failed => "failed",
             crate::agent_adapter::kling_adapter::KlingTaskStatus::Cancelled => "cancelled",
-        }.to_string(),
+        }
+        .to_string(),
         video_url: result.video_url,
         error: result.error,
     })
@@ -1173,7 +1237,7 @@ pub struct KlingJobStatusResult {
 
 // === Office Commands (Phase 4 Week 3) ===
 
-use crate::agent_adapter::wps_adapter::{WPSAdapter, DocumentFormat, DocumentType};
+use crate::agent_adapter::wps_adapter::{DocumentFormat, DocumentType, WPSAdapter};
 
 /// Initialize WPS adapter
 #[tauri::command]
@@ -1189,7 +1253,10 @@ pub async fn office_init_wps(
         max_retries: 3,
         metadata: HashMap::from([
             ("api_key".to_string(), api_key),
-            ("format".to_string(), default_format.unwrap_or_else(|| "docx".to_string())),
+            (
+                "format".to_string(),
+                default_format.unwrap_or_else(|| "docx".to_string()),
+            ),
         ]),
         ..Default::default()
     };
@@ -1209,20 +1276,25 @@ pub async fn wps_generate_doc(
     let adapter = WPSAdapter::with_config(crate::agent_adapter::wps_adapter::WPSConfig {
         api_key,
         base_url: "https://api.wps.cn/v1".to_string(),
-        default_format: format.map(|f| DocumentFormat::from_str(&f)).unwrap_or(DocumentFormat::Docx),
+        default_format: format
+            .map(|f| DocumentFormat::from_str(&f))
+            .unwrap_or(DocumentFormat::Docx),
     });
 
-    let doc_type = document_type.map(|d| match d.to_lowercase().as_str() {
-        "report" | "报告" => DocumentType::Report,
-        "contract" | "合同" => DocumentType::Contract,
-        "proposal" | "提案" => DocumentType::Proposal,
-        "resume" | "简历" => DocumentType::Resume,
-        "summary" | "总结" => DocumentType::Summary,
-        "plan" | "计划" => DocumentType::Plan,
-        _ => DocumentType::Article,
-    }).unwrap_or(DocumentType::Article);
+    let doc_type = document_type
+        .map(|d| match d.to_lowercase().as_str() {
+            "report" | "报告" => DocumentType::Report,
+            "contract" | "合同" => DocumentType::Contract,
+            "proposal" | "提案" => DocumentType::Proposal,
+            "resume" | "简历" => DocumentType::Resume,
+            "summary" | "总结" => DocumentType::Summary,
+            "plan" | "计划" => DocumentType::Plan,
+            _ => DocumentType::Article,
+        })
+        .unwrap_or(DocumentType::Article);
 
-    let (url, cost) = adapter.generate_document(&prompt, doc_type, DocumentFormat::Docx)
+    let (url, cost) = adapter
+        .generate_document(&prompt, doc_type, DocumentFormat::Docx)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1246,7 +1318,8 @@ pub async fn wps_analyze_excel(
         default_format: DocumentFormat::Xlsx,
     });
 
-    let (summary, charts, insights, cost) = adapter.analyze_excel(&file_url, "comprehensive")
+    let (summary, charts, insights, cost) = adapter
+        .analyze_excel(&file_url, "comprehensive")
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1278,7 +1351,7 @@ pub struct ExcelAnalysisResult {
 
 // === Budget Commands (Phase 4 Week 4) ===
 
-use crate::cost_tracker::{CostTracker, CostBudget, CostUsage, CostForecast, CostAlert};
+use crate::cost_tracker::{CostAlert, CostBudget, CostForecast, CostTracker, CostUsage};
 
 /// Set budget limits
 #[tauri::command]

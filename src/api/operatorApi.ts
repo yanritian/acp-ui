@@ -118,7 +118,8 @@ export const OperatorApi = {
     return invoke<any>('operator_file_read', { taskId, path })
   },
 
-  // Apply a patch to a file
+  // Legacy compatibility entry point. The backend rejects direct writes;
+  // project changes must use the structured patch approval flow.
   async filePatch(
     taskId: string,
     path: string,

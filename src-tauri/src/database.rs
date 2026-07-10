@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -122,7 +122,8 @@ impl DatabaseManager {
                 task.completed_at.map(|t| t.to_rfc3339()),
                 task.error_message,
             ],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         // Save agent executions
         for agent in &task.agents {
@@ -139,7 +140,8 @@ impl DatabaseManager {
                     agent.completed_at.map(|t| t.to_rfc3339()),
                     agent.output,
                 ],
-            ).map_err(|e| e.to_string())?;
+            )
+            .map_err(|e| e.to_string())?;
         }
 
         Ok(())
@@ -170,7 +172,10 @@ impl DatabaseManager {
                     FROM tasks WHERE status IN ({}) AND source = ?{} ORDER BY created_at DESC {} {}",
                     placeholders, statuses.len() + 1, limit_clause, offset_clause
                 );
-                let mut p: Vec<Box<dyn rusqlite::ToSql>> = status_strs.iter().map(|s| Box::new(*s) as Box<dyn rusqlite::ToSql>).collect();
+                let mut p: Vec<Box<dyn rusqlite::ToSql>> = status_strs
+                    .iter()
+                    .map(|s| Box::new(*s) as Box<dyn rusqlite::ToSql>)
+                    .collect();
                 p.push(Box::new(src.clone()));
                 (q, p)
             }
@@ -185,7 +190,10 @@ impl DatabaseManager {
                     FROM tasks WHERE status IN ({}) ORDER BY created_at DESC {} {}",
                     placeholders, limit_clause, offset_clause
                 );
-                let p: Vec<Box<dyn rusqlite::ToSql>> = status_strs.iter().map(|s| Box::new(*s) as Box<dyn rusqlite::ToSql>).collect();
+                let p: Vec<Box<dyn rusqlite::ToSql>> = status_strs
+                    .iter()
+                    .map(|s| Box::new(*s) as Box<dyn rusqlite::ToSql>)
+                    .collect();
                 (q, p)
             }
             (None, Some(src)) => {
@@ -250,10 +258,12 @@ impl DatabaseManager {
     pub fn get_task(&self, task_id: &str) -> Result<Option<TaskRecord>, String> {
         let conn = self.conn.lock().unwrap();
 
-        let mut stmt = conn.prepare(
-            "SELECT id, name, status, source, created_at, completed_at, error_message
-            FROM tasks WHERE id = ?1"
-        ).map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, status, source, created_at, completed_at, error_message
+            FROM tasks WHERE id = ?1",
+            )
+            .map_err(|e| e.to_string())?;
 
         let mut rows = stmt.query(params![task_id]).map_err(|e| e.to_string())?;
 
@@ -293,19 +303,22 @@ impl DatabaseManager {
         conn.execute(
             "DELETE FROM agent_executions WHERE task_id = ?1",
             params![task_id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         // Delete task
-        conn.execute(
-            "DELETE FROM tasks WHERE id = ?1",
-            params![task_id],
-        ).map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM tasks WHERE id = ?1", params![task_id])
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
 
     /// Search tasks by keyword (uses SQLite LIKE)
-    pub fn search_tasks(&self, keyword: &str, limit: Option<u64>) -> Result<Vec<TaskRecord>, String> {
+    pub fn search_tasks(
+        &self,
+        keyword: &str,
+        limit: Option<u64>,
+    ) -> Result<Vec<TaskRecord>, String> {
         let conn = self.conn.lock().unwrap();
         let pattern = format!("%{}%", keyword);
 
@@ -362,19 +375,35 @@ impl DatabaseManager {
             .map_err(|e| e.to_string())?;
 
         let successful: u64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE status = 'success'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE status = 'success'",
+                [],
+                |row| row.get(0),
+            )
             .map_err(|e| e.to_string())?;
 
         let failed: u64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE status = 'failed'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE status = 'failed'",
+                [],
+                |row| row.get(0),
+            )
             .map_err(|e| e.to_string())?;
 
         let running: u64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE status = 'running'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE status = 'running'",
+                [],
+                |row| row.get(0),
+            )
             .map_err(|e| e.to_string())?;
 
         let pending: u64 = conn
-            .query_row("SELECT COUNT(*) FROM tasks WHERE status = 'pending'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE status = 'pending'",
+                [],
+                |row| row.get(0),
+            )
             .map_err(|e| e.to_string())?;
 
         // Calculate average duration for completed tasks
@@ -406,11 +435,16 @@ impl DatabaseManager {
 }
 
 /// Internal function to load agent executions (used when connection is already locked)
-fn load_agent_executions_internal(conn: &Connection, task_id: &str) -> Result<Vec<AgentExecution>, String> {
-    let mut stmt = conn.prepare(
-        "SELECT agent_id, agent_name, status, started_at, completed_at, output
-        FROM agent_executions WHERE task_id = ?1 ORDER BY started_at"
-    ).map_err(|e| e.to_string())?;
+fn load_agent_executions_internal(
+    conn: &Connection,
+    task_id: &str,
+) -> Result<Vec<AgentExecution>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT agent_id, agent_name, status, started_at, completed_at, output
+        FROM agent_executions WHERE task_id = ?1 ORDER BY started_at",
+        )
+        .map_err(|e| e.to_string())?;
 
     let agents = stmt
         .query_map(params![task_id], |row| {
@@ -443,14 +477,18 @@ fn load_agent_executions_internal(conn: &Connection, task_id: &str) -> Result<Ve
 fn get_db_path(_app: &AppHandle) -> Result<PathBuf, String> {
     #[cfg(desktop)]
     {
+        if let Some(path) =
+            crate::operator::hermes_process::d_drive_path_override("ACP_UI_HISTORY_DB")?
+        {
+            return Ok(path);
+        }
         dirs::data_local_dir()
             .map(|p| p.join("acp-ui").join("history.db"))
             .ok_or_else(|| "Could not find data directory".to_string())
     }
     #[cfg(not(desktop))]
     {
-        _app
-            .path()
+        _app.path()
             .app_data_dir()
             .map_err(|e| format!("Could not resolve app data dir: {}", e))
             .map(|p| p.join("history.db"))
@@ -469,7 +507,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             error_message TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS agent_executions (
@@ -484,22 +523,26 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tasks_source ON tasks(source)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Sessions table for multi-session persistence
     conn.execute(
@@ -514,7 +557,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             last_active TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Memories table for cross-session memory
     conn.execute(
@@ -529,17 +573,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             last_accessed TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_memories_tags ON memories(tags)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Gateway config table for remote control settings
     conn.execute(
@@ -549,7 +596,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Workflows table for workflow definitions
     conn.execute(
@@ -562,12 +610,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_workflows_created ON workflows(created_at)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Execution plans table for orchestration tracking
     conn.execute(
@@ -580,17 +630,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_plans_task ON execution_plans(task_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_plans_status ON execution_plans(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Runtime events table for event logging
     conn.execute(
@@ -604,22 +657,26 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_events_task ON runtime_events(task_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_events_session ON runtime_events(session_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_events_type ON runtime_events(event_type)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Add scope and task_id columns to memories table (migration with error tolerance)
     // These columns may already exist if the database was created with them
@@ -654,17 +711,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             resolved_at TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_errors_status ON errors(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_errors_category ON errors(category)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Solutions table for self-healing system
     conn.execute(
@@ -679,12 +739,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_solutions_error ON solutions(error_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Evolutions table for self-evolution system
     conn.execute(
@@ -699,17 +761,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_evolutions_type ON evolutions(type)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_evolutions_domain ON evolutions(domain)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Patterns table for pattern library
     conn.execute(
@@ -725,16 +790,19 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_patterns_category ON patterns(category)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Enable WAL mode for better concurrent read performance
     // Note: PRAGMA statements may return results, so we use a silent execution
-    let _: String = conn.query_row("PRAGMA journal_mode=WAL", [], |row| row.get(0))
+    let _: String = conn
+        .query_row("PRAGMA journal_mode=WAL", [], |row| row.get(0))
         .unwrap_or_else(|_| "wal".to_string());
 
     // Logs table for LogStream system
@@ -757,17 +825,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             completed_at TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_exec_sessions_status ON executive_sessions(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_exec_sessions_created ON executive_sessions(created_at)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Thinking Chunks table for Agent thinking process tracking
     conn.execute(
@@ -781,12 +852,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (task_id) REFERENCES executive_sessions(id) ON DELETE CASCADE
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_thinking_chunks_task ON thinking_chunks(task_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Tool Calls table for Agent tool execution tracking (executive sessions)
     conn.execute(
@@ -804,17 +877,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (task_id) REFERENCES executive_sessions(id) ON DELETE CASCADE
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tool_calls_task ON tool_calls(task_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // ===== Architecture Optimization Tables (Phase 1) =====
 
@@ -832,7 +908,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS agent_templates (
@@ -849,7 +926,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (base_id) REFERENCES agent_bases(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS agent_instances (
@@ -866,12 +944,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (template_id) REFERENCES agent_templates(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_instances_status ON agent_instances(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Team orchestration tables
     conn.execute(
@@ -886,7 +966,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS team_executions (
@@ -900,12 +981,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (team_id) REFERENCES teams(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_team_executions_status ON team_executions(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Smart routing tables
     conn.execute(
@@ -922,12 +1005,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_route_decisions_target ON route_decisions(route_target)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS input_logs (
@@ -940,12 +1025,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_input_logs_source ON input_logs(source)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Agent flow tracking tables
     conn.execute(
@@ -962,12 +1049,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             completed_at TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_agent_flows_agent ON agent_flows(agent_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS flow_steps (
@@ -983,12 +1072,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (flow_id) REFERENCES agent_flows(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_flow_steps_flow ON flow_steps(flow_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Tool Calls detail for Agent flows (separate from tool_calls above — this one tracks flow-level executions)
     conn.execute(
@@ -1006,12 +1097,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (flow_id) REFERENCES agent_flows(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_tool_calls_flow ON tool_calls_detail(flow_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Self-healing tables
     conn.execute(
@@ -1029,17 +1122,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             resolved_at TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_anomalies_target ON anomalies(target)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_anomalies_severity ON anomalies(severity)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS circuit_breakers (
@@ -1056,7 +1152,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             updated_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS healing_actions (
@@ -1071,12 +1168,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (anomaly_id) REFERENCES anomalies(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_healing_actions_status ON healing_actions(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Skill generation tables
     conn.execute(
@@ -1097,12 +1196,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             FOREIGN KEY (source_pattern_id) REFERENCES patterns(id)
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_skills_status ON generated_skills(status)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Knowledge nodes for long-term memory
     conn.execute(
@@ -1119,12 +1220,14 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             last_accessed TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_knowledge_type ON knowledge_nodes(node_type)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Audit log for compliance
     conn.execute(
@@ -1141,17 +1244,20 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             created_at TEXT NOT NULL
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event_type)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // FTS5 virtual table for memory full-text search
     conn.execute(
@@ -1163,7 +1269,8 @@ fn init_tables(conn: &Connection) -> Result<(), String> {
             content='memories'
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1251,7 +1358,8 @@ impl DatabaseManager {
                 chunk.duration_ms,
                 chunk.created_at.to_rfc3339(),
             ],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -1282,7 +1390,10 @@ impl DatabaseManager {
     }
 
     /// Load executive sessions from database
-    pub fn load_executive_sessions(&self, limit: Option<u64>) -> Result<Vec<ExecutiveSessionRecord>, String> {
+    pub fn load_executive_sessions(
+        &self,
+        limit: Option<u64>,
+    ) -> Result<Vec<ExecutiveSessionRecord>, String> {
         let conn = self.conn.lock().unwrap();
 
         let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -1293,7 +1404,8 @@ impl DatabaseManager {
             limit_clause
         );
 
-        let records: Vec<ExecutiveSessionRecord> = conn.prepare(&sql)
+        let records: Vec<ExecutiveSessionRecord> = conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(ExecutiveSessionRecord {
@@ -1316,7 +1428,10 @@ impl DatabaseManager {
     }
 
     /// Get single executive session by ID
-    pub fn get_executive_session(&self, id: &str) -> Result<Option<ExecutiveSessionRecord>, String> {
+    pub fn get_executive_session(
+        &self,
+        id: &str,
+    ) -> Result<Option<ExecutiveSessionRecord>, String> {
         let conn = self.conn.lock().unwrap();
 
         let sql = "SELECT id, request, workspace, status, summary, files_json, logs_json, created_at, completed_at
@@ -1349,10 +1464,8 @@ impl DatabaseManager {
     pub fn delete_executive_session(&self, id: &str) -> Result<(), String> {
         let conn = self.conn.lock().unwrap();
 
-        conn.execute(
-            "DELETE FROM executive_sessions WHERE id = ?1",
-            params![id],
-        ).map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM executive_sessions WHERE id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -1361,29 +1474,35 @@ impl DatabaseManager {
     pub fn get_executive_session_stats(&self) -> Result<ExecutiveSessionStats, String> {
         let conn = self.conn.lock().unwrap();
 
-        let total: u64 = conn.query_row(
-            "SELECT COUNT(*) FROM executive_sessions",
-            [],
-            |row| row.get(0)
-        ).unwrap_or(0);
+        let total: u64 = conn
+            .query_row("SELECT COUNT(*) FROM executive_sessions", [], |row| {
+                row.get(0)
+            })
+            .unwrap_or(0);
 
-        let completed: u64 = conn.query_row(
-            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'completed'",
-            [],
-            |row| row.get(0)
-        ).unwrap_or(0);
+        let completed: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM executive_sessions WHERE status = 'completed'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
-        let running: u64 = conn.query_row(
-            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'running'",
-            [],
-            |row| row.get(0)
-        ).unwrap_or(0);
+        let running: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM executive_sessions WHERE status = 'running'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
-        let error: u64 = conn.query_row(
-            "SELECT COUNT(*) FROM executive_sessions WHERE status = 'error'",
-            [],
-            |row| row.get(0)
-        ).unwrap_or(0);
+        let error: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM executive_sessions WHERE status = 'error'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
         Ok(ExecutiveSessionStats {
             total,

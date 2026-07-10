@@ -15,11 +15,11 @@ use tauri::{AppHandle, Emitter};
 
 // Hermes Agent imports
 use hermes_agent::{
-    AgentLoop, AgentResult, AgentCallbacks,
-    agent_builder::{build_agent_config, build_provider, bridge_tool_registry},
+    agent_builder::{bridge_tool_registry, build_agent_config, build_provider},
+    AgentCallbacks, AgentLoop, AgentResult,
 };
-use hermes_core::MessageRole;
 use hermes_config::load_config;
+use hermes_core::MessageRole;
 use hermes_tools::ToolRegistry;
 
 use crate::database::{ThinkingChunkRecord, ToolCallRecord};
@@ -130,7 +130,11 @@ impl ExecutiveAgentManager {
         Self::with_config(workspace, HermesConfig::default(), ExecutionMode::default())
     }
 
-    pub fn with_config(workspace: PathBuf, hermes_config: HermesConfig, execution_mode: ExecutionMode) -> Self {
+    pub fn with_config(
+        workspace: PathBuf,
+        hermes_config: HermesConfig,
+        execution_mode: ExecutionMode,
+    ) -> Self {
         let mut status = HashMap::new();
         status.insert(AgentType::Coder, AgentStatus::Idle);
 
@@ -187,7 +191,11 @@ impl ExecutiveAgentManager {
         files
     }
 
-    async fn write_files(&self, files: HashMap<String, String>, app_handle: &AppHandle) -> Vec<GeneratedFile> {
+    async fn write_files(
+        &self,
+        files: HashMap<String, String>,
+        app_handle: &AppHandle,
+    ) -> Vec<GeneratedFile> {
         let mut generated = Vec::new();
 
         for (relative_path, content) in files {
@@ -210,12 +218,17 @@ impl ExecutiveAgentManager {
                 };
 
                 generated.push(file_info.clone());
-                self.generated_files.write().insert(relative_path.clone(), file_info);
+                self.generated_files
+                    .write()
+                    .insert(relative_path.clone(), file_info);
 
-                let _ = app_handle.emit("file-created", serde_json::json!({
-                    "path": relative_path,
-                    "lines": lines
-                }));
+                let _ = app_handle.emit(
+                    "file-created",
+                    serde_json::json!({
+                        "path": relative_path,
+                        "lines": lines
+                    }),
+                );
             }
         }
         generated
@@ -225,11 +238,21 @@ impl ExecutiveAgentManager {
         self.logs.write().push(log);
     }
 
-    pub async fn execute_workflow(&self, request: String, app_handle: AppHandle) -> Result<TaskResult, String> {
-        self.execute_workflow_with_mode(request, "coder".to_string(), app_handle).await
+    pub async fn execute_workflow(
+        &self,
+        request: String,
+        app_handle: AppHandle,
+    ) -> Result<TaskResult, String> {
+        self.execute_workflow_with_mode(request, "coder".to_string(), app_handle)
+            .await
     }
 
-    pub async fn execute_workflow_with_mode(&self, request: String, mode: String, app_handle: AppHandle) -> Result<TaskResult, String> {
+    pub async fn execute_workflow_with_mode(
+        &self,
+        request: String,
+        mode: String,
+        app_handle: AppHandle,
+    ) -> Result<TaskResult, String> {
         let task_id = uuid::Uuid::new_v4().to_string();
         self.logs.write().clear();
         self.generated_files.write().clear();
@@ -241,26 +264,37 @@ impl ExecutiveAgentManager {
         self.thinking_chunks.lock().unwrap().clear();
         self.tool_calls.lock().unwrap().clear();
 
-        let _ = app_handle.emit("task-started", serde_json::json!({
-            "taskId": task_id,
-            "request": request,
-            "workspace": self.workspace.to_string_lossy().to_string(),
-            "mode": mode.clone()
-        }));
+        let _ = app_handle.emit(
+            "task-started",
+            serde_json::json!({
+                "taskId": task_id,
+                "request": request,
+                "workspace": self.workspace.to_string_lossy().to_string(),
+                "mode": mode.clone()
+            }),
+        );
 
-        self.agent_status.write().insert(AgentType::Coder, AgentStatus::Busy);
+        self.agent_status
+            .write()
+            .insert(AgentType::Coder, AgentStatus::Busy);
 
-        let _ = app_handle.emit("agent-status-update", serde_json::json!({
-            "agentType": "coder",
-            "status": "busy"
-        }));
+        let _ = app_handle.emit(
+            "agent-status-update",
+            serde_json::json!({
+                "agentType": "coder",
+                "status": "busy"
+            }),
+        );
 
         self.add_log(ExecutionLog {
             timestamp: Utc::now(),
             agent_type: AgentType::Coder,
             action: "started".to_string(),
             file: None,
-            content_preview: Some(format!("Processing: {}", request.chars().take(50).collect::<String>())),
+            content_preview: Some(format!(
+                "Processing: {}",
+                request.chars().take(50).collect::<String>()
+            )),
             error: None,
         });
 
@@ -277,7 +311,9 @@ impl ExecutiveAgentManager {
         );
 
         // 使用 Hermes AgentLoop 原生执行
-        let content = self.execute_with_hermes_native(&full_prompt, &app_handle).await?;
+        let content = self
+            .execute_with_hermes_native(&full_prompt, &app_handle)
+            .await?;
 
         self.add_log(ExecutionLog {
             timestamp: Utc::now(),
@@ -292,7 +328,9 @@ impl ExecutiveAgentManager {
         let extracted_files = self.extract_files(&content);
         let all_files = self.write_files(extracted_files, &app_handle).await;
 
-        self.agent_status.write().insert(AgentType::Coder, AgentStatus::Idle);
+        self.agent_status
+            .write()
+            .insert(AgentType::Coder, AgentStatus::Idle);
 
         let summary = self.generate_summary(&request, &all_files);
 
@@ -306,26 +344,39 @@ impl ExecutiveAgentManager {
             completed_at: Utc::now(),
         };
 
-        let _ = app_handle.emit("task-completed", serde_json::json!({
-            "taskId": result.task_id,
-            "files": result.files.iter().map(|f| f.relative_path.clone()).collect::<Vec<_>>(),
-            "summary": result.summary
-        }));
+        let _ = app_handle.emit(
+            "task-completed",
+            serde_json::json!({
+                "taskId": result.task_id,
+                "files": result.files.iter().map(|f| f.relative_path.clone()).collect::<Vec<_>>(),
+                "summary": result.summary
+            }),
+        );
 
         Ok(result)
     }
 
     /// 使用 Hermes AgentLoop 原生执行任务
-    async fn execute_with_hermes_native(&self, prompt: &str, app_handle: &AppHandle) -> Result<String, String> {
+    async fn execute_with_hermes_native(
+        &self,
+        prompt: &str,
+        app_handle: &AppHandle,
+    ) -> Result<String, String> {
         // 获取当前 task_id
-        let task_id = self.current_task_id.lock().unwrap().clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let task_id = self
+            .current_task_id
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         // 加载 GatewayConfig
         let gateway_config = load_config(self.hermes_config.config_dir.as_deref())
             .map_err(|e| format!("加载 Hermes 配置失败: {}", e))?;
 
         // 构建 AgentConfig
-        let agent_config = build_agent_config(&gateway_config, &self.hermes_config.model, Some("acp-ui"));
+        let agent_config =
+            build_agent_config(&gateway_config, &self.hermes_config.model, Some("acp-ui"));
 
         // 构建 LLM Provider
         let llm_provider = build_provider(&gateway_config, &self.hermes_config.model);
@@ -363,11 +414,14 @@ impl ExecutiveAgentManager {
                 thinking_chunks_ref.lock().unwrap().push(chunk.clone());
 
                 // 发送事件给前端
-                let _ = app_handle_for_thinking.emit("thinking-chunk", serde_json::json!({
-                    "taskId": task_id_for_thinking,
-                    "content": content,
-                    "timestamp": Utc::now().to_rfc3339(),
-                }));
+                let _ = app_handle_for_thinking.emit(
+                    "thinking-chunk",
+                    serde_json::json!({
+                        "taskId": task_id_for_thinking,
+                        "content": content,
+                        "timestamp": Utc::now().to_rfc3339(),
+                    }),
+                );
             })),
             on_tool_start: Some(Box::new(move |tool_name: &str, args: &JsonValue| {
                 // 保存 tool call 开始
@@ -386,46 +440,60 @@ impl ExecutiveAgentManager {
                 tool_calls_ref.lock().unwrap().push(call.clone());
 
                 // 发送事件给前端
-                let _ = app_handle_for_tool_start.emit("tool-start", serde_json::json!({
-                    "taskId": task_id_for_tool_start,
-                    "toolName": tool_name,
-                    "arguments": args,
-                }));
+                let _ = app_handle_for_tool_start.emit(
+                    "tool-start",
+                    serde_json::json!({
+                        "taskId": task_id_for_tool_start,
+                        "toolName": tool_name,
+                        "arguments": args,
+                    }),
+                );
             })),
             on_tool_complete: Some(Box::new(move |tool_name: &str, output: &str| {
                 // 更新 tool call 完成
                 let mut calls = tool_calls_ref_for_complete.lock().unwrap();
-                if let Some(call) = calls.iter_mut().rev().find(|c| c.tool_name == tool_name && c.status == "running") {
+                if let Some(call) = calls
+                    .iter_mut()
+                    .rev()
+                    .find(|c| c.tool_name == tool_name && c.status == "running")
+                {
                     call.status = "completed".to_string();
                     call.result = Some(output.to_string());
                     call.completed_at = Some(Utc::now());
-                    call.duration_ms = Some((Utc::now() - call.created_at).num_milliseconds() as u64);
+                    call.duration_ms =
+                        Some((Utc::now() - call.created_at).num_milliseconds() as u64);
                 }
 
                 // 发送事件给前端
-                let _ = app_handle_for_tool_complete.emit("tool-complete", serde_json::json!({
-                    "taskId": task_id_for_tool_complete,
-                    "toolName": tool_name,
-                    "result": output,
-                }));
+                let _ = app_handle_for_tool_complete.emit(
+                    "tool-complete",
+                    serde_json::json!({
+                        "taskId": task_id_for_tool_complete,
+                        "toolName": tool_name,
+                        "result": output,
+                    }),
+                );
             })),
             ..Default::default()
         };
 
         // 使用 AgentLoop::new 创建 agent loop，并设置 callbacks
-        let agent_loop = AgentLoop::new(agent_config, tool_registry, llm_provider)
-            .with_callbacks(callbacks);
+        let agent_loop =
+            AgentLoop::new(agent_config, tool_registry, llm_provider).with_callbacks(callbacks);
 
         // 构建初始消息
         let messages = vec![hermes_core::Message::user(prompt)];
 
         // 执行 AgentLoop (不传递工具)
-        let result: AgentResult = agent_loop.run(messages, None)
+        let result: AgentResult = agent_loop
+            .run(messages, None)
             .await
             .map_err(|e| format!("Hermes AgentLoop 执行失败: {}", e))?;
 
         // 提取最终响应内容
-        let content = result.messages.iter()
+        let content = result
+            .messages
+            .iter()
             .rev()
             .find_map(|m| {
                 if m.role == MessageRole::Assistant {

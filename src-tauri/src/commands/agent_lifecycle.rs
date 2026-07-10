@@ -1,6 +1,6 @@
-use crate::AppState;
 use crate::agent::{AgentInstance, AgentStatus};
 use crate::config::{AgentConfig, AgentTransport, AgentsConfig};
+use crate::AppState;
 use tauri::{AppHandle, State};
 
 #[tauri::command]
@@ -42,7 +42,11 @@ pub fn spawn_agent(
 }
 
 #[tauri::command]
-pub fn send_to_agent(agent_id: String, message: String, state: State<AppState>) -> Result<(), String> {
+pub fn send_to_agent(
+    agent_id: String,
+    message: String,
+    state: State<AppState>,
+) -> Result<(), String> {
     state.agent_manager.send_message(&agent_id, &message)
 }
 
@@ -77,18 +81,33 @@ pub fn get_agent_status(agent_id: String, state: State<AppState>) -> Result<Agen
 }
 
 #[tauri::command]
-pub fn pause_agent(agent_id: String, state: State<AppState>, app_handle: AppHandle) -> Result<(), String> {
+pub fn pause_agent(
+    agent_id: String,
+    state: State<AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
     state.agent_manager.pause_agent(&agent_id, &app_handle)
 }
 
 #[tauri::command]
-pub fn resume_agent(agent_id: String, state: State<AppState>, app_handle: AppHandle) -> Result<(), String> {
+pub fn resume_agent(
+    agent_id: String,
+    state: State<AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
     state.agent_manager.resume_agent(&agent_id, &app_handle)
 }
 
 #[tauri::command]
-pub fn inject_message(agent_id: String, message: String, state: State<AppState>, app_handle: AppHandle) -> Result<(), String> {
-    state.agent_manager.inject_message(&agent_id, &message, &app_handle)
+pub fn inject_message(
+    agent_id: String,
+    message: String,
+    state: State<AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    state
+        .agent_manager
+        .inject_message(&agent_id, &message, &app_handle)
 }
 
 #[tauri::command]

@@ -7,11 +7,13 @@
 // - OAuth 认证
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput,
+        TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -119,8 +121,12 @@ impl DouyinAdapter {
 
     /// 通过 code 获取 access_token
     pub async fn get_access_token(&mut self, code: &str) -> Result<String, AgentError> {
-        let config = self.config.as_ref()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "抖音配置未初始化".to_string() })?;
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| AgentError::ConfigurationError {
+                message: "抖音配置未初始化".to_string(),
+            })?;
 
         // 模拟 API 调用（实际需要 HTTP client）
         // POST https://open.douyin.com/oauth/access_token/
@@ -131,29 +137,56 @@ impl DouyinAdapter {
     }
 
     /// 发布视频
-    pub async fn publish_video(&self, video_path: &str, title: &str, tags: &[String]) -> Result<AgentResult, AgentError> {
-        let token = self.access_token.as_ref()
-            .ok_or_else(|| AgentError::AuthenticationError { message: "未授权，请先完成 OAuth 认证".to_string() })?;
+    pub async fn publish_video(
+        &self,
+        video_path: &str,
+        title: &str,
+        tags: &[String],
+    ) -> Result<AgentResult, AgentError> {
+        let token = self
+            .access_token
+            .as_ref()
+            .ok_or_else(|| AgentError::AuthenticationError {
+                message: "未授权，请先完成 OAuth 认证".to_string(),
+            })?;
 
         // 模拟视频发布 API 调用
-        let item_id = format!("video_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs());
+        let item_id = format!(
+            "video_{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
 
         Ok(AgentResult {
             task_id: uuid::Uuid::new_v4().to_string(),
             agent_id: self.id.clone(),
             status: ResultStatus::Success,
-            output: TaskOutput::Text(format!("视频发布成功:\n- 视频ID: {}\n- 标题: {}\n- 标签: {}\n- 文件: {}",
-                item_id, title, tags.join(","), video_path)),
+            output: TaskOutput::Text(format!(
+                "视频发布成功:\n- 视频ID: {}\n- 标题: {}\n- 标签: {}\n- 文件: {}",
+                item_id,
+                title,
+                tags.join(","),
+                video_path
+            )),
             input_tokens: 0,
             output_tokens: 100,
             total_tokens: 100,
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: 100, total_tokens: 100 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: 100,
+                    total_tokens: 100,
+                },
             },
             duration_ms: 5000,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("item_id".to_string(), item_id),
                 ("title".to_string(), title.to_string()),
@@ -162,26 +195,47 @@ impl DouyinAdapter {
     }
 
     /// 获取视频列表
-    pub async fn get_video_list(&self, count: u32, cursor: Option<&str>) -> Result<AgentResult, AgentError> {
-        let token = self.access_token.as_ref()
-            .ok_or_else(|| AgentError::AuthenticationError { message: "未授权".to_string() })?;
+    pub async fn get_video_list(
+        &self,
+        count: u32,
+        cursor: Option<&str>,
+    ) -> Result<AgentResult, AgentError> {
+        let token = self
+            .access_token
+            .as_ref()
+            .ok_or_else(|| AgentError::AuthenticationError {
+                message: "未授权".to_string(),
+            })?;
 
         // 模拟视频列表
-        let videos: Vec<DouyinVideo> = (0..count).map(|i| DouyinVideo {
-            item_id: format!("video_{}", i),
-            title: format!("测试视频 {}", i),
-            cover_url: "https://example.com/cover.jpg".to_string(),
-            share_url: "https://douyin.com/video/xxx".to_string(),
-            play_count: 1000 + i as u64 * 100,
-            like_count: 100 + i as u64 * 10,
-            comment_count: 20 + i as u64 * 2,
-            share_count: 5 + i as u64,
-            create_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64 - i as i64 * 3600,
-        }).collect();
+        let videos: Vec<DouyinVideo> = (0..count)
+            .map(|i| DouyinVideo {
+                item_id: format!("video_{}", i),
+                title: format!("测试视频 {}", i),
+                cover_url: "https://example.com/cover.jpg".to_string(),
+                share_url: "https://douyin.com/video/xxx".to_string(),
+                play_count: 1000 + i as u64 * 100,
+                like_count: 100 + i as u64 * 10,
+                comment_count: 20 + i as u64 * 2,
+                share_count: 5 + i as u64,
+                create_time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64
+                    - i as i64 * 3600,
+            })
+            .collect();
 
-        let output = videos.iter().map(|v|
-            format!("{}: {} (播放:{}, 点赞:{})", v.item_id, v.title, v.play_count, v.like_count)
-        ).collect::<Vec<String>>().join("\n");
+        let output = videos
+            .iter()
+            .map(|v| {
+                format!(
+                    "{}: {} (播放:{}, 点赞:{})",
+                    v.item_id, v.title, v.play_count, v.like_count
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
 
         Ok(AgentResult {
             task_id: uuid::Uuid::new_v4().to_string(),
@@ -191,17 +245,36 @@ impl DouyinAdapter {
             input_tokens: 0,
             output_tokens: videos.len() as u64 * 50,
             total_tokens: videos.len() as u64 * 50,
-            cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: videos.len() as u64 * 50, total_tokens: videos.len() as u64 * 50 } },
+            cost: ActualCost {
+                amount: 0.0,
+                currency: "CNY".to_string(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: videos.len() as u64 * 50,
+                    total_tokens: videos.len() as u64 * 50,
+                },
+            },
             duration_ms: 1000,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([("count".to_string(), videos.len().to_string())]),
         })
     }
 
     /// 数据分析
-    pub async fn get_analytics(&self, start_date: &str, end_date: &str) -> Result<AgentResult, AgentError> {
-        let token = self.access_token.as_ref()
-            .ok_or_else(|| AgentError::AuthenticationError { message: "未授权".to_string() })?;
+    pub async fn get_analytics(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<AgentResult, AgentError> {
+        let token = self
+            .access_token
+            .as_ref()
+            .ok_or_else(|| AgentError::AuthenticationError {
+                message: "未授权".to_string(),
+            })?;
 
         // 模拟数据分析结果
         let analytics = DouyinAnalytics {
@@ -289,13 +362,19 @@ impl AgentAdapter for DouyinAdapter {
     }
 
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
-        let client_id = config.metadata.get("client_id")
-            .cloned()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "缺少 client_id".to_string() })?;
+        let client_id = config.metadata.get("client_id").cloned().ok_or_else(|| {
+            AgentError::ConfigurationError {
+                message: "缺少 client_id".to_string(),
+            }
+        })?;
 
-        let client_secret = config.metadata.get("client_secret")
+        let client_secret = config
+            .metadata
+            .get("client_secret")
             .cloned()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "缺少 client_secret".to_string() })?;
+            .ok_or_else(|| AgentError::ConfigurationError {
+                message: "缺少 client_secret".to_string(),
+            })?;
 
         let access_token = config.metadata.get("access_token").cloned();
         let open_id = config.metadata.get("open_id").cloned();
@@ -316,19 +395,30 @@ impl AgentAdapter for DouyinAdapter {
     }
 
     async fn validate_config(&self) -> Result<bool, AgentError> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .map(|c| !c.client_id.is_empty() && !c.client_secret.is_empty())
-            .ok_or_else(|| AgentError::ConfigurationError { message: "配置未初始化".to_string() })
+            .ok_or_else(|| AgentError::ConfigurationError {
+                message: "配置未初始化".to_string(),
+            })
     }
 
     async fn execute(&self, task: AgentTask) -> Result<AgentResult, AgentError> {
         let start = Instant::now();
 
         let action = match task.description.as_str() {
-            s if s.contains("认证") || s.contains("auth") || s.contains("oauth") => DouyinAction::Auth,
-            s if s.contains("发布") || s.contains("publish") || s.contains("上传") => DouyinAction::PublishVideo,
-            s if s.contains("列表") || s.contains("list") || s.contains("获取视频") => DouyinAction::GetVideos,
-            s if s.contains("数据") || s.contains("analytics") || s.contains("分析") => DouyinAction::Analytics,
+            s if s.contains("认证") || s.contains("auth") || s.contains("oauth") => {
+                DouyinAction::Auth
+            }
+            s if s.contains("发布") || s.contains("publish") || s.contains("上传") => {
+                DouyinAction::PublishVideo
+            }
+            s if s.contains("列表") || s.contains("list") || s.contains("获取视频") => {
+                DouyinAction::GetVideos
+            }
+            s if s.contains("数据") || s.contains("analytics") || s.contains("分析") => {
+                DouyinAction::Analytics
+            }
             s if s.contains("直播") || s.contains("live") => DouyinAction::LiveManage,
             s if s.contains("删除") || s.contains("delete") => DouyinAction::DeleteVideo,
             _ => DouyinAction::GetVideos,
@@ -343,7 +433,10 @@ impl AgentAdapter for DouyinAdapter {
                         let st = parts.get(1).unwrap_or(&"random_state");
                         (uri.to_string(), st.to_string())
                     }
-                    _ => ("https://example.com/callback".to_string(), "state".to_string()),
+                    _ => (
+                        "https://example.com/callback".to_string(),
+                        "state".to_string(),
+                    ),
                 };
                 let auth_url = self.get_auth_url(&redirect_uri, &state);
                 AgentResult {
@@ -354,9 +447,20 @@ impl AgentAdapter for DouyinAdapter {
                     input_tokens: 0,
                     output_tokens: auth_url.len() as u64 / 4,
                     total_tokens: auth_url.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: auth_url.len() as u64 / 4, total_tokens: auth_url.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: auth_url.len() as u64 / 4,
+                            total_tokens: auth_url.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::from([("auth_url".to_string(), auth_url)]),
                 }
             }
@@ -367,7 +471,11 @@ impl AgentAdapter for DouyinAdapter {
                         let p = parts.get(0).unwrap_or(&"./video.mp4");
                         let t = parts.get(1).unwrap_or(&"新视频");
                         let tag_str = parts.get(2).unwrap_or(&"");
-                        (p.to_string(), t.to_string(), tag_str.split(',').map(|s| s.to_string()).collect())
+                        (
+                            p.to_string(),
+                            t.to_string(),
+                            tag_str.split(',').map(|s| s.to_string()).collect(),
+                        )
                     }
                     TaskInput::File(path) => (path.clone(), "新视频".to_string(), vec![]),
                     _ => ("./video.mp4".to_string(), "新视频".to_string(), vec![]),
@@ -393,21 +501,33 @@ impl AgentAdapter for DouyinAdapter {
                 };
                 self.get_analytics(&start_date, &end_date).await?
             }
-            DouyinAction::LiveManage => {
-                AgentResult {
-                    task_id: task.id.clone(),
-                    agent_id: self.id.clone(),
-                    status: ResultStatus::Success,
-                    output: TaskOutput::Text("直播管理功能:\n- 创建直播间\n- 开始直播\n- 结束直播\n- 直播数据分析".to_string()),
-                    input_tokens: 0,
-                    output_tokens: 50,
-                    total_tokens: 50,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: 50, total_tokens: 50 } },
-                    duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                    metadata: HashMap::new(),
-                }
-            }
+            DouyinAction::LiveManage => AgentResult {
+                task_id: task.id.clone(),
+                agent_id: self.id.clone(),
+                status: ResultStatus::Success,
+                output: TaskOutput::Text(
+                    "直播管理功能:\n- 创建直播间\n- 开始直播\n- 结束直播\n- 直播数据分析"
+                        .to_string(),
+                ),
+                input_tokens: 0,
+                output_tokens: 50,
+                total_tokens: 50,
+                cost: ActualCost {
+                    amount: 0.0,
+                    currency: "CNY".to_string(),
+                    token_usage: TokenUsage {
+                        input_tokens: 0,
+                        output_tokens: 50,
+                        total_tokens: 50,
+                    },
+                },
+                duration_ms: start.elapsed().as_millis() as u64,
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                metadata: HashMap::new(),
+            },
             DouyinAction::DeleteVideo => {
                 let item_id = match &task.input {
                     TaskInput::Text(text) => text.trim().to_string(),
@@ -421,9 +541,20 @@ impl AgentAdapter for DouyinAdapter {
                     input_tokens: 0,
                     output_tokens: 20,
                     total_tokens: 20,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: 20, total_tokens: 20 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: 20,
+                            total_tokens: 20,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::from([("deleted_item".to_string(), item_id)]),
                 }
             }
@@ -442,7 +573,10 @@ impl AgentAdapter for DouyinAdapter {
         if metrics.health_score > 80.0 {
             AgentStatus::Idle
         } else {
-            AgentStatus::Error { message: "健康分数过低".to_string(), error_count: metrics.error_count }
+            AgentStatus::Error {
+                message: "健康分数过低".to_string(),
+                error_count: metrics.error_count,
+            }
         }
     }
 
@@ -456,7 +590,11 @@ impl AgentAdapter for DouyinAdapter {
             max_cost: 0.0,
             currency: "CNY".to_string(),
             breakdown: HashMap::new(),
-            token_estimate: TokenEstimate { input_tokens: 0, output_tokens: 500, total_tokens: 500 },
+            token_estimate: TokenEstimate {
+                input_tokens: 0,
+                output_tokens: 500,
+                total_tokens: 500,
+            },
         }
     }
 
@@ -465,7 +603,12 @@ impl AgentAdapter for DouyinAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -486,7 +629,11 @@ impl AgentAdapter for DouyinAdapter {
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
     async fn reset_circuit_breaker(&mut self) {

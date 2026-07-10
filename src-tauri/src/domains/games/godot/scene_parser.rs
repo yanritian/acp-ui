@@ -1,10 +1,10 @@
 // Godot Domain Pack - Scene Parser
 // Parses Godot .tscn files to extract node structure
 
-use std::path::Path;
-use std::fs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GodotScene {
@@ -42,10 +42,11 @@ impl GodotSceneParser {
 
     /// Parse a .tscn file
     pub fn parse_scene(path: &Path) -> Result<GodotScene, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read scene: {}", e))?;
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read scene: {}", e))?;
 
-        let name = path.file_stem()
+        let name = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
@@ -129,13 +130,15 @@ impl GodotSceneParser {
     pub fn find_character_nodes(scene: &GodotScene) -> Vec<&GodotNode> {
         let keywords = ["player", "character", "actor", "hero", "entity"];
 
-        scene.nodes.iter()
+        scene
+            .nodes
+            .iter()
             .filter(|node| {
                 let name_lower = node.name.to_lowercase();
                 let type_lower = node.node_type.to_lowercase();
-                keywords.iter().any(|kw| {
-                    name_lower.contains(kw) || type_lower.contains(kw)
-                })
+                keywords
+                    .iter()
+                    .any(|kw| name_lower.contains(kw) || type_lower.contains(kw))
             })
             .collect()
     }
@@ -143,11 +146,18 @@ impl GodotSceneParser {
     /// Extract physics-related properties
     pub fn get_physics_properties(node: &GodotNode) -> HashMap<String, String> {
         let physics_keys = [
-            "gravity", "mass", "linear_damp", "angular_damp",
-            "jump_velocity", "speed", "max_speed", "acceleration",
+            "gravity",
+            "mass",
+            "linear_damp",
+            "angular_damp",
+            "jump_velocity",
+            "speed",
+            "max_speed",
+            "acceleration",
         ];
 
-        node.properties.iter()
+        node.properties
+            .iter()
             .filter(|(k, _)| physics_keys.iter().any(|pk| k.to_lowercase().contains(pk)))
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect()
@@ -165,17 +175,21 @@ impl GodotSceneParser {
         // Parse: [node name="Player" type="CharacterBody2D" parent="."]
         for part in line.split_whitespace() {
             if part.starts_with("name=") {
-                name = part.trim_start_matches("name=")
+                name = part
+                    .trim_start_matches("name=")
                     .trim_matches('"')
                     .to_string();
             } else if part.starts_with("type=") {
-                node_type = part.trim_start_matches("type=")
+                node_type = part
+                    .trim_start_matches("type=")
                     .trim_matches('"')
                     .to_string();
             } else if part.starts_with("parent=") {
-                parent = Some(part.trim_start_matches("parent=")
-                    .trim_matches('"')
-                    .to_string());
+                parent = Some(
+                    part.trim_start_matches("parent=")
+                        .trim_matches('"')
+                        .to_string(),
+                );
             }
         }
 

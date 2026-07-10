@@ -1,10 +1,6 @@
 // Claude Code CLI Adapter - Wraps Claude Code CLI for code development tasks
 
-use crate::agent_adapter::{
-    types::*,
-    health_tracker::HealthTracker,
-    AgentAdapter,
-};
+use crate::agent_adapter::{health_tracker::HealthTracker, types::*, AgentAdapter};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::process::Stdio;
@@ -35,14 +31,54 @@ impl ClaudeCodeAdapter {
     /// Claude Code capabilities
     fn get_capabilities() -> Vec<Capability> {
         vec![
-            Capability { name: "coding".to_string(), proficiency: 0.95, cost_per_unit: 0.003, latency_ms: 5000 },
-            Capability { name: "debugging".to_string(), proficiency: 0.90, cost_per_unit: 0.002, latency_ms: 3000 },
-            Capability { name: "testing".to_string(), proficiency: 0.85, cost_per_unit: 0.001, latency_ms: 2000 },
-            Capability { name: "refactoring".to_string(), proficiency: 0.90, cost_per_unit: 0.002, latency_ms: 4000 },
-            Capability { name: "architecture-analysis".to_string(), proficiency: 0.85, cost_per_unit: 0.003, latency_ms: 6000 },
-            Capability { name: "language-translation".to_string(), proficiency: 0.80, cost_per_unit: 0.003, latency_ms: 5000 },
-            Capability { name: "code-review".to_string(), proficiency: 0.92, cost_per_unit: 0.002, latency_ms: 4000 },
-            Capability { name: "documentation".to_string(), proficiency: 0.88, cost_per_unit: 0.001, latency_ms: 3000 },
+            Capability {
+                name: "coding".to_string(),
+                proficiency: 0.95,
+                cost_per_unit: 0.003,
+                latency_ms: 5000,
+            },
+            Capability {
+                name: "debugging".to_string(),
+                proficiency: 0.90,
+                cost_per_unit: 0.002,
+                latency_ms: 3000,
+            },
+            Capability {
+                name: "testing".to_string(),
+                proficiency: 0.85,
+                cost_per_unit: 0.001,
+                latency_ms: 2000,
+            },
+            Capability {
+                name: "refactoring".to_string(),
+                proficiency: 0.90,
+                cost_per_unit: 0.002,
+                latency_ms: 4000,
+            },
+            Capability {
+                name: "architecture-analysis".to_string(),
+                proficiency: 0.85,
+                cost_per_unit: 0.003,
+                latency_ms: 6000,
+            },
+            Capability {
+                name: "language-translation".to_string(),
+                proficiency: 0.80,
+                cost_per_unit: 0.003,
+                latency_ms: 5000,
+            },
+            Capability {
+                name: "code-review".to_string(),
+                proficiency: 0.92,
+                cost_per_unit: 0.002,
+                latency_ms: 4000,
+            },
+            Capability {
+                name: "documentation".to_string(),
+                proficiency: 0.88,
+                cost_per_unit: 0.001,
+                latency_ms: 3000,
+            },
         ]
     }
 
@@ -160,10 +196,14 @@ impl AgentAdapter for ClaudeCodeAdapter {
         let mut output = String::new();
 
         let mut lines = reader.lines();
-        while let Some(line) = lines.next_line().await.map_err(|e| AgentError::ExecutionError {
-            message: format!("Failed to read output: {}", e),
-            retryable: false,
-        })? {
+        while let Some(line) = lines
+            .next_line()
+            .await
+            .map_err(|e| AgentError::ExecutionError {
+                message: format!("Failed to read output: {}", e),
+                retryable: false,
+            })?
+        {
             output.push_str(&line);
             output.push('\n');
         }
@@ -268,7 +308,12 @@ impl AgentAdapter for ClaudeCodeAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {

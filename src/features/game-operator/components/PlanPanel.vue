@@ -1,39 +1,34 @@
 <script setup lang="ts">
-import type { OperatorTask, OperatorEvent } from '@/types/operator'
 import { computed } from 'vue'
+import type { OperatorTask, OperatorEvent } from '@/types/operator'
 
 const props = defineProps<{
   task: OperatorTask
   events: OperatorEvent[]
 }>()
 
-// Extract plan-related events
-const planEvents = computed(() => {
-  return props.events.filter(e =>
-    e.type === 'plan_started' ||
-    e.type === 'plan_ready' ||
-    e.type === 'project_analyzed' ||
-    e.type === 'tool_call_started' ||
-    e.type === 'tool_call_succeeded' ||
-    e.type === 'tool_call_failed'
-  )
-})
+interface PlanStepView {
+  id: number
+  text: string
+  status: 'done' | 'running' | 'pending' | 'failed'
+}
 
-// Parse steps from events payload or generate default steps based on task status
-const steps = computed(() => {
-  // Try to extract steps from plan_ready event payload
-  const planReadyEvent = props.events.find(e => e.type === 'plan_ready')
-  if (planReadyEvent?.payload?.steps) {
-    return planReadyEvent.payload.steps.map((s: any, idx: number) => ({
-      id: s.id || idx + 1,
-      text: s.description || s.text || `Step ${idx + 1}`,
-      status: getStepStatus(s.id || idx + 1)
-    }))
+const steps = computed<PlanStepView[]>(() => {
+  const planReadyEvent = props.events.find(event => event.type === 'plan_ready')
+  const rawSteps = planReadyEvent?.payload?.steps
+
+  if (Array.isArray(rawSteps)) {
+    return rawSteps.map((step: any, index: number) => {
+      const id = Number(step.id ?? index + 1)
+      return {
+        id,
+        text: step.description || step.text || `Step ${index + 1}`,
+        status: getStepStatus(id),
+      }
+    })
   }
 
-  // Generate default steps based on task status
-  const taskStatus = props.task.status
-  const defaultSteps = [
+  const defaultSteps: PlanStepView[] = [
     { id: 1, text: 'Analyze project structure', status: 'done' },
     { id: 2, text: 'Find player controller', status: 'done' },
     { id: 3, text: 'Generate implementation plan', status: 'running' },
@@ -41,39 +36,50 @@ const steps = computed(() => {
     { id: 5, text: 'Apply changes', status: 'pending' },
   ]
 
-  // Update step status based on task status
-  if (taskStatus === 'waiting_approval') {
+  if (props.task.status === 'waiting_approval') {
     defaultSteps[2].status = 'done'
     defaultSteps[3].status = 'running'
-  } else if (taskStatus === 'running') {
+  } else if (props.task.status === 'running') {
     defaultSteps[2].status = 'done'
     defaultSteps[3].status = 'done'
     defaultSteps[4].status = 'running'
-  } else if (taskStatus === 'completed') {
-    defaultSteps.forEach(s => s.status = 'done')
-  } else if (taskStatus === 'failed') {
+  } else if (props.task.status === 'paused') {
+    defaultSteps[2].status = 'done'
+    defaultSteps[3].status = 'done'
+    defaultSteps[4].status = 'pending'
+  } else if (props.task.status === 'completed') {
+    defaultSteps.forEach(step => {
+      step.status = 'done'
+    })
+  } else if (props.task.status === 'failed' || props.task.status === 'cancelled') {
     defaultSteps[4].status = 'failed'
   }
 
   return defaultSteps
 })
 
-// Helper to get step status from events
-function getStepStatus(stepId: number): string {
-  const startedEvent = props.events.find(e =>
-    e.type === 'tool_call_started' && e.payload?.step_id === stepId
+function getStepStatus(stepId: number): PlanStepView['status'] {
+  const startedEvent = props.events.find(event =>
+    event.type === 'tool_call_started' && event.payload?.step_id === stepId
   )
-  const succeededEvent = props.events.find(e =>
-    e.type === 'tool_call_succeeded' && e.payload?.step_id === stepId
+  const succeededEvent = props.events.find(event =>
+    event.type === 'tool_call_succeeded' && event.payload?.step_id === stepId
   )
-  const failedEvent = props.events.find(e =>
-    e.type === 'tool_call_failed' && e.payload?.step_id === stepId
+  const failedEvent = props.events.find(event =>
+    event.type === 'tool_call_failed' && event.payload?.step_id === stepId
   )
 
   if (failedEvent) return 'failed'
   if (succeededEvent) return 'done'
   if (startedEvent) return 'running'
   return 'pending'
+}
+
+function statusLabel(status: PlanStepView['status']): string {
+  if (status === 'done') return 'Done'
+  if (status === 'running') return 'Now'
+  if (status === 'failed') return 'Failed'
+  return 'Next'
 }
 </script>
 
@@ -91,9 +97,7 @@ function getStepStatus(stepId: number): string {
         :class="[`status-${step.status}`]"
       >
         <div class="step-indicator">
-          <span v-if="step.status === 'done'">✓</span>
-          <span v-else-if="step.status === 'running'">⏳</span>
-          <span v-else>○</span>
+          {{ statusLabel(step.status) }}
         </div>
         <div class="step-text">{{ step.text }}</div>
       </div>
@@ -103,7 +107,8 @@ function getStepStatus(stepId: number): string {
 
 <style scoped>
 .plan-panel {
-  height: 100%;
+  height: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -114,10 +119,12 @@ function getStepStatus(stepId: number): string {
 }
 
 .plan-goal {
+  min-width: 0;
   padding: 0.75rem;
   background: var(--bg-main);
   border-radius: 4px;
   margin-bottom: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .plan-steps {
@@ -129,7 +136,8 @@ function getStepStatus(stepId: number): string {
 
 .plan-step {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  min-width: 0;
   gap: 0.75rem;
   padding: 0.5rem;
   background: var(--bg-main);
@@ -137,7 +145,7 @@ function getStepStatus(stepId: number): string {
 }
 
 .plan-step.status-done {
-  opacity: 0.6;
+  opacity: 0.65;
 }
 
 .plan-step.status-running {
@@ -145,15 +153,22 @@ function getStepStatus(stepId: number): string {
   border: 1px solid #3B82F6;
 }
 
+.plan-step.status-failed {
+  background: #FEF2F2;
+  border: 1px solid #EF4444;
+}
+
 .step-indicator {
-  width: 24px;
-  height: 24px;
+  width: 52px;
+  min-width: 52px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 4px;
   background: var(--bg-hover);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .status-done .step-indicator {
@@ -166,7 +181,15 @@ function getStepStatus(stepId: number): string {
   color: white;
 }
 
+.status-failed .step-indicator {
+  background: #EF4444;
+  color: white;
+}
+
 .step-text {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
+
 </style>

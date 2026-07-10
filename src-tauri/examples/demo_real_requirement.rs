@@ -8,11 +8,11 @@
 //! 3. API调用返回正确结果
 //! 4. 错误处理正确
 
-use swarm_engine::{CompletionCondition, ConditionEvaluator};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
+use swarm_engine::{CompletionCondition, ConditionEvaluator};
 
 fn main() {
     println!("========================================");

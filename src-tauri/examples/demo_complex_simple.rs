@@ -448,29 +448,49 @@ async fn main() -> std::io::Result<()> {
     // 注册
     println!("\n  验证 5: 用户注册");
     let reg = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/auth/register",
-               "-H", "Content-Type: application/json",
-               "-d", "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}"])
-        .output().unwrap();
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/register",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}",
+        ])
+        .output()
+        .unwrap();
     let reg_resp = String::from_utf8_lossy(&reg.stdout);
     println!("    响应: {}", reg_resp);
-    if reg_resp.contains("\"success\":true") { println!("    ✓ 注册成功"); }
+    if reg_resp.contains("\"success\":true") {
+        println!("    ✓ 注册成功");
+    }
 
     // 登录
     println!("\n  验证 6: 用户登录 + Token");
     let login = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/auth/login",
-               "-H", "Content-Type: application/json",
-               "-d", "{\"username\":\"admin\",\"password\":\"admin123\"}"])
-        .output().unwrap();
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/login",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"password\":\"admin123\"}",
+        ])
+        .output()
+        .unwrap();
     let login_resp = String::from_utf8_lossy(&login.stdout);
     println!("    响应: {}", login_resp);
 
     let token = if login_resp.contains("\"token\":\"") {
         let s = login_resp.find("\"token\":\"").unwrap() + 9;
         let e = login_resp[s..].find("\"").unwrap();
-        login_resp[s..s+e].to_string()
-    } else { "".to_string() };
+        login_resp[s..s + e].to_string()
+    } else {
+        "".to_string()
+    };
 
     if !token.is_empty() {
         println!("    ✓ 登录成功，Token: {}...", &token[..15]);
@@ -478,45 +498,77 @@ async fn main() -> std::io::Result<()> {
         // 创建任务
         println!("\n  验证 7: 任务创建（需Token认证）");
         let ct = Command::new("curl")
-            .args(["-s", "-X", "POST", "http://localhost:3000/tasks",
-                   "-H", "Content-Type: application/json",
-                   "-H", &format!("Authorization: {}", token),
-                   "-d", "{\"title\":\"开发API\",\"description\":\"完成任务系统\",\"priority\":2}"])
-            .output().unwrap();
+            .args([
+                "-s",
+                "-X",
+                "POST",
+                "http://localhost:3000/tasks",
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                &format!("Authorization: {}", token),
+                "-d",
+                "{\"title\":\"开发API\",\"description\":\"完成任务系统\",\"priority\":2}",
+            ])
+            .output()
+            .unwrap();
         let ct_resp = String::from_utf8_lossy(&ct.stdout);
         println!("    响应: {}", ct_resp);
-        if ct_resp.contains("\"success\":true") { println!("    ✓ 任务创建成功"); }
+        if ct_resp.contains("\"success\":true") {
+            println!("    ✓ 任务创建成功");
+        }
 
         // 查询任务
         println!("\n  验证 8: 任务查询（多表关联）");
         let gt = Command::new("curl")
-            .args(["-s", "http://localhost:3000/tasks",
-                   "-H", &format!("Authorization: {}", token)])
-            .output().unwrap();
+            .args([
+                "-s",
+                "http://localhost:3000/tasks",
+                "-H",
+                &format!("Authorization: {}", token),
+            ])
+            .output()
+            .unwrap();
         let gt_resp = String::from_utf8_lossy(&gt.stdout);
         println!("    响应: {}", gt_resp);
-        if gt_resp.contains("\"开发API\"") { println!("    ✓ 任务查询成功"); }
+        if gt_resp.contains("\"开发API\"") {
+            println!("    ✓ 任务查询成功");
+        }
 
         // 创建团队
         println!("\n  验证 9: 团队创建");
         let ct2 = Command::new("curl")
-            .args(["-s", "-X", "POST", "http://localhost:3000/teams",
-                   "-H", "Content-Type: application/json",
-                   "-H", &format!("Authorization: {}", token),
-                   "-d", "{\"name\":\"开发组\"}"])
-            .output().unwrap();
+            .args([
+                "-s",
+                "-X",
+                "POST",
+                "http://localhost:3000/teams",
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                &format!("Authorization: {}", token),
+                "-d",
+                "{\"name\":\"开发组\"}",
+            ])
+            .output()
+            .unwrap();
         let ct2_resp = String::from_utf8_lossy(&ct2.stdout);
         println!("    响应: {}", ct2_resp);
-        if ct2_resp.contains("\"success\":true") { println!("    ✓ 团队创建成功"); }
+        if ct2_resp.contains("\"success\":true") {
+            println!("    ✓ 团队创建成功");
+        }
 
         // Token验证
         println!("\n  验证 10: Token认证中间件");
         let noauth = Command::new("curl")
             .args(["-s", "http://localhost:3000/tasks"])
-            .output().unwrap();
+            .output()
+            .unwrap();
         let noauth_resp = String::from_utf8_lossy(&noauth.stdout);
         println!("    响应: {}", noauth_resp);
-        if noauth_resp.contains("Missing token") { println!("    ✓ 无Token请求被拒绝"); }
+        if noauth_resp.contains("Missing token") {
+            println!("    ✓ 无Token请求被拒绝");
+        }
     }
 
     server.kill().ok();

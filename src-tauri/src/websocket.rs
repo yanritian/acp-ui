@@ -6,9 +6,9 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::{AppHandle, Emitter, Listener, Manager};
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tauri::{AppHandle, Emitter, Listener, Manager};
 
 use crate::gateway_config::constant_time_eq;
 
@@ -55,28 +55,60 @@ pub struct RemoteResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum RemoteCommand {
-    PauseAgent { agent_id: String },
-    ResumeAgent { agent_id: String },
-    CancelAgent { agent_id: String },
-    InjectMessage { agent_id: String, message: String },
-    PausePlanNode { task_id: String, node_id: String },
-    ResumePlanNode { task_id: String, node_id: String },
+    PauseAgent {
+        agent_id: String,
+    },
+    ResumeAgent {
+        agent_id: String,
+    },
+    CancelAgent {
+        agent_id: String,
+    },
+    InjectMessage {
+        agent_id: String,
+        message: String,
+    },
+    PausePlanNode {
+        task_id: String,
+        node_id: String,
+    },
+    ResumePlanNode {
+        task_id: String,
+        node_id: String,
+    },
     GetAgents {},
     GetPlans {},
     GetStatus {},
     // LogStream commands
-    SubscribeLogs { agent_id: Option<String> },
-    UnsubscribeLogs { agent_id: Option<String> },
-    GetLogs { limit: Option<u64>, log_type: Option<String> },
-    SearchLogs { keyword: String, limit: Option<u64> },
+    SubscribeLogs {
+        agent_id: Option<String>,
+    },
+    UnsubscribeLogs {
+        agent_id: Option<String>,
+    },
+    GetLogs {
+        limit: Option<u64>,
+        log_type: Option<String>,
+    },
+    SearchLogs {
+        keyword: String,
+        limit: Option<u64>,
+    },
     // Executive Agent commands (for Flutter mobile)
-    InitExecutiveAgent { workspace: String },
-    ExecuteDevelopmentTask { request: String },
+    InitExecutiveAgent {
+        workspace: String,
+    },
+    ExecuteDevelopmentTask {
+        request: String,
+    },
     GetExecutiveAgentStatus {},
     GetGeneratedFiles {},
     ClearExecutiveAgent {},
     // Proxy command - dispatch to any registered backend module
-    Proxy { cmd: String, params: serde_json::Value },
+    Proxy {
+        cmd: String,
+        params: serde_json::Value,
+    },
     // Discovery - list all available proxy commands
     ListProxyCommands {},
 }
@@ -85,7 +117,7 @@ pub enum RemoteCommand {
 struct ConnectionState {
     authenticated: bool,
     sender: tokio::sync::mpsc::UnboundedSender<Message>,
-    subscribed_to_logs: bool,  // Whether this client wants log updates
+    subscribed_to_logs: bool, // Whether this client wants log updates
 }
 
 /// WebSocket server for remote connections with token authentication
@@ -95,7 +127,7 @@ pub struct WebSocketServer {
     connections: Arc<RwLock<HashMap<String, ConnectionState>>>,
     running: Arc<RwLock<bool>>,
     auth_token: Arc<RwLock<Option<String>>>,
-    log_push_interval_ms: u64,  // Interval for batch log push (default 100ms)
+    log_push_interval_ms: u64, // Interval for batch log push (default 100ms)
 }
 
 impl WebSocketServer {
@@ -116,16 +148,20 @@ impl WebSocketServer {
     }
 
     /// Start the WebSocket server
-    pub async fn start(&self, app_handle: AppHandle, bind_to_all_interfaces: bool) -> Result<String, String> {
+    pub async fn start(
+        &self,
+        app_handle: AppHandle,
+        bind_to_all_interfaces: bool,
+    ) -> Result<String, String> {
         if *self.running.read() {
             return Err("Server already running".to_string());
         }
 
         // Bind address: either localhost (secure) or all interfaces (for external access)
         let bind_addr = if bind_to_all_interfaces {
-            "0.0.0.0"  // Allow LAN/external connections (requires firewall config)
+            "0.0.0.0" // Allow LAN/external connections (requires firewall config)
         } else {
-            "127.0.0.1"  // Local only, most secure
+            "127.0.0.1" // Local only, most secure
         };
 
         let addr: SocketAddr = format!("{}:{}", bind_addr, self.port)
@@ -191,8 +227,8 @@ impl WebSocketServer {
 
         // Log batch push thread
         tokio::spawn(async move {
-            use crate::AppState;
             use crate::log_stream::LogEntry;
+            use crate::AppState;
 
             while *running_for_log.read() {
                 tokio::time::sleep(tokio::time::Duration::from_millis(log_push_interval)).await;
@@ -216,7 +252,8 @@ impl WebSocketServer {
                                 let conns = connections_for_log.read();
                                 for (_client_id, cs) in conns.iter() {
                                     if cs.authenticated && cs.subscribed_to_logs {
-                                        let _ = cs.sender.send(Message::Text(json_str.clone().into()));
+                                        let _ =
+                                            cs.sender.send(Message::Text(json_str.clone().into()));
                                     }
                                 }
                             }
@@ -336,11 +373,14 @@ async fn handle_connection(
     };
 
     clients.write().insert(client_id.clone(), client.clone());
-    connections.write().insert(client_id.clone(), ConnectionState {
-        authenticated: false,
-        sender: tx,
-        subscribed_to_logs: false,
-    });
+    connections.write().insert(
+        client_id.clone(),
+        ConnectionState {
+            authenticated: false,
+            sender: tx,
+            subscribed_to_logs: false,
+        },
+    );
 
     let _ = app_handle.emit("client-connected", client.clone());
     println!("Client {} connected from {}", client_id, addr);
@@ -359,15 +399,25 @@ async fn handle_connection(
                         if request.request_type != "auth" && !authenticated {
                             unauth_count += 1;
                             if unauth_count > 5 {
-                                println!("Client {} disconnected: too many unauthenticated messages", client_id);
+                                println!(
+                                    "Client {} disconnected: too many unauthenticated messages",
+                                    client_id
+                                );
                                 break;
                             }
-                            send_response(&connections, &client_id, &RemoteResponse {
-                                id: request.id,
-                                ok: false,
-                                data: None,
-                                error: Some("Not authenticated. Send {type:'auth', token:'...'} first.".to_string()),
-                            });
+                            send_response(
+                                &connections,
+                                &client_id,
+                                &RemoteResponse {
+                                    id: request.id,
+                                    ok: false,
+                                    data: None,
+                                    error: Some(
+                                        "Not authenticated. Send {type:'auth', token:'...'} first."
+                                            .to_string(),
+                                    ),
+                                },
+                            );
                             continue;
                         }
 
@@ -381,21 +431,31 @@ async fn handle_connection(
                                     if let Some(cs) = connections.write().get_mut(&client_id) {
                                         cs.authenticated = true;
                                     }
-                                    send_response(&connections, &client_id, &RemoteResponse {
-                                        id: request.id,
-                                        ok: true,
-                                        data: Some(serde_json::json!({ "client_id": client_id })),
-                                        error: None,
-                                    });
+                                    send_response(
+                                        &connections,
+                                        &client_id,
+                                        &RemoteResponse {
+                                            id: request.id,
+                                            ok: true,
+                                            data: Some(
+                                                serde_json::json!({ "client_id": client_id }),
+                                            ),
+                                            error: None,
+                                        },
+                                    );
                                     continue;
                                 }
                             }
-                            send_response(&connections, &client_id, &RemoteResponse {
-                                id: request.id,
-                                ok: false,
-                                data: None,
-                                error: Some("Invalid token".to_string()),
-                            });
+                            send_response(
+                                &connections,
+                                &client_id,
+                                &RemoteResponse {
+                                    id: request.id,
+                                    ok: false,
+                                    data: None,
+                                    error: Some("Invalid token".to_string()),
+                                },
+                            );
                             continue;
                         }
                     }
@@ -409,19 +469,21 @@ async fn handle_connection(
                     let remote_msg = RemoteMessage {
                         client_id: client_id.clone(),
                         message_type: "text".to_string(),
-                        content: serde_json::from_str(&text_str).unwrap_or_else(|_| {
-                            serde_json::json!({ "raw": text_str })
-                        }),
+                        content: serde_json::from_str(&text_str)
+                            .unwrap_or_else(|_| serde_json::json!({ "raw": text_str })),
                         timestamp: chrono::Utc::now(),
                     };
                     let _ = app_handle.emit("remote-message", remote_msg);
                 }
             }
             Ok(Message::Binary(data)) => {
-                let _ = app_handle.emit("remote-binary", serde_json::json!({
-                    "client_id": client_id,
-                    "data_length": data.len(),
-                }));
+                let _ = app_handle.emit(
+                    "remote-binary",
+                    serde_json::json!({
+                        "client_id": client_id,
+                        "data_length": data.len(),
+                    }),
+                );
             }
             Ok(Message::Close(_)) => {
                 break;
@@ -440,7 +502,11 @@ async fn handle_connection(
     println!("Client {} disconnected", client_id);
 }
 
-fn send_response(connections: &RwLock<HashMap<String, ConnectionState>>, client_id: &str, response: &RemoteResponse) {
+fn send_response(
+    connections: &RwLock<HashMap<String, ConnectionState>>,
+    client_id: &str,
+    response: &RemoteResponse,
+) {
     if let Some(cs) = connections.read().get(client_id) {
         if let Ok(json) = serde_json::to_string(response) {
             let _ = cs.sender.send(Message::Text(json.into()));
@@ -463,65 +529,236 @@ struct ProxyCommandInfo {
 fn get_proxy_command_list() -> Vec<serde_json::Value> {
     let commands = vec![
         // Plugin Registry
-        ProxyCommandInfo { name: "plugin_list", description: "List all plugins, optionally filtered by kind", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_get", description: "Get a specific plugin by ID", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_search", description: "Search plugins by name or capability", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_get_stats", description: "Get aggregated execution statistics for a plugin", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_get_history", description: "Get execution history for a plugin", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_register", description: "Register a new plugin", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_unregister", description: "Unregister a plugin by ID", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_set_enabled", description: "Enable or disable a plugin", module: "plugin_registry" },
-        ProxyCommandInfo { name: "plugin_update_config", description: "Update a plugin configuration", module: "plugin_registry" },
+        ProxyCommandInfo {
+            name: "plugin_list",
+            description: "List all plugins, optionally filtered by kind",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_get",
+            description: "Get a specific plugin by ID",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_search",
+            description: "Search plugins by name or capability",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_get_stats",
+            description: "Get aggregated execution statistics for a plugin",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_get_history",
+            description: "Get execution history for a plugin",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_register",
+            description: "Register a new plugin",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_unregister",
+            description: "Unregister a plugin by ID",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_set_enabled",
+            description: "Enable or disable a plugin",
+            module: "plugin_registry",
+        },
+        ProxyCommandInfo {
+            name: "plugin_update_config",
+            description: "Update a plugin configuration",
+            module: "plugin_registry",
+        },
         // Swarm Orchestrator
-        ProxyCommandInfo { name: "swarm_list_agents", description: "List all agents in the swarm", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_get_health", description: "Get swarm health summary", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_get_task", description: "Get task status and progress", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_list_tasks", description: "List all swarm tasks", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_register_agent", description: "Register an agent in the swarm", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_create_task", description: "Create a new swarm task", module: "swarm_orchestrator" },
-        ProxyCommandInfo { name: "swarm_cancel_task", description: "Cancel a running swarm task", module: "swarm_orchestrator" },
+        ProxyCommandInfo {
+            name: "swarm_list_agents",
+            description: "List all agents in the swarm",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_get_health",
+            description: "Get swarm health summary",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_get_task",
+            description: "Get task status and progress",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_list_tasks",
+            description: "List all swarm tasks",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_register_agent",
+            description: "Register an agent in the swarm",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_create_task",
+            description: "Create a new swarm task",
+            module: "swarm_orchestrator",
+        },
+        ProxyCommandInfo {
+            name: "swarm_cancel_task",
+            description: "Cancel a running swarm task",
+            module: "swarm_orchestrator",
+        },
         // Workflow Engine
-        ProxyCommandInfo { name: "workflow_list", description: "List all workflows", module: "workflow_engine" },
-        ProxyCommandInfo { name: "workflow_get", description: "Get a specific workflow by ID", module: "workflow_engine" },
-        ProxyCommandInfo { name: "workflow_get_progress", description: "Get workflow execution progress", module: "workflow_engine" },
-        ProxyCommandInfo { name: "workflow_cancel", description: "Cancel a workflow", module: "workflow_engine" },
+        ProxyCommandInfo {
+            name: "workflow_list",
+            description: "List all workflows",
+            module: "workflow_engine",
+        },
+        ProxyCommandInfo {
+            name: "workflow_get",
+            description: "Get a specific workflow by ID",
+            module: "workflow_engine",
+        },
+        ProxyCommandInfo {
+            name: "workflow_get_progress",
+            description: "Get workflow execution progress",
+            module: "workflow_engine",
+        },
+        ProxyCommandInfo {
+            name: "workflow_cancel",
+            description: "Cancel a workflow",
+            module: "workflow_engine",
+        },
         // MCP Client
-        ProxyCommandInfo { name: "mcp_connected_servers", description: "Get list of connected MCP server names", module: "mcp_client" },
-        ProxyCommandInfo { name: "mcp_list_tools", description: "List all MCP tools from all connected servers", module: "mcp_client" },
-        ProxyCommandInfo { name: "mcp_get_stats", description: "Get MCP client statistics", module: "mcp_client" },
-        ProxyCommandInfo { name: "mcp_is_connected", description: "Check if a specific MCP server is connected", module: "mcp_client" },
+        ProxyCommandInfo {
+            name: "mcp_connected_servers",
+            description: "Get list of connected MCP server names",
+            module: "mcp_client",
+        },
+        ProxyCommandInfo {
+            name: "mcp_list_tools",
+            description: "List all MCP tools from all connected servers",
+            module: "mcp_client",
+        },
+        ProxyCommandInfo {
+            name: "mcp_get_stats",
+            description: "Get MCP client statistics",
+            module: "mcp_client",
+        },
+        ProxyCommandInfo {
+            name: "mcp_is_connected",
+            description: "Check if a specific MCP server is connected",
+            module: "mcp_client",
+        },
         // Agent Bus
-        ProxyCommandInfo { name: "agent_bus_list_agents", description: "List all registered agents on the bus", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_list_topics", description: "List all active pub/sub topics", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_stats", description: "Get agent bus statistics", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_history", description: "Get message history for audit", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_inbox_count", description: "Get message count for an agent inbox", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_is_registered", description: "Check if an agent is registered", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_register", description: "Register an agent with the bus", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_unregister", description: "Unregister an agent from the bus", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_subscribe", description: "Subscribe an agent to a topic", module: "agent_bus" },
-        ProxyCommandInfo { name: "agent_bus_publish", description: "Publish a message to a topic", module: "agent_bus" },
+        ProxyCommandInfo {
+            name: "agent_bus_list_agents",
+            description: "List all registered agents on the bus",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_list_topics",
+            description: "List all active pub/sub topics",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_stats",
+            description: "Get agent bus statistics",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_history",
+            description: "Get message history for audit",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_inbox_count",
+            description: "Get message count for an agent inbox",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_is_registered",
+            description: "Check if an agent is registered",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_register",
+            description: "Register an agent with the bus",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_unregister",
+            description: "Unregister an agent from the bus",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_subscribe",
+            description: "Subscribe an agent to a topic",
+            module: "agent_bus",
+        },
+        ProxyCommandInfo {
+            name: "agent_bus_publish",
+            description: "Publish a message to a topic",
+            module: "agent_bus",
+        },
         // Healing Executor
-        ProxyCommandInfo { name: "healing_list_actions", description: "List all healing actions", module: "self_healing" },
-        ProxyCommandInfo { name: "healing_get_stats", description: "Get healing statistics", module: "self_healing" },
+        ProxyCommandInfo {
+            name: "healing_list_actions",
+            description: "List all healing actions",
+            module: "self_healing",
+        },
+        ProxyCommandInfo {
+            name: "healing_get_stats",
+            description: "Get healing statistics",
+            module: "self_healing",
+        },
         // Hooks Executor
-        ProxyCommandInfo { name: "hook_list", description: "List all registered hooks", module: "hooks_executor" },
-        ProxyCommandInfo { name: "hook_get_agent_hooks", description: "Get hooks for a specific agent", module: "hooks_executor" },
+        ProxyCommandInfo {
+            name: "hook_list",
+            description: "List all registered hooks",
+            module: "hooks_executor",
+        },
+        ProxyCommandInfo {
+            name: "hook_get_agent_hooks",
+            description: "Get hooks for a specific agent",
+            module: "hooks_executor",
+        },
         // Circuit Breaker
-        ProxyCommandInfo { name: "circuit_breaker_get_all", description: "Get all circuit breaker states", module: "circuit_breaker" },
-        ProxyCommandInfo { name: "circuit_breaker_get_status", description: "Get circuit breaker status for a target", module: "circuit_breaker" },
-        ProxyCommandInfo { name: "circuit_breaker_reset", description: "Reset a circuit breaker", module: "circuit_breaker" },
+        ProxyCommandInfo {
+            name: "circuit_breaker_get_all",
+            description: "Get all circuit breaker states",
+            module: "circuit_breaker",
+        },
+        ProxyCommandInfo {
+            name: "circuit_breaker_get_status",
+            description: "Get circuit breaker status for a target",
+            module: "circuit_breaker",
+        },
+        ProxyCommandInfo {
+            name: "circuit_breaker_reset",
+            description: "Reset a circuit breaker",
+            module: "circuit_breaker",
+        },
         // DAG Engine
-        ProxyCommandInfo { name: "dag_get_plan", description: "Get a DAG execution plan by ID", module: "team_dag" },
+        ProxyCommandInfo {
+            name: "dag_get_plan",
+            description: "Get a DAG execution plan by ID",
+            module: "team_dag",
+        },
     ];
 
-    commands.iter().map(|cmd| {
-        serde_json::json!({
-            "name": cmd.name,
-            "description": cmd.description,
-            "module": cmd.module,
+    commands
+        .iter()
+        .map(|cmd| {
+            serde_json::json!({
+                "name": cmd.name,
+                "description": cmd.description,
+                "module": cmd.module,
+            })
         })
-    }).collect()
+        .collect()
 }
 
 /// Handle a proxy command by dispatching to the appropriate backend module
@@ -873,8 +1110,8 @@ async fn handle_remote_command(
     println!("Remote command from {}: {:?}", client_id, request.command);
 
     // Get state from app_handle for real data
-    use tauri::Manager;
     use crate::AppState;
+    use tauri::Manager;
 
     let state = app_handle.state::<AppState>();
 
@@ -882,7 +1119,8 @@ async fn handle_remote_command(
         "get_status" => {
             // Return real status snapshot
             let config_manager = state.config_manager.read();
-            let agent_count = config_manager.as_ref()
+            let agent_count = config_manager
+                .as_ref()
                 .map(|cm| cm.get_config().agents.len())
                 .unwrap_or(0);
 
@@ -893,7 +1131,7 @@ async fn handle_remote_command(
                     if let Some(database) = guard.as_ref() {
                         match database.get_statistics() {
                             Ok(stats) => (stats.running_tasks, stats.total_tasks),
-                            Err(_) => (0, 0)
+                            Err(_) => (0, 0),
                         }
                     } else {
                         (0, 0)
@@ -905,12 +1143,16 @@ async fn handle_remote_command(
 
             let ws_running = {
                 let ws_guard = state.ws_server.lock().ok();
-                ws_guard.and_then(|g| g.as_ref().map(|w| w.is_running())).unwrap_or(false)
+                ws_guard
+                    .and_then(|g| g.as_ref().map(|w| w.is_running()))
+                    .unwrap_or(false)
             };
 
             let client_count = {
                 let ws_guard = state.ws_server.lock().ok();
-                ws_guard.and_then(|g| g.as_ref().map(|w| w.get_clients().len())).unwrap_or(0)
+                ws_guard
+                    .and_then(|g| g.as_ref().map(|w| w.get_clients().len()))
+                    .unwrap_or(0)
             };
 
             RemoteResponse {
@@ -925,38 +1167,43 @@ async fn handle_remote_command(
                 })),
                 error: None,
             }
-        },
+        }
         "list_agents" => {
             // Return configured agents
             let config_manager = state.config_manager.read();
-            let agents = config_manager.as_ref()
+            let agents = config_manager
+                .as_ref()
                 .map(|cm| {
-                    cm.get_config().agents.iter().map(|(name, cfg)| {
-                        serde_json::json!({
-                            "name": name,
-                            "transport": match cfg.transport {
-                                crate::config::AgentTransport::Stdio => {
-                                    serde_json::json!({
-                                        "type": "stdio",
-                                        "command": cfg.command,
-                                        "args": cfg.args
-                                    })
-                                },
-                                crate::config::AgentTransport::Websocket => {
-                                    serde_json::json!({
-                                        "type": "websocket",
-                                        "url": cfg.url
-                                    })
-                                },
-                                crate::config::AgentTransport::Http => {
-                                    serde_json::json!({
-                                        "type": "http",
-                                        "url": cfg.url
-                                    })
+                    cm.get_config()
+                        .agents
+                        .iter()
+                        .map(|(name, cfg)| {
+                            serde_json::json!({
+                                "name": name,
+                                "transport": match cfg.transport {
+                                    crate::config::AgentTransport::Stdio => {
+                                        serde_json::json!({
+                                            "type": "stdio",
+                                            "command": cfg.command,
+                                            "args": cfg.args
+                                        })
+                                    },
+                                    crate::config::AgentTransport::Websocket => {
+                                        serde_json::json!({
+                                            "type": "websocket",
+                                            "url": cfg.url
+                                        })
+                                    },
+                                    crate::config::AgentTransport::Http => {
+                                        serde_json::json!({
+                                            "type": "http",
+                                            "url": cfg.url
+                                        })
+                                    }
                                 }
-                            }
+                            })
                         })
-                    }).collect::<Vec<_>>()
+                        .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
 
@@ -966,47 +1213,55 @@ async fn handle_remote_command(
                 data: Some(serde_json::json!({ "agents": agents })),
                 error: None,
             }
-        },
+        }
         "list_plans" => {
             // Plans are managed by frontend team-runtime, return empty for now
             // Frontend should query team-runtime store directly
             RemoteResponse {
                 id: request.id.clone(),
                 ok: true,
-                data: Some(serde_json::json!({ "plans": [], "note": "Plans managed by frontend team-runtime" })),
+                data: Some(
+                    serde_json::json!({ "plans": [], "note": "Plans managed by frontend team-runtime" }),
+                ),
                 error: None,
             }
-        },
+        }
         "pause_agent" | "resume_agent" | "cancel_agent" | "inject_message" => {
             // Forward to frontend for handling (agent management is in frontend)
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": request.command,
-                "request_id": request.id,
-                "client_id": client_id,
-                "payload": request.payload,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": request.command,
+                    "request_id": request.id,
+                    "client_id": client_id,
+                    "payload": request.payload,
+                }),
+            );
             RemoteResponse {
                 id: request.id.clone(),
                 ok: true,
                 data: Some(serde_json::json!({ "forwarded": true })),
                 error: None,
             }
-        },
+        }
         "pause_plan_node" | "resume_plan_node" => {
             // Forward to frontend for handling (plan management is in frontend)
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": request.command,
-                "request_id": request.id,
-                "client_id": client_id,
-                "payload": request.payload,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": request.command,
+                    "request_id": request.id,
+                    "client_id": client_id,
+                    "payload": request.payload,
+                }),
+            );
             RemoteResponse {
                 id: request.id.clone(),
                 ok: true,
                 data: Some(serde_json::json!({ "forwarded": true })),
                 error: None,
             }
-        },
+        }
         "subscribe_logs" => {
             // Subscribe to log stream for an agent
             // Mark this client as subscribed for log batch push
@@ -1050,7 +1305,7 @@ async fn handle_remote_command(
                     error: Some("Failed to lock LogStreamManager".to_string()),
                 }
             }
-        },
+        }
         "unsubscribe_logs" => {
             // Unsubscribe from log stream
             // Mark this client as unsubscribed
@@ -1092,19 +1347,27 @@ async fn handle_remote_command(
                     error: Some("Failed to lock LogStreamManager".to_string()),
                 }
             }
-        },
+        }
         "get_logs" => {
             // Get logs with optional filters
             let log_manager = state.log_stream_manager.lock().ok();
             if let Some(guard) = log_manager {
                 if let Some(manager) = guard.as_ref() {
-                    let limit = request.payload.as_ref()
+                    let limit = request
+                        .payload
+                        .as_ref()
                         .and_then(|p| p.get("limit").and_then(|v| v.as_u64()));
-                    let log_type = request.payload.as_ref()
+                    let log_type = request
+                        .payload
+                        .as_ref()
                         .and_then(|p| p.get("log_type").and_then(|v| v.as_str()));
 
                     let logs = if let Some(lt) = log_type {
-                        manager.get_logs_from_db(None, Some(crate::log_stream::LogType::from_str(lt)), limit)
+                        manager.get_logs_from_db(
+                            None,
+                            Some(crate::log_stream::LogType::from_str(lt)),
+                            limit,
+                        )
                     } else {
                         manager.get_latest_logs(limit.unwrap_or(100) as usize)
                     };
@@ -1131,16 +1394,20 @@ async fn handle_remote_command(
                     error: Some("Failed to lock LogStreamManager".to_string()),
                 }
             }
-        },
+        }
         "search_logs" => {
             // Search logs by keyword
             let log_manager = state.log_stream_manager.lock().ok();
             if let Some(guard) = log_manager {
                 if let Some(manager) = guard.as_ref() {
-                    let keyword = request.payload.as_ref()
+                    let keyword = request
+                        .payload
+                        .as_ref()
                         .and_then(|p| p.get("keyword").and_then(|v| v.as_str()))
                         .unwrap_or("");
-                    let limit = request.payload.as_ref()
+                    let limit = request
+                        .payload
+                        .as_ref()
                         .and_then(|p| p.get("limit").and_then(|v| v.as_u64()));
 
                     let logs = manager.search_logs(keyword, limit);
@@ -1167,9 +1434,11 @@ async fn handle_remote_command(
                     error: Some("Failed to lock LogStreamManager".to_string()),
                 }
             }
-        },
+        }
         "init_executive_agent" => {
-            let workspace = request.payload.as_ref()
+            let workspace = request
+                .payload
+                .as_ref()
                 .and_then(|p| p.get("workspace").and_then(|v| v.as_str()))
                 .unwrap_or("D:/dingsun/acp-ui/erp_system");
 
@@ -1185,13 +1454,16 @@ async fn handle_remote_command(
                         error: Some(format!("创建工作目录失败: {}", e)),
                     }
                 } else {
-                    let manager = crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
+                    let manager =
+                        crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
                     *state.executive_agent_manager.lock().unwrap() = Some(manager);
 
                     RemoteResponse {
                         id: request.id.clone(),
                         ok: true,
-                        data: Some(serde_json::json!({ "workspace": workspace, "initialized": true })),
+                        data: Some(
+                            serde_json::json!({ "workspace": workspace, "initialized": true }),
+                        ),
                         error: None,
                     }
                 }
@@ -1206,13 +1478,15 @@ async fn handle_remote_command(
                     error: None,
                 }
             }
-        },
+        }
         "list_executive_sessions" => {
             // Query executive sessions from database
             let db_guard = state.database.lock().ok();
             if let Some(guard) = db_guard {
                 if let Some(database) = guard.as_ref() {
-                    let limit = request.payload.as_ref()
+                    let limit = request
+                        .payload
+                        .as_ref()
                         .and_then(|p| p.get("limit").and_then(|v| v.as_u64()))
                         .map(Some)
                         .unwrap_or(Some(50));
@@ -1220,19 +1494,22 @@ async fn handle_remote_command(
                     match database.load_executive_sessions(limit) {
                         Ok(sessions) => {
                             // Convert to JSON format expected by frontend
-                            let session_list: Vec<serde_json::Value> = sessions.iter().map(|s| {
-                                serde_json::json!({
-                                    "id": s.id,
-                                    "request": s.request,
-                                    "workspace": s.workspace,
-                                    "status": s.status,
-                                    "summary": s.summary,
-                                    "files_json": s.files_json,
-                                    "logs_json": s.logs_json,
-                                    "created_at": s.created_at,
-                                    "completed_at": s.completed_at
+                            let session_list: Vec<serde_json::Value> = sessions
+                                .iter()
+                                .map(|s| {
+                                    serde_json::json!({
+                                        "id": s.id,
+                                        "request": s.request,
+                                        "workspace": s.workspace,
+                                        "status": s.status,
+                                        "summary": s.summary,
+                                        "files_json": s.files_json,
+                                        "logs_json": s.logs_json,
+                                        "created_at": s.created_at,
+                                        "completed_at": s.completed_at
+                                    })
                                 })
-                            }).collect();
+                                .collect();
 
                             RemoteResponse {
                                 id: request.id.clone(),
@@ -1244,14 +1521,12 @@ async fn handle_remote_command(
                                 error: None,
                             }
                         }
-                        Err(e) => {
-                            RemoteResponse {
-                                id: request.id.clone(),
-                                ok: false,
-                                data: None,
-                                error: Some(format!("Failed to load sessions: {}", e)),
-                            }
-                        }
+                        Err(e) => RemoteResponse {
+                            id: request.id.clone(),
+                            ok: false,
+                            data: None,
+                            error: Some(format!("Failed to load sessions: {}", e)),
+                        },
                     }
                 } else {
                     RemoteResponse {
@@ -1269,21 +1544,23 @@ async fn handle_remote_command(
                     error: Some("Failed to lock database".to_string()),
                 }
             }
-        },
+        }
         "execute_development_task" => {
             // Directly execute the task using Hermes Native (not just forward to frontend)
             // Convert to owned values for async spawn
-            let request_text = request.payload.as_ref()
+            let request_text = request
+                .payload
+                .as_ref()
                 .and_then(|p| p.get("request").and_then(|v| v.as_str()))
                 .unwrap_or("")
-                .to_string();  // Convert to owned String
+                .to_string(); // Convert to owned String
 
             // Get workspace from manager
             let workspace_path = {
                 let manager_guard = state.executive_agent_manager.lock().unwrap();
                 match manager_guard.as_ref() {
                     Some(mgr) => mgr.workspace.clone(),
-                    None => PathBuf::from("D:/dingsun/test_workspace")
+                    None => PathBuf::from("D:/dingsun/test_workspace"),
                 }
             };
 
@@ -1291,22 +1568,27 @@ async fn handle_remote_command(
             let manager = crate::executive_agent::ExecutiveAgentManager::new(workspace_path);
 
             // Emit task started event
-            let _ = app_handle.emit("remote-task-started", serde_json::json!({
-                "request_id": request.id,
-                "client_id": client_id.to_string(),
-                "request": request_text,
-            }));
+            let _ = app_handle.emit(
+                "remote-task-started",
+                serde_json::json!({
+                    "request_id": request.id,
+                    "client_id": client_id.to_string(),
+                    "request": request_text,
+                }),
+            );
 
             // Execute asynchronously and send result back
             let app_handle_clone = app_handle.clone();
             let request_id = request.id.clone();
-            let client_id_owned = client_id.to_string();  // Convert to owned String
+            let client_id_owned = client_id.to_string(); // Convert to owned String
 
             // Get database reference for saving records
             let db_ref = state.database.clone();
 
             tokio::spawn(async move {
-                let result = manager.execute_workflow(request_text.clone(), app_handle_clone.clone()).await;
+                let result = manager
+                    .execute_workflow(request_text.clone(), app_handle_clone.clone())
+                    .await;
 
                 match result {
                     Ok(task_result) => {
@@ -1317,8 +1599,12 @@ async fn handle_remote_command(
                             workspace: task_result.workspace.clone(),
                             status: "completed".to_string(),
                             summary: Some(task_result.summary.clone()),
-                            files_json: Some(serde_json::to_string(&task_result.files).unwrap_or_default()),
-                            logs_json: Some(serde_json::to_string(&task_result.logs).unwrap_or_default()),
+                            files_json: Some(
+                                serde_json::to_string(&task_result.files).unwrap_or_default(),
+                            ),
+                            logs_json: Some(
+                                serde_json::to_string(&task_result.logs).unwrap_or_default(),
+                            ),
                             created_at: chrono::Utc::now().to_rfc3339(),
                             completed_at: Some(task_result.completed_at.to_rfc3339()),
                         };
@@ -1345,15 +1631,18 @@ async fn handle_remote_command(
                         }
 
                         // Send success response with full result
-                        let _ = app_handle_clone.emit("remote-task-completed", serde_json::json!({
-                            "request_id": request_id,
-                            "client_id": client_id_owned,
-                            "result": task_result,
-                            "thinking_chunks": manager.get_thinking_chunks(),
-                            "tool_calls": manager.get_tool_calls(),
-                            "success": true,
-                            "saved_to_db": true,
-                        }));
+                        let _ = app_handle_clone.emit(
+                            "remote-task-completed",
+                            serde_json::json!({
+                                "request_id": request_id,
+                                "client_id": client_id_owned,
+                                "result": task_result,
+                                "thinking_chunks": manager.get_thinking_chunks(),
+                                "tool_calls": manager.get_tool_calls(),
+                                "success": true,
+                                "saved_to_db": true,
+                            }),
+                        );
                     }
                     Err(e) => {
                         // Save error record to database
@@ -1376,13 +1665,16 @@ async fn handle_remote_command(
                         }
 
                         // Send error response
-                        let _ = app_handle_clone.emit("remote-task-error", serde_json::json!({
-                            "request_id": request_id,
-                            "client_id": client_id_owned,
-                            "error": e,
-                            "success": false,
-                            "saved_to_db": true,
-                        }));
+                        let _ = app_handle_clone.emit(
+                            "remote-task-error",
+                            serde_json::json!({
+                                "request_id": request_id,
+                                "client_id": client_id_owned,
+                                "error": e,
+                                "success": false,
+                                "saved_to_db": true,
+                            }),
+                        );
                     }
                 }
             });
@@ -1397,7 +1689,7 @@ async fn handle_remote_command(
                 })),
                 error: None,
             }
-        },
+        }
         "get_executive_agent_status" => {
             let manager = state.executive_agent_manager.lock().unwrap();
             if let Some(mgr) = manager.as_ref() {
@@ -1416,7 +1708,7 @@ async fn handle_remote_command(
                     error: Some("Executive Agent Manager 未初始化".to_string()),
                 }
             }
-        },
+        }
         "get_generated_files" => {
             let manager = state.executive_agent_manager.lock().unwrap();
             if let Some(mgr) = manager.as_ref() {
@@ -1435,7 +1727,7 @@ async fn handle_remote_command(
                     error: Some("Executive Agent Manager 未初始化".to_string()),
                 }
             }
-        },
+        }
         "clear_executive_agent" => {
             let manager = state.executive_agent_manager.lock().unwrap();
             if let Some(mgr) = manager.as_ref() {
@@ -1447,13 +1739,17 @@ async fn handle_remote_command(
                 data: Some(serde_json::json!({ "cleared": true })),
                 error: None,
             }
-        },
+        }
         "proxy" => {
             // Generic command proxy - dispatch to any registered backend module
-            let proxy_command = request.payload.as_ref()
+            let proxy_command = request
+                .payload
+                .as_ref()
                 .and_then(|p| p.get("command").and_then(|v| v.as_str()))
                 .unwrap_or("");
-            let proxy_params = request.payload.as_ref()
+            let proxy_params = request
+                .payload
+                .as_ref()
                 .and_then(|p| p.get("params").cloned())
                 .unwrap_or(serde_json::json!({}));
 
@@ -1471,7 +1767,7 @@ async fn handle_remote_command(
                     error: Some(e),
                 },
             }
-        },
+        }
         "list_proxy_commands" => {
             let commands = get_proxy_command_list();
             RemoteResponse {
@@ -1480,7 +1776,7 @@ async fn handle_remote_command(
                 data: Some(serde_json::json!({ "commands": commands })),
                 error: None,
             }
-        },
+        }
         unknown => RemoteResponse {
             id: request.id.clone(),
             ok: false,
@@ -1498,19 +1794,28 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
 
     match command {
         RemoteCommand::PauseAgent { agent_id } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "pause_agent", "agent_id": agent_id, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "pause_agent", "agent_id": agent_id, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::ResumeAgent { agent_id } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "resume_agent", "agent_id": agent_id, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "resume_agent", "agent_id": agent_id, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::CancelAgent { agent_id } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "cancel_agent", "agent_id": agent_id, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "cancel_agent", "agent_id": agent_id, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::InjectMessage { agent_id, message } => {
             let _ = app_handle.emit("remote-command", serde_json::json!({
@@ -1528,30 +1833,45 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
             }));
         }
         RemoteCommand::GetAgents {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "get_agents", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "get_agents", "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::GetPlans {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "get_plans", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "get_plans", "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::GetStatus {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "get_status", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "get_status", "client_id": client_id,
+                }),
+            );
         }
         // LogStream commands (legacy format)
         RemoteCommand::SubscribeLogs { agent_id } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "subscribe_logs", "agent_id": agent_id, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "subscribe_logs", "agent_id": agent_id, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::UnsubscribeLogs { agent_id } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "unsubscribe_logs", "agent_id": agent_id, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "unsubscribe_logs", "agent_id": agent_id, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::GetLogs { limit, log_type } => {
             let _ = app_handle.emit("remote-command", serde_json::json!({
@@ -1565,39 +1885,60 @@ fn handle_legacy_command(client_id: &str, command: RemoteCommand, app_handle: &A
         }
         // Executive Agent commands (legacy format)
         RemoteCommand::InitExecutiveAgent { workspace } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "init_executive_agent", "workspace": workspace, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "init_executive_agent", "workspace": workspace, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::ExecuteDevelopmentTask { request } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "execute_development_task", "request": request, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "execute_development_task", "request": request, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::GetExecutiveAgentStatus {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "get_executive_agent_status", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "get_executive_agent_status", "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::GetGeneratedFiles {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "get_generated_files", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "get_generated_files", "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::ClearExecutiveAgent {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "clear_executive_agent", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "clear_executive_agent", "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::Proxy { cmd, params } => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "proxy", "command": cmd, "params": params, "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "proxy", "command": cmd, "params": params, "client_id": client_id,
+                }),
+            );
         }
         RemoteCommand::ListProxyCommands {} => {
-            let _ = app_handle.emit("remote-command", serde_json::json!({
-                "type": "list_proxy_commands", "client_id": client_id,
-            }));
+            let _ = app_handle.emit(
+                "remote-command",
+                serde_json::json!({
+                    "type": "list_proxy_commands", "client_id": client_id,
+                }),
+            );
         }
     }
 }

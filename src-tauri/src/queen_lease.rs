@@ -10,8 +10,8 @@
 
 #![allow(dead_code)] // Reserved for future Queen election feature
 
-use crate::swarm_types::{WorkerId, HealthStatus};
-use crate::swarm_adapters::{WorkerCapabilities, SwarmError, InstantWrapper, now_ms};
+use crate::swarm_adapters::{now_ms, InstantWrapper, SwarmError, WorkerCapabilities};
+use crate::swarm_types::{HealthStatus, WorkerId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -112,7 +112,9 @@ impl QueenLease {
     /// Renew the lease — extends expiry by ttl_seconds from NOW
     pub fn renew(&mut self) -> Result<(), SwarmError> {
         if !self.is_valid {
-            return Err(SwarmError::InternalError("Cannot renew invalid lease".to_string()));
+            return Err(SwarmError::InternalError(
+                "Cannot renew invalid lease".to_string(),
+            ));
         }
 
         let renewed_ms = now_ms();
@@ -132,10 +134,7 @@ impl QueenLease {
     /// Get remaining time until expiry (in seconds)
     pub fn remaining_time(&self) -> u64 {
         let current_ms = now_ms();
-        self.expires_at
-            .timestamp_ms
-            .saturating_sub(current_ms)
-            / 1000
+        self.expires_at.timestamp_ms.saturating_sub(current_ms) / 1000
     }
 }
 
@@ -190,8 +189,16 @@ impl QueenCandidate {
 
         let complexity_score = self.capabilities.max_complexity as u32 * 10;
         let capability_score = self.capabilities.capabilities.len() as u32 * 3;
-        let streaming_score = if self.capabilities.supports_streaming { 10 } else { 0 };
-        let cancel_score = if self.capabilities.supports_cancel { 10 } else { 0 };
+        let streaming_score = if self.capabilities.supports_streaming {
+            10
+        } else {
+            0
+        };
+        let cancel_score = if self.capabilities.supports_cancel {
+            10
+        } else {
+            0
+        };
 
         complexity_score + capability_score + streaming_score + cancel_score
     }
@@ -235,13 +242,22 @@ impl QueenElectionManager {
 
     /// Register a worker for potential Queen role
     pub fn register_worker(&self, worker_id: WorkerId, capabilities: WorkerCapabilities) {
-        self.workers.lock().unwrap().insert(worker_id.clone(), capabilities);
-        self.worker_health.lock().unwrap().insert(worker_id, HealthStatus::Offline);
+        self.workers
+            .lock()
+            .unwrap()
+            .insert(worker_id.clone(), capabilities);
+        self.worker_health
+            .lock()
+            .unwrap()
+            .insert(worker_id, HealthStatus::Offline);
     }
 
     /// Update worker health status
     pub fn update_health(&self, worker_id: &WorkerId, health: HealthStatus) {
-        self.worker_health.lock().unwrap().insert(worker_id.clone(), health);
+        self.worker_health
+            .lock()
+            .unwrap()
+            .insert(worker_id.clone(), health);
     }
 
     /// Start election process
@@ -249,9 +265,10 @@ impl QueenElectionManager {
         // Check if we have enough workers
         let worker_count = self.workers.lock().unwrap().len() as u32;
         if worker_count < self.config.min_workers_for_election {
-            return Err(SwarmError::InternalError(
-                format!("Not enough workers for election: {} < {}", worker_count, self.config.min_workers_for_election)
-            ));
+            return Err(SwarmError::InternalError(format!(
+                "Not enough workers for election: {} < {}",
+                worker_count, self.config.min_workers_for_election
+            )));
         }
 
         // Update state
@@ -284,7 +301,10 @@ impl QueenElectionManager {
         // (which risks deadlock if another thread acquires them in a different order).
         let workers_snapshot: Vec<(WorkerId, WorkerCapabilities)> = {
             let workers = self.workers.lock().unwrap();
-            workers.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+            workers
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
         };
 
         let health_snapshot: HashMap<WorkerId, HealthStatus> = {
@@ -295,7 +315,10 @@ impl QueenElectionManager {
         let mut candidates = Vec::new();
 
         for (worker_id, capabilities) in &workers_snapshot {
-            let worker_health = health_snapshot.get(worker_id).copied().unwrap_or(HealthStatus::Offline);
+            let worker_health = health_snapshot
+                .get(worker_id)
+                .copied()
+                .unwrap_or(HealthStatus::Offline);
             let is_healthy = matches!(worker_health, HealthStatus::Healthy | HealthStatus::Busy);
 
             let candidate = QueenCandidate {
@@ -325,14 +348,19 @@ impl QueenElectionManager {
         let candidates = self.candidates.lock().unwrap();
 
         if candidates.is_empty() {
-            return Err(SwarmError::InternalError("No candidates for election".to_string()));
+            return Err(SwarmError::InternalError(
+                "No candidates for election".to_string(),
+            ));
         }
 
         // Top candidate wins
-        let winner = candidates.first()
+        let winner = candidates
+            .first()
             .filter(|c| c.score > 0)
             .map(|c| c.worker_id.clone())
-            .ok_or_else(|| SwarmError::InternalError("No valid candidate with positive score".to_string()))?;
+            .ok_or_else(|| {
+                SwarmError::InternalError("No valid candidate with positive score".to_string())
+            })?;
 
         Ok(winner)
     }
@@ -360,7 +388,8 @@ impl QueenElectionManager {
     /// Get current Queen (if lease valid)
     pub fn get_current_queen(&self) -> Option<WorkerId> {
         let lease = self.current_lease.lock().unwrap();
-        lease.as_ref()
+        lease
+            .as_ref()
             .filter(|l| l.is_valid)
             .map(|l| l.queen_id.clone())
     }
@@ -382,7 +411,10 @@ impl QueenElectionManager {
     }
 
     /// Adaptive Queen upgrade - switch to stronger Queen for complex tasks
-    pub fn adaptive_upgrade(&self, required_complexity: u8) -> Result<Option<WorkerId>, SwarmError> {
+    pub fn adaptive_upgrade(
+        &self,
+        required_complexity: u8,
+    ) -> Result<Option<WorkerId>, SwarmError> {
         if !self.config.enable_adaptive_upgrade {
             return Ok(None);
         }
@@ -398,7 +430,8 @@ impl QueenElectionManager {
         let better_queen = {
             let workers = self.workers.lock().unwrap();
 
-            let current_max = workers.get(&queen_id)
+            let current_max = workers
+                .get(&queen_id)
                 .map(|c| c.max_complexity)
                 .unwrap_or(0);
 
@@ -408,8 +441,11 @@ impl QueenElectionManager {
             }
 
             // Find a better Queen
-            workers.iter()
-                .filter(|(_, c)| c.max_complexity >= required_complexity && c.max_complexity > current_max)
+            workers
+                .iter()
+                .filter(|(_, c)| {
+                    c.max_complexity >= required_complexity && c.max_complexity > current_max
+                })
                 .max_by_key(|(_, c)| c.max_complexity)
                 .map(|(id, _)| id.clone())
         }; // workers lock released here
@@ -419,7 +455,10 @@ impl QueenElectionManager {
             {
                 let mut lease = self.current_lease.lock().unwrap();
                 if let Some(ref mut l) = *lease {
-                    l.invalidate(format!("Adaptive upgrade: need complexity {}", required_complexity));
+                    l.invalidate(format!(
+                        "Adaptive upgrade: need complexity {}",
+                        required_complexity
+                    ));
                 }
             }
 
@@ -476,7 +515,10 @@ impl AntiSplitBrainValidator {
                     return ValidationResult::Accepted;
                 } else {
                     return ValidationResult::Rejected {
-                        reason: format!("Queen lease expired: {}", lease.invalid_reason.unwrap_or_default()),
+                        reason: format!(
+                            "Queen lease expired: {}",
+                            lease.invalid_reason.unwrap_or_default()
+                        ),
                     };
                 }
             }

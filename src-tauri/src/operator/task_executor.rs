@@ -1,16 +1,15 @@
 // Godot Task Executor - Complete workflow for Godot game development tasks
 
-use crate::operator::{
-    OperatorTask, OperatorEvent, OperatorEventType, EventLevel,
-    TaskStateMachine, TaskMode, ApprovalPolicy,
-    PathGuard, FileReadResult, FilePatchResult,
-    HermesAgentBridge, ProjectAnalysisResult, ExecutionPlan, PlanStep,
-};
 use crate::domains::games::godot::GodotProjectAnalyzer;
+use crate::operator::{
+    ApprovalPolicy, EventLevel, ExecutionPlan, FilePatchResult, FileReadResult, HermesAgentBridge,
+    OperatorEvent, OperatorEventType, OperatorTask, PathGuard, PlanStep, ProjectAnalysisResult,
+    TaskMode, TaskStateMachine,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Task Executor
@@ -49,62 +48,94 @@ impl GodotTaskExecutor {
 
     /// Analyze the Godot project (delegates to bridge)
     pub async fn analyze_project(&mut self) -> Result<ProjectAnalysisResult, TaskExecutorError> {
-        self.bridge.analyze_project().await
+        self.bridge
+            .analyze_project()
+            .await
             .map_err(|e| TaskExecutorError::AnalysisError(e.to_string()))
     }
 
     /// Generate execution plan (delegates to bridge)
-    pub async fn generate_plan(&mut self, analysis: &ProjectAnalysisResult) -> Result<ExecutionPlan, TaskExecutorError> {
-        self.bridge.generate_plan(analysis).await
+    pub async fn generate_plan(
+        &mut self,
+        analysis: &ProjectAnalysisResult,
+    ) -> Result<ExecutionPlan, TaskExecutorError> {
+        self.bridge
+            .generate_plan(analysis)
+            .await
             .map_err(|e| TaskExecutorError::PlanningError(e.to_string()))
     }
 
     /// Execute complete task workflow
     pub async fn execute(&mut self) -> Result<TaskExecutionReport, TaskExecutorError> {
         // Phase 1: Initialize
-        self.emit_event(OperatorEventType::TaskStarted, "Task initialization started");
-        self.state_machine.start_task().map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
+        self.emit_event(
+            OperatorEventType::TaskStarted,
+            "Task initialization started",
+        );
+        self.state_machine
+            .start_task()
+            .map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
 
         // Phase 2: Analyze project
-        self.emit_event(OperatorEventType::ProjectAnalyzing, "Analyzing Godot project...");
-        let analysis = self.bridge.analyze_project().await
+        self.emit_event(
+            OperatorEventType::ProjectAnalyzing,
+            "Analyzing Godot project...",
+        );
+        let analysis = self
+            .bridge
+            .analyze_project()
+            .await
             .map_err(|e| TaskExecutorError::AnalysisError(e.to_string()))?;
 
         self.emit_event(
             OperatorEventType::ProjectAnalyzed,
-            &format!("Project analyzed: {} scripts, {} scenes, {} player controllers",
+            &format!(
+                "Project analyzed: {} scripts, {} scenes, {} player controllers",
                 analysis.scripts.len(),
                 analysis.scenes.len(),
                 analysis.player_controllers.len()
-            )
+            ),
         );
 
         // Phase 3: Generate plan
-        self.emit_event(OperatorEventType::PlanGenerating, "Generating execution plan...");
-        let plan = self.bridge.generate_plan(&analysis).await
+        self.emit_event(
+            OperatorEventType::PlanGenerating,
+            "Generating execution plan...",
+        );
+        let plan = self
+            .bridge
+            .generate_plan(&analysis)
+            .await
             .map_err(|e| TaskExecutorError::PlanningError(e.to_string()))?;
 
         self.emit_event(
             OperatorEventType::PlanReady,
-            &format!("Execution plan ready: {} steps", plan.steps.len())
+            &format!("Execution plan ready: {} steps", plan.steps.len()),
         );
 
-        self.state_machine.plan_ready().map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
+        self.state_machine
+            .plan_ready()
+            .map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
 
         // Phase 4: Wait for approval (simulated)
-        self.emit_event(OperatorEventType::ApprovalRequested, "Waiting for user approval...");
+        self.emit_event(
+            OperatorEventType::ApprovalRequested,
+            "Waiting for user approval...",
+        );
 
         // TODO: In real implementation, wait for user approval here
         // For now, auto-approve for testing
         self.emit_event(OperatorEventType::ApprovalGranted, "Plan approved by user");
-        self.state_machine.approve().map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
+        self.state_machine
+            .approve()
+            .map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
 
         // Phase 5: Execute plan steps
         let mut step_results = Vec::new();
         for step in &plan.steps {
             self.emit_event(
                 OperatorEventType::StepExecuting,
-                &format!("Executing step {}: {}", step.id, step.description)
+                &format!("Executing step {}: {}", step.id, step.description),
             );
 
             match self.bridge.execute_step(step).await {
@@ -112,20 +143,20 @@ impl GodotTaskExecutor {
                     if result.success {
                         self.emit_event(
                             OperatorEventType::StepCompleted,
-                            &format!("Step {} completed successfully", step.id)
+                            &format!("Step {} completed successfully", step.id),
                         );
 
                         // If there are file changes, emit events
                         for file_change in &result.file_changes {
                             self.emit_event(
                                 OperatorEventType::FileModified,
-                                &format!("File modified: {}", file_change.path)
+                                &format!("File modified: {}", file_change.path),
                             );
                         }
                     } else {
                         self.emit_event(
                             OperatorEventType::StepFailed,
-                            &format!("Step {} failed", step.id)
+                            &format!("Step {} failed", step.id),
                         );
                     }
                     step_results.push(result);
@@ -133,7 +164,7 @@ impl GodotTaskExecutor {
                 Err(e) => {
                     self.emit_event(
                         OperatorEventType::StepFailed,
-                        &format!("Step {} error: {}", step.id, e)
+                        &format!("Step {} error: {}", step.id, e),
                     );
                     return Err(TaskExecutorError::ExecutionError(e.to_string()));
                 }
@@ -142,9 +173,14 @@ impl GodotTaskExecutor {
 
         // Phase 6: Complete
         self.emit_event(OperatorEventType::TaskCompleting, "Task completing...");
-        self.state_machine.complete().map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
+        self.state_machine
+            .complete()
+            .map_err(|e| TaskExecutorError::StateError(e.to_string()))?;
 
-        self.emit_event(OperatorEventType::TaskCompleted, "Task completed successfully");
+        self.emit_event(
+            OperatorEventType::TaskCompleted,
+            "Task completed successfully",
+        );
 
         Ok(TaskExecutionReport {
             task_id: self.task_id.clone(),
@@ -152,7 +188,8 @@ impl GodotTaskExecutor {
             total_steps: plan.steps.len(),
             completed_steps: step_results.iter().filter(|r| r.success).count(),
             failed_steps: step_results.iter().filter(|r| !r.success).count(),
-            files_modified: step_results.iter()
+            files_modified: step_results
+                .iter()
                 .flat_map(|r| r.file_changes.iter().map(|c| c.path.clone()))
                 .collect(),
             events: self.events.clone(),
@@ -160,7 +197,10 @@ impl GodotTaskExecutor {
                 "Task completed: {}/{} steps successful, {} files modified",
                 step_results.iter().filter(|r| r.success).count(),
                 plan.steps.len(),
-                step_results.iter().flat_map(|r| r.file_changes.iter()).count()
+                step_results
+                    .iter()
+                    .flat_map(|r| r.file_changes.iter())
+                    .count()
             ),
         })
     }

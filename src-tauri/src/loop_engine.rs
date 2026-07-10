@@ -13,9 +13,9 @@
 
 use crate::goal::{Goal, GoalStatus};
 use crate::reconcile::ReconcileLoop;
-use crate::self_healing::{AnomalyDetector, AnomalyRecord, HealingExecutor, HealingActionRecord};
-use crate::swarm_adapters::{SwarmAgentAdapter, now_ms};
-use acp_core::{GoalOutcome, CompletionConditionSpec};
+use crate::self_healing::{AnomalyDetector, AnomalyRecord, HealingActionRecord, HealingExecutor};
+use crate::swarm_adapters::{now_ms, SwarmAgentAdapter};
+use acp_core::{CompletionConditionSpec, GoalOutcome};
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -132,11 +132,9 @@ impl LoopEngine {
                     iterations: goal.current_iteration,
                 }
             }
-            GoalStatus::BudgetExhausted => {
-                GoalOutcome::BudgetExhausted {
-                    tokens_used: goal.tokens_used,
-                }
-            }
+            GoalStatus::BudgetExhausted => GoalOutcome::BudgetExhausted {
+                tokens_used: goal.tokens_used,
+            },
             GoalStatus::MaxIterReached => {
                 // Also trigger Self-Healing for max iter
                 self.trigger_healing(goal, "Max iterations reached");
@@ -225,7 +223,11 @@ impl LoopEngine {
         // Real implementation would analyze iteration_log for patterns
         format!(
             "goal_type:{}|iterations:{}|executor:{}",
-            goal.description.split_whitespace().take(3).collect::<Vec<_>>().join("_"),
+            goal.description
+                .split_whitespace()
+                .take(3)
+                .collect::<Vec<_>>()
+                .join("_"),
             goal.current_iteration,
             goal.executor.as_ref().unwrap_or(&"unknown".into())
         )
@@ -312,8 +314,8 @@ impl LoopEngine {
 // Tauri Commands
 // ============================================================================
 
-use tauri::State;
 use crate::AppState;
+use tauri::State;
 
 /// Execute a goal through the Loop Engine
 ///
@@ -338,7 +340,9 @@ pub async fn loop_execute_goal(
         let mut goal = crate::goal::Goal::new(
             goal_id,
             description,
-            CompletionConditionSpec::Custom { evaluator: completion_condition },
+            CompletionConditionSpec::Custom {
+                evaluator: completion_condition,
+            },
         );
         goal.executor = executor;
 
@@ -352,27 +356,29 @@ pub async fn loop_execute_goal(
             "iterations": goal.iteration_log.len(),
             "executor": goal.executor,
         }))
-    }).await.map_err(|e| e.to_string())?;
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     result
 }
 
 /// Get Loop Engine state
 #[tauri::command]
-pub fn loop_get_state(
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+pub fn loop_get_state(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let loop_engine = state.loop_engine.lock().map_err(|e| e.to_string())?;
-    loop_engine.get_state().and_then(|s| serde_json::to_value(s).map_err(|e| e.to_string()))
+    loop_engine
+        .get_state()
+        .and_then(|s| serde_json::to_value(s).map_err(|e| e.to_string()))
 }
 
 /// Get Loop Engine statistics
 #[tauri::command]
-pub fn loop_get_stats(
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+pub fn loop_get_stats(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let loop_engine = state.loop_engine.lock().map_err(|e| e.to_string())?;
-    loop_engine.get_stats().and_then(|s| serde_json::to_value(s).map_err(|e| e.to_string()))
+    loop_engine
+        .get_stats()
+        .and_then(|s| serde_json::to_value(s).map_err(|e| e.to_string()))
 }
 
 /// Update health metrics (for monitoring)

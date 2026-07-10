@@ -1,9 +1,9 @@
 // File Tools - Safe file operations for Hermes Game Operator
 
-use std::path::Path;
-use std::fs;
-use serde::{Deserialize, Serialize};
 use crate::operator::security::PathGuard;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 // ============================================================================
 // File Read Tool
@@ -20,16 +20,14 @@ pub struct FileReadResult {
 /// Safely read a file with path validation
 pub fn file_read(path: &Path, path_guard: &PathGuard) -> Result<FileReadResult, FileToolError> {
     // Validate path
-    path_guard.validate_file(path)
+    path_guard
+        .validate_file(path)
         .map_err(|e| FileToolError::PathError(e.to_string()))?;
 
     // Read file
-    let content = fs::read_to_string(path)
-        .map_err(|e| FileToolError::IoError(e.to_string()))?;
+    let content = fs::read_to_string(path).map_err(|e| FileToolError::IoError(e.to_string()))?;
 
-    let size_bytes = fs::metadata(path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let size_bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
     let line_count = content.lines().count();
 
@@ -98,12 +96,13 @@ pub fn file_patch(
     create_backup: bool,
 ) -> Result<FilePatchResult, FileToolError> {
     // Validate path
-    path_guard.validate_write(path)
+    path_guard
+        .validate_write(path)
         .map_err(|e| FileToolError::PathError(e.to_string()))?;
 
     // Read original content
-    let original_content = fs::read_to_string(path)
-        .map_err(|e| FileToolError::IoError(e.to_string()))?;
+    let original_content =
+        fs::read_to_string(path).map_err(|e| FileToolError::IoError(e.to_string()))?;
 
     // Generate backup if requested
     let backup_path = if create_backup {
@@ -111,21 +110,20 @@ pub fn file_patch(
             "{}.bak",
             path.extension().and_then(|e| e.to_str()).unwrap_or("txt")
         ));
-        fs::copy(path, &backup)
-            .map_err(|e| FileToolError::IoError(e.to_string()))?;
+        fs::copy(path, &backup).map_err(|e| FileToolError::IoError(e.to_string()))?;
         Some(backup.to_string_lossy().to_string())
     } else {
         None
     };
 
     // Write new content
-    fs::write(path, new_content)
-        .map_err(|e| FileToolError::IoError(e.to_string()))?;
+    fs::write(path, new_content).map_err(|e| FileToolError::IoError(e.to_string()))?;
 
     // Calculate lines changed
     let orig_lines: Vec<&str> = original_content.lines().collect();
     let new_lines: Vec<&str> = new_content.lines().collect();
-    let lines_changed = orig_lines.iter()
+    let lines_changed = orig_lines
+        .iter()
         .zip(new_lines.iter())
         .filter(|(a, b)| a != b)
         .count()
@@ -146,12 +144,13 @@ pub fn file_patch_preview(
     path_guard: &PathGuard,
 ) -> Result<FilePatch, FileToolError> {
     // Validate path
-    path_guard.validate_file(path)
+    path_guard
+        .validate_file(path)
         .map_err(|e| FileToolError::PathError(e.to_string()))?;
 
     // Read original content
-    let original_content = fs::read_to_string(path)
-        .map_err(|e| FileToolError::IoError(e.to_string()))?;
+    let original_content =
+        fs::read_to_string(path).map_err(|e| FileToolError::IoError(e.to_string()))?;
 
     // Generate diff
     let diff = generate_diff(&original_content, new_content);
@@ -178,18 +177,18 @@ pub struct FileListResult {
 /// List files and directories in a path
 pub fn file_list(path: &Path, path_guard: &PathGuard) -> Result<FileListResult, FileToolError> {
     // Validate path
-    path_guard.validate_directory(path)
+    path_guard
+        .validate_directory(path)
         .map_err(|e| FileToolError::PathError(e.to_string()))?;
 
     let mut files = Vec::new();
     let mut directories = Vec::new();
 
-    for entry in fs::read_dir(path)
-        .map_err(|e| FileToolError::IoError(e.to_string()))?
-    {
+    for entry in fs::read_dir(path).map_err(|e| FileToolError::IoError(e.to_string()))? {
         let entry = entry.map_err(|e| FileToolError::IoError(e.to_string()))?;
         let entry_path = entry.path();
-        let name = entry_path.file_name()
+        let name = entry_path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_string();

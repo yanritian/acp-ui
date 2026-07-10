@@ -4,13 +4,11 @@
 //! 执行者: AIWorkerExecutor (Claude CLI)
 //! 验证: 测试通过
 
+use std::sync::Arc;
 use swarm_engine::{
-    Goal, CompletionCondition,
-    ConditionEvaluator, ReconcileLoop, GoalOutcome,
-    AIWorkerExecutor,
+    AIWorkerExecutor, CompletionCondition, ConditionEvaluator, Goal, GoalOutcome, ReconcileLoop,
 };
 use tokio::sync::Mutex;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -33,7 +31,11 @@ async fn main() {
         确保所有测试通过 (cargo test --package swarm-engine)",
         CompletionCondition::CommandSuccess {
             command: "cargo".to_string(),
-            args: vec!["test".to_string(), "--package".to_string(), "swarm-engine".to_string()],
+            args: vec![
+                "test".to_string(),
+                "--package".to_string(),
+                "swarm-engine".to_string(),
+            ],
             cwd: Some("D:/dingsun/acp-ui/src-tauri".to_string()),
         },
     );
@@ -46,8 +48,9 @@ async fn main() {
     // 创建 AIWorkerExecutor
     let executor = AIWorkerExecutor::new(
         "claude-worker",
-        "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd"
-    ).with_cwd("D:/dingsun/acp-ui/src-tauri");
+        "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd",
+    )
+    .with_cwd("D:/dingsun/acp-ui/src-tauri");
 
     let reconciler = ReconcileLoop::new(Arc::new(Mutex::new(executor)));
 
@@ -73,13 +76,13 @@ async fn main() {
             println!("  • Goal 由 AIWorkerExecutor 完成");
             println!("  • {} 次迭代后收敛", iterations);
             println!("  • 我只观察，未干预代码");
-        },
+        }
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("⚠️ 达到最大迭代 {}，需要更多迭代", iterations);
-        },
+        }
         GoalOutcome::Failed { reason, .. } => {
             println!("执行失败: {}", reason);
-        },
+        }
         _ => println!("结果: {:?}", outcome),
     }
 }

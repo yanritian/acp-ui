@@ -4,11 +4,13 @@
 // Supports video generation, AI avatar, async job polling
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenEstimate,
+        TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use reqwest::Client;
@@ -176,13 +178,13 @@ impl KlingAdapter {
                 name: "video-gen".to_string(),
                 proficiency: 0.80,
                 cost_per_unit: 0.50, // $0.50 per 5s video
-                latency_ms: 180000, // Video generation takes ~3 minutes
+                latency_ms: 180000,  // Video generation takes ~3 minutes
             },
             Capability {
                 name: "avatar-gen".to_string(),
                 proficiency: 0.85,
                 cost_per_unit: 1.00, // AI avatar is more expensive
-                latency_ms: 300000, // Takes ~5 minutes
+                latency_ms: 300000,  // Takes ~5 minutes
             },
             Capability {
                 name: "video-extend".to_string(),
@@ -229,7 +231,8 @@ impl KlingAdapter {
         let url = format!("{}/videos/generations", config.base_url);
         let start = Instant::now();
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .header("Content-Type", "application/json")
@@ -240,10 +243,12 @@ impl KlingAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                resp.json::<KlingResponse>().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse Kling response: {}", e),
-                    retryable: false,
-                })
+                resp.json::<KlingResponse>()
+                    .await
+                    .map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse Kling response: {}", e),
+                        retryable: false,
+                    })
             }
             Ok(resp) => {
                 let status = resp.status();
@@ -268,7 +273,8 @@ impl KlingAdapter {
 
         let url = format!("{}/videos/generations/{}/status", config.base_url, task_id);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .timeout(std::time::Duration::from_secs(30))
@@ -277,10 +283,12 @@ impl KlingAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                resp.json::<KlingJobResult>().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse job status: {}", e),
-                    retryable: false,
-                })
+                resp.json::<KlingJobResult>()
+                    .await
+                    .map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse job status: {}", e),
+                        retryable: false,
+                    })
             }
             Ok(resp) => Err(AgentError::ExecutionError {
                 message: format!("Kling API error: {}", resp.status()),
@@ -326,7 +334,9 @@ impl KlingAdapter {
                 }
                 KlingTaskStatus::Failed => {
                     return Err(AgentError::ExecutionError {
-                        message: result.error.unwrap_or_else(|| "Video generation failed".to_string()),
+                        message: result
+                            .error
+                            .unwrap_or_else(|| "Video generation failed".to_string()),
                         retryable: false,
                     });
                 }
@@ -348,7 +358,10 @@ impl KlingAdapter {
     fn parse_mode_from_description(description: &str) -> KlingMode {
         let desc_lower = description.to_lowercase();
 
-        if desc_lower.contains("数字人") || desc_lower.contains("avatar") || desc_lower.contains("虚拟主播") {
+        if desc_lower.contains("数字人")
+            || desc_lower.contains("avatar")
+            || desc_lower.contains("虚拟主播")
+        {
             KlingMode::Avatar
         } else if desc_lower.contains("延长") || desc_lower.contains("extend") {
             KlingMode::Extend
@@ -388,13 +401,19 @@ impl AgentAdapter for KlingAdapter {
         let kling_config = if let Some(api_key) = config.metadata.get("api_key") {
             KlingConfig {
                 api_key: api_key.clone(),
-                base_url: config.metadata.get("base_url")
+                base_url: config
+                    .metadata
+                    .get("base_url")
                     .cloned()
                     .unwrap_or_else(|| "https://api.klingai.com/v1".to_string()),
-                default_duration: config.metadata.get("duration")
+                default_duration: config
+                    .metadata
+                    .get("duration")
                     .and_then(|d| d.parse::<u32>().ok())
                     .unwrap_or(5),
-                default_resolution: config.metadata.get("resolution")
+                default_resolution: config
+                    .metadata
+                    .get("resolution")
                     .map(|r| match r.as_str() {
                         "480" | "480p" => VideoResolution::SD480,
                         "720" | "720p" => VideoResolution::HD720,
@@ -486,7 +505,10 @@ impl AgentAdapter for KlingAdapter {
                 ("mode".to_string(), mode.to_string()),
                 ("kling_task_id".to_string(), kling_task_id),
                 ("provider".to_string(), "kling".to_string()),
-                ("duration_seconds".to_string(), self.config.as_ref().unwrap().default_duration.to_string()),
+                (
+                    "duration_seconds".to_string(),
+                    self.config.as_ref().unwrap().default_duration.to_string(),
+                ),
             ]),
         })
     }
@@ -520,9 +542,7 @@ impl AgentAdapter for KlingAdapter {
             min_cost: mode_cost * 0.8,
             max_cost: mode_cost * 1.5,
             currency: "USD".to_string(),
-            breakdown: HashMap::from([
-                ("video_generation".to_string(), mode_cost),
-            ]),
+            breakdown: HashMap::from([("video_generation".to_string(), mode_cost)]),
             token_estimate: TokenEstimate {
                 input_tokens: 0,
                 output_tokens: 0,
@@ -536,7 +556,12 @@ impl AgentAdapter for KlingAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -628,11 +653,26 @@ mod tests {
 
     #[test]
     fn test_parse_mode_from_description() {
-        assert_eq!(KlingAdapter::parse_mode_from_description("数字人视频"), KlingMode::Avatar);
-        assert_eq!(KlingAdapter::parse_mode_from_description("avatar generation"), KlingMode::Avatar);
-        assert_eq!(KlingAdapter::parse_mode_from_description("延长视频"), KlingMode::Extend);
-        assert_eq!(KlingAdapter::parse_mode_from_description("图生视频"), KlingMode::ImageToVideo);
-        assert_eq!(KlingAdapter::parse_mode_from_description("normal video"), KlingMode::TextToVideo);
+        assert_eq!(
+            KlingAdapter::parse_mode_from_description("数字人视频"),
+            KlingMode::Avatar
+        );
+        assert_eq!(
+            KlingAdapter::parse_mode_from_description("avatar generation"),
+            KlingMode::Avatar
+        );
+        assert_eq!(
+            KlingAdapter::parse_mode_from_description("延长视频"),
+            KlingMode::Extend
+        );
+        assert_eq!(
+            KlingAdapter::parse_mode_from_description("图生视频"),
+            KlingMode::ImageToVideo
+        );
+        assert_eq!(
+            KlingAdapter::parse_mode_from_description("normal video"),
+            KlingMode::TextToVideo
+        );
     }
 
     #[test]

@@ -54,7 +54,10 @@ impl std::str::FromStr for PluginKind {
             "hook" => Ok(PluginKind::Hook),
             "cli" => Ok(PluginKind::Cli),
             "adapter" => Ok(PluginKind::Adapter),
-            other => Err(format!("Unknown plugin kind: '{}'. Valid: skill, mcp, hook, cli, adapter", other)),
+            other => Err(format!(
+                "Unknown plugin kind: '{}'. Valid: skill, mcp, hook, cli, adapter",
+                other
+            )),
         }
     }
 }
@@ -215,7 +218,10 @@ impl PluginRegistry {
             return Err("Plugin ID cannot be empty".to_string());
         }
         if self.plugins.contains_key(&meta.id) {
-            return Err(format!("Plugin with ID '{}' is already registered", meta.id));
+            return Err(format!(
+                "Plugin with ID '{}' is already registered",
+                meta.id
+            ));
         }
 
         // Set registration timestamp
@@ -234,7 +240,10 @@ impl PluginRegistry {
             .remove(id)
             .ok_or_else(|| format!("Plugin '{}' not found", id))
             .inspect(|meta| {
-                println!("[PluginRegistry] Unregistered plugin: {} ({})", id, meta.name);
+                println!(
+                    "[PluginRegistry] Unregistered plugin: {} ({})",
+                    id, meta.name
+                );
             })
     }
 
@@ -269,11 +278,7 @@ impl PluginRegistry {
     }
 
     /// Update plugin configuration
-    pub fn update_config(
-        &mut self,
-        id: &str,
-        config: serde_json::Value,
-    ) -> Result<(), String> {
+    pub fn update_config(&mut self, id: &str, config: serde_json::Value) -> Result<(), String> {
         let plugin = self
             .plugins
             .get_mut(id)
@@ -284,11 +289,7 @@ impl PluginRegistry {
     }
 
     /// Update health status of a plugin
-    pub fn update_health(
-        &mut self,
-        id: &str,
-        status: HealthStatus,
-    ) -> Result<(), String> {
+    pub fn update_health(&mut self, id: &str, status: HealthStatus) -> Result<(), String> {
         let plugin = self
             .plugins
             .get_mut(id)
@@ -332,10 +333,7 @@ impl PluginRegistry {
             return PluginStats::default();
         }
 
-        let success_count = records
-            .iter()
-            .filter(|r| r.response.success)
-            .count() as u64;
+        let success_count = records.iter().filter(|r| r.response.success).count() as u64;
         let failure_count = total - success_count;
 
         let total_duration: u64 = records.iter().map(|r| r.response.duration_ms).sum();
@@ -403,19 +401,43 @@ impl PluginRegistry {
 
         // ---- Seed 16 CORE_SKILLS as Skill plugins ----
         let core_skills: Vec<(&str, &str, &str)> = vec![
-            ("web-research", "Core", "Web search and information extraction"),
+            (
+                "web-research",
+                "Core",
+                "Web search and information extraction",
+            ),
             ("code-execution", "Core", "Execute and debug code"),
-            ("file-operations", "Core", "Read, write, search, patch files"),
-            ("browser-automation", "Core", "Browser control and automation"),
-            ("vision-analysis", "Core", "Image understanding and analysis"),
+            (
+                "file-operations",
+                "Core",
+                "Read, write, search, patch files",
+            ),
+            (
+                "browser-automation",
+                "Core",
+                "Browser control and automation",
+            ),
+            (
+                "vision-analysis",
+                "Core",
+                "Image understanding and analysis",
+            ),
             ("media-generation", "Core", "Generate images, video, audio"),
-            ("skill-management", "Management", "CRUD and version management"),
+            (
+                "skill-management",
+                "Management",
+                "CRUD and version management",
+            ),
             ("memory-ops", "Management", "Memory store and retrieve"),
             ("task-management", "Management", "Todo and task planning"),
             ("communication", "Management", "Messages and clarification"),
             ("delegation", "Management", "Delegate to sub-agents"),
             ("security-audit", "Management", "Security scanning"),
-            ("code-review", "Development", "Code review and quality check"),
+            (
+                "code-review",
+                "Development",
+                "Code review and quality check",
+            ),
             ("testing", "Development", "Test generation and execution"),
             ("planning", "Development", "Project planning and breakdown"),
             ("documentation", "Development", "Documentation generation"),
@@ -539,39 +561,26 @@ pub fn plugin_list(
         Some(k) => Some(k.parse::<PluginKind>()?),
         None => None,
     };
-    Ok(registry
-        .list(kind_filter)
-        .into_iter()
-        .cloned()
-        .collect())
+    Ok(registry.list(kind_filter).into_iter().cloned().collect())
 }
 
 /// Register a new plugin
 #[tauri::command]
-pub fn plugin_register(
-    state: State<'_, AppState>,
-    meta: PluginMeta,
-) -> Result<(), String> {
+pub fn plugin_register(state: State<'_, AppState>, meta: PluginMeta) -> Result<(), String> {
     let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
     registry.register(meta)
 }
 
 /// Unregister a plugin by ID, returning the removed metadata
 #[tauri::command]
-pub fn plugin_unregister(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<PluginMeta, String> {
+pub fn plugin_unregister(state: State<'_, AppState>, id: String) -> Result<PluginMeta, String> {
     let mut registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
     registry.unregister(&id)
 }
 
 /// Get a specific plugin by ID
 #[tauri::command]
-pub fn plugin_get(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<PluginMeta, String> {
+pub fn plugin_get(state: State<'_, AppState>, id: String) -> Result<PluginMeta, String> {
     let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
     registry
         .get(&id)
@@ -603,24 +612,14 @@ pub fn plugin_update_config(
 
 /// Search plugins by name or capability
 #[tauri::command]
-pub fn plugin_search(
-    state: State<'_, AppState>,
-    query: String,
-) -> Result<Vec<PluginMeta>, String> {
+pub fn plugin_search(state: State<'_, AppState>, query: String) -> Result<Vec<PluginMeta>, String> {
     let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
-    Ok(registry
-        .search(&query)
-        .into_iter()
-        .cloned()
-        .collect())
+    Ok(registry.search(&query).into_iter().cloned().collect())
 }
 
 /// Get aggregated execution statistics for a plugin
 #[tauri::command]
-pub fn plugin_get_stats(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<PluginStats, String> {
+pub fn plugin_get_stats(state: State<'_, AppState>, id: String) -> Result<PluginStats, String> {
     let registry = state.plugin_registry.lock().map_err(|e| e.to_string())?;
     if registry.get(&id).is_none() {
         return Err(format!("Plugin '{}' not found", id));

@@ -137,41 +137,162 @@ impl UserRoleDetector {
 
     fn default_patterns() -> HashMap<UserRole, Vec<String>> {
         HashMap::from([
-            (UserRole::Developer, vec![
-                "代码".to_string(), "编程".to_string(), "bug".to_string(), "函数".to_string(), "模块".to_string(), "API".to_string(), "框架".to_string(),
-                "开发".to_string(), "实现".to_string(), "重构".to_string(), "测试".to_string(), "部署".to_string(), "build".to_string(), "compile".to_string(),
-                "rust".to_string(), "typescript".to_string(), "python".to_string(), "go".to_string(), "java".to_string(), "vue".to_string(), "react".to_string(),
-            ]),
-            (UserRole::Marketer, vec![
-                "文案".to_string(), "营销".to_string(), "推广".to_string(), "广告".to_string(), "宣传".to_string(), "品牌".to_string(), "活动".to_string(),
-                "抖音".to_string(), "快手".to_string(), "小红书".to_string(), "微信".to_string(), "视频".to_string(), "直播".to_string(), "内容".to_string(),
-                "copywriting".to_string(), "marketing".to_string(), "campaign".to_string(), "promotion".to_string(),
-            ]),
-            (UserRole::Designer, vec![
-                "设计".to_string(), "UI".to_string(), "UX".to_string(), "界面".to_string(), "图标".to_string(), "logo".to_string(), "海报".to_string(),
-                "图片".to_string(), "配色".to_string(), "布局".to_string(), "样式".to_string(), "原型".to_string(), "mockup".to_string(),
-                "design".to_string(), "figma".to_string(), "sketch".to_string(), "photoshop".to_string(),
-            ]),
-            (UserRole::Finance, vec![
-                "财务".to_string(), "报表".to_string(), "账目".to_string(), "预算".to_string(), "成本".to_string(), "利润".to_string(), "收入".to_string(),
-                "Excel".to_string(), "表格".to_string(), "数据".to_string(), "统计".to_string(), "分析".to_string(), "审计".to_string(),
-                "WPS".to_string(), "文档".to_string(), "合同".to_string(), "invoice".to_string(), "budget".to_string(),
-            ]),
-            (UserRole::Gamer, vec![
-                "游戏".to_string(), "Unity".to_string(), "Godot".to_string(), "Unreal".to_string(), "场景".to_string(), "角色".to_string(),
-                "动画".to_string(), "资源".to_string(), "精灵".to_string(), "模型".to_string(), "关卡".to_string(), "游戏开发".to_string(),
-                "game".to_string(), "sprite".to_string(), "asset".to_string(), "level".to_string(), "character".to_string(),
-            ]),
-            (UserRole::Writer, vec![
-                "写作".to_string(), "文章".to_string(), "小说".to_string(), "故事".to_string(), "博客".to_string(), "翻译".to_string(),
-                "摘要".to_string(), "编辑".to_string(), "润色".to_string(), "改写".to_string(), "story".to_string(), "article".to_string(),
-                "blog".to_string(), "translate".to_string(), "summary".to_string(),
-            ]),
-            (UserRole::Analyst, vec![
-                "分析".to_string(), "数据".to_string(), "统计".to_string(), "图表".to_string(), "报告".to_string(), "趋势".to_string(), "预测".to_string(),
-                "KPI".to_string(), "指标".to_string(), "dashboard".to_string(), "analytics".to_string(), "data".to_string(),
-                "visualization".to_string(), "chart".to_string(), "report".to_string(),
-            ]),
+            (
+                UserRole::Developer,
+                vec![
+                    "代码".to_string(),
+                    "编程".to_string(),
+                    "bug".to_string(),
+                    "函数".to_string(),
+                    "模块".to_string(),
+                    "API".to_string(),
+                    "框架".to_string(),
+                    "开发".to_string(),
+                    "实现".to_string(),
+                    "重构".to_string(),
+                    "测试".to_string(),
+                    "部署".to_string(),
+                    "build".to_string(),
+                    "compile".to_string(),
+                    "rust".to_string(),
+                    "typescript".to_string(),
+                    "python".to_string(),
+                    "go".to_string(),
+                    "java".to_string(),
+                    "vue".to_string(),
+                    "react".to_string(),
+                ],
+            ),
+            (
+                UserRole::Marketer,
+                vec![
+                    "文案".to_string(),
+                    "营销".to_string(),
+                    "推广".to_string(),
+                    "广告".to_string(),
+                    "宣传".to_string(),
+                    "品牌".to_string(),
+                    "活动".to_string(),
+                    "抖音".to_string(),
+                    "快手".to_string(),
+                    "小红书".to_string(),
+                    "微信".to_string(),
+                    "视频".to_string(),
+                    "直播".to_string(),
+                    "内容".to_string(),
+                    "copywriting".to_string(),
+                    "marketing".to_string(),
+                    "campaign".to_string(),
+                    "promotion".to_string(),
+                ],
+            ),
+            (
+                UserRole::Designer,
+                vec![
+                    "设计".to_string(),
+                    "UI".to_string(),
+                    "UX".to_string(),
+                    "界面".to_string(),
+                    "图标".to_string(),
+                    "logo".to_string(),
+                    "海报".to_string(),
+                    "图片".to_string(),
+                    "配色".to_string(),
+                    "布局".to_string(),
+                    "样式".to_string(),
+                    "原型".to_string(),
+                    "mockup".to_string(),
+                    "design".to_string(),
+                    "figma".to_string(),
+                    "sketch".to_string(),
+                    "photoshop".to_string(),
+                ],
+            ),
+            (
+                UserRole::Finance,
+                vec![
+                    "财务".to_string(),
+                    "报表".to_string(),
+                    "账目".to_string(),
+                    "预算".to_string(),
+                    "成本".to_string(),
+                    "利润".to_string(),
+                    "收入".to_string(),
+                    "Excel".to_string(),
+                    "表格".to_string(),
+                    "数据".to_string(),
+                    "统计".to_string(),
+                    "分析".to_string(),
+                    "审计".to_string(),
+                    "WPS".to_string(),
+                    "文档".to_string(),
+                    "合同".to_string(),
+                    "invoice".to_string(),
+                    "budget".to_string(),
+                ],
+            ),
+            (
+                UserRole::Gamer,
+                vec![
+                    "游戏".to_string(),
+                    "Unity".to_string(),
+                    "Godot".to_string(),
+                    "Unreal".to_string(),
+                    "场景".to_string(),
+                    "角色".to_string(),
+                    "动画".to_string(),
+                    "资源".to_string(),
+                    "精灵".to_string(),
+                    "模型".to_string(),
+                    "关卡".to_string(),
+                    "游戏开发".to_string(),
+                    "game".to_string(),
+                    "sprite".to_string(),
+                    "asset".to_string(),
+                    "level".to_string(),
+                    "character".to_string(),
+                ],
+            ),
+            (
+                UserRole::Writer,
+                vec![
+                    "写作".to_string(),
+                    "文章".to_string(),
+                    "小说".to_string(),
+                    "故事".to_string(),
+                    "博客".to_string(),
+                    "翻译".to_string(),
+                    "摘要".to_string(),
+                    "编辑".to_string(),
+                    "润色".to_string(),
+                    "改写".to_string(),
+                    "story".to_string(),
+                    "article".to_string(),
+                    "blog".to_string(),
+                    "translate".to_string(),
+                    "summary".to_string(),
+                ],
+            ),
+            (
+                UserRole::Analyst,
+                vec![
+                    "分析".to_string(),
+                    "数据".to_string(),
+                    "统计".to_string(),
+                    "图表".to_string(),
+                    "报告".to_string(),
+                    "趋势".to_string(),
+                    "预测".to_string(),
+                    "KPI".to_string(),
+                    "指标".to_string(),
+                    "dashboard".to_string(),
+                    "analytics".to_string(),
+                    "data".to_string(),
+                    "visualization".to_string(),
+                    "chart".to_string(),
+                    "report".to_string(),
+                ],
+            ),
         ])
     }
 
@@ -181,7 +302,8 @@ impl UserRoleDetector {
         let mut scores: HashMap<UserRole, u32> = HashMap::new();
 
         for (role, patterns) in &self.patterns {
-            let count = patterns.iter()
+            let count = patterns
+                .iter()
                 .filter(|p| input_lower.contains(&p.to_lowercase()))
                 .count() as u32;
             scores.insert(*role, count);
@@ -195,7 +317,8 @@ impl UserRoleDetector {
             return UserRole::General;
         }
 
-        scores.iter()
+        scores
+            .iter()
             .filter(|(_, count)| **count == max_score)
             .map(|(role, _)| *role)
             .next()
@@ -208,7 +331,8 @@ impl UserRoleDetector {
         let empty_patterns = vec![];
         let patterns = self.patterns.get(&role).unwrap_or(&empty_patterns);
 
-        let matches = patterns.iter()
+        let matches = patterns
+            .iter()
             .filter(|p| input_lower.contains(&p.to_lowercase()))
             .count();
 
@@ -241,42 +365,122 @@ impl SceneDetector {
 
     fn default_patterns() -> HashMap<String, Vec<String>> {
         HashMap::from([
-            ("code_generation".to_string(), vec![
-                "生成代码".to_string(), "写代码".to_string(), "实现".to_string(), "create".to_string(), "generate".to_string(), "implement".to_string(),
-            ]),
-            ("code_review".to_string(), vec![
-                "审查".to_string(), "review".to_string(), "检查代码".to_string(), "优化".to_string(), "refactor".to_string(),
-            ]),
-            ("bug_fix".to_string(), vec![
-                "修复".to_string(), "bug".to_string(), "错误".to_string(), "fix".to_string(), "error".to_string(), "issue".to_string(),
-            ]),
-            ("documentation".to_string(), vec![
-                "文档".to_string(), "说明".to_string(), "README".to_string(), "document".to_string(), "docs".to_string(),
-            ]),
-            ("image_generation".to_string(), vec![
-                "生成图片".to_string(), "画图".to_string(), "设计图".to_string(), "generate image".to_string(), "create visual".to_string(),
-            ]),
-            ("video_generation".to_string(), vec![
-                "生成视频".to_string(), "制作视频".to_string(), "视频".to_string(), "generate video".to_string(), "create video".to_string(),
-            ]),
-            ("copywriting".to_string(), vec![
-                "文案".to_string(), "广告文案".to_string(), "标题".to_string(), "copywriting".to_string(), "write copy".to_string(),
-            ]),
-            ("translation".to_string(), vec![
-                "翻译".to_string(), "translate".to_string(), "转换语言".to_string(),
-            ]),
-            ("document_generation".to_string(), vec![
-                "生成文档".to_string(), "写报告".to_string(), "制作PPT".to_string(), "create document".to_string(), "generate report".to_string(),
-            ]),
-            ("excel_analysis".to_string(), vec![
-                "分析表格".to_string(), "Excel分析".to_string(), "数据分析".to_string(), "analyze excel".to_string(),
-            ]),
-            ("game_build".to_string(), vec![
-                "构建游戏".to_string(), "编译游戏".to_string(), "build game".to_string(), "export game".to_string(),
-            ]),
-            ("asset_generation".to_string(), vec![
-                "生成资源".to_string(), "创建素材".to_string(), "generate asset".to_string(),
-            ]),
+            (
+                "code_generation".to_string(),
+                vec![
+                    "生成代码".to_string(),
+                    "写代码".to_string(),
+                    "实现".to_string(),
+                    "create".to_string(),
+                    "generate".to_string(),
+                    "implement".to_string(),
+                ],
+            ),
+            (
+                "code_review".to_string(),
+                vec![
+                    "审查".to_string(),
+                    "review".to_string(),
+                    "检查代码".to_string(),
+                    "优化".to_string(),
+                    "refactor".to_string(),
+                ],
+            ),
+            (
+                "bug_fix".to_string(),
+                vec![
+                    "修复".to_string(),
+                    "bug".to_string(),
+                    "错误".to_string(),
+                    "fix".to_string(),
+                    "error".to_string(),
+                    "issue".to_string(),
+                ],
+            ),
+            (
+                "documentation".to_string(),
+                vec![
+                    "文档".to_string(),
+                    "说明".to_string(),
+                    "README".to_string(),
+                    "document".to_string(),
+                    "docs".to_string(),
+                ],
+            ),
+            (
+                "image_generation".to_string(),
+                vec![
+                    "生成图片".to_string(),
+                    "画图".to_string(),
+                    "设计图".to_string(),
+                    "generate image".to_string(),
+                    "create visual".to_string(),
+                ],
+            ),
+            (
+                "video_generation".to_string(),
+                vec![
+                    "生成视频".to_string(),
+                    "制作视频".to_string(),
+                    "视频".to_string(),
+                    "generate video".to_string(),
+                    "create video".to_string(),
+                ],
+            ),
+            (
+                "copywriting".to_string(),
+                vec![
+                    "文案".to_string(),
+                    "广告文案".to_string(),
+                    "标题".to_string(),
+                    "copywriting".to_string(),
+                    "write copy".to_string(),
+                ],
+            ),
+            (
+                "translation".to_string(),
+                vec![
+                    "翻译".to_string(),
+                    "translate".to_string(),
+                    "转换语言".to_string(),
+                ],
+            ),
+            (
+                "document_generation".to_string(),
+                vec![
+                    "生成文档".to_string(),
+                    "写报告".to_string(),
+                    "制作PPT".to_string(),
+                    "create document".to_string(),
+                    "generate report".to_string(),
+                ],
+            ),
+            (
+                "excel_analysis".to_string(),
+                vec![
+                    "分析表格".to_string(),
+                    "Excel分析".to_string(),
+                    "数据分析".to_string(),
+                    "analyze excel".to_string(),
+                ],
+            ),
+            (
+                "game_build".to_string(),
+                vec![
+                    "构建游戏".to_string(),
+                    "编译游戏".to_string(),
+                    "build game".to_string(),
+                    "export game".to_string(),
+                ],
+            ),
+            (
+                "asset_generation".to_string(),
+                vec![
+                    "生成资源".to_string(),
+                    "创建素材".to_string(),
+                    "generate asset".to_string(),
+                ],
+            ),
         ])
     }
 
@@ -285,7 +489,10 @@ impl SceneDetector {
         let input_lower = input.to_lowercase();
 
         for (scene, patterns) in &self.patterns {
-            if patterns.iter().any(|p| input_lower.contains(&p.to_lowercase())) {
+            if patterns
+                .iter()
+                .any(|p| input_lower.contains(&p.to_lowercase()))
+            {
                 return scene.clone();
             }
         }
@@ -318,97 +525,144 @@ impl AgentSelector {
 
     fn default_role_mapping() -> HashMap<UserRole, Vec<String>> {
         HashMap::from([
-            (UserRole::Developer, vec![
-                // CLI Agents
-                "claude-code".to_string(), "codex".to_string(),
-                // Desktop Development
-                "tauri-desktop".to_string(), "electron-desktop".to_string(),
-                // Mobile Development
-                "flutter-sdk".to_string(),
-                // Mini Program Development
-                "wechat-miniprogram".to_string(),
-                // Containerized Deployment
-                "docker".to_string(), "kubernetes".to_string(),
-            ]),
-            (UserRole::Marketer, vec![
-                // Marketing Content Generation
-                "kimi-marketing".to_string(), "jimeng-marketing".to_string(), "kling-marketing".to_string(),
-                // Social Media Platforms
-                "douyin-open".to_string(), "kuaishou-open".to_string(),
-            ]),
-            (UserRole::Designer, vec![
-                // Image/Design Generation
-                "jimeng-marketing".to_string(), "kimi-marketing".to_string(),
-            ]),
-            (UserRole::Finance, vec![
-                // Office Automation
-                "wps-office".to_string(), "kimi-marketing".to_string(),
-                // Enterprise Platforms
-                "dingtalk-open".to_string(), "feishu-open".to_string(),
-            ]),
-            (UserRole::Gamer, vec![
-                // Game Development
-                "unity-game".to_string(), "godot-game".to_string(),
-            ]),
-            (UserRole::Writer, vec![
-                // Content Creation
-                "kimi-marketing".to_string(), "claude-code".to_string(),
-                // Document Generation
-                "wps-office".to_string(), "feishu-open".to_string(),
-            ]),
-            (UserRole::Analyst, vec![
-                // Data Analysis
-                "wps-office".to_string(), "kimi-marketing".to_string(),
-                // Enterprise Analytics
-                "dingtalk-open".to_string(), "feishu-open".to_string(),
-            ]),
-            (UserRole::General, vec![
-                // General-purpose Agents
-                "claude-code".to_string(), "kimi-marketing".to_string(),
-            ]),
+            (
+                UserRole::Developer,
+                vec![
+                    // CLI Agents
+                    "claude-code".to_string(),
+                    "codex".to_string(),
+                    // Desktop Development
+                    "tauri-desktop".to_string(),
+                    "electron-desktop".to_string(),
+                    // Mobile Development
+                    "flutter-sdk".to_string(),
+                    // Mini Program Development
+                    "wechat-miniprogram".to_string(),
+                    // Containerized Deployment
+                    "docker".to_string(),
+                    "kubernetes".to_string(),
+                ],
+            ),
+            (
+                UserRole::Marketer,
+                vec![
+                    // Marketing Content Generation
+                    "kimi-marketing".to_string(),
+                    "jimeng-marketing".to_string(),
+                    "kling-marketing".to_string(),
+                    // Social Media Platforms
+                    "douyin-open".to_string(),
+                    "kuaishou-open".to_string(),
+                ],
+            ),
+            (
+                UserRole::Designer,
+                vec![
+                    // Image/Design Generation
+                    "jimeng-marketing".to_string(),
+                    "kimi-marketing".to_string(),
+                ],
+            ),
+            (
+                UserRole::Finance,
+                vec![
+                    // Office Automation
+                    "wps-office".to_string(),
+                    "kimi-marketing".to_string(),
+                    // Enterprise Platforms
+                    "dingtalk-open".to_string(),
+                    "feishu-open".to_string(),
+                ],
+            ),
+            (
+                UserRole::Gamer,
+                vec![
+                    // Game Development
+                    "unity-game".to_string(),
+                    "godot-game".to_string(),
+                ],
+            ),
+            (
+                UserRole::Writer,
+                vec![
+                    // Content Creation
+                    "kimi-marketing".to_string(),
+                    "claude-code".to_string(),
+                    // Document Generation
+                    "wps-office".to_string(),
+                    "feishu-open".to_string(),
+                ],
+            ),
+            (
+                UserRole::Analyst,
+                vec![
+                    // Data Analysis
+                    "wps-office".to_string(),
+                    "kimi-marketing".to_string(),
+                    // Enterprise Analytics
+                    "dingtalk-open".to_string(),
+                    "feishu-open".to_string(),
+                ],
+            ),
+            (
+                UserRole::General,
+                vec![
+                    // General-purpose Agents
+                    "claude-code".to_string(),
+                    "kimi-marketing".to_string(),
+                ],
+            ),
         ])
     }
 
     fn default_scene_mapping() -> HashMap<String, String> {
         HashMap::from([
             // Marketing & Content
-            ("image_generation".to_string(), "jimeng-marketing".to_string()),
-            ("video_generation".to_string(), "kling-marketing".to_string()),
+            (
+                "image_generation".to_string(),
+                "jimeng-marketing".to_string(),
+            ),
+            (
+                "video_generation".to_string(),
+                "kling-marketing".to_string(),
+            ),
             ("copywriting".to_string(), "kimi-marketing".to_string()),
             ("translation".to_string(), "kimi-marketing".to_string()),
             ("document_generation".to_string(), "wps-office".to_string()),
             ("excel_analysis".to_string(), "wps-office".to_string()),
-
             // Game Development
             ("game_build".to_string(), "unity-game".to_string()),
             ("game_asset".to_string(), "godot-game".to_string()),
-
             // Code Development
             ("code_generation".to_string(), "claude-code".to_string()),
             ("bug_fix".to_string(), "codex".to_string()),
             ("code_review".to_string(), "claude-code".to_string()),
-
             // Mobile Development
             ("mobile_build".to_string(), "flutter-sdk".to_string()),
             ("mobile_run".to_string(), "flutter-sdk".to_string()),
             ("mobile_test".to_string(), "flutter-sdk".to_string()),
-
             // Mini Program Development
-            ("miniprogram_create".to_string(), "wechat-miniprogram".to_string()),
-            ("miniprogram_build".to_string(), "wechat-miniprogram".to_string()),
-            ("miniprogram_publish".to_string(), "wechat-miniprogram".to_string()),
-
+            (
+                "miniprogram_create".to_string(),
+                "wechat-miniprogram".to_string(),
+            ),
+            (
+                "miniprogram_build".to_string(),
+                "wechat-miniprogram".to_string(),
+            ),
+            (
+                "miniprogram_publish".to_string(),
+                "wechat-miniprogram".to_string(),
+            ),
             // Desktop Development
             ("desktop_build".to_string(), "tauri-desktop".to_string()),
             ("desktop_run".to_string(), "tauri-desktop".to_string()),
-
             // Containerized Deployment
             ("dockerfile_generate".to_string(), "docker".to_string()),
             ("docker_build".to_string(), "docker".to_string()),
             ("docker_run".to_string(), "docker".to_string()),
             ("k8s_deploy".to_string(), "kubernetes".to_string()),
             ("k8s_scale".to_string(), "kubernetes".to_string()),
-
             // Enterprise Platforms
             ("douyin_publish".to_string(), "douyin-open".to_string()),
             ("douyin_analytics".to_string(), "douyin-open".to_string()),
@@ -424,7 +678,10 @@ impl AgentSelector {
     pub fn select(&self, role: UserRole, scene: &str) -> (String, String) {
         // First check scene-specific mapping
         if let Some(agent) = self.scene_mapping.get(scene) {
-            return (agent.clone(), format!("Selected {} for scene: {}", agent, scene));
+            return (
+                agent.clone(),
+                format!("Selected {} for scene: {}", agent, scene),
+            );
         }
 
         // Then use role mapping
@@ -432,7 +689,10 @@ impl AgentSelector {
         let agents = self.role_mapping.get(&role).unwrap_or(&default_agents);
         let agent = agents.first().unwrap();
 
-        (agent.clone(), format!("Selected {} for role: {}", agent, role.as_str()))
+        (
+            agent.clone(),
+            format!("Selected {} for role: {}", agent, role.as_str()),
+        )
     }
 }
 
@@ -475,12 +735,15 @@ impl OneShotInterface {
 
         // 4. Build transparency info
         let transparency = TransparencyInfo {
-            dag_visualization: format!("Input -> RoleDetection({}) -> SceneDetection({}) -> AgentSelection({})", role.as_str(), scene, agent),
+            dag_visualization: format!(
+                "Input -> RoleDetection({}) -> SceneDetection({}) -> AgentSelection({})",
+                role.as_str(),
+                scene,
+                agent
+            ),
             estimated_cost: 0.05,
             estimated_duration_ms: 30000,
-            proficiency_scores: HashMap::from([
-                (agent.clone(), 0.85),
-            ]),
+            proficiency_scores: HashMap::from([(agent.clone(), 0.85)]),
             privacy_level: "standard".to_string(),
             budget_status: "ok".to_string(),
         };

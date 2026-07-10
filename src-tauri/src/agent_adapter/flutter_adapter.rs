@@ -8,11 +8,13 @@
 // - 发布构建
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            SceneType, Platform, AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, Platform, ResultStatus, SceneType, TaskInput,
+        TaskOutput, TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -166,7 +168,11 @@ impl FlutterAdapter {
     }
 
     /// 执行 Flutter CLI 命令
-    async fn execute_flutter(&self, args: &[String], cwd: Option<&PathBuf>) -> Result<String, AgentError> {
+    async fn execute_flutter(
+        &self,
+        args: &[String],
+        cwd: Option<&PathBuf>,
+    ) -> Result<String, AgentError> {
         let flutter_cmd = if cfg!(target_os = "windows") {
             "flutter.bat"
         } else {
@@ -180,11 +186,10 @@ impl FlutterAdapter {
             cmd.current_dir(working_dir);
         }
 
-        let output = cmd.output()
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("执行 Flutter 命令失败: {}", e),
-                retryable: false,
-            })?;
+        let output = cmd.output().map_err(|e| AgentError::ExecutionError {
+            message: format!("执行 Flutter 命令失败: {}", e),
+            retryable: false,
+        })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -197,7 +202,12 @@ impl FlutterAdapter {
     }
 
     /// 创建 Flutter 项目
-    async fn create_project(&self, name: &str, path: &str, template: Option<&str>) -> Result<AgentResult, AgentError> {
+    async fn create_project(
+        &self,
+        name: &str,
+        path: &str,
+        template: Option<&str>,
+    ) -> Result<AgentResult, AgentError> {
         let mut args = vec!["create".to_string()];
 
         if let Some(tpl) = template {
@@ -227,7 +237,10 @@ impl FlutterAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("project_name".to_string(), name.to_string()),
                 ("project_path".to_string(), path.to_string()),
@@ -236,7 +249,12 @@ impl FlutterAdapter {
     }
 
     /// 运行 Flutter 应用（开发模式）
-    async fn run_app(&self, project_path: &PathBuf, platform: FlutterPlatform, hot_reload: bool) -> Result<AgentResult, AgentError> {
+    async fn run_app(
+        &self,
+        project_path: &PathBuf,
+        platform: FlutterPlatform,
+        hot_reload: bool,
+    ) -> Result<AgentResult, AgentError> {
         let mut args = vec!["run".to_string()];
 
         args.push("-d".to_string());
@@ -259,10 +277,17 @@ impl FlutterAdapter {
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("platform".to_string(), platform.as_str().to_string()),
                 ("hot_reload".to_string(), hot_reload.to_string()),
@@ -271,7 +296,12 @@ impl FlutterAdapter {
     }
 
     /// 构建 Flutter 应用
-    async fn build_app(&self, project_path: &PathBuf, platform: FlutterPlatform, mode: FlutterBuildMode) -> Result<AgentResult, AgentError> {
+    async fn build_app(
+        &self,
+        project_path: &PathBuf,
+        platform: FlutterPlatform,
+        mode: FlutterBuildMode,
+    ) -> Result<AgentResult, AgentError> {
         let mut args = vec!["build".to_string()];
 
         // 平台特定构建命令
@@ -319,17 +349,29 @@ impl FlutterAdapter {
             task_id: uuid::Uuid::new_v4().to_string(),
             agent_id: self.id.clone(),
             status: ResultStatus::Success,
-            output: TaskOutput::Text(format!("构建成功: {} {}\n{}", platform.as_str(), mode.as_str(), output)),
+            output: TaskOutput::Text(format!(
+                "构建成功: {} {}\n{}",
+                platform.as_str(),
+                mode.as_str(),
+                output
+            )),
             input_tokens: 0,
             output_tokens: output.len() as u64 / 4,
             total_tokens: output.len() as u64 / 4,
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("platform".to_string(), platform.as_str().to_string()),
                 ("build_mode".to_string(), mode.as_str().to_string()),
@@ -354,19 +396,32 @@ impl FlutterAdapter {
             status: if all_passed {
                 ResultStatus::Success
             } else {
-                ResultStatus::Failed { error: format!("{} tests failed", failed), retryable: true }
+                ResultStatus::Failed {
+                    error: format!("{} tests failed", failed),
+                    retryable: true,
+                }
             },
-            output: TaskOutput::Text(format!("测试结果: passed={}, failed={}\n{}", passed, failed, output)),
+            output: TaskOutput::Text(format!(
+                "测试结果: passed={}, failed={}\n{}",
+                passed, failed, output
+            )),
             input_tokens: 0,
             output_tokens: output.len() as u64 / 4,
             total_tokens: output.len() as u64 / 4,
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("tests_passed".to_string(), passed.to_string()),
                 ("tests_failed".to_string(), failed.to_string()),
@@ -399,18 +454,28 @@ impl FlutterAdapter {
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            metadata: HashMap::from([
-                ("issues_count".to_string(), issues.to_string()),
-            ]),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            metadata: HashMap::from([("issues_count".to_string(), issues.to_string())]),
         })
     }
 
     /// 添加依赖包
-    async fn add_dependency(&self, project_path: &PathBuf, package: &str, version: Option<&str>) -> Result<AgentResult, AgentError> {
+    async fn add_dependency(
+        &self,
+        project_path: &PathBuf,
+        package: &str,
+        version: Option<&str>,
+    ) -> Result<AgentResult, AgentError> {
         let mut args = vec!["pub".to_string(), "add".to_string()];
 
         if let Some(ver) = version {
@@ -432,13 +497,23 @@ impl FlutterAdapter {
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("package".to_string(), package.to_string()),
-                ("version".to_string(), version.unwrap_or("latest").to_string()),
+                (
+                    "version".to_string(),
+                    version.unwrap_or("latest").to_string(),
+                ),
             ]),
         })
     }
@@ -512,15 +587,21 @@ impl AgentAdapter for FlutterAdapter {
     }
 
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
-        let project_path = config.metadata.get("project_path")
+        let project_path = config
+            .metadata
+            .get("project_path")
             .map(PathBuf::from)
             .unwrap_or_default();
 
-        let target_platform = config.metadata.get("platform")
+        let target_platform = config
+            .metadata
+            .get("platform")
             .map(|p| FlutterPlatform::from_str(p).unwrap_or(FlutterPlatform::Android))
             .unwrap_or(FlutterPlatform::Android);
 
-        let build_mode = config.metadata.get("mode")
+        let build_mode = config
+            .metadata
+            .get("mode")
             .map(|m| match m.as_str() {
                 "release" => FlutterBuildMode::Release,
                 "profile" => FlutterBuildMode::Profile,
@@ -528,7 +609,9 @@ impl AgentAdapter for FlutterAdapter {
             })
             .unwrap_or(FlutterBuildMode::Debug);
 
-        let hot_reload = config.metadata.get("hot_reload")
+        let hot_reload = config
+            .metadata
+            .get("hot_reload")
             .map(|h| h == "true")
             .unwrap_or(true);
 
@@ -545,18 +628,22 @@ impl AgentAdapter for FlutterAdapter {
 
     async fn validate_config(&self) -> Result<bool, AgentError> {
         // 检查 Flutter 是否安装
-        let flutter_cmd = if cfg!(target_os = "windows") { "flutter.bat" } else { "flutter" };
+        let flutter_cmd = if cfg!(target_os = "windows") {
+            "flutter.bat"
+        } else {
+            "flutter"
+        };
 
         let output = Command::new(flutter_cmd)
             .arg("--version")
             .output()
             .map_err(|e| AgentError::ConfigurationError {
-                message: format!("Flutter SDK 未安装: {}", e)
+                message: format!("Flutter SDK 未安装: {}", e),
             })?;
 
         if !output.status.success() {
             return Err(AgentError::ConfigurationError {
-                message: "Flutter SDK 未正确安装".to_string()
+                message: "Flutter SDK 未正确安装".to_string(),
             });
         }
 
@@ -569,19 +656,25 @@ impl AgentAdapter for FlutterAdapter {
         // 解析操作类型
         let action = match task.description.as_str() {
             s if s.contains("创建") || s.contains("create") => FlutterAction::Create,
-            s if s.contains("运行") || s.contains("run") || s.contains("dev") => FlutterAction::Run,
+            s if s.contains("运行") || s.contains("run") || s.contains("dev") => {
+                FlutterAction::Run
+            }
             s if s.contains("构建") || s.contains("build") => FlutterAction::Build,
             s if s.contains("测试") || s.contains("test") => FlutterAction::Test,
             s if s.contains("分析") || s.contains("analyze") => FlutterAction::Analyze,
             s if s.contains("清理") || s.contains("clean") => FlutterAction::Clean,
-            s if s.contains("依赖") || s.contains("pub") || s.contains("get") => FlutterAction::PubGet,
+            s if s.contains("依赖") || s.contains("pub") || s.contains("get") => {
+                FlutterAction::PubGet
+            }
             s if s.contains("格式化") || s.contains("format") => FlutterAction::Format,
             s if s.contains("添加") || s.contains("add") => FlutterAction::AddDependency,
             _ => FlutterAction::Build,
         };
 
         // 获取项目路径
-        let project_path = self.config.as_ref()
+        let project_path = self
+            .config
+            .as_ref()
             .map(|c| &c.project_path)
             .cloned()
             .unwrap_or(PathBuf::from("."));
@@ -599,16 +692,29 @@ impl AgentAdapter for FlutterAdapter {
                     }
                     _ => ("flutter_app".to_string(), "./".to_string(), None),
                 };
-                self.create_project(&name, &path, template.as_deref()).await?
+                self.create_project(&name, &path, template.as_deref())
+                    .await?
             }
             FlutterAction::Run => {
-                let platform = self.config.as_ref().map(|c| c.target_platform).unwrap_or(FlutterPlatform::Android);
+                let platform = self
+                    .config
+                    .as_ref()
+                    .map(|c| c.target_platform)
+                    .unwrap_or(FlutterPlatform::Android);
                 let hot_reload = self.config.as_ref().map(|c| c.hot_reload).unwrap_or(true);
                 self.run_app(&project_path, platform, hot_reload).await?
             }
             FlutterAction::Build => {
-                let platform = self.config.as_ref().map(|c| c.target_platform).unwrap_or(FlutterPlatform::Android);
-                let mode = self.config.as_ref().map(|c| c.build_mode).unwrap_or(FlutterBuildMode::Release);
+                let platform = self
+                    .config
+                    .as_ref()
+                    .map(|c| c.target_platform)
+                    .unwrap_or(FlutterPlatform::Android);
+                let mode = self
+                    .config
+                    .as_ref()
+                    .map(|c| c.build_mode)
+                    .unwrap_or(FlutterBuildMode::Release);
                 self.build_app(&project_path, platform, mode).await?
             }
             FlutterAction::Test => self.run_tests(&project_path).await?,
@@ -624,9 +730,20 @@ impl AgentAdapter for FlutterAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -641,9 +758,20 @@ impl AgentAdapter for FlutterAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -658,9 +786,20 @@ impl AgentAdapter for FlutterAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -674,7 +813,8 @@ impl AgentAdapter for FlutterAdapter {
                     }
                     _ => ("flutter_riverpod".to_string(), None),
                 };
-                self.add_dependency(&project_path, &package, version.as_deref()).await?
+                self.add_dependency(&project_path, &package, version.as_deref())
+                    .await?
             }
         };
 
@@ -721,7 +861,12 @@ impl AgentAdapter for FlutterAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -743,7 +888,11 @@ impl AgentAdapter for FlutterAdapter {
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
     async fn reset_circuit_breaker(&mut self) {

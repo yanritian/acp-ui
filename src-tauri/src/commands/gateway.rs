@@ -1,6 +1,6 @@
-use crate::AppState;
 use crate::bot_adapters::{self, BotAdapter};
 use crate::tunnel::NgrokManager;
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
@@ -75,7 +75,9 @@ pub struct TunnelConfig {
 #[tauri::command]
 pub fn get_gateway_config(state: State<AppState>) -> Result<GatewayConfig, String> {
     let db = state.database.lock().map_err(|e| e.to_string())?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let config = crate::gateway_config::load_gateway_config(db)?;
     Ok(crate::gateway_config::mask_config(&config))
@@ -84,20 +86,28 @@ pub fn get_gateway_config(state: State<AppState>) -> Result<GatewayConfig, Strin
 #[tauri::command]
 pub fn save_gateway_config(config: GatewayConfig, state: State<AppState>) -> Result<(), String> {
     let db = state.database.lock().map_err(|e| e.to_string())?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     crate::gateway_config::save_gateway_config(db, &config)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn start_gateway(config: GatewayConfig, app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn start_gateway(
+    config: GatewayConfig,
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     println!("Starting gateway with config");
 
     // Persist config to database - release lock before async operations
     {
         let db = state.database.lock().map_err(|e| e.to_string())?;
-        let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+        let db = db
+            .as_ref()
+            .ok_or_else(|| "Database not initialized".to_string())?;
         crate::gateway_config::save_gateway_config(db, &config)?;
     }
 
@@ -196,7 +206,10 @@ pub async fn start_tunnel(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<String, String> {
-    println!("Starting tunnel with provider: {}, port: {}", provider, port);
+    println!(
+        "Starting tunnel with provider: {}, port: {}",
+        provider, port
+    );
 
     match provider.as_str() {
         "ngrok" => {
@@ -220,14 +233,15 @@ pub async fn start_tunnel(
             // Start ngrok process
             manager.start(&ngrok_token, port, &ngrok_region, app_handle)
         }
-        "frp" => {
-            Err("frp requires custom server configuration. Please set custom URL in config.".to_string())
-        }
+        "frp" => Err(
+            "frp requires custom server configuration. Please set custom URL in config."
+                .to_string(),
+        ),
         "cloudflare" => {
             // Cloudflare tunnel using cloudflared CLI
             Err("Cloudflare tunnel requires cloudflared CLI. Run: cloudflared tunnel --url http://localhost:PORT".to_string())
         }
-        _ => Err(format!("Unknown tunnel provider: {}", provider))
+        _ => Err(format!("Unknown tunnel provider: {}", provider)),
     }
 }
 

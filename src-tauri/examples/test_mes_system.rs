@@ -2,15 +2,13 @@
 //!
 //! 需求：创建 MES (制造执行系统) 基础模块
 
-use swarm_engine::{
-    Goal, CompletionCondition,
-    ConditionEvaluator, ReconcileLoop, GoalOutcome,
-    AIWorkerExecutor,
-};
 use std::fs;
 use std::path::Path;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use swarm_engine::{
+    AIWorkerExecutor, CompletionCondition, ConditionEvaluator, Goal, GoalOutcome, ReconcileLoop,
+};
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
@@ -51,13 +49,18 @@ async fn main() {
 
     println!("  Goal ID: {}", goal.id);
     println!("  Description: 创建 MES 系统基础模块");
-    println!("  Condition: FileCheck(path='D:/tmp/mes/src/production.ts', contains='ProductionOrder')");
+    println!(
+        "  Condition: FileCheck(path='D:/tmp/mes/src/production.ts', contains='ProductionOrder')"
+    );
 
     // === Step 2: 执行 ===
     println!("\n【步骤 2】创建AIWorkerExecutor并执行");
 
-    let executor = AIWorkerExecutor::new("claude-worker", "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd")
-        .with_cwd("D:/tmp/mes");
+    let executor = AIWorkerExecutor::new(
+        "claude-worker",
+        "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd",
+    )
+    .with_cwd("D:/tmp/mes");
     let reconciler = ReconcileLoop::new(Arc::new(Mutex::new(executor)));
 
     println!("  正在发送任务给 Claude Code...\n");
@@ -90,7 +93,13 @@ async fn main() {
         if Path::new(path).exists() {
             let content = fs::read_to_string(path).unwrap();
             let contains = content.contains(expected);
-            println!("  ✓ {} 存在 ({:.1} KB) - 包含 '{}': {}", path, content.len() as f64 / 1024.0, expected, contains);
+            println!(
+                "  ✓ {} 存在 ({:.1} KB) - 包含 '{}': {}",
+                path,
+                content.len() as f64 / 1024.0,
+                expected,
+                contains
+            );
             if !contains {
                 all_exist = false;
             }
@@ -116,17 +125,17 @@ async fn main() {
             } else {
                 println!("⚠️ Goal 收敛但部分文件缺失");
             }
-        },
+        }
         GoalOutcome::Failed { reason, .. } => {
             println!("执行失败: {}", reason);
-        },
+        }
         GoalOutcome::MaxIterReached { iterations, .. } => {
             println!("⚠️ 达到最大迭代次数 {}，但部分工作已完成", iterations);
             // 检查是否有文件生成
             if Path::new("D:/tmp/mes/src/production.ts").exists() {
                 println!("  生产模块文件已创建");
             }
-        },
+        }
         _ => {
             println!("⚠️ 其他结果: {:?}", outcome);
         }

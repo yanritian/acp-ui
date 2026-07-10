@@ -20,9 +20,7 @@ use std::time::Duration;
 use tauri::State;
 
 use crate::smart_router::{InputType, RouteTarget, TaskAnalyzer, TaskComplexity, TaskType};
-use crate::workflow_engine::{
-    StageResult, WorkflowDefinition, WorkflowEngine, WorkflowStatus,
-};
+use crate::workflow_engine::{StageResult, WorkflowDefinition, WorkflowEngine, WorkflowStatus};
 use crate::AppState;
 
 // ---------------------------------------------------------------------------
@@ -95,7 +93,9 @@ impl AgentCapability {
 
     /// Check if this agent supports a specific capability
     pub fn supports_capability(&self, cap: &str) -> bool {
-        self.capabilities.iter().any(|c| c.eq_ignore_ascii_case(cap))
+        self.capabilities
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(cap))
     }
 }
 
@@ -281,7 +281,10 @@ impl AgentOrchestrator {
         }
 
         if candidates.is_empty() {
-            println!("[AgentOrchestrator] No available agent for task: {}", task_description);
+            println!(
+                "[AgentOrchestrator] No available agent for task: {}",
+                task_description
+            );
             return None;
         }
 
@@ -338,7 +341,10 @@ impl AgentOrchestrator {
             .clone();
 
         if !cap.is_available {
-            return Err(format!("Agent '{}' ({}) is not available", cap.name, cap.cli_command));
+            return Err(format!(
+                "Agent '{}' ({}) is not available",
+                cap.name, cap.cli_command
+            ));
         }
 
         let task_id = self.generate_task_id();
@@ -361,9 +367,7 @@ impl AgentOrchestrator {
         );
 
         // Spawn the CLI command — spawn_cli reports PID back via active_tasks
-        let cwd = working_dir
-            .or(cap.default_cwd.as_deref())
-            .unwrap_or(".");
+        let cwd = working_dir.or(cap.default_cwd.as_deref()).unwrap_or(".");
 
         let result = self.spawn_cli(
             &cap.cli_command,
@@ -427,9 +431,7 @@ impl AgentOrchestrator {
     ) -> Result<ExecutionResult, String> {
         let agent_id = self
             .select_best_agent(task_description)
-            .ok_or_else(|| {
-                format!("No suitable agent available for task: {}", task_description)
-            })?;
+            .ok_or_else(|| format!("No suitable agent available for task: {}", task_description))?;
 
         self.execute_task(task_description, &agent_id, working_dir)
     }
@@ -466,7 +468,10 @@ impl AgentOrchestrator {
         // Kill the actual child process by PID
         if let Some(&pid) = self.child_processes.get(task_id) {
             let _ = kill_process(pid);
-            println!("[AgentOrchestrator] Killed process {} for task '{}'", pid, task_id);
+            println!(
+                "[AgentOrchestrator] Killed process {} for task '{}'",
+                pid, task_id
+            );
         }
 
         if let Some(task) = self.active_tasks.get_mut(task_id) {
@@ -535,7 +540,11 @@ impl AgentOrchestrator {
 
             (
                 stage.name.clone(),
-                stage.agents.first().map(|a| a.prompt_template.clone()).unwrap_or_default(),
+                stage
+                    .agents
+                    .first()
+                    .map(|a| a.prompt_template.clone())
+                    .unwrap_or_default(),
                 stage.agents.clone(),
             )
         };
@@ -588,7 +597,10 @@ impl AgentOrchestrator {
     ///
     /// Resolves dependencies, executes stages in order, and feeds results
     /// from one stage to the next.
-    pub fn execute_full_workflow(&mut self, workflow_id: &str) -> Result<WorkflowDefinition, String> {
+    pub fn execute_full_workflow(
+        &mut self,
+        workflow_id: &str,
+    ) -> Result<WorkflowDefinition, String> {
         // Validate workflow
         {
             let engine = self
@@ -670,7 +682,11 @@ impl AgentOrchestrator {
 
     fn generate_task_id(&mut self) -> String {
         self.task_counter += 1;
-        format!("task-{}-{}", self.task_counter, &uuid::Uuid::new_v4().to_string()[..8])
+        format!(
+            "task-{}-{}",
+            self.task_counter,
+            &uuid::Uuid::new_v4().to_string()[..8]
+        )
     }
 
     /// Check if a CLI command is available on PATH
@@ -723,16 +739,18 @@ impl AgentOrchestrator {
             && matches!(
                 decision.route_target,
                 RouteTarget::ClaudeCodeHaiku | RouteTarget::ClaudeCodeSonnet
-            ) {
-                score += route_bonus;
-            }
+            )
+        {
+            score += route_bonus;
+        }
         if cap.name.to_lowercase().contains("codex")
             && matches!(
                 decision.route_target,
                 RouteTarget::CodexHaiku | RouteTarget::CodexSonnet
-            ) {
-                score += route_bonus;
-            }
+            )
+        {
+            score += route_bonus;
+        }
 
         score
     }
@@ -809,10 +827,7 @@ impl AgentOrchestrator {
             // Check timeout
             if start.elapsed() > timeout {
                 let _ = kill_process(child_id);
-                return Err(format!(
-                    "Task timed out after {}ms",
-                    timeout_ms
-                ));
+                return Err(format!("Task timed out after {}ms", timeout_ms));
             }
 
             // Try to receive output (non-blocking check)

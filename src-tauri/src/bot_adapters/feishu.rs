@@ -5,11 +5,7 @@
 
 use crate::bot_adapters::{BotAdapter, BotCommand, BotResponse};
 use crate::commands::gateway::FeishuConfig;
-use axum::{
-    extract::State,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, routing::post, Json, Router};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -165,7 +161,8 @@ impl FeishuAdapterShared {
             } else {
                 drop(cached);
                 let url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal";
-                let resp = self.client
+                let resp = self
+                    .client
                     .post(url)
                     .json(&serde_json::json!({
                         "app_id": self.app_id,
@@ -175,12 +172,14 @@ impl FeishuAdapterShared {
                     .await
                     .map_err(|e| e.to_string())?;
 
-                let result: FeishuResponse<serde_json::Value> = resp.json().await.map_err(|e| e.to_string())?;
+                let result: FeishuResponse<serde_json::Value> =
+                    resp.json().await.map_err(|e| e.to_string())?;
                 if result.code != 0 {
                     return Err(format!("Feishu auth error: {}", result.msg));
                 }
 
-                let tok = result.data
+                let tok = result
+                    .data
                     .as_ref()
                     .and_then(|d| d.get("tenant_access_token"))
                     .and_then(|t| t.as_str())
@@ -202,7 +201,8 @@ impl FeishuAdapterShared {
             content,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", token))
             .query(&[("receive_id_type", "chat_id")])
@@ -294,13 +294,11 @@ async fn handle_event(
                             // Try to parse as a bot command
                             let cmd = crate::bot_adapters::parse_bot_text(&text);
                             let response = match cmd {
-                                BotCommand::Unknown { .. } => {
-                                    BotResponse {
-                                        success: false,
-                                        message: format!("Unknown command: {text}"),
-                                        data: None,
-                                    }
-                                }
+                                BotCommand::Unknown { .. } => BotResponse {
+                                    success: false,
+                                    message: format!("Unknown command: {text}"),
+                                    data: None,
+                                },
                                 _ => {
                                     let app_adapter = crate::bot_adapters::AppWsAdapter::new();
                                     app_adapter.handle_command(cmd, &app_handle).await
@@ -358,7 +356,8 @@ impl FeishuAdapter {
 
         // Fetch new token
         let url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal";
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .json(&serde_json::json!({
                 "app_id": self.app_id,
@@ -368,16 +367,15 @@ impl FeishuAdapter {
             .await
             .map_err(|e| e.to_string())?;
 
-        let result: FeishuResponse<serde_json::Value> = response
-            .json()
-            .await
-            .map_err(|e| e.to_string())?;
+        let result: FeishuResponse<serde_json::Value> =
+            response.json().await.map_err(|e| e.to_string())?;
 
         if result.code != 0 {
             return Err(format!("Feishu auth error: {}", result.msg));
         }
 
-        let token = result.data
+        let token = result
+            .data
             .as_ref()
             .and_then(|d| d.get("tenant_access_token"))
             .and_then(|t| t.as_str())
@@ -397,7 +395,8 @@ impl FeishuAdapter {
 
         let content = serde_json::json!({
             "text": text
-        }).to_string();
+        })
+        .to_string();
 
         let request = SendMessageRequest {
             receive_id: chat_id.to_string(),
@@ -406,7 +405,8 @@ impl FeishuAdapter {
             content,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", token))
             .query(&[("receive_id_type", "chat_id")])

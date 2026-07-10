@@ -2,7 +2,7 @@
 //!
 //! Validates A → B → C dependency chain where each Goal waits for predecessor
 
-use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionCondition};
+use acp_ui_lib::{CompletionCondition, Goal, GoalGraph, GoalStatus};
 
 fn create_goal_with_dep(id: &str, description: &str, deps: Vec<String>) -> Goal {
     let mut goal = Goal::new(
@@ -11,7 +11,8 @@ fn create_goal_with_dep(id: &str, description: &str, deps: Vec<String>) -> Goal 
         CompletionCondition::OutputContains {
             text: "done".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
     goal.depends_on = deps;
     goal
@@ -55,7 +56,9 @@ fn test_chain_progressive_ready_after_convergence() {
     assert_eq!(ready[0].id, "goal-a");
 
     // Mark A as converged
-    graph.update_status("goal-a", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("goal-a", GoalStatus::Converged)
+        .unwrap();
 
     // Stage 2: B ready, C still blocked
     let ready = graph.get_ready_goals();
@@ -63,7 +66,9 @@ fn test_chain_progressive_ready_after_convergence() {
     assert_eq!(ready[0].id, "goal-b");
 
     // Mark B as converged
-    graph.update_status("goal-b", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("goal-b", GoalStatus::Converged)
+        .unwrap();
 
     // Stage 3: C ready
     let ready = graph.get_ready_goals();
@@ -71,7 +76,9 @@ fn test_chain_progressive_ready_after_convergence() {
     assert_eq!(ready[0].id, "goal-c");
 
     // Mark C as converged
-    graph.update_status("goal-c", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("goal-c", GoalStatus::Converged)
+        .unwrap();
 
     // All complete - no ready goals
     let ready = graph.get_ready_goals();
@@ -96,7 +103,14 @@ fn test_chain_blocked_on_failure() {
     graph.submit(c).unwrap();
 
     // A fails
-    graph.update_status("goal-a", GoalStatus::Failed { reason: "Budget exhausted".to_string() }).unwrap();
+    graph
+        .update_status(
+            "goal-a",
+            GoalStatus::Failed {
+                reason: "Budget exhausted".to_string(),
+            },
+        )
+        .unwrap();
 
     // B and C should never become ready
     let ready = graph.get_ready_goals();
@@ -104,7 +118,9 @@ fn test_chain_blocked_on_failure() {
 
     // Even if we try to mark B as converged manually, C still depends on B
     // which depends on failed A - the chain is broken
-    graph.update_status("goal-b", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("goal-b", GoalStatus::Converged)
+        .unwrap();
     let ready = graph.get_ready_goals();
     assert_eq!(ready.len(), 1); // C is now ready because B converged
     assert_eq!(ready[0].id, "goal-c");

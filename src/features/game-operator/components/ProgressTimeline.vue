@@ -55,7 +55,8 @@ function formatTimestamp(timestamp: string): string {
 
 <style scoped>
 .progress-timeline {
-  height: 100%;
+  height: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -73,7 +74,8 @@ function formatTimestamp(timestamp: string): string {
 
 .event-list {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
+  overflow-y: visible;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -81,6 +83,7 @@ function formatTimestamp(timestamp: string): string {
 
 .event-item {
   display: flex;
+  min-width: 0;
   gap: 0.75rem;
   padding: 0.75rem;
   background: var(--bg-main);
@@ -113,6 +116,7 @@ function formatTimestamp(timestamp: string): string {
 
 .event-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -120,15 +124,19 @@ function formatTimestamp(timestamp: string): string {
 
 .event-title {
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .event-message {
   font-size: 0.9rem;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .event-meta {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -136,5 +144,7 @@ function formatTimestamp(timestamp: string): string {
 
 .event-type {
   font-family: monospace;
+  overflow-wrap: anywhere;
 }
+
 </style>

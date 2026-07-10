@@ -1,10 +1,10 @@
 //! 完整测试 Hermes Native 执行 + 文件写入
 //! 测试 Executive Agent 的完整工作流程
 
-use std::sync::Arc;
-use std::fs;
-use regex::Regex;
 use hermes_core::Message;
+use regex::Regex;
+use std::fs;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -27,9 +27,8 @@ async fn main() {
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
     // 构建 Agent
-    let agent_config = hermes_agent::agent_builder::build_agent_config(
-        &gateway_config, &model, Some("test"),
-    );
+    let agent_config =
+        hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -51,7 +50,10 @@ async fn main() {
 
 代码要简洁，用中文注释。"#;
 
-    println!("需求: {}\n", request.lines().take(3).collect::<Vec<_>>().join("\n"));
+    println!(
+        "需求: {}\n",
+        request.lines().take(3).collect::<Vec<_>>().join("\n")
+    );
 
     // 执行
     println!("执行 AgentLoop...\n");
@@ -60,7 +62,9 @@ async fn main() {
     let result = agent_loop.run(messages, None).await.unwrap();
 
     // 提取响应
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
         .find_map(|m| {
             if m.role == hermes_core::MessageRole::Assistant {
@@ -76,7 +80,8 @@ async fn main() {
     // 提取文件并写入
     println!("--- 提取并写入文件 ---");
     // 支持多种格式: ### FILE: xxx 或 ### 📄 `xxx`
-    let pattern = Regex::new(r"###\s*(?:FILE:|📄\s*`)([^\n`]+)\s*```[\w]*\s*([\s\S]*?)```").unwrap();
+    let pattern =
+        Regex::new(r"###\s*(?:FILE:|📄\s*`)([^\n`]+)\s*```[\w]*\s*([\s\S]*?)```").unwrap();
     let mut files_written = 0;
 
     for caps in pattern.captures_iter(&response) {
@@ -108,21 +113,28 @@ async fn main() {
         if path.extension().map(|e| e == "rs").unwrap_or(false) {
             let content = fs::read_to_string(&path).unwrap();
             println!("\n文件: {}", path.display());
-            println!("内容预览:\n{}\n", content.lines().take(5).collect::<Vec<_>>().join("\n"));
+            println!(
+                "内容预览:\n{}\n",
+                content.lines().take(5).collect::<Vec<_>>().join("\n")
+            );
         }
     }
 
     // 尝试编译
     println!("--- 尝试编译 ---");
     let cargo_toml = workspace.join("Cargo.toml");
-    fs::write(&cargo_toml, r#"
+    fs::write(
+        &cargo_toml,
+        r#"
 [package]
 name = "test-fibonacci"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     println!("写入 Cargo.toml\n");
 

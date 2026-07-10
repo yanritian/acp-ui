@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import type { ApprovalRequest } from '@/types/operator'
+import { useI18n } from 'vue-i18n'
+import type { ApprovalDecision, ApprovalRequest } from '@/types/operator'
 
-const props = defineProps<{
+const { t } = useI18n()
+
+defineProps<{
   approvals: ApprovalRequest[]
 }>()
 
 const emit = defineEmits<{
-  approve: [approvalId: string, decision: 'approve' | 'reject']
+  approve: [approvalId: string, decision: ApprovalDecision]
 }>()
 
 const levelColors: Record<string, string> = {
@@ -15,13 +18,27 @@ const levelColors: Record<string, string> = {
   approve: '#F59E0B',
   forbidden: '#EF4444',
 }
+
+function decisionLabel(decision: ApprovalDecision): string {
+  return t(`approvalDecision.${decision}`)
+}
+
+function decisionClass(decision: ApprovalDecision): string {
+  if (decision === 'approve') return 'btn-approve'
+  if (decision === 'reject') return 'btn-reject'
+  return 'btn-change'
+}
+
+function approvalOptions(approval: ApprovalRequest): ApprovalDecision[] {
+  return approval.options?.length ? approval.options : ['approve', 'reject']
+}
 </script>
 
 <template>
   <div class="approval-drawer">
-    <h3>Pending Approvals</h3>
+    <h3>{{ t('gameOperator.title') }}</h3>
     <div v-if="approvals.length === 0" class="empty-state">
-      No pending approvals
+      {{ t('gameOperator.noPendingApprovals') }}
     </div>
     <div v-else class="approval-list">
       <div
@@ -33,36 +50,68 @@ const levelColors: Record<string, string> = {
           <div
             class="approval-level"
             :style="{ background: levelColors[approval.level] }"
+            :aria-label="`${t('a11y.approvalLevel')}: ${approval.level}`"
           >
             {{ approval.level.toUpperCase() }}
           </div>
-          <div class="approval-action">{{ approval.action }}</div>
+          <div
+            class="approval-action"
+            :aria-label="`${t('a11y.approvalAction')}: ${approval.action}`"
+          >
+            {{ approval.action }}
+          </div>
         </div>
-        <div class="approval-title">{{ approval.title }}</div>
-        <div class="approval-reason">{{ approval.reason }}</div>
+        <div
+          class="approval-title"
+          :aria-label="`${t('a11y.approvalTitle')}: ${approval.title}`"
+        >
+          {{ approval.title }}
+        </div>
+        <div
+          class="approval-reason"
+          :aria-label="`${t('a11y.approvalReason')}: ${approval.reason}`"
+        >
+          {{ approval.reason }}
+        </div>
         <div v-if="approval.risk" class="approval-risk">
-          <strong>Risk:</strong> {{ approval.risk }}
+          <strong>{{ t('a11y.approvalRisk') }}:</strong> {{ approval.risk }}
         </div>
         <div v-if="approval.preview?.files" class="approval-files">
-          <strong>Files:</strong>
+          <strong>{{ t('a11y.approvalFiles') }}:</strong>
           <ul>
             <li v-for="file in approval.preview.files" :key="file">
               {{ file }}
             </li>
           </ul>
         </div>
+        <div
+          v-if="approval.preview?.diffs?.length"
+          class="approval-diffs"
+        >
+          <details
+            v-for="fileDiff in approval.preview.diffs"
+            :key="`${approval.approval_id}:${fileDiff.path}`"
+            class="diff-file"
+          >
+            <summary :aria-label="`${t('a11y.diffPreview')}: ${fileDiff.path}`">
+              <span class="diff-operation" :data-operation="fileDiff.operation">
+                {{ fileDiff.operation }}
+              </span>
+              <code>{{ fileDiff.path }}</code>
+            </summary>
+            <pre><code>{{ fileDiff.diff }}</code></pre>
+          </details>
+        </div>
         <div class="approval-actions">
           <button
-            @click="emit('approve', approval.approval_id, 'approve')"
-            class="btn-approve"
+            v-for="decision in approvalOptions(approval)"
+            :key="decision"
+            @click="emit('approve', approval.approval_id, decision)"
+            class="approval-btn"
+            :class="decisionClass(decision)"
+            :aria-label="`${t(`a11y.${decision}Button`)}: ${approval.title}`"
           >
-            ✓ Approve
-          </button>
-          <button
-            @click="emit('approve', approval.approval_id, 'reject')"
-            class="btn-reject"
-          >
-            ✗ Reject
+            {{ decisionLabel(decision) }}
           </button>
         </div>
       </div>
@@ -72,7 +121,8 @@ const levelColors: Record<string, string> = {
 
 <style scoped>
 .approval-drawer {
-  height: 100%;
+  height: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -90,13 +140,18 @@ const levelColors: Record<string, string> = {
 
 .approval-list {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
+  overflow-y: visible;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
 .approval-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 1rem;
   background: var(--bg-main);
   border-radius: 4px;
@@ -106,6 +161,7 @@ const levelColors: Record<string, string> = {
 .approval-header {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
@@ -119,6 +175,11 @@ const levelColors: Record<string, string> = {
 }
 
 .approval-action {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: monospace;
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -127,12 +188,14 @@ const levelColors: Record<string, string> = {
 .approval-title {
   font-weight: 500;
   margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .approval-reason {
   font-size: 0.9rem;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .approval-risk {
@@ -141,11 +204,13 @@ const levelColors: Record<string, string> = {
   border-radius: 4px;
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .approval-files {
   font-size: 0.85rem;
   margin-bottom: 0.75rem;
+  overflow-wrap: anywhere;
 }
 
 .approval-files ul {
@@ -153,14 +218,71 @@ const levelColors: Record<string, string> = {
   padding-left: 1.5rem;
 }
 
+.approval-files li {
+  overflow-wrap: anywhere;
+}
+
+.approval-diffs {
+  margin-bottom: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.diff-file {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diff-file summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.diff-file summary code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-operation {
+  flex: 0 0 auto;
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diff-operation[data-operation='replace'] {
+  color: #92400E;
+}
+
+.diff-file pre {
+  max-height: 280px;
+  margin: 0 0 0.65rem;
+  padding: 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #111827;
+  color: #E5E7EB;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
 .approval-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.btn-approve,
-.btn-reject {
-  flex: 1;
+.approval-btn {
+  flex: 1 1 120px;
+  min-height: 36px;
   padding: 0.5rem;
   border: none;
   border-radius: 4px;
@@ -178,8 +300,13 @@ const levelColors: Record<string, string> = {
   color: white;
 }
 
-.btn-approve:hover,
-.btn-reject:hover {
+.btn-change {
+  background: #F59E0B;
+  color: white;
+}
+
+.approval-btn:hover {
   opacity: 0.9;
 }
+
 </style>

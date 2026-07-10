@@ -7,21 +7,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::swarm_adapters::{WorkerId, now_ms};
+use crate::swarm_adapters::{now_ms, WorkerId};
 
 // ===========================================================================
 // Re-exports from acp-core (C-1 unified types)
 // ===========================================================================
 
 pub use acp_core::{
-    GoalRuntime as Goal,
-    GoalStatus,
-    CompletionConditionSpec,
-    EvaluatorSpec,
-    IterationRecord,
-    EvaluationResult,
-    ConditionResult,
-    GoalGraphSummary,
+    CompletionConditionSpec, ConditionResult, EvaluationResult, EvaluatorSpec, GoalGraphSummary,
+    GoalRuntime as Goal, GoalStatus, IterationRecord,
 };
 
 // ===========================================================================
@@ -70,50 +64,51 @@ impl CompletionCondition {
     /// Convert to unified CompletionConditionSpec
     pub fn to_spec(&self) -> CompletionConditionSpec {
         match self {
-            CompletionCondition::CommandSuccess { command, expected_exit_code } => {
-                CompletionConditionSpec::CommandSuccess {
-                    command: command.clone(),
-                    args: vec![expected_exit_code.to_string()],
-                    cwd: None,
-                }
-            }
-            CompletionCondition::OutputContains { text, case_sensitive } => {
-                CompletionConditionSpec::OutputContains {
-                    command: "".into(),
-                    pattern: text.clone(),
-                    case_sensitive: *case_sensitive,
-                }
-            }
+            CompletionCondition::CommandSuccess {
+                command,
+                expected_exit_code,
+            } => CompletionConditionSpec::CommandSuccess {
+                command: command.clone(),
+                args: vec![expected_exit_code.to_string()],
+                cwd: None,
+            },
+            CompletionCondition::OutputContains {
+                text,
+                case_sensitive,
+            } => CompletionConditionSpec::OutputContains {
+                command: "".into(),
+                pattern: text.clone(),
+                case_sensitive: *case_sensitive,
+            },
             CompletionCondition::OutputMatches { pattern } => {
                 CompletionConditionSpec::OutputMatches {
                     command: "".into(),
                     regex: pattern.clone(),
                 }
             }
-            CompletionCondition::All { conditions } => {
-                CompletionConditionSpec::All {
-                    conditions: conditions.iter().map(|c| c.to_spec()).collect(),
-                }
-            }
-            CompletionCondition::Any { conditions } => {
-                CompletionConditionSpec::Any {
-                    conditions: conditions.iter().map(|c| c.to_spec()).collect(),
-                }
-            }
-            CompletionCondition::FileCheck { path, content_contains, .. } => {
-                CompletionConditionSpec::FileCheck {
-                    path: path.clone(),
-                    content_contains: content_contains.clone(),
-                    max_size_bytes: None,
-                }
-            }
-            CompletionCondition::HttpHealthCheck { url, expected_status } => {
-                CompletionConditionSpec::HttpHealthCheck {
-                    url: url.clone(),
-                    method: "GET".into(),
-                    expected_status: Some(*expected_status),
-                }
-            }
+            CompletionCondition::All { conditions } => CompletionConditionSpec::All {
+                conditions: conditions.iter().map(|c| c.to_spec()).collect(),
+            },
+            CompletionCondition::Any { conditions } => CompletionConditionSpec::Any {
+                conditions: conditions.iter().map(|c| c.to_spec()).collect(),
+            },
+            CompletionCondition::FileCheck {
+                path,
+                content_contains,
+                ..
+            } => CompletionConditionSpec::FileCheck {
+                path: path.clone(),
+                content_contains: content_contains.clone(),
+                max_size_bytes: None,
+            },
+            CompletionCondition::HttpHealthCheck {
+                url,
+                expected_status,
+            } => CompletionConditionSpec::HttpHealthCheck {
+                url: url.clone(),
+                method: "GET".into(),
+                expected_status: Some(*expected_status),
+            },
             CompletionCondition::QueenJudgment { criteria } => {
                 CompletionConditionSpec::QueenJudgment {
                     criteria: criteria.clone(),
@@ -131,50 +126,50 @@ impl CompletionCondition {
                     expected_exit_code: 0,
                 }
             }
-            CompletionConditionSpec::OutputContains { pattern, case_sensitive, .. } => {
-                CompletionCondition::OutputContains {
-                    text: pattern.clone(),
-                    case_sensitive: *case_sensitive,
-                }
-            }
+            CompletionConditionSpec::OutputContains {
+                pattern,
+                case_sensitive,
+                ..
+            } => CompletionCondition::OutputContains {
+                text: pattern.clone(),
+                case_sensitive: *case_sensitive,
+            },
             CompletionConditionSpec::OutputMatches { regex, .. } => {
                 CompletionCondition::OutputMatches {
                     pattern: regex.clone(),
                 }
             }
-            CompletionConditionSpec::All { conditions } => {
-                CompletionCondition::All {
-                    conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
-                }
-            }
-            CompletionConditionSpec::Any { conditions } => {
-                CompletionCondition::Any {
-                    conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
-                }
-            }
-            CompletionConditionSpec::FileCheck { path, content_contains, .. } => {
-                CompletionCondition::FileCheck {
-                    path: path.clone(),
-                    must_exist: true,
-                    content_contains: content_contains.clone(),
-                }
-            }
-            CompletionConditionSpec::HttpHealthCheck { url, expected_status, .. } => {
-                CompletionCondition::HttpHealthCheck {
-                    url: url.clone(),
-                    expected_status: expected_status.unwrap_or(200),
-                }
-            }
+            CompletionConditionSpec::All { conditions } => CompletionCondition::All {
+                conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
+            },
+            CompletionConditionSpec::Any { conditions } => CompletionCondition::Any {
+                conditions: conditions.iter().map(|c| Self::from_spec(c)).collect(),
+            },
+            CompletionConditionSpec::FileCheck {
+                path,
+                content_contains,
+                ..
+            } => CompletionCondition::FileCheck {
+                path: path.clone(),
+                must_exist: true,
+                content_contains: content_contains.clone(),
+            },
+            CompletionConditionSpec::HttpHealthCheck {
+                url,
+                expected_status,
+                ..
+            } => CompletionCondition::HttpHealthCheck {
+                url: url.clone(),
+                expected_status: expected_status.unwrap_or(200),
+            },
             CompletionConditionSpec::QueenJudgment { criteria } => {
                 CompletionCondition::QueenJudgment {
                     criteria: criteria.clone(),
                 }
             }
-            CompletionConditionSpec::Custom { evaluator } => {
-                CompletionCondition::QueenJudgment {
-                    criteria: evaluator.clone(),
-                }
-            }
+            CompletionConditionSpec::Custom { evaluator } => CompletionCondition::QueenJudgment {
+                criteria: evaluator.clone(),
+            },
         }
     }
 }
@@ -211,7 +206,10 @@ impl Evaluator {
                 primary: primary.clone(),
                 adversary: adversary.clone(),
             },
-            Evaluator::Hybrid { auto_conditions, queen_criteria } => EvaluatorSpec::Hybrid {
+            Evaluator::Hybrid {
+                auto_conditions,
+                queen_criteria,
+            } => EvaluatorSpec::Hybrid {
                 auto_conditions: auto_conditions.iter().map(|c| c.to_spec()).collect(),
                 queen_criteria: queen_criteria.clone(),
             },
@@ -228,8 +226,14 @@ impl Evaluator {
                 primary: primary.clone(),
                 adversary: adversary.clone(),
             },
-            EvaluatorSpec::Hybrid { auto_conditions, queen_criteria } => Evaluator::Hybrid {
-                auto_conditions: auto_conditions.iter().map(|c| CompletionCondition::from_spec(c)).collect(),
+            EvaluatorSpec::Hybrid {
+                auto_conditions,
+                queen_criteria,
+            } => Evaluator::Hybrid {
+                auto_conditions: auto_conditions
+                    .iter()
+                    .map(|c| CompletionCondition::from_spec(c))
+                    .collect(),
                 queen_criteria: queen_criteria.clone(),
             },
         }
@@ -374,7 +378,11 @@ impl GoalGraph {
     }
 
     /// Execute one reconcile iteration for a goal
-    pub fn execute_once(&self, id: &str, reconcile: &crate::reconcile::ReconcileLoop) -> Result<GoalStatus, String> {
+    pub fn execute_once(
+        &self,
+        id: &str,
+        reconcile: &crate::reconcile::ReconcileLoop,
+    ) -> Result<GoalStatus, String> {
         let mut goals = self.goals.lock().map_err(|e| e.to_string())?;
         let goal = goals
             .get_mut(id)
@@ -404,7 +412,11 @@ impl GoalGraph {
         goals
             .values()
             .filter(|g| g.status == GoalStatus::Pending)
-            .filter(|g| g.depends_on.iter().all(|dep| converged_ids.contains(&dep.as_str())))
+            .filter(|g| {
+                g.depends_on
+                    .iter()
+                    .all(|dep| converged_ids.contains(&dep.as_str()))
+            })
             .map(|g| g.id.clone())
             .collect()
     }
@@ -420,60 +432,64 @@ impl Default for GoalGraph {
 // Tauri Commands
 // ===========================================================================
 
-use tauri::State;
 use crate::AppState;
+use tauri::State;
 
 /// Submit a new goal
 #[tauri::command]
-pub fn goal_submit(
-    state: State<'_, AppState>,
-    goal: Goal,
-) -> Result<(), String> {
-    state.goal_graph.lock().map_err(|e| e.to_string())?.submit(goal)
+pub fn goal_submit(state: State<'_, AppState>, goal: Goal) -> Result<(), String> {
+    state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
+        .submit(goal)
 }
 
 /// Get goal status
 #[tauri::command]
-pub fn goal_get_status(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<Goal, String> {
-    state.goal_graph.lock().map_err(|e| e.to_string())?
+pub fn goal_get_status(state: State<'_, AppState>, id: String) -> Result<Goal, String> {
+    state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
         .get(&id)
         .ok_or_else(|| format!("Goal '{}' not found", id))
 }
 
 /// Cancel a goal
 #[tauri::command]
-pub fn goal_cancel(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<(), String> {
-    state.goal_graph.lock().map_err(|e| e.to_string())?.cancel(&id)
+pub fn goal_cancel(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
+        .cancel(&id)
 }
 
 /// Get graph summary
 #[tauri::command]
-pub fn goal_get_graph_summary(
-    state: State<'_, AppState>,
-) -> Result<GoalGraphSummary, String> {
-    Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.summary())
+pub fn goal_get_graph_summary(state: State<'_, AppState>) -> Result<GoalGraphSummary, String> {
+    Ok(state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
+        .summary())
 }
 
 /// List all goals
 #[tauri::command]
-pub fn goal_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<Goal>, String> {
+pub fn goal_list(state: State<'_, AppState>) -> Result<Vec<Goal>, String> {
     Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.list())
 }
 
 /// Get goals ready to execute
 #[tauri::command]
-pub fn goal_get_ready(
-    state: State<'_, AppState>,
-) -> Result<Vec<Goal>, String> {
-    Ok(state.goal_graph.lock().map_err(|e| e.to_string())?.get_ready_goals())
+pub fn goal_get_ready(state: State<'_, AppState>) -> Result<Vec<Goal>, String> {
+    Ok(state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
+        .get_ready_goals())
 }
 
 /// Assign a worker to a goal
@@ -483,7 +499,10 @@ pub fn goal_assign_worker(
     id: String,
     worker_id: String,
 ) -> Result<(), String> {
-    state.goal_graph.lock().map_err(|e| e.to_string())?
+    state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
         .assign_worker(&id, worker_id)
 }
 
@@ -494,16 +513,16 @@ pub fn goal_add_iteration(
     id: String,
     record: IterationRecord,
 ) -> Result<(), String> {
-    state.goal_graph.lock().map_err(|e| e.to_string())?
+    state
+        .goal_graph
+        .lock()
+        .map_err(|e| e.to_string())?
         .add_iteration(&id, record)
 }
 
 /// Execute a single iteration for a goal.
 #[tauri::command]
-pub fn goal_execute_once(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<GoalStatus, String> {
+pub fn goal_execute_once(state: State<'_, AppState>, id: String) -> Result<GoalStatus, String> {
     let reconcile = state.reconcile_loop.lock().map_err(|e| e.to_string())?;
     let graph = state.goal_graph.lock().map_err(|e| e.to_string())?;
     graph.execute_once(&id, &reconcile)
@@ -511,9 +530,7 @@ pub fn goal_execute_once(
 
 /// Execute all ready goals in the graph.
 #[tauri::command]
-pub fn goal_execute_ready(
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, GoalStatus)>, String> {
+pub fn goal_execute_ready(state: State<'_, AppState>) -> Result<Vec<(String, GoalStatus)>, String> {
     let reconcile = state.reconcile_loop.lock().map_err(|e| e.to_string())?;
     let graph = state.goal_graph.lock().map_err(|e| e.to_string())?;
 

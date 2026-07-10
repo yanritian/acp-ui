@@ -7,9 +7,9 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::{Command, Output, Stdio};
-use std::path::PathBuf;
 use std::io::Read;
+use std::path::PathBuf;
+use std::process::{Command, Output, Stdio};
 use tauri::State;
 
 use crate::AppState;
@@ -46,7 +46,7 @@ pub struct HookConfig {
 pub enum HookType {
     PreToolUse,
     PostToolUse,
-    PostToolUseFailure,  // NEW: triggered when tool execution fails
+    PostToolUseFailure, // NEW: triggered when tool execution fails
     Stop,
 }
 
@@ -60,7 +60,10 @@ pub struct HookAbortSignal {
 
 impl HookAbortSignal {
     pub fn new() -> Self {
-        Self { aborted: false, reason: None }
+        Self {
+            aborted: false,
+            reason: None,
+        }
     }
 
     pub fn abort(&mut self, reason: Option<String>) {
@@ -102,7 +105,8 @@ impl HooksExecutor {
 
     /// Register hooks for an agent
     pub fn register_agent_hooks(&mut self, agent_id: &str, hook_names: &[String]) {
-        let valid_hooks: Vec<String> = hook_names.iter()
+        let valid_hooks: Vec<String> = hook_names
+            .iter()
             .filter(|name| self.hooks.contains_key(*name))
             .cloned()
             .collect();
@@ -120,10 +124,14 @@ impl HooksExecutor {
 
     /// Get hooks for an agent
     pub fn get_agent_hooks(&self, agent_id: &str) -> Vec<&HookConfig> {
-        self.agent_hooks.get(agent_id)
-            .map(|names| names.iter()
-                .filter_map(|name| self.hooks.get(name))
-                .collect())
+        self.agent_hooks
+            .get(agent_id)
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(|name| self.hooks.get(name))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -136,14 +144,11 @@ impl HooksExecutor {
     ) -> HookResult {
         let agent_hooks = self.get_agent_hooks(agent_id);
 
-        for hook_config in agent_hooks.iter().filter(|h| h.hook_type == HookType::PreToolUse) {
-            let result = self.execute_hook(
-                hook_config,
-                agent_id,
-                tool_name,
-                Some(tool_args),
-                None,
-            );
+        for hook_config in agent_hooks
+            .iter()
+            .filter(|h| h.hook_type == HookType::PreToolUse)
+        {
+            let result = self.execute_hook(hook_config, agent_id, tool_name, Some(tool_args), None);
 
             // If hook returns should_block, stop execution
             if result.should_block {
@@ -157,7 +162,10 @@ impl HooksExecutor {
                     output: result.output,
                     error: result.error,
                     should_block: true,
-                    message: Some(format!("Hook '{}' failed, blocking operation", hook_config.name)),
+                    message: Some(format!(
+                        "Hook '{}' failed, blocking operation",
+                        hook_config.name
+                    )),
                     updated_input: None,
                     abort_signal: None,
                 };
@@ -189,7 +197,10 @@ impl HooksExecutor {
         let mut all_outputs = Vec::new();
         let mut all_errors = Vec::new();
 
-        for hook_config in agent_hooks.iter().filter(|h| h.hook_type == HookType::PostToolUse) {
+        for hook_config in agent_hooks
+            .iter()
+            .filter(|h| h.hook_type == HookType::PostToolUse)
+        {
             let result = self.execute_hook(
                 hook_config,
                 agent_id,
@@ -208,10 +219,24 @@ impl HooksExecutor {
 
         HookResult {
             success: all_errors.is_empty(),
-            output: if all_outputs.is_empty() { None } else { Some(all_outputs.join("\n")) },
-            error: if all_errors.is_empty() { None } else { Some(all_errors.join("\n")) },
+            output: if all_outputs.is_empty() {
+                None
+            } else {
+                Some(all_outputs.join("\n"))
+            },
+            error: if all_errors.is_empty() {
+                None
+            } else {
+                Some(all_errors.join("\n"))
+            },
             should_block: false,
-            message: Some(format!("Executed {} PostToolUse hooks", agent_hooks.iter().filter(|h| h.hook_type == HookType::PostToolUse).count())),
+            message: Some(format!(
+                "Executed {} PostToolUse hooks",
+                agent_hooks
+                    .iter()
+                    .filter(|h| h.hook_type == HookType::PostToolUse)
+                    .count()
+            )),
             updated_input: None,
             abort_signal: None,
         }
@@ -232,7 +257,10 @@ impl HooksExecutor {
         let mut all_errors = Vec::new();
         let mut abort_signal = HookAbortSignal::new();
 
-        for hook_config in agent_hooks.iter().filter(|h| h.hook_type == HookType::PostToolUseFailure) {
+        for hook_config in agent_hooks
+            .iter()
+            .filter(|h| h.hook_type == HookType::PostToolUseFailure)
+        {
             let result = self.execute_hook_with_error(
                 hook_config,
                 agent_id,
@@ -259,12 +287,30 @@ impl HooksExecutor {
 
         HookResult {
             success: all_errors.is_empty(),
-            output: if all_outputs.is_empty() { None } else { Some(all_outputs.join("\n")) },
-            error: if all_errors.is_empty() { None } else { Some(all_errors.join("\n")) },
+            output: if all_outputs.is_empty() {
+                None
+            } else {
+                Some(all_outputs.join("\n"))
+            },
+            error: if all_errors.is_empty() {
+                None
+            } else {
+                Some(all_errors.join("\n"))
+            },
             should_block: false,
-            message: Some(format!("Executed {} PostToolUseFailure hooks", agent_hooks.iter().filter(|h| h.hook_type == HookType::PostToolUseFailure).count())),
+            message: Some(format!(
+                "Executed {} PostToolUseFailure hooks",
+                agent_hooks
+                    .iter()
+                    .filter(|h| h.hook_type == HookType::PostToolUseFailure)
+                    .count()
+            )),
             updated_input: None,
-            abort_signal: if abort_signal.is_aborted() { Some(abort_signal) } else { None },
+            abort_signal: if abort_signal.is_aborted() {
+                Some(abort_signal)
+            } else {
+                None
+            },
         }
     }
 
@@ -284,7 +330,10 @@ impl HooksExecutor {
             return HookResult {
                 success: false,
                 output: None,
-                error: Some(format!("Hook script not found: {}", hook_config.script_path)),
+                error: Some(format!(
+                    "Hook script not found: {}",
+                    hook_config.script_path
+                )),
                 should_block: false,
                 message: None,
                 updated_input: None,
@@ -305,12 +354,15 @@ impl HooksExecutor {
             cmd.env("TOOL_RESULT", result);
         }
         cmd.env("HOOK_NAME", &hook_config.name);
-        cmd.env("HOOK_TYPE", match hook_config.hook_type {
-            HookType::PreToolUse => "pre",
-            HookType::PostToolUse => "post",
-            HookType::PostToolUseFailure => "postFailure",
-            HookType::Stop => "stop",
-        });
+        cmd.env(
+            "HOOK_TYPE",
+            match hook_config.hook_type {
+                HookType::PreToolUse => "pre",
+                HookType::PostToolUse => "post",
+                HookType::PostToolUseFailure => "postFailure",
+                HookType::Stop => "stop",
+            },
+        );
 
         // Execute with timeout (actually enforced)
         let timeout_ms = hook_config.timeout_ms.unwrap_or(30000);
@@ -318,8 +370,7 @@ impl HooksExecutor {
         #[cfg(desktop)]
         let output_result: Result<Output, std::io::Error> = {
             // Capture stdout/stderr
-            cmd.stdout(Stdio::piped())
-                .stderr(Stdio::piped());
+            cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
             // Spawn and wait with timeout using polling approach
             match cmd.spawn() {
@@ -332,21 +383,29 @@ impl HooksExecutor {
                         match child.try_wait() {
                             Ok(Some(status)) => {
                                 // Process completed - collect output
-                                let stdout = child.stdout.take()
+                                let stdout = child
+                                    .stdout
+                                    .take()
                                     .map(|mut s| {
                                         let mut buf = Vec::new();
                                         let _ = s.read_to_end(&mut buf);
                                         buf
                                     })
                                     .unwrap_or_default();
-                                let stderr = child.stderr.take()
+                                let stderr = child
+                                    .stderr
+                                    .take()
                                     .map(|mut s| {
                                         let mut buf = Vec::new();
                                         let _ = s.read_to_end(&mut buf);
                                         buf
                                     })
                                     .unwrap_or_default();
-                                break Ok(Output { status, stdout, stderr });
+                                break Ok(Output {
+                                    status,
+                                    stdout,
+                                    stderr,
+                                });
                             }
                             Ok(None) => {
                                 // Still running - check timeout
@@ -355,7 +414,7 @@ impl HooksExecutor {
                                     let _ = child.wait();
                                     break Err(std::io::Error::new(
                                         std::io::ErrorKind::TimedOut,
-                                        format!("Hook timed out after {}ms", timeout_ms)
+                                        format!("Hook timed out after {}ms", timeout_ms),
                                     ));
                                 }
                                 // Sleep briefly before checking again
@@ -373,7 +432,7 @@ impl HooksExecutor {
         let output_result: Result<Output, std::io::Error> = {
             Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "Hooks not supported on non-desktop platforms"
+                "Hooks not supported on non-desktop platforms",
             ))
         };
 
@@ -384,10 +443,10 @@ impl HooksExecutor {
 
                 // Parse output for block/deny signals using structured protocol
                 // Require dedicated signal prefix to avoid false positives from normal output
-                let should_block = stdout.contains("__HOOK_SIGNAL:BLOCK__") ||
-                                   stdout.contains("__HOOK_SIGNAL:DENY__") ||
-                                   stderr.contains("__HOOK_SIGNAL:BLOCK__") ||
-                                   stderr.contains("__HOOK_SIGNAL:DENY__");
+                let should_block = stdout.contains("__HOOK_SIGNAL:BLOCK__")
+                    || stdout.contains("__HOOK_SIGNAL:DENY__")
+                    || stderr.contains("__HOOK_SIGNAL:BLOCK__")
+                    || stderr.contains("__HOOK_SIGNAL:DENY__");
 
                 // Parse for updated input (structured format)
                 let updated_input = if stdout.contains("__HOOK_INPUT:") {
@@ -413,12 +472,12 @@ impl HooksExecutor {
                         if let Some(end) = rest.find("__END__") {
                             Some(HookAbortSignal {
                                 aborted: true,
-                                reason: Some(rest[..end].trim().to_string())
+                                reason: Some(rest[..end].trim().to_string()),
                             })
                         } else {
                             Some(HookAbortSignal {
                                 aborted: true,
-                                reason: Some(rest.trim().to_string())
+                                reason: Some(rest.trim().to_string()),
                             })
                         }
                     } else {
@@ -430,25 +489,31 @@ impl HooksExecutor {
 
                 HookResult {
                     success: output.status.success(),
-                    output: if stdout.is_empty() { None } else { Some(stdout) },
-                    error: if stderr.is_empty() { None } else { Some(stderr) },
+                    output: if stdout.is_empty() {
+                        None
+                    } else {
+                        Some(stdout)
+                    },
+                    error: if stderr.is_empty() {
+                        None
+                    } else {
+                        Some(stderr)
+                    },
                     should_block,
                     message: None,
                     updated_input,
                     abort_signal,
                 }
             }
-            Err(e) => {
-                HookResult {
-                    success: false,
-                    output: None,
-                    error: Some(format!("Failed to execute hook: {}", e)),
-                    should_block: hook_config.block_on_failure.unwrap_or(false),
-                    message: None,
-                    updated_input: None,
-                    abort_signal: None,
-                }
-            }
+            Err(e) => HookResult {
+                success: false,
+                output: None,
+                error: Some(format!("Failed to execute hook: {}", e)),
+                should_block: hook_config.block_on_failure.unwrap_or(false),
+                message: None,
+                updated_input: None,
+                abort_signal: None,
+            },
         }
     }
 
@@ -468,7 +533,10 @@ impl HooksExecutor {
             return HookResult {
                 success: false,
                 output: None,
-                error: Some(format!("Hook script not found: {}", hook_config.script_path)),
+                error: Some(format!(
+                    "Hook script not found: {}",
+                    hook_config.script_path
+                )),
                 should_block: false,
                 message: None,
                 updated_input: None,
@@ -499,39 +567,54 @@ impl HooksExecutor {
 
                 // Parse for abort signal
                 let abort_signal = if stdout.contains("ABORT:") {
-                    let reason = stdout.split("ABORT:").nth(1).unwrap_or("").trim().to_string();
-                    Some(HookAbortSignal { aborted: true, reason: Some(reason) })
+                    let reason = stdout
+                        .split("ABORT:")
+                        .nth(1)
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    Some(HookAbortSignal {
+                        aborted: true,
+                        reason: Some(reason),
+                    })
                 } else {
                     None
                 };
 
                 HookResult {
                     success: output.status.success(),
-                    output: if stdout.is_empty() { None } else { Some(stdout) },
-                    error: if stderr.is_empty() { None } else { Some(stderr) },
+                    output: if stdout.is_empty() {
+                        None
+                    } else {
+                        Some(stdout)
+                    },
+                    error: if stderr.is_empty() {
+                        None
+                    } else {
+                        Some(stderr)
+                    },
                     should_block: false,
                     message: None,
                     updated_input: None,
                     abort_signal,
                 }
             }
-            Err(e) => {
-                HookResult {
-                    success: false,
-                    output: None,
-                    error: Some(format!("Failed to execute failure hook: {}", e)),
-                    should_block: false,
-                    message: None,
-                    updated_input: None,
-                    abort_signal: None,
-                }
-            }
+            Err(e) => HookResult {
+                success: false,
+                output: None,
+                error: Some(format!("Failed to execute failure hook: {}", e)),
+                should_block: false,
+                message: None,
+                updated_input: None,
+                abort_signal: None,
+            },
         }
     }
 
     /// Validate agent has hook registered (isolation check)
     pub fn validate_hook_access(&self, agent_id: &str, hook_name: &str) -> bool {
-        self.agent_hooks.get(agent_id)
+        self.agent_hooks
+            .get(agent_id)
             .map(|hooks| hooks.contains(&hook_name.to_string()))
             .unwrap_or(false)
     }
@@ -596,7 +679,11 @@ pub fn hook_register(
         timeout_ms,
         block_on_failure,
     };
-    state.hooks_executor.lock().map_err(|e| e.to_string())?.register_hook(config);
+    state
+        .hooks_executor
+        .lock()
+        .map_err(|e| e.to_string())?
+        .register_hook(config);
     Ok(format!("Hook '{}' registered", name))
 }
 
@@ -607,8 +694,16 @@ pub fn hook_register_for_agent(
     agent_id: String,
     hook_names: Vec<String>,
 ) -> Result<String, String> {
-    state.hooks_executor.lock().map_err(|e| e.to_string())?.register_agent_hooks(&agent_id, &hook_names);
-    Ok(format!("Registered {} hooks for agent '{}'", hook_names.len(), agent_id))
+    state
+        .hooks_executor
+        .lock()
+        .map_err(|e| e.to_string())?
+        .register_agent_hooks(&agent_id, &hook_names);
+    Ok(format!(
+        "Registered {} hooks for agent '{}'",
+        hook_names.len(),
+        agent_id
+    ))
 }
 
 /// Unregister all hooks for an agent
@@ -617,7 +712,11 @@ pub fn hook_unregister_agent(
     state: State<'_, AppState>,
     agent_id: String,
 ) -> Result<String, String> {
-    state.hooks_executor.lock().map_err(|e| e.to_string())?.unregister_agent_hooks(&agent_id);
+    state
+        .hooks_executor
+        .lock()
+        .map_err(|e| e.to_string())?
+        .unregister_agent_hooks(&agent_id);
     Ok(format!("Unregistered all hooks for agent '{}'", agent_id))
 }
 
@@ -661,9 +760,7 @@ pub fn hook_execute_post_tool_failure(
 
 /// List all registered hooks
 #[tauri::command]
-pub fn hook_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<HookConfig>, String> {
+pub fn hook_list(state: State<'_, AppState>) -> Result<Vec<HookConfig>, String> {
     let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
     Ok(executor.list_hooks().into_iter().cloned().collect())
 }
@@ -675,5 +772,9 @@ pub fn hook_get_agent_hooks(
     agent_id: String,
 ) -> Result<Vec<HookConfig>, String> {
     let executor = state.hooks_executor.lock().map_err(|e| e.to_string())?;
-    Ok(executor.get_agent_hooks(&agent_id).into_iter().cloned().collect())
+    Ok(executor
+        .get_agent_hooks(&agent_id)
+        .into_iter()
+        .cloned()
+        .collect())
 }

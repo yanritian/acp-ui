@@ -1,0 +1,12 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "ACP UI",
+        "width": 1200,
+        "height": 800,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=9223 --remote-allow-origins=*"
+      }
+    ]
+  }
+}

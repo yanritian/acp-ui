@@ -79,6 +79,8 @@ shell-escape = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 regex = "1"
+sha2 = "0.10"
+subtle = "2.6"
 rust_decimal = "1"  # ERP Finance: decimal precision
 thiserror = "1"     # ERP Finance: error handling
 ureq = { version = "2", features = ["json", "tls"] }  # tls uses rustls by default in ureq 2.x

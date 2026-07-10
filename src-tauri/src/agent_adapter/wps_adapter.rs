@@ -4,11 +4,13 @@
 // Supports document generation, PPT generation, Excel analysis
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenEstimate,
+        TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use reqwest::Client;
@@ -217,7 +219,8 @@ impl WPSAdapter {
 
         let url = format!("{}/documents/generate", config.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .header("Content-Type", "application/json")
@@ -228,10 +231,11 @@ impl WPSAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                let wps_response: WPSResponse = resp.json().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse WPS response: {}", e),
-                    retryable: false,
-                })?;
+                let wps_response: WPSResponse =
+                    resp.json().await.map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse WPS response: {}", e),
+                        retryable: false,
+                    })?;
 
                 Ok((wps_response.url, wps_response.cost))
             }
@@ -268,7 +272,8 @@ impl WPSAdapter {
 
         let url = format!("{}/excel/analyze", config.base_url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .header("Content-Type", "application/json")
@@ -279,12 +284,18 @@ impl WPSAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                let analysis: ExcelAnalysisResponse = resp.json().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse Excel analysis: {}", e),
-                    retryable: false,
-                })?;
+                let analysis: ExcelAnalysisResponse =
+                    resp.json().await.map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse Excel analysis: {}", e),
+                        retryable: false,
+                    })?;
 
-                Ok((analysis.summary, analysis.charts, analysis.insights, analysis.cost))
+                Ok((
+                    analysis.summary,
+                    analysis.charts,
+                    analysis.insights,
+                    analysis.cost,
+                ))
             }
             Ok(resp) => {
                 let status = resp.status();
@@ -353,10 +364,14 @@ impl AgentAdapter for WPSAdapter {
         let wps_config = if let Some(api_key) = config.metadata.get("api_key") {
             WPSConfig {
                 api_key: api_key.clone(),
-                base_url: config.metadata.get("base_url")
+                base_url: config
+                    .metadata
+                    .get("base_url")
                     .cloned()
                     .unwrap_or_else(|| "https://api.wps.cn/v1".to_string()),
-                default_format: config.metadata.get("format")
+                default_format: config
+                    .metadata
+                    .get("format")
                     .map(|f| DocumentFormat::from_str(f))
                     .unwrap_or(DocumentFormat::Docx),
             }
@@ -400,20 +415,26 @@ impl AgentAdapter for WPSAdapter {
         let format = config.default_format;
 
         // Check if this is Excel analysis
-        if task.description.to_lowercase().contains("excel") || task.description.to_lowercase().contains("表格") {
+        if task.description.to_lowercase().contains("excel")
+            || task.description.to_lowercase().contains("表格")
+        {
             if let TaskInput::Url(url) = &task.input {
-                let (summary, charts, insights, cost) = self.analyze_excel(url, "comprehensive").await?;
+                let (summary, charts, insights, cost) =
+                    self.analyze_excel(url, "comprehensive").await?;
                 let duration_ms = start.elapsed().as_millis() as u64;
 
                 return Ok(AgentResult {
                     task_id: task.id.clone(),
                     agent_id: self.id.clone(),
                     status: ResultStatus::Success,
-                    output: TaskOutput::Data(serde_json::json!({
-                        "summary": summary,
-                        "charts": charts,
-                        "insights": insights,
-                    }).to_string()),
+                    output: TaskOutput::Data(
+                        serde_json::json!({
+                            "summary": summary,
+                            "charts": charts,
+                            "insights": insights,
+                        })
+                        .to_string(),
+                    ),
                     input_tokens: 0,
                     output_tokens: 0,
                     total_tokens: 0,
@@ -502,9 +523,7 @@ impl AgentAdapter for WPSAdapter {
             min_cost: base_cost * 0.8,
             max_cost: base_cost * 1.5,
             currency: "USD".to_string(),
-            breakdown: HashMap::from([
-                ("document_generation".to_string(), base_cost),
-            ]),
+            breakdown: HashMap::from([("document_generation".to_string(), base_cost)]),
             token_estimate: TokenEstimate {
                 input_tokens: 0,
                 output_tokens: 0,
@@ -518,7 +537,12 @@ impl AgentAdapter for WPSAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -609,8 +633,17 @@ mod tests {
     #[test]
     fn test_parse_doc_type() {
         assert_eq!(WPSAdapter::parse_doc_type("生成报告"), DocumentType::Report);
-        assert_eq!(WPSAdapter::parse_doc_type("起草合同"), DocumentType::Contract);
-        assert_eq!(WPSAdapter::parse_doc_type("make a proposal"), DocumentType::Proposal);
-        assert_eq!(WPSAdapter::parse_doc_type("普通文档"), DocumentType::Article);
+        assert_eq!(
+            WPSAdapter::parse_doc_type("起草合同"),
+            DocumentType::Contract
+        );
+        assert_eq!(
+            WPSAdapter::parse_doc_type("make a proposal"),
+            DocumentType::Proposal
+        );
+        assert_eq!(
+            WPSAdapter::parse_doc_type("普通文档"),
+            DocumentType::Article
+        );
     }
 }

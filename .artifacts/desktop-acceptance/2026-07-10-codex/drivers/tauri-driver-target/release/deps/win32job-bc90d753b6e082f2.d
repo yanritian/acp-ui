@@ -1,0 +1,12 @@
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\win32job-bc90d753b6e082f2.d: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\job.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\limits.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\query.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\utils.rs
+
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\libwin32job-bc90d753b6e082f2.rlib: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\job.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\limits.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\query.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\utils.rs
+
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\libwin32job-bc90d753b6e082f2.rmeta: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\job.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\limits.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\query.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\utils.rs
+
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\lib.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\error.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\job.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\limits.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\query.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\win32job-2.0.0\src\utils.rs:

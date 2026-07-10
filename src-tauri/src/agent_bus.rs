@@ -265,10 +265,7 @@ impl AgentBus {
     pub fn send(&mut self, message: AgentMessage) -> Result<(), String> {
         // Validate sender is registered
         if !self.mailboxes.contains_key(&message.from_agent) {
-            return Err(format!(
-                "Sender '{}' is not registered",
-                message.from_agent
-            ));
+            return Err(format!("Sender '{}' is not registered", message.from_agent));
         }
 
         self.total_sent += 1;
@@ -293,12 +290,10 @@ impl AgentBus {
             }
         } else {
             // Deliver to specific agent
-            let mailbox = self.mailboxes.get_mut(&message.to_agent).ok_or_else(|| {
-                format!(
-                    "Recipient '{}' is not registered",
-                    message.to_agent
-                )
-            })?;
+            let mailbox = self
+                .mailboxes
+                .get_mut(&message.to_agent)
+                .ok_or_else(|| format!("Recipient '{}' is not registered", message.to_agent))?;
 
             mailbox.push(message);
             self.total_delivered += 1;
@@ -322,11 +317,7 @@ impl AgentBus {
     }
 
     /// Peek at messages without draining
-    pub fn peek(
-        &self,
-        agent_id: &str,
-        limit: Option<usize>,
-    ) -> Result<Vec<&AgentMessage>, String> {
+    pub fn peek(&self, agent_id: &str, limit: Option<usize>) -> Result<Vec<&AgentMessage>, String> {
         let mailbox = self
             .mailboxes
             .get(agent_id)
@@ -337,10 +328,7 @@ impl AgentBus {
 
     /// Get message count for an agent
     pub fn inbox_count(&self, agent_id: &str) -> usize {
-        self.mailboxes
-            .get(agent_id)
-            .map(|m| m.count())
-            .unwrap_or(0)
+        self.mailboxes.get(agent_id).map(|m| m.count()).unwrap_or(0)
     }
 
     /// Subscribe to a topic (for pub/sub pattern)
@@ -350,14 +338,14 @@ impl AgentBus {
             return Err(format!("Agent '{}' is not registered", agent_id));
         }
 
-        let subscribers = self
-            .subscribers
-            .entry(topic.to_string())
-            .or_default();
+        let subscribers = self.subscribers.entry(topic.to_string()).or_default();
 
         if !subscribers.contains(&agent_id.to_string()) {
             subscribers.push(agent_id.to_string());
-            println!("AgentBus: Agent '{}' subscribed to topic '{}'", agent_id, topic);
+            println!(
+                "AgentBus: Agent '{}' subscribed to topic '{}'",
+                agent_id, topic
+            );
         }
 
         Ok(())
@@ -441,7 +429,9 @@ impl AgentBus {
             .message_history
             .iter()
             .rev()
-            .filter(|m| m.from_agent == agent_id || m.to_agent == agent_id || m.to_agent == "broadcast")
+            .filter(|m| {
+                m.from_agent == agent_id || m.to_agent == agent_id || m.to_agent == "broadcast"
+            })
             .collect();
 
         match limit {
@@ -452,11 +442,7 @@ impl AgentBus {
 
     /// Get bus statistics
     pub fn get_stats(&self) -> AgentBusStats {
-        let pending_messages: u64 = self
-            .mailboxes
-            .values()
-            .map(|m| m.count() as u64)
-            .sum();
+        let pending_messages: u64 = self.mailboxes.values().map(|m| m.count() as u64).sum();
 
         AgentBusStats {
             registered_agents: self.mailboxes.len() as u32,
@@ -479,10 +465,7 @@ impl AgentBus {
 
     /// Get subscribers for a topic
     pub fn get_topic_subscribers(&self, topic: &str) -> Vec<String> {
-        self.subscribers
-            .get(topic)
-            .cloned()
-            .unwrap_or_default()
+        self.subscribers.get(topic).cloned().unwrap_or_default()
     }
 
     /// Check if an agent is registered
@@ -587,7 +570,10 @@ pub fn agent_bus_peek(
 
 /// Get message count for an agent's inbox
 #[tauri::command]
-pub fn agent_bus_inbox_count(state: State<'_, AppState>, agent_id: String) -> Result<usize, String> {
+pub fn agent_bus_inbox_count(
+    state: State<'_, AppState>,
+    agent_id: String,
+) -> Result<usize, String> {
     let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
     Ok(bus.inbox_count(&agent_id))
 }
@@ -648,7 +634,10 @@ pub fn agent_bus_list_topics(state: State<'_, AppState>) -> Result<Vec<String>, 
 
 /// Check if an agent is registered
 #[tauri::command]
-pub fn agent_bus_is_registered(state: State<'_, AppState>, agent_id: String) -> Result<bool, String> {
+pub fn agent_bus_is_registered(
+    state: State<'_, AppState>,
+    agent_id: String,
+) -> Result<bool, String> {
     let bus = state.agent_bus.lock().map_err(|e| e.to_string())?;
     Ok(bus.is_registered(&agent_id))
 }

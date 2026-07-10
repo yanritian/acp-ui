@@ -3,7 +3,7 @@
 // Phase 3: Game Development Agents
 // Provides frontend commands for Ren'Py game development
 
-use crate::agent_adapter::renpy_adapter::{RenPyAdapter, StorySpec, CharacterSpec, SceneSpec};
+use crate::agent_adapter::renpy_adapter::{CharacterSpec, RenPyAdapter, SceneSpec, StorySpec};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
@@ -256,13 +256,16 @@ pub async fn renpy_generate_script(
     // Convert request to internal types
     let story_spec = StorySpec {
         title: request.story_spec.title,
-        characters: request.story_spec.characters
+        characters: request
+            .story_spec
+            .characters
             .into_iter()
             .map(|c| CharacterSpec {
                 id: c.id,
                 name: c.name,
                 color: c.color,
-                expressions: c.expressions
+                expressions: c
+                    .expressions
                     .into_iter()
                     .map(|e| crate::agent_adapter::renpy_adapter::ExpressionSpec {
                         name: e.name,
@@ -271,40 +274,51 @@ pub async fn renpy_generate_script(
                     .collect(),
             })
             .collect(),
-        scenes: request.story_spec.scenes
+        scenes: request
+            .story_spec
+            .scenes
             .into_iter()
             .map(|s| SceneSpec {
                 label: s.label,
                 background: s.background,
-                dialogues: s.dialogues
+                dialogues: s
+                    .dialogues
                     .into_iter()
                     .map(|d| crate::agent_adapter::renpy_adapter::DialogueSpec {
                         speaker: d.speaker,
                         text: d.text,
-                        character_shows: d.character_shows
+                        character_shows: d
+                            .character_shows
                             .into_iter()
-                            .map(|cs| crate::agent_adapter::renpy_adapter::CharacterShowSpec {
-                                character_id: cs.character_id,
-                                expression: cs.expression,
-                                position: cs.position,
-                            })
+                            .map(
+                                |cs| crate::agent_adapter::renpy_adapter::CharacterShowSpec {
+                                    character_id: cs.character_id,
+                                    expression: cs.expression,
+                                    position: cs.position,
+                                },
+                            )
                             .collect(),
                     })
                     .collect(),
-                menu: s.menu.map(|m| crate::agent_adapter::renpy_adapter::MenuSpec {
-                    prompt: m.prompt,
-                    choices: m.choices
-                        .into_iter()
-                        .map(|c| crate::agent_adapter::renpy_adapter::ChoiceSpec {
-                            text: c.text,
-                            target_label: c.target_label,
-                        })
-                        .collect(),
-                }),
+                menu: s
+                    .menu
+                    .map(|m| crate::agent_adapter::renpy_adapter::MenuSpec {
+                        prompt: m.prompt,
+                        choices: m
+                            .choices
+                            .into_iter()
+                            .map(|c| crate::agent_adapter::renpy_adapter::ChoiceSpec {
+                                text: c.text,
+                                target_label: c.target_label,
+                            })
+                            .collect(),
+                    }),
                 next_label: s.next_label,
             })
             .collect(),
-        backgrounds: request.story_spec.backgrounds
+        backgrounds: request
+            .story_spec
+            .backgrounds
             .into_iter()
             .map(|b| crate::agent_adapter::renpy_adapter::BackgroundSpec {
                 id: b.id,
@@ -316,7 +330,12 @@ pub async fn renpy_generate_script(
     match adapter.generate_script(&story_spec, &project_path).await {
         Ok(_) => Ok(RenPyGenerateScriptResponse {
             success: true,
-            script_path: Some(project_path.join("game/script.rpy").to_string_lossy().to_string()),
+            script_path: Some(
+                project_path
+                    .join("game/script.rpy")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
             error: None,
         }),
         Err(e) => Ok(RenPyGenerateScriptResponse {

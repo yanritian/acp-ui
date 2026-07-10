@@ -1,9 +1,9 @@
 // Hermes Agent Native Integration
 // This module provides real integration with Hermes Agent runtime
 
-use crate::operator::{OperatorTask, OperatorEvent, TaskMode};
-use std::path::PathBuf;
+use crate::operator::{OperatorEvent, OperatorTask, TaskMode};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 // ============================================================================
 // Hermes Agent Configuration
@@ -80,18 +80,18 @@ impl HermesAgentRuntime {
                 "scripts/Player.gd".to_string(),
                 "scripts/Enemy.gd".to_string(),
             ],
-            scenes: vec![
-                "scenes/Main.tscn".to_string(),
-            ],
-            player_controllers: vec![
-                "scripts/Player.gd".to_string(),
-            ],
+            scenes: vec!["scenes/Main.tscn".to_string()],
+            player_controllers: vec!["scripts/Player.gd".to_string()],
             analysis_time_ms: 1500,
         })
     }
 
     /// Generate implementation plan using Hermes Agent
-    pub async fn generate_plan(&self, goal: &str, analysis: &HermesAnalysisResult) -> Result<HermesPlan, HermesError> {
+    pub async fn generate_plan(
+        &self,
+        goal: &str,
+        analysis: &HermesAnalysisResult,
+    ) -> Result<HermesPlan, HermesError> {
         // TODO: Implement real Hermes API call
         // For now, return mock plan
 
@@ -136,7 +136,11 @@ impl HermesAgentRuntime {
     }
 
     /// Execute a plan step using Hermes Agent
-    pub async fn execute_step(&self, step: &HermesPlanStep, context: &StepContext) -> Result<HermesStepResult, HermesError> {
+    pub async fn execute_step(
+        &self,
+        step: &HermesPlanStep,
+        context: &StepContext,
+    ) -> Result<HermesStepResult, HermesError> {
         // TODO: Implement real Hermes API call
         // For now, return mock result
 
@@ -161,7 +165,12 @@ impl HermesAgentRuntime {
     }
 
     /// Generate code diff using Hermes Agent
-    pub async fn generate_diff(&self, file_path: &str, goal: &str, context: &str) -> Result<HermesDiff, HermesError> {
+    pub async fn generate_diff(
+        &self,
+        file_path: &str,
+        goal: &str,
+        context: &str,
+    ) -> Result<HermesDiff, HermesError> {
         // TODO: Implement real Hermes API call
         // For now, return mock diff
 
@@ -179,7 +188,9 @@ impl HermesAgentRuntime {
             file_path: file_path.to_string(),
             original_content: "// Original content".to_string(),
             new_content: "// Modified content\n// Added new feature".to_string(),
-            diff: "@@ -1 +1,2 @@\n-// Original content\n+// Modified content\n+// Added new feature".to_string(),
+            diff:
+                "@@ -1 +1,2 @@\n-// Original content\n+// Modified content\n+// Added new feature"
+                    .to_string(),
             confidence: 0.95,
         })
     }

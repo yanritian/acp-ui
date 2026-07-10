@@ -40,10 +40,7 @@ pub enum Event {
         hook_type: String,
     },
     /// Session state changed
-    SessionUpdate {
-        session_id: String,
-        action: String,
-    },
+    SessionUpdate { session_id: String, action: String },
     /// Agent status changed
     AgentStatusChange {
         agent_id: String,
@@ -128,7 +125,9 @@ impl EventRouter {
 
         // Update stats
         self.stats.total_events += 1;
-        *self.stats.events_by_type
+        *self
+            .stats
+            .events_by_type
             .entry(event_type.clone())
             .or_insert(0) += 1;
 
@@ -198,7 +197,8 @@ impl EventRouter {
             Event::AgentStatusChange { .. } => "AgentStatusChange",
             Event::PermissionCheck { .. } => "PermissionCheck",
             Event::Log { .. } => "Log",
-        }.to_string()
+        }
+        .to_string()
     }
 
     /// Get router statistics

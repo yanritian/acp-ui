@@ -142,12 +142,24 @@ async fn main() -> std::io::Result<()> {
     println!("  ✓ main.rs 创建（{} 行）\n", main_rs.lines().count());
 
     println!("【步骤 3】编译验证");
-    let build = Command::new("cargo").args(["build", "--release"]).current_dir(project_dir).output().unwrap();
-    if build.status.success() { println!("  ✓ 编译成功\n"); }
-    else { println!("  ❌ 失败: {}", String::from_utf8_lossy(&build.stderr)); return; }
+    let build = Command::new("cargo")
+        .args(["build", "--release"])
+        .current_dir(project_dir)
+        .output()
+        .unwrap();
+    if build.status.success() {
+        println!("  ✓ 编译成功\n");
+    } else {
+        println!("  ❌ 失败: {}", String::from_utf8_lossy(&build.stderr));
+        return;
+    }
 
     println!("【步骤 4】启动服务");
-    let mut server = Command::new("cargo").args(["run", "--release"]).current_dir(project_dir).spawn().unwrap();
+    let mut server = Command::new("cargo")
+        .args(["run", "--release"])
+        .current_dir(project_dir)
+        .spawn()
+        .unwrap();
     println!("  PID: {:?}", server.id());
     std::thread::sleep(Duration::from_secs(6));
     println!("  ✓ 服务启动\n");
@@ -155,32 +167,99 @@ async fn main() -> std::io::Result<()> {
     println!("【步骤 5-10】功能验证");
 
     println!("\n  验证 5: 用户注册");
-    let reg = Command::new("curl").args(["-s", "-X", "POST", "http://localhost:3000/auth/register", "-H", "Content-Type: application/json", "-d", "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}"]).output().unwrap();
+    let reg = Command::new("curl")
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/register",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}",
+        ])
+        .output()
+        .unwrap();
     println!("    {}", String::from_utf8_lossy(&reg.stdout));
 
     println!("\n  验证 6: 用户登录");
-    let login = Command::new("curl").args(["-s", "-X", "POST", "http://localhost:3000/auth/login", "-H", "Content-Type: application/json", "-d", "{\"username\":\"admin\",\"password\":\"admin123\"}"]).output().unwrap();
+    let login = Command::new("curl")
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/login",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"password\":\"admin123\"}",
+        ])
+        .output()
+        .unwrap();
     let lr = String::from_utf8_lossy(&login.stdout);
     println!("    {}", lr);
-    let token = lr.find("\"token\":\"").map(|s| &lr[s+9..]).map(|s| &s[..s.find("\"").unwrap()]).unwrap_or("");
+    let token = lr
+        .find("\"token\":\"")
+        .map(|s| &lr[s + 9..])
+        .map(|s| &s[..s.find("\"").unwrap()])
+        .unwrap_or("");
 
     if !token.is_empty() {
         println!("    ✓ Token: {}", token);
 
         println!("\n  验证 7: 任务创建");
-        let ct = Command::new("curl").args(["-s", "-X", "POST", "http://localhost:3000/tasks", "-H", "Content-Type: application/json", "-H", &format!("Authorization: {}", token), "-d", "{\"title\":\"开发API\"}"]).output().unwrap();
+        let ct = Command::new("curl")
+            .args([
+                "-s",
+                "-X",
+                "POST",
+                "http://localhost:3000/tasks",
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                &format!("Authorization: {}", token),
+                "-d",
+                "{\"title\":\"开发API\"}",
+            ])
+            .output()
+            .unwrap();
         println!("    {}", String::from_utf8_lossy(&ct.stdout));
 
         println!("\n  验证 8: 任务查询");
-        let gt = Command::new("curl").args(["-s", "http://localhost:3000/tasks", "-H", &format!("Authorization: {}", token)]).output().unwrap();
+        let gt = Command::new("curl")
+            .args([
+                "-s",
+                "http://localhost:3000/tasks",
+                "-H",
+                &format!("Authorization: {}", token),
+            ])
+            .output()
+            .unwrap();
         println!("    {}", String::from_utf8_lossy(&gt.stdout));
 
         println!("\n  验证 9: 团队创建");
-        let tm = Command::new("curl").args(["-s", "-X", "POST", "http://localhost:3000/teams", "-H", "Content-Type: application/json", "-H", &format!("Authorization: {}", token), "-d", "{\"name\":\"开发组\"}"]).output().unwrap();
+        let tm = Command::new("curl")
+            .args([
+                "-s",
+                "-X",
+                "POST",
+                "http://localhost:3000/teams",
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                &format!("Authorization: {}", token),
+                "-d",
+                "{\"name\":\"开发组\"}",
+            ])
+            .output()
+            .unwrap();
         println!("    {}", String::from_utf8_lossy(&tm.stdout));
 
         println!("\n  验证 10: Token认证");
-        let nt = Command::new("curl").args(["-s", "http://localhost:3000/tasks"]).output().unwrap();
+        let nt = Command::new("curl")
+            .args(["-s", "http://localhost:3000/tasks"])
+            .output()
+            .unwrap();
         println!("    {}", String::from_utf8_lossy(&nt.stdout));
     }
 

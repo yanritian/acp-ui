@@ -14,8 +14,8 @@ use std::sync::{Arc, Mutex};
 #[serde(rename_all = "camelCase")]
 pub struct LaunchRequest {
     pub cwd: String,
-    pub executable: Option<String>,  // Path to executable (auto-detect if not provided)
-    pub args: Option<Vec<String>>,   // Additional arguments
+    pub executable: Option<String>, // Path to executable (auto-detect if not provided)
+    pub args: Option<Vec<String>>,  // Additional arguments
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,9 +33,9 @@ pub struct LaunchResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LaunchMode {
-    Embedded,      // WebView embedded (small games)
-    External,      // External process (large games)
-    Editor,        // Open in game editor
+    Embedded, // WebView embedded (small games)
+    External, // External process (large games)
+    Editor,   // Open in game editor
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,8 +75,8 @@ impl GameLauncher {
         let cwd = PathBuf::from(&request.cwd);
 
         // Detect game
-        let info = GameDetector::detect(&cwd)
-            .map_err(|e| format!("Failed to detect game: {}", e))?;
+        let info =
+            GameDetector::detect(&cwd).map_err(|e| format!("Failed to detect game: {}", e))?;
 
         // Determine launch mode based on game size
         let mode = match info.size {
@@ -104,14 +104,18 @@ impl GameLauncher {
         }
 
         // Start process
-        let child = cmd.spawn()
+        let child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to launch game: {}", e))?;
 
         let process_id = child.id();
-        let game_id = format!("game-{}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos());
+        let game_id = format!(
+            "game-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
 
         // Store running game
         let running = RunningGame {
@@ -175,7 +179,10 @@ impl GameLauncher {
             }
         }
 
-        Err("No executable found. Please build the game first or specify executable path.".to_string())
+        Err(
+            "No executable found. Please build the game first or specify executable path."
+                .to_string(),
+        )
     }
 
     /// Check if game is still running
@@ -184,9 +191,9 @@ impl GameLauncher {
 
         if let Some(game) = games.get_mut(game_id) {
             match game.child.try_wait() {
-                Ok(Some(_)) => false,  // Process exited
-                Ok(None) => true,      // Still running
-                Err(_) => false,       // Error checking
+                Ok(Some(_)) => false, // Process exited
+                Ok(None) => true,     // Still running
+                Err(_) => false,      // Error checking
             }
         } else {
             false
@@ -198,7 +205,8 @@ impl GameLauncher {
         let mut games = self.running_games.lock().unwrap();
 
         if let Some(mut game) = games.remove(game_id) {
-            game.child.kill()
+            game.child
+                .kill()
                 .map_err(|e| format!("Failed to stop game: {}", e))?;
             Ok(())
         } else {
@@ -232,7 +240,7 @@ impl GameLauncher {
                     .unwrap()
                     .as_millis() as u64,
                 elapsed_ms: elapsed,
-                memory_mb: None,  // TODO: Implement memory tracking
+                memory_mb: None, // TODO: Implement memory tracking
             })
         } else {
             None
@@ -242,9 +250,7 @@ impl GameLauncher {
     /// Get all running games
     pub fn get_all_running(&self) -> Vec<GameStatus> {
         let games = self.running_games.lock().unwrap();
-        games.keys()
-            .filter_map(|id| self.get_status(id))
-            .collect()
+        games.keys().filter_map(|id| self.get_status(id)).collect()
     }
 
     /// Clean up stopped games
@@ -263,7 +269,6 @@ impl GameLauncher {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

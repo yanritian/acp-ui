@@ -27,24 +27,30 @@ fn main() {
 
     // 查询 tasks 表
     println!("\n=== 任务记录 ===");
-    let mut stmt = conn.prepare("
+    let mut stmt = conn
+        .prepare(
+            "
         SELECT id, name, status, source, created_at, completed_at, error_message
         FROM tasks
         ORDER BY created_at DESC
         LIMIT 10
-    ").unwrap();
+    ",
+        )
+        .unwrap();
 
-    let tasks = stmt.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, String>(3)?,
-            row.get::<_, String>(4)?,
-            row.get::<_, Option<String>>(5)?,
-            row.get::<_, Option<String>>(6)?,
-        ))
-    }).unwrap();
+    let tasks = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, Option<String>>(6)?,
+            ))
+        })
+        .unwrap();
 
     for task in tasks.filter_map(|t| t.ok()) {
         println!("\n任务 ID: {}", task.0);
@@ -57,26 +63,38 @@ fn main() {
     }
 
     // 查询任务总数
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0)).unwrap();
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))
+        .unwrap();
     println!("\n总任务数: {}", count);
 
     // 查询 executive_sessions
     println!("\n=== Executive Sessions ===");
-    let exec_count: i64 = conn.query_row("SELECT COUNT(*) FROM executive_sessions", [], |row| row.get(0)).unwrap_or(0);
+    let exec_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM executive_sessions", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(0);
     println!("Executive Sessions 数: {}", exec_count);
 
     // 查询 sessions
     println!("\n=== Sessions ===");
-    let sess_count: i64 = conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0)).unwrap_or(0);
+    let sess_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))
+        .unwrap_or(0);
     println!("Sessions 数: {}", sess_count);
 
     // 查询 logs
     println!("\n=== Logs ===");
-    let log_count: i64 = conn.query_row("SELECT COUNT(*) FROM logs", [], |row| row.get(0)).unwrap_or(0);
+    let log_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM logs", [], |row| row.get(0))
+        .unwrap_or(0);
     println!("Logs 数: {}", log_count);
 
     // 查询 runtime_events
     println!("\n=== Runtime Events ===");
-    let event_count: i64 = conn.query_row("SELECT COUNT(*) FROM runtime_events", [], |row| row.get(0)).unwrap_or(0);
+    let event_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM runtime_events", [], |row| row.get(0))
+        .unwrap_or(0);
     println!("Runtime Events 数: {}", event_count);
 }

@@ -85,7 +85,10 @@ mod skill_integration {
         });
 
         assert_ne!(v1["version"], v2["version"]);
-        assert!(v2["capabilities"].as_array().unwrap().len() > v1["capabilities"].as_array().unwrap().len());
+        assert!(
+            v2["capabilities"].as_array().unwrap().len()
+                > v1["capabilities"].as_array().unwrap().len()
+        );
     }
 
     /// Test skill evolution based on feedback
@@ -110,7 +113,9 @@ mod skill_integration {
             "improvements": ["Added retry logic", "Enhanced error messages"]
         });
 
-        assert!(evolved["success_rate"].as_f64().unwrap() > initial["success_rate"].as_f64().unwrap());
+        assert!(
+            evolved["success_rate"].as_f64().unwrap() > initial["success_rate"].as_f64().unwrap()
+        );
         assert!(evolved["improvements"].as_array().unwrap().len() > 0);
     }
 
@@ -152,7 +157,10 @@ mod skill_integration {
         let chain = vec![
             ("web-search", json!({"query": "rust ownership"})),
             ("analyze", json!({"input": "$previous.output"})),
-            ("summarize", json!({"input": "$previous.output", "max_length": 500})),
+            (
+                "summarize",
+                json!({"input": "$previous.output", "max_length": 500}),
+            ),
         ];
 
         assert_eq!(chain.len(), 3);

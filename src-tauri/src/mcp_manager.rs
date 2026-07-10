@@ -72,7 +72,9 @@ impl McpProcessManager {
         }
 
         // Get config
-        let config = self.configs.read()
+        let config = self
+            .configs
+            .read()
             .get(mcp_name)
             .cloned()
             .ok_or_else(|| format!("MCP config '{}' not found", mcp_name))?;
@@ -98,7 +100,8 @@ impl McpProcessManager {
                     #[cfg(target_os = "windows")]
                     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
-                    let child = cmd.spawn()
+                    let child = cmd
+                        .spawn()
                         .map_err(|e| format!("Failed to start MCP '{}': {}", mcp_name, e))?;
 
                     let instance = McpInstance {
@@ -107,7 +110,9 @@ impl McpProcessManager {
                         agent_id: agent_id.to_string(),
                     };
 
-                    self.instances.write().insert(instance_key.clone(), instance);
+                    self.instances
+                        .write()
+                        .insert(instance_key.clone(), instance);
                     println!("Started MCP '{}' for agent '{}'", mcp_name, agent_id);
                 }
 
@@ -125,8 +130,13 @@ impl McpProcessManager {
                     agent_id: agent_id.to_string(),
                 };
 
-                self.instances.write().insert(instance_key.clone(), instance);
-                println!("Registered MCP '{}' for agent '{}' (remote transport)", mcp_name, agent_id);
+                self.instances
+                    .write()
+                    .insert(instance_key.clone(), instance);
+                println!(
+                    "Registered MCP '{}' for agent '{}' (remote transport)",
+                    mcp_name, agent_id
+                );
             }
         }
 
@@ -140,7 +150,8 @@ impl McpProcessManager {
         let mut instances = self.instances.write();
         if let Some(mut instance) = instances.remove(&instance_key) {
             if let Some(mut process) = instance.process.take() {
-                process.kill()
+                process
+                    .kill()
                     .map_err(|e| format!("Failed to kill MCP process: {}", e))?;
                 let _ = process.wait();
             }
@@ -153,7 +164,8 @@ impl McpProcessManager {
     /// Stop all MCP servers for an agent
     pub fn stop_all_for_agent(&self, agent_id: &str) -> Result<(), String> {
         let mut instances = self.instances.write();
-        let keys_to_remove: Vec<String> = instances.keys()
+        let keys_to_remove: Vec<String> = instances
+            .keys()
             .filter(|k| k.starts_with(&format!("{}:", agent_id)))
             .cloned()
             .collect();
@@ -173,7 +185,8 @@ impl McpProcessManager {
 
     /// Get list of MCP servers running for an agent
     pub fn get_agent_mcps(&self, agent_id: &str) -> Vec<String> {
-        self.instances.read()
+        self.instances
+            .read()
             .keys()
             .filter(|k| k.starts_with(&format!("{}:", agent_id)))
             .map(|k| k.split(':').nth(1).unwrap_or("").to_string())
@@ -188,7 +201,10 @@ impl McpProcessManager {
 
     /// Get MCP server URL for remote transport
     pub fn get_mcp_url(&self, mcp_name: &str) -> Option<String> {
-        self.configs.read().get(mcp_name).and_then(|c| c.url.clone())
+        self.configs
+            .read()
+            .get(mcp_name)
+            .and_then(|c| c.url.clone())
     }
 
     /// List all registered MCP configs
@@ -202,7 +218,10 @@ impl McpProcessManager {
 
         // Check if MCP is running for this specific agent
         if !self.instances.read().contains_key(&instance_key) {
-            return Err(format!("Agent '{}' cannot access MCP '{}' - not running for this agent", agent_id, mcp_name));
+            return Err(format!(
+                "Agent '{}' cannot access MCP '{}' - not running for this agent",
+                agent_id, mcp_name
+            ));
         }
 
         Ok(())

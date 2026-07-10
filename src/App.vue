@@ -426,6 +426,7 @@ html, body, #app {
 
 .main-area {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -433,6 +434,7 @@ html, body, #app {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;

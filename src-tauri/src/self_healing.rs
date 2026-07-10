@@ -2,8 +2,8 @@
 //!
 //! Implements dynamic baseline for anomaly detection with automatic recovery
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Anomaly severity level
@@ -29,15 +29,15 @@ impl AnomalySeverity {
 /// Anomaly type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnomalyType {
-    HeartbeatTimeout,       // Agent not responding
-    HighMemoryUsage,        // Memory spike
-    HighCPUUsage,           // CPU spike
-    LowHealthScore,         // Health score dropped
-    HighErrorRate,          // Error rate increased
-    ContextOverflow,        // Context too large
-    RateLimitHit,           // API rate limit
-    AgentCrash,             // Agent crashed
-    NetworkError,           // Connection issues
+    HeartbeatTimeout, // Agent not responding
+    HighMemoryUsage,  // Memory spike
+    HighCPUUsage,     // CPU spike
+    LowHealthScore,   // Health score dropped
+    HighErrorRate,    // Error rate increased
+    ContextOverflow,  // Context too large
+    RateLimitHit,     // API rate limit
+    AgentCrash,       // Agent crashed
+    NetworkError,     // Connection issues
 }
 
 impl AnomalyType {
@@ -62,12 +62,12 @@ pub struct AnomalyRecord {
     pub id: String,
     pub anomaly_type: AnomalyType,
     pub severity: AnomalySeverity,
-    pub target: String,          // Agent or service name
-    pub target_type: String,     // "agent", "service", "system"
+    pub target: String,      // Agent or service name
+    pub target_type: String, // "agent", "service", "system"
     pub health_score: f64,
     pub baseline_value: f64,
     pub current_value: f64,
-    pub deviation: f64,          // Percentage deviation from baseline
+    pub deviation: f64, // Percentage deviation from baseline
     pub detected_at: DateTime<Utc>,
     pub resolved_at: Option<DateTime<Utc>>,
 }
@@ -75,14 +75,14 @@ pub struct AnomalyRecord {
 /// Healing action type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HealingActionType {
-    RestartAgent,         // Restart crashed agent
-    SwitchModel,          // Switch to fallback model
-    CompressContext,      // Compress conversation history
-    ClearCache,           // Clear stale cache
-    Reconnect,            // Reconnect network
-    ScaleUp,              // Add more agents
-    ScaleDown,            // Reduce agents
-    NotifyUser,           // Notify user for manual intervention
+    RestartAgent,    // Restart crashed agent
+    SwitchModel,     // Switch to fallback model
+    CompressContext, // Compress conversation history
+    ClearCache,      // Clear stale cache
+    Reconnect,       // Reconnect network
+    ScaleUp,         // Add more agents
+    ScaleDown,       // Reduce agents
+    NotifyUser,      // Notify user for manual intervention
 }
 
 impl HealingActionType {
@@ -107,7 +107,7 @@ pub struct HealingActionRecord {
     pub anomaly_id: String,
     pub action_type: HealingActionType,
     pub action_params: HashMap<String, String>,
-    pub status: String,           // "pending", "executing", "success", "failed"
+    pub status: String, // "pending", "executing", "success", "failed"
     pub result: Option<String>,
     pub executed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
@@ -116,7 +116,7 @@ pub struct HealingActionRecord {
 /// EWMA (Exponentially Weighted Moving Average) baseline
 pub struct EWMABaseline {
     value: f64,
-    alpha: f64,  // Smoothing factor (0.0 - 1.0)
+    alpha: f64, // Smoothing factor (0.0 - 1.0)
     initialized: bool,
 }
 
@@ -152,7 +152,11 @@ impl EWMABaseline {
         }
 
         let deviation = if self.value == 0.0 {
-            if current_value > 0.0 { 100.0 } else { 0.0 }
+            if current_value > 0.0 {
+                100.0
+            } else {
+                0.0
+            }
         } else {
             ((current_value - self.value) / self.value * 100.0).abs()
         };
@@ -175,7 +179,7 @@ pub struct AnomalyDetector {
 impl AnomalyDetector {
     pub fn new() -> Self {
         let mut thresholds = HashMap::new();
-        thresholds.insert("heartbeat".to_string(), 30.0);  // 30% deviation
+        thresholds.insert("heartbeat".to_string(), 30.0); // 30% deviation
         thresholds.insert("memory".to_string(), 50.0);
         thresholds.insert("cpu".to_string(), 50.0);
         thresholds.insert("health".to_string(), 20.0);
@@ -191,7 +195,9 @@ impl AnomalyDetector {
 
     /// Update baseline with new metric value
     pub fn update_baseline(&mut self, metric_name: &str, value: f64) {
-        let baseline = self.baselines.entry(metric_name.to_string())
+        let baseline = self
+            .baselines
+            .entry(metric_name.to_string())
             .or_insert_with(|| EWMABaseline::new(0.3)); // alpha = 0.3
 
         baseline.update(value);
@@ -200,7 +206,9 @@ impl AnomalyDetector {
     /// Check for anomalies
     pub fn check(&self, metric_name: &str, current_value: f64) -> Option<AnomalyRecord> {
         let baseline = self.baselines.get(metric_name);
-        let threshold = self.thresholds.get(metric_name)
+        let threshold = self
+            .thresholds
+            .get(metric_name)
             .unwrap_or(&self.fixed_threshold_fallback);
 
         // Cold-start: use fixed threshold
@@ -285,7 +293,10 @@ impl AnomalyDetector {
 
         let mut params = HashMap::new();
         params.insert("target".to_string(), anomaly.target.clone());
-        params.insert("severity".to_string(), anomaly.severity.as_str().to_string());
+        params.insert(
+            "severity".to_string(),
+            anomaly.severity.as_str().to_string(),
+        );
 
         HealingActionRecord {
             id: uuid::Uuid::new_v4().to_string(),
@@ -352,27 +363,47 @@ impl HealingExecutor {
         // Execute the action based on type
         match action.action_type {
             HealingActionType::RestartAgent => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Agent '{}' restart initiated", target));
             }
             HealingActionType::CompressContext => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Context compression completed for '{}'", target));
             }
             HealingActionType::ClearCache => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Cache cleared for '{}'", target));
             }
             HealingActionType::SwitchModel => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Model switched for '{}'", target));
             }
             HealingActionType::Reconnect => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Reconnection successful for '{}'", target));
             }
@@ -381,12 +412,20 @@ impl HealingExecutor {
                 action.result = Some("User notification sent".to_string());
             }
             HealingActionType::ScaleUp => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Scaled up '{}'", target));
             }
             HealingActionType::ScaleDown => {
-                let target = action.action_params.get("target").cloned().unwrap_or_default();
+                let target = action
+                    .action_params
+                    .get("target")
+                    .cloned()
+                    .unwrap_or_default();
                 action.status = "success".to_string();
                 action.result = Some(format!("Scaled down '{}'", target));
             }
@@ -404,7 +443,8 @@ impl HealingExecutor {
                     let healing_result = action.result.clone().unwrap_or_default();
                     let trigger_reason = format!(
                         "Auto-healing triggered by {} anomaly (severity: {})",
-                        anomaly_type_str, anomaly.severity.as_str()
+                        anomaly_type_str,
+                        anomaly.severity.as_str()
                     );
 
                     // Save evolution record for this healing event
@@ -484,8 +524,14 @@ impl HealingExecutor {
     }
 
     /// Resolve an action with a result
-    pub fn resolve_action(&mut self, action_id: &str, result: &str) -> Result<HealingActionRecord, String> {
-        let action = self.actions.get_mut(action_id)
+    pub fn resolve_action(
+        &mut self,
+        action_id: &str,
+        result: &str,
+    ) -> Result<HealingActionRecord, String> {
+        let action = self
+            .actions
+            .get_mut(action_id)
             .ok_or_else(|| format!("Action '{}' not found", action_id))?;
 
         action.status = "resolved".to_string();
@@ -497,11 +543,31 @@ impl HealingExecutor {
     /// Get healing statistics
     pub fn get_stats(&self) -> serde_json::Value {
         let total = self.actions.len();
-        let pending = self.actions.values().filter(|a| a.status == "pending").count();
-        let executing = self.actions.values().filter(|a| a.status == "executing").count();
-        let success = self.actions.values().filter(|a| a.status == "success").count();
-        let failed = self.actions.values().filter(|a| a.status == "failed").count();
-        let resolved = self.actions.values().filter(|a| a.status == "resolved").count();
+        let pending = self
+            .actions
+            .values()
+            .filter(|a| a.status == "pending")
+            .count();
+        let executing = self
+            .actions
+            .values()
+            .filter(|a| a.status == "executing")
+            .count();
+        let success = self
+            .actions
+            .values()
+            .filter(|a| a.status == "success")
+            .count();
+        let failed = self
+            .actions
+            .values()
+            .filter(|a| a.status == "failed")
+            .count();
+        let resolved = self
+            .actions
+            .values()
+            .filter(|a| a.status == "resolved")
+            .count();
 
         serde_json::json!({
             "total_actions": total,
@@ -518,8 +584,8 @@ impl HealingExecutor {
 // Tauri Commands for Healing Executor
 // ============================================================================
 
-use tauri::State;
 use crate::AppState;
+use tauri::State;
 
 /// Execute a healing action for a given anomaly
 #[tauri::command]
@@ -534,9 +600,7 @@ pub fn healing_execute(
 
 /// List all healing actions
 #[tauri::command]
-pub fn healing_list_actions(
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+pub fn healing_list_actions(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
     let actions = executor.get_action_history();
     serde_json::to_value(actions).map_err(|e| e.to_string())
@@ -556,9 +620,7 @@ pub fn healing_resolve_action(
 
 /// Get healing statistics
 #[tauri::command]
-pub fn healing_get_stats(
-    state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+pub fn healing_get_stats(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
     let executor = state.healing_executor.lock().map_err(|e| e.to_string())?;
     Ok(executor.get_stats())
 }

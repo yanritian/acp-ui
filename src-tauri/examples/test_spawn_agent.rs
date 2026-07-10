@@ -2,8 +2,8 @@
 //! 验证 Claude Code agent spawn 功能
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use serde_json::json;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +13,7 @@ async fn main() {
     let ws_url = "ws://127.0.0.1:1421";
     println!("连接 WebSocket: {}", ws_url);
 
-    let (ws_stream, _) = connect_async(ws_url)
-        .await
-        .expect("无法连接 WebSocket");
+    let (ws_stream, _) = connect_async(ws_url).await.expect("无法连接 WebSocket");
 
     println!("✅ WebSocket 连接成功\n");
 
@@ -50,7 +48,8 @@ fn main() {
         }
     });
 
-    write.send(Message::Text(spawn_cmd.to_string().into()))
+    write
+        .send(Message::Text(spawn_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
@@ -61,10 +60,7 @@ fn main() {
 
     let mut event_count = 0;
     loop {
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            read.next()
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(30), read.next()).await {
             Ok(Some(msg)) => {
                 match msg {
                     Ok(Message::Text(text)) => {

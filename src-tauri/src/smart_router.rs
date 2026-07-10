@@ -2,16 +2,16 @@
 //!
 //! Implements intelligent routing: Heuristic → Structural → LLM-assisted
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Task complexity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TaskComplexity {
-    Simple,     // Single file, minor changes
-    Medium,     // Multiple files, refactoring
-    Complex,    // Cross-module, new features
+    Simple,      // Single file, minor changes
+    Medium,      // Multiple files, refactoring
+    Complex,     // Cross-module, new features
     VeryComplex, // Multi-agent needed
 }
 
@@ -30,14 +30,14 @@ impl TaskComplexity {
 /// Task type classification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    Frontend,       // UI, Vue components
-    Backend,        // API, database
-    Fullstack,      // Both frontend and backend
-    DevOps,         // CI/CD, deployment
-    Testing,        // Tests, QA
-    Documentation,  // Docs, comments
-    Refactoring,    // Code cleanup
-    BugFix,         // Fix issues
+    Frontend,      // UI, Vue components
+    Backend,       // API, database
+    Fullstack,     // Both frontend and backend
+    DevOps,        // CI/CD, deployment
+    Testing,       // Tests, QA
+    Documentation, // Docs, comments
+    Refactoring,   // Code cleanup
+    BugFix,        // Fix issues
 }
 
 #[allow(dead_code)]
@@ -73,11 +73,11 @@ impl TaskType {
 /// Input type classification
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InputType {
-    Text,       // Plain text request
-    Image,      // Image input
-    Document,   // Document/file input
-    Code,       // Code snippet
-    Command,    // Direct command
+    Text,     // Plain text request
+    Image,    // Image input
+    Document, // Document/file input
+    Code,     // Code snippet
+    Command,  // Direct command
 }
 
 #[allow(dead_code)]
@@ -96,12 +96,12 @@ impl InputType {
 /// Route target - which agent/team to use
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RouteTarget {
-    ClaudeCodeHaiku,    // Simple tasks, fast response
-    ClaudeCodeSonnet,   // Medium tasks, balanced
-    CodexHaiku,         // Backend simple
-    CodexSonnet,        // Backend complex
-    Team,               // Multi-agent collaboration
-    HumanReview,        // Needs human decision
+    ClaudeCodeHaiku,  // Simple tasks, fast response
+    ClaudeCodeSonnet, // Medium tasks, balanced
+    CodexHaiku,       // Backend simple
+    CodexSonnet,      // Backend complex
+    Team,             // Multi-agent collaboration
+    HumanReview,      // Needs human decision
 }
 
 #[allow(dead_code)]

@@ -2,7 +2,9 @@
 //!
 //! Validates swarm_register_agent, swarm_list_agents, swarm_create_task, swarm_get_health
 
-use acp_ui_lib::{SwarmOrchestrator, SwarmAgent, AgentRole, AgentSwarmStatus, SwarmTopology, ConsensusStrategy};
+use acp_ui_lib::{
+    AgentRole, AgentSwarmStatus, ConsensusStrategy, SwarmAgent, SwarmOrchestrator, SwarmTopology,
+};
 
 fn create_agent(id: &str, name: &str, role: AgentRole) -> SwarmAgent {
     SwarmAgent {
@@ -62,11 +64,13 @@ fn test_swarm_create_task_and_get_task() {
     orchestrator.register_agent(exec).unwrap();
 
     // Create task
-    let task = orchestrator.create_task(
-        "Fix TypeScript errors".to_string(),
-        Some(SwarmTopology::Hierarchical),
-        Some(ConsensusStrategy::FirstWins),
-    ).unwrap();
+    let task = orchestrator
+        .create_task(
+            "Fix TypeScript errors".to_string(),
+            Some(SwarmTopology::Hierarchical),
+            Some(ConsensusStrategy::FirstWins),
+        )
+        .unwrap();
 
     assert!(!task.id.is_empty());
     assert_eq!(task.description, "Fix TypeScript errors");
@@ -84,7 +88,11 @@ fn test_swarm_get_health_summary() {
 
     // Register agents
     for i in 1..=3 {
-        let agent = create_agent(&format!("agent-{}", i), &format!("Agent {}", i), AgentRole::Executor);
+        let agent = create_agent(
+            &format!("agent-{}", i),
+            &format!("Agent {}", i),
+            AgentRole::Executor,
+        );
         orchestrator.register_agent(agent).unwrap();
     }
 
@@ -111,13 +119,21 @@ fn test_swarm_list_tasks_sorted_by_time() {
 
     // Register many executors (max_concurrent_agents is 8 by default)
     for i in 1..=10 {
-        let exec = create_agent(&format!("exec-{}", i), &format!("Executor {}", i), AgentRole::Executor);
+        let exec = create_agent(
+            &format!("exec-{}", i),
+            &format!("Executor {}", i),
+            AgentRole::Executor,
+        );
         orchestrator.register_agent(exec).unwrap();
     }
 
     // Create multiple tasks with Mesh topology (uses all idle agents)
-    let task1 = orchestrator.create_task("Task 1".to_string(), Some(SwarmTopology::Mesh), None).unwrap();
-    let task2 = orchestrator.create_task("Task 2".to_string(), Some(SwarmTopology::Mesh), None).unwrap();
+    let task1 = orchestrator
+        .create_task("Task 1".to_string(), Some(SwarmTopology::Mesh), None)
+        .unwrap();
+    let task2 = orchestrator
+        .create_task("Task 2".to_string(), Some(SwarmTopology::Mesh), None)
+        .unwrap();
 
     // List should return newest first
     let tasks = orchestrator.list_tasks();

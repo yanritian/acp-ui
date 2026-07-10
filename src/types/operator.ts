@@ -40,18 +40,31 @@ export interface OperatorTask {
 export type OperatorEventType =
   | 'task_created'
   | 'task_started'
+  | 'project_analyzing'
   | 'project_analyzed'
+  | 'project_analysis_failed'
   | 'plan_started'
+  | 'plan_generating'
   | 'plan_ready'
+  | 'plan_failed'
   | 'approval_requested'
   | 'approval_granted'
   | 'approval_rejected'
   | 'tool_call_started'
   | 'tool_call_succeeded'
   | 'tool_call_failed'
+  | 'step_started'
+  | 'step_executing'
+  | 'step_completed'
+  | 'step_failed'
   | 'file_read'
+  | 'file_modified'
   | 'file_patch_proposed'
   | 'file_patch_applied'
+  | 'validation_started'
+  | 'validation_passed'
+  | 'validation_failed'
+  | 'validation_skipped'
   | 'memory_read'
   | 'memory_written'
   | 'hook_started'
@@ -61,6 +74,7 @@ export type OperatorEventType =
   | 'task_resumed'
   | 'task_redirected'
   | 'task_cancelling'
+  | 'task_completing'
   | 'task_cancelled'
   | 'task_failed'
   | 'task_completed'
@@ -88,6 +102,12 @@ export type ApprovalLevel = 'silent' | 'notify' | 'approve' | 'forbidden'
 
 export type ApprovalDecision = 'approve' | 'reject' | 'request_changes'
 
+export interface FileDiffPreview {
+  path: string
+  operation: 'create' | 'replace'
+  diff: string
+}
+
 export interface ApprovalRequest {
   approval_id: string
   task_id: string
@@ -100,6 +120,7 @@ export interface ApprovalRequest {
     files?: string[]
     diff_id?: string
     command?: string
+    diffs?: FileDiffPreview[]
   }
   options: ApprovalDecision[]
   created_at: string
@@ -222,6 +243,39 @@ export interface RedirectRequest {
   task_id: string
   new_goal: string
   preserve_completed_work: boolean
+}
+
+export interface RemoteRedirectRequest {
+  new_goal: string
+  preserve_completed_work?: boolean
+}
+
+export interface RemoteCommandResponse {
+  ok: boolean
+  task_id?: string
+}
+
+export interface RemotePlatformCapability {
+  id: string
+  name: string
+  platform_type: 'desktop_app' | 'web' | 'ide_extension' | 'ide_plugin' | 'mobile' | 'game_engine' | string
+  transport: string[]
+  status: string
+  capabilities: string[]
+}
+
+export interface RemoteAuditRecord {
+  audit_id: string
+  request_id: string
+  timestamp: string
+  principal: 'bearer_token' | 'local_trust' | 'unauthenticated' | string
+  client_id: string
+  method: string
+  path: string
+  action: string
+  outcome: 'attempted' | 'succeeded' | 'failed' | 'denied' | string
+  status_code: number
+  denial_code: string | null
 }
 
 export interface TaskSummary {

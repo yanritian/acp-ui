@@ -17,8 +17,8 @@
 
 use acp_core::AcpEvent;
 use event_bus::EventPusher;
-use tauri::{AppHandle, Emitter};
 use std::sync::Arc;
+use tauri::{AppHandle, Emitter};
 
 /// TauriEventPusher - Pushes EventBus events to frontend via Tauri emit
 pub struct TauriEventPusher {

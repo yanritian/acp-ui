@@ -5,12 +5,12 @@
 // Debug prints are intentional for development phase
 #![allow(clippy::print_stdout)]
 
+use chrono::{DateTime, Utc};
+use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use chrono::{DateTime, Utc};
-use rusqlite::{Connection, OptionalExtension};
 
 // ---------------------------------------------------------------------------
 // Sync Data Types
@@ -324,9 +324,7 @@ impl SyncEngine {
             )
             .unwrap();
 
-        let rows = stmt
-            .query_map([&type_key], row_to_entity)
-            .unwrap();
+        let rows = stmt.query_map([&type_key], row_to_entity).unwrap();
 
         rows.filter_map(|r| r.ok()).collect()
     }
@@ -342,9 +340,7 @@ impl SyncEngine {
         let conflict = {
             if let Some(local) = query_entity(&db, &event.entity.id)? {
                 // Check if versions conflict
-                if local.version >= event.entity.version
-                    && local.source != event.entity.source
-                {
+                if local.version >= event.entity.version && local.source != event.entity.source {
                     Some(resolve_conflict(&self.config, &local, &event.entity))
                 } else {
                     None
@@ -424,8 +420,8 @@ impl SyncEngine {
 
             for result in rows {
                 let (id, data) = result.map_err(|e| e.to_string())?;
-                let event: SyncEvent =
-                    serde_json::from_str(&data).map_err(|e| format!("Invalid offline event: {}", e))?;
+                let event: SyncEvent = serde_json::from_str(&data)
+                    .map_err(|e| format!("Invalid offline event: {}", e))?;
                 events.push(event);
                 ids_to_delete.push(id);
             }
@@ -504,8 +500,11 @@ impl SyncEngine {
             .optional()
             .ok()
             .flatten();
-        let last_sync = last_sync
-            .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc)));
+        let last_sync = last_sync.and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|dt| dt.with_timezone(&Utc))
+        });
 
         SyncStats {
             total_entities,
@@ -595,7 +594,8 @@ fn row_to_entity(row: &rusqlite::Row<'_>) -> Result<SyncEntity, rusqlite::Error>
         )
     })?;
 
-    let data: serde_json::Value = serde_json::from_str(&data_str).unwrap_or(serde_json::Value::Null);
+    let data: serde_json::Value =
+        serde_json::from_str(&data_str).unwrap_or(serde_json::Value::Null);
 
     let updated_at = parse_datetime(&updated_at_str).unwrap_or(Utc::now());
 
@@ -655,7 +655,11 @@ fn calculate_checksum(data: &serde_json::Value) -> String {
 }
 
 /// Resolve conflict between local and incoming entity
-fn resolve_conflict(config: &SyncConfig, local: &SyncEntity, incoming: &SyncEntity) -> SyncConflictResolution {
+fn resolve_conflict(
+    config: &SyncConfig,
+    local: &SyncEntity,
+    incoming: &SyncEntity,
+) -> SyncConflictResolution {
     match config.default_conflict_strategy {
         ConflictStrategy::LastWriteWins => {
             // Compare timestamps
@@ -748,8 +752,8 @@ fn resolve_conflict(config: &SyncConfig, local: &SyncEntity, incoming: &SyncEnti
 // Tauri Commands
 // ---------------------------------------------------------------------------
 
-use tauri::State;
 use crate::AppState;
+use tauri::State;
 
 /// Put entity to sync
 #[tauri::command]
@@ -760,8 +764,8 @@ pub fn sync_put_entity(
     data: serde_json::Value,
 ) -> Result<SyncEntity, String> {
     let engine = state.sync_engine.lock().map_err(|e| e.to_string())?;
-    let entity_type: SyncEntityType = serde_json::from_str(&entity_type)
-        .map_err(|e| format!("Invalid entity type: {}", e))?;
+    let entity_type: SyncEntityType =
+        serde_json::from_str(&entity_type).map_err(|e| format!("Invalid entity type: {}", e))?;
     engine.put_entity(entity_type, id, data)
 }
 
@@ -777,10 +781,7 @@ pub fn sync_get_entity(
 
 /// Delete entity from sync
 #[tauri::command]
-pub fn sync_delete_entity(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<(), String> {
+pub fn sync_delete_entity(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let engine = state.sync_engine.lock().map_err(|e| e.to_string())?;
     engine.delete_entity(&id)
 }
@@ -792,16 +793,14 @@ pub fn sync_list_entities(
     entity_type: String,
 ) -> Result<Vec<SyncEntity>, String> {
     let engine = state.sync_engine.lock().map_err(|e| e.to_string())?;
-    let entity_type: SyncEntityType = serde_json::from_str(&entity_type)
-        .map_err(|e| format!("Invalid entity type: {}", e))?;
+    let entity_type: SyncEntityType =
+        serde_json::from_str(&entity_type).map_err(|e| format!("Invalid entity type: {}", e))?;
     Ok(engine.list_entities(entity_type))
 }
 
 /// Get sync statistics
 #[tauri::command]
-pub fn sync_get_stats(
-    state: State<'_, AppState>,
-) -> Result<SyncStats, String> {
+pub fn sync_get_stats(state: State<'_, AppState>) -> Result<SyncStats, String> {
     let engine = state.sync_engine.lock().map_err(|e| e.to_string())?;
     Ok(engine.get_stats())
 }
@@ -818,9 +817,7 @@ pub fn sync_receive_event(
 
 /// Flush offline queue
 #[tauri::command]
-pub fn sync_flush_offline(
-    state: State<'_, AppState>,
-) -> Result<Vec<SyncEvent>, String> {
+pub fn sync_flush_offline(state: State<'_, AppState>) -> Result<Vec<SyncEvent>, String> {
     let engine = state.sync_engine.lock().map_err(|e| e.to_string())?;
     engine.flush_offline_queue()
 }

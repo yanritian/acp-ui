@@ -1,45 +1,62 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { OperatorApi, GodotOperatorApi } from '@/api/operatorApi'
+import { OperatorRemoteApi } from '@/api/operatorRemoteApi'
 import { open } from '@tauri-apps/plugin-dialog'
-import type { OperatorTask, OperatorEvent, ApprovalRequest } from '@/types/operator'
+import type {
+  OperatorTask,
+  OperatorEvent,
+  ApprovalRequest,
+  ApprovalDecision,
+  RemotePlatformCapability,
+} from '@/types/operator'
 import OperatorControlBar from '../components/OperatorControlBar.vue'
 import ProgressTimeline from '../components/ProgressTimeline.vue'
 import PlanPanel from '../components/PlanPanel.vue'
 import ApprovalDrawer from '../components/ApprovalDrawer.vue'
 
-// State
 const currentTask = ref<OperatorTask | null>(null)
 const events = ref<OperatorEvent[]>([])
 const pendingApprovals = ref<ApprovalRequest[]>([])
 const selectedProjectPath = ref('')
 const taskGoal = ref('')
+const redirectGoal = ref('')
 const isLoading = ref(false)
+const isRedirecting = ref(false)
 const error = ref<string | null>(null)
+const remoteStatus = ref<'checking' | 'online' | 'offline'>('checking')
+const remoteError = ref<string | null>(null)
+const remotePlatforms = ref<RemotePlatformCapability[]>([])
 
-// Polling interval for events
+const terminalStates = ['completed', 'failed', 'cancelled']
+const isTerminalTask = computed(() => {
+  return currentTask.value ? terminalStates.includes(currentTask.value.status) : false
+})
+const remoteStatusLabel = computed(() => {
+  if (remoteStatus.value === 'online') return 'Remote online'
+  if (remoteStatus.value === 'offline') return 'Remote offline'
+  return 'Remote checking'
+})
+const latestEventTitle = computed(() => {
+  return events.value[events.value.length - 1]?.title ?? 'No events yet'
+})
+
 let eventPollInterval: number | null = null
 
-// ============================================================================
-// Task Management
-// ============================================================================
-
 async function handleSelectProject() {
-  // Use Tauri dialog to select folder
   try {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: 'Select Godot Project Directory'
+      title: 'Select Godot Project Directory',
     })
 
     if (!selected) {
-      return // User cancelled
+      return
     }
 
     selectedProjectPath.value = selected as string
 
-    // Detect if it's a Godot project
     const isGodot = await GodotOperatorApi.detectProject(selectedProjectPath.value)
     if (!isGodot) {
       error.value = 'Selected directory is not a Godot project'
@@ -81,7 +98,7 @@ async function handleStartTask() {
       updated_at: new Date().toISOString(),
     }
 
-    // Start polling for events
+    await refreshSnapshot()
     startEventPolling()
   } catch (e: any) {
     error.value = e.message
@@ -94,7 +111,7 @@ async function handlePause() {
   if (!currentTask.value) return
   try {
     await OperatorApi.pauseTask(currentTask.value.task_id)
-    await refreshTask()
+    await refreshSnapshot()
   } catch (e: any) {
     error.value = e.message
   }
@@ -104,7 +121,8 @@ async function handleResume() {
   if (!currentTask.value) return
   try {
     await OperatorApi.resumeTask(currentTask.value.task_id)
-    await refreshTask()
+    await refreshSnapshot()
+    startEventPolling()
   } catch (e: any) {
     error.value = e.message
   }
@@ -114,14 +132,14 @@ async function handleStop() {
   if (!currentTask.value) return
   try {
     await OperatorApi.stopTask(currentTask.value.task_id)
-    await refreshTask()
-    stopEventPolling()
+    await refreshSnapshot()
+    startEventPolling()
   } catch (e: any) {
     error.value = e.message
   }
 }
 
-async function handleApprove(approvalId: string, decision: 'approve' | 'reject') {
+async function handleApprove(approvalId: string, decision: ApprovalDecision) {
   if (!currentTask.value) return
   try {
     await OperatorApi.approve({
@@ -129,22 +147,40 @@ async function handleApprove(approvalId: string, decision: 'approve' | 'reject')
       approval_id: approvalId,
       decision,
     })
-    await refreshApprovals()
+    await refreshSnapshot()
+    startEventPolling()
   } catch (e: any) {
     error.value = e.message
   }
 }
 
-// ============================================================================
-// Event Polling
-// ============================================================================
+async function handleRedirect() {
+  if (!currentTask.value || !redirectGoal.value.trim()) return
+  isRedirecting.value = true
+  error.value = null
+
+  try {
+    await OperatorApi.redirectTask({
+      task_id: currentTask.value.task_id,
+      new_goal: redirectGoal.value.trim(),
+      preserve_completed_work: true,
+    })
+    redirectGoal.value = ''
+    pendingApprovals.value = []
+    await refreshSnapshot()
+    startEventPolling()
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isRedirecting.value = false
+  }
+}
 
 function startEventPolling() {
   if (eventPollInterval) return
   eventPollInterval = window.setInterval(async () => {
-    await refreshEvents()
-    await refreshApprovals()
-  }, 2000) // Poll every 2 seconds
+    await refreshOperatorState()
+  }, 2000)
 }
 
 function stopEventPolling() {
@@ -154,17 +190,48 @@ function stopEventPolling() {
   }
 }
 
+async function refreshSnapshot() {
+  await Promise.all([
+    refreshTask(),
+    refreshEvents(),
+    refreshApprovals(),
+  ])
+}
+
+async function discoverActiveTask(): Promise<boolean> {
+  try {
+    const tasks = await OperatorApi.listTasks()
+    const activeTask = tasks.find(task => !terminalStates.includes(task.status))
+    if (!activeTask || activeTask.task_id === currentTask.value?.task_id) {
+      return false
+    }
+
+    currentTask.value = activeTask
+    await refreshSnapshot()
+    return true
+  } catch {
+    // The backend may still be starting. The next polling cycle retries.
+    return false
+  }
+}
+
+async function refreshOperatorState() {
+  if (!currentTask.value || isTerminalTask.value) {
+    const discovered = await discoverActiveTask()
+    if (discovered || !currentTask.value || isTerminalTask.value) {
+      return
+    }
+  }
+
+  await refreshSnapshot()
+}
+
 async function refreshTask() {
   if (!currentTask.value) return
   try {
     currentTask.value = await OperatorApi.getTask(currentTask.value.task_id)
-    // Stop polling when task reaches terminal state
-    const terminalStates = ['completed', 'failed', 'cancelled']
-    if (currentTask.value.status && terminalStates.includes(currentTask.value.status)) {
-      stopEventPolling()
-    }
-  } catch (e: any) {
-    // Silent fail - task may not exist yet
+  } catch {
+    // Task may not be available yet during startup.
   }
 }
 
@@ -172,8 +239,8 @@ async function refreshEvents() {
   if (!currentTask.value) return
   try {
     events.value = await OperatorApi.listEvents(currentTask.value.task_id, 100)
-  } catch (e: any) {
-    // Silent fail - events may not be available yet
+  } catch {
+    // Events may not be available yet during startup.
   }
 }
 
@@ -181,32 +248,29 @@ async function refreshApprovals() {
   if (!currentTask.value) return
   try {
     pendingApprovals.value = await OperatorApi.getPendingApprovals(currentTask.value.task_id)
-  } catch (e: any) {
-    // Silent fail - approvals may not be available yet
+  } catch {
+    // Approvals may not be available yet during startup.
   }
 }
 
-// ============================================================================
-// Lifecycle
-// ============================================================================
+async function refreshRemotePlatforms() {
+  remoteStatus.value = 'checking'
+  remoteError.value = null
+
+  try {
+    remotePlatforms.value = await OperatorRemoteApi.getPlatforms()
+    remoteStatus.value = 'online'
+  } catch (e: any) {
+    remotePlatforms.value = []
+    remoteStatus.value = 'offline'
+    remoteError.value = e.message ?? String(e)
+  }
+}
 
 onMounted(async () => {
-  // Load saved tasks from backend
-  try {
-    const tasks = await OperatorApi.listTasks()
-    if (tasks.length > 0) {
-      // Find the most recent non-terminal task
-      const activeTask = tasks.find(t =>
-        !['completed', 'failed', 'cancelled'].includes(t.status)
-      )
-      if (activeTask) {
-        currentTask.value = activeTask
-        startEventPolling()
-      }
-    }
-  } catch (e) {
-    // Silent fail - tasks may not be available yet
-  }
+  await refreshRemotePlatforms()
+  await discoverActiveTask()
+  startEventPolling()
 })
 
 onUnmounted(() => {
@@ -216,13 +280,23 @@ onUnmounted(() => {
 
 <template>
   <div class="game-operator-view">
-    <!-- Header -->
     <div class="operator-header">
-      <h1>🎮 Hermes Game Operator</h1>
+      <h1>Hermes Game Operator</h1>
       <p class="subtitle">Godot MVP - Single Task Closed Loop</p>
+      <div class="remote-status-bar" :class="[`remote-${remoteStatus}`]">
+        <div class="remote-main">
+          <span class="remote-dot"></span>
+          <span>{{ remoteStatusLabel }}</span>
+          <span v-if="remotePlatforms.length" class="remote-count">
+            {{ remotePlatforms.length }} platforms
+          </span>
+        </div>
+        <div class="remote-detail">
+          {{ remoteError || latestEventTitle }}
+        </div>
+      </div>
     </div>
 
-    <!-- Project Selection -->
     <div v-if="!currentTask" class="project-selection">
       <div class="form-group">
         <label>Godot Project Path</label>
@@ -262,9 +336,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Task Execution View -->
     <div v-else class="task-execution">
-      <!-- Control Bar -->
       <OperatorControlBar
         :task="currentTask"
         @pause="handlePause"
@@ -272,20 +344,33 @@ onUnmounted(() => {
         @stop="handleStop"
       />
 
-      <!-- Main Content -->
       <div class="operator-content">
-        <!-- Left: Plan Panel -->
         <div class="left-panel">
           <PlanPanel :task="currentTask" :events="events" />
         </div>
 
-        <!-- Center: Progress Timeline -->
         <div class="center-panel">
           <ProgressTimeline :events="events" />
         </div>
 
-        <!-- Right: Approval Drawer -->
         <div class="right-panel">
+          <div v-if="!isTerminalTask" class="redirect-section">
+            <label>Redirect Goal</label>
+            <textarea
+              v-model="redirectGoal"
+              rows="3"
+              class="redirect-field"
+              placeholder="Change the task direction while preserving useful work"
+            ></textarea>
+            <button
+              class="btn-secondary redirect-btn"
+              :disabled="isRedirecting || !redirectGoal.trim()"
+              @click="handleRedirect"
+            >
+              {{ isRedirecting ? 'Redirecting...' : 'Redirect' }}
+            </button>
+          </div>
+
           <ApprovalDrawer
             :approvals="pendingApprovals"
             @approve="handleApprove"
@@ -302,9 +387,16 @@ onUnmounted(() => {
 
 <style scoped>
 .game-operator-view {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  container-type: inline-size;
 }
 
 .operator-header {
@@ -314,6 +406,7 @@ onUnmounted(() => {
 .operator-header h1 {
   font-size: 2rem;
   margin-bottom: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .subtitle {
@@ -321,7 +414,58 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
+.remote-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+
+.remote-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.5rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.remote-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #F59E0B;
+}
+
+.remote-online .remote-dot {
+  background: #10B981;
+}
+
+.remote-offline .remote-dot {
+  background: #EF4444;
+}
+
+.remote-count,
+.remote-detail {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.remote-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .project-selection {
+  width: 100%;
+  min-width: 0;
   max-width: 600px;
 }
 
@@ -337,12 +481,15 @@ onUnmounted(() => {
 
 .path-input {
   display: flex;
+  min-width: 0;
   gap: 0.5rem;
 }
 
 .path-field,
 .goal-field {
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   padding: 0.5rem;
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -367,7 +514,8 @@ onUnmounted(() => {
   color: white;
 }
 
-.btn-primary:disabled {
+.btn-primary:disabled,
+.btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -388,12 +536,20 @@ onUnmounted(() => {
 .task-execution {
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 1.5rem;
 }
 
 .operator-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   display: grid;
-  grid-template-columns: 300px 1fr 350px;
+  grid-template-columns: minmax(240px, 300px) minmax(300px, 1fr) minmax(280px, 350px);
+  min-width: 0;
   gap: 1.5rem;
   min-height: 600px;
 }
@@ -406,9 +562,77 @@ onUnmounted(() => {
   padding: 1rem;
 }
 
-@media (max-width: 1200px) {
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.left-panel,
+.center-panel,
+.right-panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.redirect-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.redirect-section label {
+  font-weight: 500;
+}
+
+.redirect-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.redirect-btn {
+  align-self: flex-start;
+}
+
+@container (max-width: 1050px) {
   .operator-content {
     grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .remote-status-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .remote-detail {
+    width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 800px) {
+  .game-operator-view {
+    padding: 1rem;
+  }
+
+  .operator-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .operator-header h1 {
+    font-size: 1.5rem;
   }
 }
 </style>

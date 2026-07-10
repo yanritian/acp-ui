@@ -50,7 +50,10 @@ fn main() {
     } else {
         println!("  ❌ 编译失败");
         let stderr = String::from_utf8_lossy(&build_output.stderr);
-        println!("  错误: {}", stderr.lines().take(10).collect::<Vec<_>>().join("\n"));
+        println!(
+            "  错误: {}",
+            stderr.lines().take(10).collect::<Vec<_>>().join("\n")
+        );
         return;
     }
 
@@ -181,14 +184,22 @@ fn main() {
 
     println!("  响应摘要:");
     if balance_result.contains("\"total_assets\"") {
-        println!("    {}", balance_result.lines().take(20).collect::<Vec<_>>().join("\n    "));
+        println!(
+            "    {}",
+            balance_result
+                .lines()
+                .take(20)
+                .collect::<Vec<_>>()
+                .join("\n    ")
+        );
     }
 
     // === 步骤 7: 损益表 ===
     println!("\n【步骤 7】损益表");
 
     println!("\n  请求: GET /reports/income-statement?start_date=2026-01-01&end_date=2026-01-31");
-    let income_stmt_result = curl_get("/reports/income-statement?start_date=2026-01-01&end_date=2026-01-31");
+    let income_stmt_result =
+        curl_get("/reports/income-statement?start_date=2026-01-01&end_date=2026-01-31");
 
     // 收入 5000，支出 100，净利润 4900
     if income_stmt_result.contains("\"net_profit\":4900") {
@@ -246,7 +257,8 @@ fn main() {
 
     println!("\n  请求: GET /categories");
     let categories_result = curl_get("/categories");
-    if categories_result.contains("\"success\":true") && categories_result.contains("\"工资收入\"") {
+    if categories_result.contains("\"success\":true") && categories_result.contains("\"工资收入\"")
+    {
         println!("  ✓ 分类数据查询成功（包含工资收入、餐饮支出等）");
     } else {
         println!("  ❌ 分类数据查询失败");
@@ -319,9 +331,16 @@ fn main() {
 fn curl_post(path: &str, body: &str) -> String {
     let url = format!("http://localhost:8080{}", path);
     let result = Command::new("curl")
-        .args(["-s", "-X", "POST", &url,
-               "-H", "Content-Type: application/json",
-               "-d", body])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            &url,
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            body,
+        ])
         .output()
         .expect("Failed to execute curl");
 

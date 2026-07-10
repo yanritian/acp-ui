@@ -74,6 +74,16 @@ describe('ProgressTimeline', () => {
       const event = { type: 'task_failed', title: 'Failed' }
       expect(event.type).toBe('task_failed')
     })
+
+    it.each([
+      'validation_started',
+      'validation_passed',
+      'validation_failed',
+      'validation_skipped'
+    ])('should handle %s event', (type) => {
+      const event = { type, title: 'Godot Validation' }
+      expect(event.type).toBe(type)
+    })
   })
 
   describe('Event Levels', () => {

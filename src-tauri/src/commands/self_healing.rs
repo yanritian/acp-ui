@@ -46,7 +46,9 @@ pub fn save_error(
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -69,7 +71,9 @@ pub fn get_errors(
     state: State<AppState>,
 ) -> Result<Vec<ErrorRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -98,7 +102,8 @@ pub fn get_errors(
     };
 
     let records: Vec<ErrorRecord> = match (&status, &category) {
-        (Some(s), Some(c)) => conn.prepare(&sql)
+        (Some(s), Some(c)) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![s, c], |row| {
                 Ok(ErrorRecord {
@@ -118,7 +123,8 @@ pub fn get_errors(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (Some(s), None) => conn.prepare(&sql)
+        (Some(s), None) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![s], |row| {
                 Ok(ErrorRecord {
@@ -138,7 +144,8 @@ pub fn get_errors(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (None, Some(c)) => conn.prepare(&sql)
+        (None, Some(c)) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![c], |row| {
                 Ok(ErrorRecord {
@@ -158,7 +165,8 @@ pub fn get_errors(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (None, None) => conn.prepare(&sql)
+        (None, None) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(ErrorRecord {
@@ -190,14 +198,17 @@ pub fn resolve_error(
     state: State<AppState>,
 ) -> Result<(), String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let now = chrono::Utc::now().to_rfc3339();
     let conn = db.conn.lock().unwrap();
     conn.execute(
         "UPDATE errors SET status = 'resolved', solution_id = ?1, resolved_at = ?2 WHERE id = ?3",
         rusqlite::params![solution_id, now, error_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -215,7 +226,9 @@ pub fn save_solution(
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -237,7 +250,9 @@ pub fn get_solutions(
     state: State<AppState>,
 ) -> Result<Vec<SolutionRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();

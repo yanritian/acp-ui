@@ -11,113 +11,111 @@ mod database;
 mod log_stream;
 
 // ---- ACP Transport Layer ----
-mod websocket;
 mod tunnel;
+mod websocket;
 
 // ---- Agent Management ----
 mod agent;
-mod agent_registry;
-mod agent_config_parser;
+mod agent_adapter;
 mod agent_bus;
-mod session_manager;  // Claw Code Session Management
-mod agent_adapter;    // Unified Agent Adapter interface (Claude Code, Codex, etc.)
+mod agent_config_parser;
+mod agent_registry;
+mod session_manager; // Claw Code Session Management // Unified Agent Adapter interface (Claude Code, Codex, etc.)
 
 // ---- Game Development ----
-mod game_detector;           // Game engine detection (Godot, Unity)
-mod game_engine;             // Unified game engine interface
-mod game_build_monitor;      // Real-time build progress monitoring
-mod game_launcher;           // Game launcher and process management
-mod game_process_monitor;    // Process metrics and performance monitoring
-mod game_error_handler;      // Comprehensive error handling and UX
+mod game_build_monitor; // Real-time build progress monitoring
+pub mod game_detector; // Game engine detection (Godot, Unity)
+pub mod game_engine; // Unified game engine interface
+pub mod game_error_handler;
+pub mod game_launcher; // Game launcher and process management
+pub mod game_process_monitor; // Process metrics and performance monitoring // Comprehensive error handling and UX
 
 // ---- Hermes Game Operator (Phase 1 MVP) ----
-mod operator;                // Operator Control Plane - Task state machine, events, approval
-mod domains;                 // Domain Packs - Vertical-specific capabilities (Godot, Unity, etc.)
+mod domains;
+mod operator; // Operator Control Plane - Task state machine, events, approval // Domain Packs - Vertical-specific capabilities (Godot, Unity, etc.)
 
 // ---- Security & Permissions ----
+mod circuit_breaker; // Three-state failure protection
 mod permission_checker;
-mod circuit_breaker;  // Three-state failure protection
 mod privacy_orchestrator; // Privacy-Preserving Orchestrator (Phase 1 Week 3)
 
 // ---- Workflow & Orchestration ----
-mod team_dag;         // Team DAG execution engine
-mod workflow_engine;  // Multi-stage orchestrated workflows
-mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
-mod swarm_adapters;   // Swarm Agent Adapters - Stdio process communication (Day 1)
-mod swarm_types;      // Swarm Types - Task shards, replica assignment (Day 2)
-mod task_partitioner; // Task Partitioner - ES sharding pattern (Day 2)
-mod goal;            // Goal-driven architecture (RFC-001) — replaces TaskPartitioner
-mod goal_evaluator;  // ConditionEvaluator — evaluates CompletionConditions
-mod reconcile;       // Reconcile Loop — iterative Goal execution with feedback
-mod goal_graph;      // GoalGraph — dependency DAG for multi-Goal coordination
-mod topology;        // Swarm Topology — Star/Chain/Pipeline execution patterns
-mod queen_lease;      // Queen Lease Election - ZK lease pattern (Day 3)
-mod worktree;         // Git Worktree Isolation - per-Goal workspace isolation
-mod hermes_flow;      // Hermes Flow - Development Flow Orchestration (Phase 2)
-mod sync_engine;      // Sync Engine - Multi-platform data sync (Phase 3)
 mod agent_orchestration; // Agent Orchestration Layer - "驾驭层"
-mod approval_engine;     // Approval protocol for workflow stages
+mod approval_engine;
+mod goal; // Goal-driven architecture (RFC-001) — replaces TaskPartitioner
+mod goal_evaluator; // ConditionEvaluator — evaluates CompletionConditions
+mod goal_graph; // GoalGraph — dependency DAG for multi-Goal coordination
+mod hermes_flow; // Hermes Flow - Development Flow Orchestration (Phase 2)
+mod queen_lease; // Queen Lease Election - ZK lease pattern (Day 3)
+mod reconcile; // Reconcile Loop — iterative Goal execution with feedback
+mod swarm_adapters; // Swarm Agent Adapters - Stdio process communication (Day 1)
+mod swarm_orchestrator; // Top-level Codex/Claude Code coordination
+mod swarm_types; // Swarm Types - Task shards, replica assignment (Day 2)
+mod sync_engine; // Sync Engine - Multi-platform data sync (Phase 3)
+mod task_partitioner; // Task Partitioner - ES sharding pattern (Day 2)
+mod team_dag; // Team DAG execution engine
+mod topology; // Swarm Topology — Star/Chain/Pipeline execution patterns
+mod workflow_engine; // Multi-stage orchestrated workflows
+mod worktree; // Git Worktree Isolation - per-Goal workspace isolation // Approval protocol for workflow stages
 
 // ---- Smart Routing & Self-Optimizing ----
-mod smart_router;     // Three-layer complexity evaluation
+mod cost_tracker; // Cost Tracker - Budget management (Phase 4 Week 4)
+mod event_pusher; // Tauri emit adapter for EventBus (M-3 WebSocket bridge)
+mod event_router; // Claw Code Event Router (clawhip layer)
+mod game_assets; // Game Asset Detection and Analysis (Phase 3 Week 4)
+mod http_server;
+mod loop_engine; // Loop Engine — unified orchestrator for all loops
+mod one_shot; // One-Shot Interface + User Role Detection (Phase 5)
+mod project_context; // Project context tracking (Phase 1 Week 2)
+mod self_healing; // EWMA anomaly detection
 mod self_optimizing_router; // Historical data-based intelligent routing (Phase 1 Week 2)
-mod project_context;  // Project context tracking (Phase 1 Week 2)
-mod self_healing;     // EWMA anomaly detection
-mod loop_engine;      // Loop Engine — unified orchestrator for all loops
-mod event_router;     // Claw Code Event Router (clawhip layer)
-mod event_pusher;     // Tauri emit adapter for EventBus (M-3 WebSocket bridge)
-mod game_assets;      // Game Asset Detection and Analysis (Phase 3 Week 4)
-mod cost_tracker;     // Cost Tracker - Budget management (Phase 4 Week 4)
-mod one_shot;         // One-Shot Interface + User Role Detection (Phase 5)
-mod http_server;      // HTTP Server - REST API for Web/Mobile (Phase 7)
+mod smart_router; // Three-layer complexity evaluation // HTTP Server - REST API for Web/Mobile (Phase 7)
 
 // ---- Plugin System ----
-mod plugin_registry;  // Unified: Skills/MCP/Hooks/CLI/Adapters
 mod hooks_executor;
-mod skill_commands;   // Skill System Tauri Commands
+mod mcp_client;
 mod mcp_manager;
-mod mcp_client;       // MCP JSON-RPC Client
+mod plugin_registry; // Unified: Skills/MCP/Hooks/CLI/Adapters
+mod skill_commands; // Skill System Tauri Commands // MCP JSON-RPC Client
 
 // ---- Bot Adapters ----
-mod bot_adapters;     // Telegram, Feishu, Discord, App WebSocket
+mod bot_adapters; // Telegram, Feishu, Discord, App WebSocket
 mod feishu_rich_message;
 
 // ---- Executive Agent ----
-mod executive_agent;  // Executes actual development tasks
+mod executive_agent; // Executes actual development tasks
 
 // ---- Pluggable Modules ----
 mod gateway_config;
 
 // ---- Tauri Commands ----
-mod commands;         // Refactored command handlers organized by domain
+mod commands; // Refactored command handlers organized by domain
 
 // ---- Public exports for integration tests ----
-pub use goal::{Goal, GoalGraph, GoalStatus, CompletionCondition, Evaluator, IterationRecord, EvaluationResult, GoalGraphSummary, ConditionResult};
-pub use reconcile::ReconcileLoop;
-pub use topology::{Topology, execute_star, execute_chain, execute_pipeline};
 pub use event_pusher::TauriEventPusher;
-pub use swarm_orchestrator::{
-    SwarmOrchestrator, SwarmAgent, SwarmTask, SwarmTaskStatus,
-    AgentRole, AgentSwarmStatus, AgentResult,
-    SwarmTopology, ConsensusStrategy, SwarmHealth,
+pub use goal::{
+    CompletionCondition, ConditionResult, EvaluationResult, Evaluator, Goal, GoalGraph,
+    GoalGraphSummary, GoalStatus, IterationRecord,
 };
+pub use reconcile::ReconcileLoop;
+pub use swarm_orchestrator::{
+    AgentResult, AgentRole, AgentSwarmStatus, ConsensusStrategy, SwarmAgent, SwarmHealth,
+    SwarmOrchestrator, SwarmTask, SwarmTaskStatus, SwarmTopology,
+};
+pub use topology::{execute_chain, execute_pipeline, execute_star, Topology};
 
 // Re-export from workspace crates (used by tests and complex_executor)
-pub use swarm_engine::{GoalOutcome, EchoExecutor};
-pub use tool_sandbox::{SandboxConfig, DeniedPatterns, Severity};
+pub use swarm_engine::{EchoExecutor, GoalOutcome};
+pub use tool_sandbox::{DeniedPatterns, SandboxConfig, Severity};
 
 // Re-export unified types from acp-core (C-1 integration)
 pub use acp_core::{
-    GoalSpec, CompletionConditionSpec, EvaluatorSpec,
-    GoalStatus as UnifiedGoalStatus,
-    IterationRecord as UnifiedIterationRecord,
-    EvaluationResult as UnifiedEvaluationResult,
-    GoalOutcome as UnifiedGoalOutcome,
-    GoalGraphSummary as UnifiedGoalGraphSummary,
-    AcpEvent,
+    AcpEvent, CompletionConditionSpec, EvaluationResult as UnifiedEvaluationResult, EvaluatorSpec,
+    GoalGraphSummary as UnifiedGoalGraphSummary, GoalOutcome as UnifiedGoalOutcome, GoalSpec,
+    GoalStatus as UnifiedGoalStatus, IterationRecord as UnifiedIterationRecord,
 };
 
-use agent::{AgentManager};
+use agent::AgentManager;
 use config::ConfigManager;
 use database::DatabaseManager;
 use log_stream::LogStreamManager;
@@ -160,7 +158,8 @@ pub struct AppState {
     // Approval Engine
     pub approval_engine: Arc<Mutex<approval_engine::ApprovalEngine>>,
     // Swarm Worker Registry (Day 1 - Real Worker Adapters)
-    pub swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>>,
+    pub swarm_workers:
+        Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>>,
     // Goal-Driven Architecture (RFC-001)
     pub goal_graph: Arc<Mutex<goal::GoalGraph>>,
     // Reconcile Loop for Goal execution
@@ -175,10 +174,13 @@ impl AppState {
     fn new(agent_manager: AgentManager) -> Self {
         // Create anomaly_detector Arc first so we can share it with HealingExecutor
         let anomaly_detector = Arc::new(Mutex::new(self_healing::AnomalyDetector::new()));
-        let healing_executor = Arc::new(Mutex::new(self_healing::HealingExecutor::new(anomaly_detector.clone())));
+        let healing_executor = Arc::new(Mutex::new(self_healing::HealingExecutor::new(
+            anomaly_detector.clone(),
+        )));
         // Create swarm_workers Arc first so we can share it with ReconcileLoop
-        let swarm_workers: Arc<Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let swarm_workers: Arc<
+            Mutex<HashMap<String, Arc<dyn swarm_adapters::SwarmAgentAdapter + Send + Sync>>>,
+        > = Arc::new(Mutex::new(HashMap::new()));
 
         Self {
             config_manager: Arc::new(RwLock::new(None)),
@@ -189,7 +191,9 @@ impl AppState {
             log_stream_manager: Arc::new(Mutex::new(None)),
             executive_agent_manager: Arc::new(Mutex::new(None)),
             // Agent Teams Platform
-            circuit_breaker_manager: Arc::new(Mutex::new(circuit_breaker::CircuitBreakerManager::new())),
+            circuit_breaker_manager: Arc::new(Mutex::new(
+                circuit_breaker::CircuitBreakerManager::new(),
+            )),
             dag_engine: Arc::new(Mutex::new(team_dag::DAGEngine::new())),
             anomaly_detector,
             healing_executor,
@@ -205,12 +209,16 @@ impl AppState {
             hermes_flow: Arc::new(Mutex::new(hermes_flow::HermesFlowOrchestrator::new())),
             // Sync Engine (Phase 3)
             sync_engine: Arc::new(Mutex::new(
-                sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop)
-                    .unwrap_or_else(|e| {
-                        eprintln!("[lib] SyncEngine init failed ({}), using fallback in-memory mode", e);
+                sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop).unwrap_or_else(
+                    |e| {
+                        eprintln!(
+                            "[lib] SyncEngine init failed ({}), using fallback in-memory mode",
+                            e
+                        );
                         sync_engine::SyncEngine::new(sync_engine::SyncSource::TauriDesktop)
                             .expect("SyncEngine fallback also failed")
-                    })
+                    },
+                ),
             )),
             // MCP & Agent Communication
             mcp_client: Arc::new(Mutex::new(mcp_client::McpClient::new())),
@@ -224,7 +232,9 @@ impl AppState {
             // Goal-Driven Architecture (RFC-001)
             goal_graph: Arc::new(Mutex::new(goal::GoalGraph::new())),
             // Reconcile Loop (initialized with swarm_workers)
-            reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(swarm_workers.clone()))),
+            reconcile_loop: Arc::new(Mutex::new(reconcile::ReconcileLoop::new(
+                swarm_workers.clone(),
+            ))),
             // Loop Engine (unified orchestrator for all loops)
             loop_engine: Arc::new(Mutex::new(loop_engine::LoopEngine::new(swarm_workers))),
             // Agent Registry - Self-Optimizing capabilities (Phase 1 Week 2)
@@ -239,6 +249,15 @@ pub fn run() {
 
     let agent_manager = AgentManager::new();
     let app_state = AppState::new(agent_manager);
+    let operator_state = Arc::new(Mutex::new(
+        operator::OperatorState::new_persistent_default().unwrap_or_else(|error| {
+            panic!(
+                "Operator persistence initialization failed; refusing in-memory fallback: {}",
+                error
+            )
+        }),
+    ));
+    let operator_state_for_remote_http = operator_state.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -248,8 +267,8 @@ pub fn run() {
         // .plugin(tauri_plugin_mcp::init()) // Disabled: compilation errors
         .manage(app_state)
         .manage(commands::renpy::RenPyState::new())
-        .manage(std::sync::Arc::new(std::sync::Mutex::new(operator::OperatorState::new())))
-        .setup(|app| {
+        .manage(operator_state)
+        .setup(move |app| {
             let app_handle = app.handle().clone();
             let state: State<AppState> = app.state();
 
@@ -349,7 +368,10 @@ pub fn run() {
             {
                 let mut registry = state.plugin_registry.lock().unwrap();
                 registry.seed_defaults();
-                println!("✅ Plugin registry seeded with {} plugins", registry.list(None).len());
+                println!(
+                    "✅ Plugin registry seeded with {} plugins",
+                    registry.list(None).len()
+                );
             }
 
             // Wire workflow engine into agent orchestrator
@@ -371,14 +393,45 @@ pub fn run() {
                         *ws = Some(server);
 
                         // Emit event to notify frontend
-                        let _ = app_handle_for_ws.emit("ws-server-auto-started", serde_json::json!({
-                            "url": url,
-                            "port": 1421
-                        }));
+                        let _ = app_handle_for_ws.emit(
+                            "ws-server-auto-started",
+                            serde_json::json!({
+                                "url": url,
+                                "port": 1421
+                            }),
+                        );
                     }
                     Err(e) => {
                         eprintln!("❌ Failed to auto-start WebSocket server: {}", e);
                     }
+                }
+            });
+
+            let operator_state_for_remote_http = operator_state_for_remote_http.clone();
+            tauri::async_runtime::spawn(async move {
+                let disabled = std::env::var("ACP_OPERATOR_HTTP_DISABLED")
+                    .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
+                if disabled {
+                    println!("Remote Operator HTTP server disabled by ACP_OPERATOR_HTTP_DISABLED");
+                    return;
+                }
+
+                let config = match http_server::RemoteOperatorServerConfig::from_env(1422) {
+                    Ok(config) => config,
+                    Err(error) => {
+                        eprintln!(
+                            "Remote Operator HTTP server configuration rejected: {}",
+                            error
+                        );
+                        return;
+                    }
+                };
+
+                if let Err(error) =
+                    http_server::start_operator_server(config, operator_state_for_remote_http).await
+                {
+                    eprintln!("Failed to start Remote Operator HTTP server: {}", error);
                 }
             });
 
@@ -742,7 +795,9 @@ pub fn run() {
 // Swarm Worker Adapter Commands (Day 1)
 // ============================================================================
 
-use swarm_adapters::{SwarmAgentAdapter, TaskDescription, TaskHandle, WorkerStatus, WorkerCapabilities};
+use swarm_adapters::{
+    SwarmAgentAdapter, TaskDescription, TaskHandle, WorkerCapabilities, WorkerStatus,
+};
 
 /// Register a new swarm worker (Codex or Claude Code)
 #[tauri::command]
@@ -765,15 +820,16 @@ async fn swarm_register_worker(
         workers.insert(worker_id.clone(), adapter);
     }
 
-    println!("✅ Registered swarm worker: {} ({})", worker_id, worker_type);
+    println!(
+        "✅ Registered swarm worker: {} ({})",
+        worker_id, worker_type
+    );
     Ok(capabilities)
 }
 
 /// List all registered swarm workers
 #[tauri::command]
-async fn swarm_list_workers(
-    state: State<'_, AppState>,
-) -> Result<Vec<WorkerCapabilities>, String> {
+async fn swarm_list_workers(state: State<'_, AppState>) -> Result<Vec<WorkerCapabilities>, String> {
     let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
     let capabilities: Vec<WorkerCapabilities> = workers
         .values()
@@ -794,13 +850,13 @@ async fn swarm_send_task(
 ) -> Result<TaskHandle, String> {
     let adapter = {
         let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.get(&worker_id)
+        workers
+            .get(&worker_id)
             .ok_or_else(|| format!("Worker not found: {}", worker_id))?
             .clone() // Arc clone — Mutex released immediately
     };
 
-    let task = TaskDescription::new(task_id, prompt)
-        .with_timeout(timeout_ms.unwrap_or(60000));
+    let task = TaskDescription::new(task_id, prompt).with_timeout(timeout_ms.unwrap_or(60000));
 
     let task = if let Some(dir) = working_dir {
         task.with_working_dir(dir)
@@ -819,7 +875,8 @@ async fn swarm_get_worker_status(
 ) -> Result<WorkerStatus, String> {
     let adapter = {
         let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.get(&worker_id)
+        workers
+            .get(&worker_id)
             .ok_or_else(|| format!("Worker not found: {}", worker_id))?
             .clone()
     };
@@ -828,13 +885,11 @@ async fn swarm_get_worker_status(
 
 /// Health check for a worker
 #[tauri::command]
-async fn swarm_health_check(
-    state: State<'_, AppState>,
-    worker_id: String,
-) -> Result<bool, String> {
+async fn swarm_health_check(state: State<'_, AppState>, worker_id: String) -> Result<bool, String> {
     let adapter = {
         let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.get(&worker_id)
+        workers
+            .get(&worker_id)
             .ok_or_else(|| format!("Worker not found: {}", worker_id))?
             .clone()
     };
@@ -850,7 +905,8 @@ async fn swarm_worker_cancel_task(
 ) -> Result<(), String> {
     let adapter = {
         let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.get(&worker_id)
+        workers
+            .get(&worker_id)
             .ok_or_else(|| format!("Worker not found: {}", worker_id))?
             .clone()
     };
@@ -866,7 +922,8 @@ async fn swarm_get_task_output(
 ) -> Result<String, String> {
     let adapter = {
         let workers = state.swarm_workers.lock().map_err(|e| e.to_string())?;
-        workers.get(&worker_id)
+        workers
+            .get(&worker_id)
             .ok_or_else(|| format!("Worker not found: {}", worker_id))?
             .clone()
     };

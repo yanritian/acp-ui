@@ -1,5 +1,5 @@
-use crate::AppState;
 use crate::config::AgentsConfig;
+use crate::AppState;
 use tauri::State;
 
 #[tauri::command]

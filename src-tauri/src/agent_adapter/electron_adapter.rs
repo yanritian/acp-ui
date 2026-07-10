@@ -4,10 +4,12 @@
 // Supports Electron app build, dev, and cross-platform compilation
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -169,9 +171,14 @@ impl ElectronDesktopAdapter {
                     .await;
 
                 match output2 {
-                    Ok(o2) if o2.status.success() => Ok(String::from_utf8_lossy(&o2.stdout).to_string()),
+                    Ok(o2) if o2.status.success() => {
+                        Ok(String::from_utf8_lossy(&o2.stdout).to_string())
+                    }
                     Ok(o2) => Err(AgentError::ExecutionError {
-                        message: format!("Electron dev failed: {}", String::from_utf8_lossy(&o2.stderr)),
+                        message: format!(
+                            "Electron dev failed: {}",
+                            String::from_utf8_lossy(&o2.stderr)
+                        ),
                         retryable: true,
                     }),
                     Err(e) => Err(AgentError::ExecutionError {
@@ -179,7 +186,7 @@ impl ElectronDesktopAdapter {
                         retryable: true,
                     }),
                 }
-            },
+            }
             Err(e) => Err(AgentError::ExecutionError {
                 message: format!("Failed to run npm dev: {}", e),
                 retryable: true,
@@ -188,13 +195,26 @@ impl ElectronDesktopAdapter {
     }
 
     /// Build Electron app for distribution
-    pub async fn build(&self, cwd: &PathBuf, platform: ElectronPlatform, arch: ElectronArch) -> Result<String, AgentError> {
+    pub async fn build(
+        &self,
+        cwd: &PathBuf,
+        platform: ElectronPlatform,
+        arch: ElectronArch,
+    ) -> Result<String, AgentError> {
         let platform_arg = platform.as_str();
         let arch_arg = arch.as_str();
 
         // Try electron-builder first
         let output = tokio::process::Command::new("npm")
-            .args(["run", "build", "--", "--platform", platform_arg, "--arch", arch_arg])
+            .args([
+                "run",
+                "build",
+                "--",
+                "--platform",
+                platform_arg,
+                "--arch",
+                arch_arg,
+            ])
             .current_dir(cwd)
             .output()
             .await;
@@ -204,15 +224,28 @@ impl ElectronDesktopAdapter {
             Ok(_) => {
                 // Try electron-forge make
                 let output2 = tokio::process::Command::new("npm")
-                    .args(["run", "make", "--", "--platform", platform_arg, "--arch", arch_arg])
+                    .args([
+                        "run",
+                        "make",
+                        "--",
+                        "--platform",
+                        platform_arg,
+                        "--arch",
+                        arch_arg,
+                    ])
                     .current_dir(cwd)
                     .output()
                     .await;
 
                 match output2 {
-                    Ok(o2) if o2.status.success() => Ok(String::from_utf8_lossy(&o2.stdout).to_string()),
+                    Ok(o2) if o2.status.success() => {
+                        Ok(String::from_utf8_lossy(&o2.stdout).to_string())
+                    }
                     Ok(o2) => Err(AgentError::ExecutionError {
-                        message: format!("Electron build failed: {}", String::from_utf8_lossy(&o2.stderr)),
+                        message: format!(
+                            "Electron build failed: {}",
+                            String::from_utf8_lossy(&o2.stderr)
+                        ),
                         retryable: true,
                     }),
                     Err(e) => Err(AgentError::ExecutionError {
@@ -220,7 +253,7 @@ impl ElectronDesktopAdapter {
                         retryable: true,
                     }),
                 }
-            },
+            }
             Err(e) => Err(AgentError::ExecutionError {
                 message: format!("Failed to run npm build: {}", e),
                 retryable: true,
@@ -232,9 +265,9 @@ impl ElectronDesktopAdapter {
     pub fn detect_electron_project(cwd: &PathBuf) -> bool {
         // Check package.json for electron dependency
         if let Ok(content) = std::fs::read_to_string(cwd.join("package.json")) {
-            content.contains("\"electron\"") ||
-            content.contains("\"electron-builder\"") ||
-            content.contains("\"electron-forge\"")
+            content.contains("\"electron\"")
+                || content.contains("\"electron-builder\"")
+                || content.contains("\"electron-forge\"")
         } else {
             false
         }
@@ -308,7 +341,10 @@ impl AgentAdapter for ElectronDesktopAdapter {
         })?;
 
         let cwd = PathBuf::from(config.cwd.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap().to_string_lossy().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }));
 
         let start = Instant::now();
@@ -316,7 +352,9 @@ impl AgentAdapter for ElectronDesktopAdapter {
         // Parse task for build type
         let desc_lower = task.description.to_lowercase();
         let is_dev = desc_lower.contains("dev") || desc_lower.contains("start");
-        let is_build = desc_lower.contains("build") || desc_lower.contains("pack") || desc_lower.contains("make");
+        let is_build = desc_lower.contains("build")
+            || desc_lower.contains("pack")
+            || desc_lower.contains("make");
 
         // Parse platform and arch
         let platform = if desc_lower.contains("win") || desc_lower.contains("windows") {
@@ -411,7 +449,12 @@ impl AgentAdapter for ElectronDesktopAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -455,8 +498,14 @@ mod tests {
 
     #[test]
     fn test_electron_platform_from_str() {
-        assert_eq!(ElectronPlatform::from_str("win").unwrap(), ElectronPlatform::Windows);
-        assert_eq!(ElectronPlatform::from_str("mac").unwrap(), ElectronPlatform::MacOS);
+        assert_eq!(
+            ElectronPlatform::from_str("win").unwrap(),
+            ElectronPlatform::Windows
+        );
+        assert_eq!(
+            ElectronPlatform::from_str("mac").unwrap(),
+            ElectronPlatform::MacOS
+        );
         assert!(ElectronPlatform::from_str("unknown").is_err());
     }
 

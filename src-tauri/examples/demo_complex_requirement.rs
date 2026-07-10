@@ -775,7 +775,10 @@ async fn main() -> std::io::Result<()> {
     } else {
         println!("  ❌ 编译失败");
         let stderr = String::from_utf8_lossy(&build_output.stderr);
-        println!("  错误: {}", stderr.lines().take(10).collect::<Vec<_>>().join("\n"));
+        println!(
+            "  错误: {}",
+            stderr.lines().take(10).collect::<Vec<_>>().join("\n")
+        );
         return;
     }
     println!("");
@@ -801,9 +804,16 @@ async fn main() -> std::io::Result<()> {
     // 5. 用户注册
     println!("\n  验证 5: 用户注册 API");
     let register_result = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/auth/register",
-               "-H", "Content-Type: application/json",
-               "-d", "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}"])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/register",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"email\":\"admin@test.com\",\"password\":\"admin123\"}",
+        ])
         .output()
         .expect("Failed to call register API");
 
@@ -820,9 +830,16 @@ async fn main() -> std::io::Result<()> {
     // 6. 用户登录获取Token
     println!("\n  验证 6: 用户登录 + Token获取");
     let login_result = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/auth/login",
-               "-H", "Content-Type: application/json",
-               "-d", "{\"username\":\"admin\",\"password\":\"admin123\"}"])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/auth/login",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"username\":\"admin\",\"password\":\"admin123\"}",
+        ])
         .output()
         .expect("Failed to call login API");
 
@@ -834,7 +851,7 @@ async fn main() -> std::io::Result<()> {
     let token = if login_response.contains("\"token\":\"") {
         let start = login_response.find("\"token\":\"").unwrap() + 9;
         let end = login_response[start..].find("\"").unwrap();
-        login_response[start..start+end].to_string()
+        login_response[start..start + end].to_string()
     } else {
         println!("    ❌ 登录失败，无法获取Token");
         return;
@@ -847,18 +864,31 @@ async fn main() -> std::io::Result<()> {
     // 7. 创建任务（带认证）
     println!("\n  验证 7: 任务创建 API（Token认证）");
     let create_task_result = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/tasks",
-               "-H", "Content-Type: application/json",
-               "-H", &format!("Authorization: Bearer {}", token),
-               "-d", "{\"title\":\"完成项目文档\",\"description\":\"编写API文档\",\"priority\":2}"])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/tasks",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            &format!("Authorization: Bearer {}", token),
+            "-d",
+            "{\"title\":\"完成项目文档\",\"description\":\"编写API文档\",\"priority\":2}",
+        ])
         .output()
         .expect("Failed to call create task API");
 
     let create_task_response = String::from_utf8_lossy(&create_task_result.stdout);
-    println!("    请求: POST /tasks (Authorization: Bearer {}...)", &token[..20]);
+    println!(
+        "    请求: POST /tasks (Authorization: Bearer {}...)",
+        &token[..20]
+    );
     println!("    响应: {}", create_task_response);
 
-    if create_task_response.contains("\"success\":true") && create_task_response.contains("\"title\":\"完成项目文档\"") {
+    if create_task_response.contains("\"success\":true")
+        && create_task_response.contains("\"title\":\"完成项目文档\"")
+    {
         println!("    ✓ 任务创建成功: '完成项目文档' 任务已创建");
     } else {
         println!("    ❌ 任务创建失败（或认证失败）");
@@ -867,8 +897,14 @@ async fn main() -> std::io::Result<()> {
     // 8. 查询任务列表
     println!("\n  验证 8: 任务查询 API");
     let get_tasks_result = Command::new("curl")
-        .args(["-s", "-X", "GET", "http://localhost:3000/tasks",
-               "-H", &format!("Authorization: Bearer {}", token)])
+        .args([
+            "-s",
+            "-X",
+            "GET",
+            "http://localhost:3000/tasks",
+            "-H",
+            &format!("Authorization: Bearer {}", token),
+        ])
         .output()
         .expect("Failed to call get tasks API");
 
@@ -876,7 +912,9 @@ async fn main() -> std::io::Result<()> {
     println!("    请求: GET /tasks");
     println!("    响应: {}", get_tasks_response);
 
-    if get_tasks_response.contains("\"success\":true") && get_tasks_response.contains("\"完成项目文档\"") {
+    if get_tasks_response.contains("\"success\":true")
+        && get_tasks_response.contains("\"完成项目文档\"")
+    {
         println!("    ✓ 任务查询成功: 返回用户任务列表");
     } else {
         println!("    ❌ 任务查询失败");
@@ -885,10 +923,18 @@ async fn main() -> std::io::Result<()> {
     // 9. 创建团队
     println!("\n  验证 9: 团队创建 API");
     let create_team_result = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/teams",
-               "-H", "Content-Type: application/json",
-               "-H", &format!("Authorization: Bearer {}", token),
-               "-d", "{\"name\":\"开发团队\",\"description\":\"核心开发组\"}"])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/teams",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            &format!("Authorization: Bearer {}", token),
+            "-d",
+            "{\"name\":\"开发团队\",\"description\":\"核心开发组\"}",
+        ])
         .output()
         .expect("Failed to call create team API");
 
@@ -896,7 +942,9 @@ async fn main() -> std::io::Result<()> {
     println!("    请求: POST /teams");
     println!("    响应: {}", create_team_response);
 
-    if create_team_response.contains("\"success\":true") && create_team_response.contains("\"开发团队\"") {
+    if create_team_response.contains("\"success\":true")
+        && create_team_response.contains("\"开发团队\"")
+    {
         println!("    ✓ 团队创建成功: '开发团队' 已创建");
     } else {
         println!("    ❌ 团队创建失败");
@@ -905,9 +953,16 @@ async fn main() -> std::io::Result<()> {
     // 10. 添加团队成员
     println!("\n  验证 10: Token验证中间件（无Token请求）");
     let no_auth_result = Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:3000/tasks",
-               "-H", "Content-Type: application/json",
-               "-d", "{\"title\":\"非法任务\"}"])
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "http://localhost:3000/tasks",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            "{\"title\":\"非法任务\"}",
+        ])
         .output()
         .expect("Failed to call API without token");
 
@@ -915,7 +970,9 @@ async fn main() -> std::io::Result<()> {
     println!("    请求: POST /tasks (无Authorization header)");
     println!("    响应: {}", no_auth_response);
 
-    if no_auth_response.contains("Unauthorized") || no_auth_response.contains("Missing Authorization") {
+    if no_auth_response.contains("Unauthorized")
+        || no_auth_response.contains("Missing Authorization")
+    {
         println!("    ✓ Token验证中间件生效: 未认证请求被拒绝");
     } else {
         println!("    ❌ Token验证中间件未生效");

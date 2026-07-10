@@ -1,9 +1,9 @@
 // Game Detector - Detect game engine and type
 // Phase 1 Day 3: Godot Integration
 
-use std::path::{Path, PathBuf};
-use std::fs;
 use regex::Regex;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Game engine type
 #[derive(Debug, Clone, PartialEq)]
@@ -16,8 +16,8 @@ pub enum GameEngine {
 /// Game size category
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameSize {
-    Small,  // < 50MB, can use WebView
-    Large,  // > 50MB, need external process
+    Small, // < 50MB, can use WebView
+    Large, // > 50MB, need external process
 }
 
 /// Game information
@@ -67,8 +67,8 @@ impl GameDetector {
             .map_err(|e| GameDetectorError::ReadError(e.to_string()))?;
 
         // Parse project name
-        let project_name = Self::parse_godot_project_name(&content)
-            .unwrap_or_else(|| "Godot Project".to_string());
+        let project_name =
+            Self::parse_godot_project_name(&content).unwrap_or_else(|| "Godot Project".to_string());
 
         // Parse version
         let version = Self::parse_godot_version(&content);
@@ -130,22 +130,19 @@ impl GameDetector {
     /// Parse Godot project name from project.godot
     fn parse_godot_project_name(content: &str) -> Option<String> {
         let re = Regex::new(r#"config/name="([^"]+)""#).ok()?;
-        re.captures(content)
-            .map(|caps| caps[1].to_string())
+        re.captures(content).map(|caps| caps[1].to_string())
     }
 
     /// Parse Godot version from project.godot
     fn parse_godot_version(content: &str) -> Option<String> {
         let re = Regex::new(r#"PackedStringArray\("(\d+\.\d+)"#).ok()?;
-        re.captures(content)
-            .map(|caps| caps[1].to_string())
+        re.captures(content).map(|caps| caps[1].to_string())
     }
 
     /// Parse Unity version from ProjectVersion.txt
     fn parse_unity_version(content: &str) -> Option<String> {
         let re = Regex::new(r"m_EditorVersion:\s*(\S+)").ok()?;
-        re.captures(content)
-            .map(|caps| caps[1].to_string())
+        re.captures(content).map(|caps| caps[1].to_string())
     }
 
     /// Find Godot scenes (.tscn files)
@@ -250,10 +247,14 @@ mod tests {
     fn test_detect_godot_project() {
         let dir = tempdir().unwrap();
         let project_file = dir.path().join("project.godot");
-        fs::write(&project_file, r#"[application]
+        fs::write(
+            &project_file,
+            r#"[application]
 config/name="Test Game"
 config/features=PackedStringArray("4.2", "GL Compatibility")
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let info = GameDetector::detect(dir.path()).unwrap();
         assert_eq!(info.engine, GameEngine::Godot);

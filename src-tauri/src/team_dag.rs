@@ -2,16 +2,16 @@
 //!
 //! Implements parallel/sequential/hybrid execution strategies for multi-agent teams
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Execution strategy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionStrategy {
-    Parallel,    // Execute all agents simultaneously
-    Sequential,  // Execute agents one by one
-    Hybrid,      // Mix of parallel and sequential based on dependencies
+    Parallel,   // Execute all agents simultaneously
+    Sequential, // Execute agents one by one
+    Hybrid,     // Mix of parallel and sequential based on dependencies
 }
 
 impl ExecutionStrategy {
@@ -29,9 +29,9 @@ impl ExecutionStrategy {
 pub struct TeamMember {
     pub agent_id: String,
     pub template_id: String,
-    pub role: String,           // "frontend", "backend", "qa", "lead"
+    pub role: String, // "frontend", "backend", "qa", "lead"
     pub capabilities: Vec<String>,
-    pub dependencies: Vec<String>,  // IDs of agents this one depends on
+    pub dependencies: Vec<String>, // IDs of agents this one depends on
 }
 
 /// Sync point for coordination
@@ -39,9 +39,9 @@ pub struct TeamMember {
 pub struct SyncPoint {
     pub id: String,
     pub name: String,
-    pub wait_for: Vec<String>,   // Agent IDs that must complete first
-    pub trigger_action: String,  // Action to take when sync point reached
-    pub timeout_ms: u64,         // Maximum wait time
+    pub wait_for: Vec<String>,  // Agent IDs that must complete first
+    pub trigger_action: String, // Action to take when sync point reached
+    pub timeout_ms: u64,        // Maximum wait time
 }
 
 /// DAG node for execution plan
@@ -147,8 +147,9 @@ impl DAGEngine {
         self.validate_dag(&members)?;
 
         // Build nodes from members
-        let nodes: Vec<DAGNode> = members.iter().map(|m| {
-            DAGNode {
+        let nodes: Vec<DAGNode> = members
+            .iter()
+            .map(|m| DAGNode {
                 id: uuid::Uuid::new_v4().to_string(),
                 member_id: m.agent_id.clone(),
                 dependencies: m.dependencies.clone(),
@@ -156,8 +157,8 @@ impl DAGEngine {
                 started_at: None,
                 completed_at: None,
                 result: None,
-            }
-        }).collect();
+            })
+            .collect();
 
         let plan = ExecutionPlan {
             id: uuid::Uuid::new_v4().to_string(),
@@ -230,25 +231,32 @@ impl DAGEngine {
 
     /// Get nodes ready to execute (dependencies satisfied)
     pub fn get_ready_nodes<'a>(&self, plan: &'a ExecutionPlan) -> Vec<&'a DAGNode> {
-        let completed: HashSet<&'a String> = plan.nodes.iter()
+        let completed: HashSet<&'a String> = plan
+            .nodes
+            .iter()
             .filter(|n| n.status == NodeStatus::Completed)
             .map(|n| &n.member_id)
             .collect();
 
-        plan.nodes.iter()
+        plan.nodes
+            .iter()
             .filter(|n| {
-                n.status == NodeStatus::Pending &&
-                n.dependencies.iter().all(|d| completed.contains(d))
+                n.status == NodeStatus::Pending
+                    && n.dependencies.iter().all(|d| completed.contains(d))
             })
             .collect()
     }
 
     /// Start executing a node
     pub fn start_node(&mut self, plan_id: &str, node_id: &str) -> Result<(), String> {
-        let plan = self.plans.get_mut(plan_id)
+        let plan = self
+            .plans
+            .get_mut(plan_id)
             .ok_or_else(|| format!("Plan {} not found", plan_id))?;
 
-        let node = plan.nodes.iter_mut()
+        let node = plan
+            .nodes
+            .iter_mut()
             .find(|n| n.id == node_id)
             .ok_or_else(|| format!("Node {} not found", node_id))?;
 
@@ -259,11 +267,20 @@ impl DAGEngine {
     }
 
     /// Complete a node
-    pub fn complete_node(&mut self, plan_id: &str, node_id: &str, result: String) -> Result<(), String> {
-        let plan = self.plans.get_mut(plan_id)
+    pub fn complete_node(
+        &mut self,
+        plan_id: &str,
+        node_id: &str,
+        result: String,
+    ) -> Result<(), String> {
+        let plan = self
+            .plans
+            .get_mut(plan_id)
             .ok_or_else(|| format!("Plan {} not found", plan_id))?;
 
-        let node = plan.nodes.iter_mut()
+        let node = plan
+            .nodes
+            .iter_mut()
             .find(|n| n.id == node_id)
             .ok_or_else(|| format!("Node {} not found", node_id))?;
 
@@ -272,8 +289,7 @@ impl DAGEngine {
         node.result = Some(result);
 
         // Track completed nodes
-        let completed = self.completed_nodes.entry(plan_id.to_string())
-            .or_default();
+        let completed = self.completed_nodes.entry(plan_id.to_string()).or_default();
         completed.insert(node.member_id.clone());
 
         // Check sync points inline
@@ -285,10 +301,13 @@ impl DAGEngine {
     /// Check sync points (static inline version)
     fn check_sync_points_inline(plan: &mut ExecutionPlan) -> Result<(), String> {
         // Find sync point to trigger
-        let sync_point_id = plan.sync_points.iter()
+        let sync_point_id = plan
+            .sync_points
+            .iter()
             .find(|sync_point| {
                 sync_point.wait_for.iter().all(|agent_id| {
-                    plan.nodes.iter()
+                    plan.nodes
+                        .iter()
                         .any(|n| n.member_id == *agent_id && n.status == NodeStatus::Completed)
                 })
             })
@@ -314,15 +333,17 @@ impl DAGEngine {
 
     /// Check if all nodes are completed
     pub fn is_plan_complete(&self, plan: &ExecutionPlan) -> bool {
-        plan.nodes.iter().all(|n|
-            n.status == NodeStatus::Completed || n.status == NodeStatus::Skipped
-        )
+        plan.nodes
+            .iter()
+            .all(|n| n.status == NodeStatus::Completed || n.status == NodeStatus::Skipped)
     }
 
     /// Get execution progress
     pub fn get_progress(&self, plan: &ExecutionPlan) -> f64 {
         let total = plan.nodes.len();
-        let completed = plan.nodes.iter()
+        let completed = plan
+            .nodes
+            .iter()
             .filter(|n| n.status == NodeStatus::Completed)
             .count();
 

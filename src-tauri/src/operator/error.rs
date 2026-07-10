@@ -77,7 +77,12 @@ pub struct OperatorError {
 }
 
 impl OperatorError {
-    pub fn new(code: &str, category: ErrorCategory, severity: ErrorSeverity, message: &str) -> Self {
+    pub fn new(
+        code: &str,
+        category: ErrorCategory,
+        severity: ErrorSeverity,
+        message: &str,
+    ) -> Self {
         Self {
             code: code.to_string(),
             category,
@@ -125,11 +130,7 @@ impl OperatorError {
     pub fn to_log_message(&self) -> String {
         format!(
             "[{}] [{}] [{}] {}: {}",
-            self.timestamp,
-            self.severity,
-            self.category,
-            self.code,
-            self.message
+            self.timestamp, self.severity, self.category, self.code, self.message
         )
     }
 }
@@ -275,13 +276,15 @@ impl ErrorHandler {
     }
 
     pub fn get_by_category(&self, category: ErrorCategory) -> Vec<&OperatorError> {
-        self.errors.iter()
+        self.errors
+            .iter()
             .filter(|e| e.category == category)
             .collect()
     }
 
     pub fn get_by_severity(&self, severity: ErrorSeverity) -> Vec<&OperatorError> {
-        self.errors.iter()
+        self.errors
+            .iter()
             .filter(|e| e.severity == severity)
             .collect()
     }

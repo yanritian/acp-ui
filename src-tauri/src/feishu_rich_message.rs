@@ -37,8 +37,8 @@ pub struct FeishuRichMessageService {
 impl FeishuRichMessageService {
     /// Create service from environment variables (recommended)
     pub fn from_env() -> Result<Self, String> {
-        let app_id = std::env::var("FEISHU_APP_ID")
-            .map_err(|_| "FEISHU_APP_ID not set in environment")?;
+        let app_id =
+            std::env::var("FEISHU_APP_ID").map_err(|_| "FEISHU_APP_ID not set in environment")?;
         let app_secret = std::env::var("FEISHU_APP_SECRET")
             .map_err(|_| "FEISHU_APP_SECRET not set in environment")?;
         Ok(Self::new(app_id, app_secret))
@@ -69,14 +69,17 @@ impl FeishuRichMessageService {
         if self.needs_refresh() {
             self.refresh_token().await?;
         }
-        self.tenant_token.clone().ok_or_else(|| "Token not available".to_string())
+        self.tenant_token
+            .clone()
+            .ok_or_else(|| "Token not available".to_string())
     }
 
     /// Refresh tenant access token
     async fn refresh_token(&mut self) -> Result<(), String> {
         let url = format!("{}{}", FEISHU_BASE_URL, AUTH_URL);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&serde_json::json!({
                 "app_id": self.app_id,
@@ -86,39 +89,56 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to request token: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
-        let json: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         if json["code"].as_i64() != Some(0) {
-            return Err(format!("Feishu API error: {}", json["msg"].as_str().unwrap_or("unknown")));
+            return Err(format!(
+                "Feishu API error: {}",
+                json["msg"].as_str().unwrap_or("unknown")
+            ));
         }
 
-        let token = json["tenant_access_token"].as_str()
+        let token = json["tenant_access_token"]
+            .as_str()
             .ok_or_else(|| "Token not found in response".to_string())?
             .to_string();
 
         // Token expires in 2 hours (7200 seconds), set expiry with buffer
-        let expire_seconds = json["expire"].as_i64()
-            .unwrap_or(7200) as u64;
+        let expire_seconds = json["expire"].as_i64().unwrap_or(7200) as u64;
         let expiry = Instant::now() + Duration::from_secs(expire_seconds) - TOKEN_EXPIRY_BUFFER;
 
         self.tenant_token = Some(token);
         self.token_expiry = Some(expiry);
 
-        println!("Feishu token refreshed, expires in {} seconds", expire_seconds);
+        println!(
+            "Feishu token refreshed, expires in {} seconds",
+            expire_seconds
+        );
         Ok(())
     }
 
     /// Send text message (with auto token refresh)
-    pub async fn send_text(&mut self, receive_id: &str, receive_id_type: &str, text: &str) -> Result<String, String> {
+    pub async fn send_text(
+        &mut self,
+        receive_id: &str,
+        receive_id_type: &str,
+        text: &str,
+    ) -> Result<String, String> {
         let token = self.get_tenant_token().await?;
 
-        let url = format!("{}{}?receive_id_type={}", FEISHU_BASE_URL, MESSAGE_URL, receive_id_type);
+        let url = format!(
+            "{}{}?receive_id_type={}",
+            FEISHU_BASE_URL, MESSAGE_URL, receive_id_type
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .json(&serde_json::json!({
@@ -130,23 +150,35 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to send text: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         self.parse_message_response(&body)
     }
 
     /// Send image message (with auto token refresh)
-    pub async fn send_image(&mut self, receive_id: &str, receive_id_type: &str, image_data: &[u8], image_type: &str) -> Result<String, String> {
+    pub async fn send_image(
+        &mut self,
+        receive_id: &str,
+        receive_id_type: &str,
+        image_data: &[u8],
+        image_type: &str,
+    ) -> Result<String, String> {
         // Upload image first
         let image_key = self.upload_image(image_data, image_type).await?;
 
         // Send image message
         let token = self.get_tenant_token().await?;
 
-        let url = format!("{}{}?receive_id_type={}", FEISHU_BASE_URL, MESSAGE_URL, receive_id_type);
+        let url = format!(
+            "{}{}?receive_id_type={}",
+            FEISHU_BASE_URL, MESSAGE_URL, receive_id_type
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .json(&serde_json::json!({
@@ -158,14 +190,20 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to send image message: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         self.parse_message_response(&body)
     }
 
     /// Upload image to Feishu (with auto token refresh)
-    async fn upload_image(&mut self, image_data: &[u8], image_type: &str) -> Result<String, String> {
+    async fn upload_image(
+        &mut self,
+        image_data: &[u8],
+        image_type: &str,
+    ) -> Result<String, String> {
         let token = self.get_tenant_token().await?;
 
         let url = format!("{}{}", FEISHU_BASE_URL, IMAGE_URL);
@@ -180,7 +218,8 @@ impl FeishuRichMessageService {
             .part("image", part)
             .text("image_type", "message");
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .multipart(form)
@@ -188,26 +227,40 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to upload image: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
-        let json: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         if json["code"].as_i64() != Some(0) {
-            return Err(format!("Image upload error: {}", json["msg"].as_str().unwrap_or("unknown")));
+            return Err(format!(
+                "Image upload error: {}",
+                json["msg"].as_str().unwrap_or("unknown")
+            ));
         }
 
-        Ok(json["data"]["image_key"].as_str()
+        Ok(json["data"]["image_key"]
+            .as_str()
             .ok_or_else(|| "image_key not found".to_string())?
             .to_string())
     }
 
     /// Send interactive card message (with auto token refresh)
-    pub async fn send_card(&mut self, receive_id: &str, receive_id_type: &str, card: &FeishuCard) -> Result<String, String> {
+    pub async fn send_card(
+        &mut self,
+        receive_id: &str,
+        receive_id_type: &str,
+        card: &FeishuCard,
+    ) -> Result<String, String> {
         let token = self.get_tenant_token().await?;
 
-        let url = format!("{}{}?receive_id_type={}", FEISHU_BASE_URL, MESSAGE_URL, receive_id_type);
+        let url = format!(
+            "{}{}?receive_id_type={}",
+            FEISHU_BASE_URL, MESSAGE_URL, receive_id_type
+        );
 
         let card_json = serde_json::to_string(&serde_json::json!({
             "type": "template",
@@ -215,9 +268,11 @@ impl FeishuRichMessageService {
                 "template_id": card.template_id,
                 "template_variable": card.variables
             }
-        })).map_err(|e| format!("Failed to serialize card: {}", e))?;
+        }))
+        .map_err(|e| format!("Failed to serialize card: {}", e))?;
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .json(&serde_json::json!({
@@ -234,23 +289,36 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to send card: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         self.parse_message_response(&body)
     }
 
     /// Send file message (for small files < 20MB, with auto token refresh)
-    pub async fn send_file(&mut self, receive_id: &str, receive_id_type: &str, file_data: &[u8], file_name: &str, file_type: &str) -> Result<String, String> {
+    pub async fn send_file(
+        &mut self,
+        receive_id: &str,
+        receive_id_type: &str,
+        file_data: &[u8],
+        file_name: &str,
+        file_type: &str,
+    ) -> Result<String, String> {
         // Upload file first
         let file_token = self.upload_file(file_data, file_name, file_type).await?;
 
         // Send file message
         let token = self.get_tenant_token().await?;
 
-        let url = format!("{}{}?receive_id_type={}", FEISHU_BASE_URL, MESSAGE_URL, receive_id_type);
+        let url = format!(
+            "{}{}?receive_id_type={}",
+            FEISHU_BASE_URL, MESSAGE_URL, receive_id_type
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .json(&serde_json::json!({
@@ -262,14 +330,21 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to send file message: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
         self.parse_message_response(&body)
     }
 
     /// Upload file to Feishu Drive (with auto token refresh)
-    async fn upload_file(&mut self, file_data: &[u8], file_name: &str, file_type: &str) -> Result<String, String> {
+    async fn upload_file(
+        &mut self,
+        file_data: &[u8],
+        file_name: &str,
+        file_type: &str,
+    ) -> Result<String, String> {
         let token = self.get_tenant_token().await?;
 
         let url = format!("{}{}", FEISHU_BASE_URL, FILE_URL);
@@ -288,7 +363,8 @@ impl FeishuRichMessageService {
             .text("parent_type", "ccm_resource")
             .text("parent_node", "ccm_global_root_folder");
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", token))
             .multipart(form)
@@ -296,31 +372,41 @@ impl FeishuRichMessageService {
             .await
             .map_err(|e| format!("Failed to upload file: {}", e))?;
 
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| format!("Failed to read response: {}", e))?;
 
-        let json: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let json: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         if json["code"].as_i64() != Some(0) {
-            return Err(format!("File upload error: {}", json["msg"].as_str().unwrap_or("unknown")));
+            return Err(format!(
+                "File upload error: {}",
+                json["msg"].as_str().unwrap_or("unknown")
+            ));
         }
 
-        Ok(json["data"]["file_token"].as_str()
+        Ok(json["data"]["file_token"]
+            .as_str()
             .ok_or_else(|| "file_token not found".to_string())?
             .to_string())
     }
 
     /// Parse message response to get message_id
     fn parse_message_response(&self, body: &str) -> Result<String, String> {
-        let json: serde_json::Value = serde_json::from_str(body)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+        let json: serde_json::Value =
+            serde_json::from_str(body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
         if json["code"].as_i64() != Some(0) {
-            return Err(format!("Message error: {}", json["msg"].as_str().unwrap_or("unknown")));
+            return Err(format!(
+                "Message error: {}",
+                json["msg"].as_str().unwrap_or("unknown")
+            ));
         }
 
-        Ok(json["data"]["message_id"].as_str()
+        Ok(json["data"]["message_id"]
+            .as_str()
             .ok_or_else(|| "message_id not found".to_string())?
             .to_string())
     }
@@ -343,34 +429,46 @@ impl FeishuCard {
 
     /// Create a status card
     pub fn status_card(title: &str, content: &str, status: &str) -> Self {
-        Self::new("AAqkWzJ7R", serde_json::json!({
-            "title": title,
-            "content": content,
-            "status": status
-        }))
+        Self::new(
+            "AAqkWzJ7R",
+            serde_json::json!({
+                "title": title,
+                "content": content,
+                "status": status
+            }),
+        )
     }
 
     /// Create a stream output card (for code execution)
     pub fn stream_card(title: &str, code_output: &str) -> Self {
-        Self::new("AAqkWzJ7S", serde_json::json!({
-            "title": title,
-            "code_output": code_output
-        }))
+        Self::new(
+            "AAqkWzJ7S",
+            serde_json::json!({
+                "title": title,
+                "code_output": code_output
+            }),
+        )
     }
 
     /// Create a menu card with buttons
     pub fn menu_card(title: &str, options: &[(&str, &str)]) -> Self {
-        let buttons = options.iter().map(|(text, value)| {
-            serde_json::json!({
-                "text": text,
-                "value": value
+        let buttons = options
+            .iter()
+            .map(|(text, value)| {
+                serde_json::json!({
+                    "text": text,
+                    "value": value
+                })
             })
-        }).collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
-        Self::new("AAqkWzJ7T", serde_json::json!({
-            "title": title,
-            "buttons": buttons
-        }))
+        Self::new(
+            "AAqkWzJ7T",
+            serde_json::json!({
+                "title": title,
+                "buttons": buttons
+            }),
+        )
     }
 }
 

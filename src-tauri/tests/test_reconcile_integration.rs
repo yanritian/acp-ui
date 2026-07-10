@@ -2,11 +2,10 @@
 //!
 //! Validates ReconcileLoop driving GoalGraph DAG execution
 
-use swarm_engine::{
-    Goal, GoalGraph, GoalStatus, CompletionCondition,
-    ReconcileLoop, EchoExecutor, GoalOutcome,
-};
 use std::sync::Arc;
+use swarm_engine::{
+    CompletionCondition, EchoExecutor, Goal, GoalGraph, GoalOutcome, GoalStatus, ReconcileLoop,
+};
 use tokio::sync::Mutex;
 
 fn make_goal(id: &str, depends_on: Vec<String>) -> Goal {

@@ -2,7 +2,7 @@
 //!
 //! Validates Queen election → renew → expire → re-election cycle
 
-use swarm_engine::{QueenLease, QueenElectionManager};
+use swarm_engine::{QueenElectionManager, QueenLease};
 
 #[test]
 fn test_queen_lease_valid_on_creation() {

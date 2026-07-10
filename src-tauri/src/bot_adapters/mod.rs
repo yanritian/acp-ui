@@ -9,14 +9,14 @@
 #![allow(dead_code)]
 
 mod app_ws;
-mod telegram;
-mod feishu;
 #[cfg(test)]
 mod erp_test;
+mod feishu;
+mod telegram;
 
 pub use app_ws::AppWsAdapter;
-pub use telegram::TelegramAdapter;
 pub use feishu::FeishuAdapter;
+pub use telegram::TelegramAdapter;
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -74,29 +74,19 @@ pub enum BotCommand {
     },
 
     /// Pause an agent
-    Pause {
-        agent_id: String,
-    },
+    Pause { agent_id: String },
 
     /// Resume an agent
-    Resume {
-        agent_id: String,
-    },
+    Resume { agent_id: String },
 
     /// Cancel an agent/task
-    Cancel {
-        target_id: String,
-    },
+    Cancel { target_id: String },
 
     /// Get history
-    History {
-        limit: Option<u64>,
-    },
+    History { limit: Option<u64> },
 
     /// Unknown/unrecognized command
-    Unknown {
-        raw: String,
-    },
+    Unknown { raw: String },
 }
 
 /// Parse bot text into BotCommand
@@ -109,7 +99,9 @@ pub fn parse_bot_text(text: &str) -> BotCommand {
     let parts: Vec<&str> = text.split_whitespace().collect();
 
     if parts.is_empty() {
-        return BotCommand::Unknown { raw: text.to_string() };
+        return BotCommand::Unknown {
+            raw: text.to_string(),
+        };
     }
 
     match parts[0].to_lowercase().as_str() {
@@ -118,7 +110,9 @@ pub fn parse_bot_text(text: &str) -> BotCommand {
         "agent" => {
             // /agent <prompt> or /agent <agent_name> <prompt>
             if parts.len() < 2 {
-                return BotCommand::Unknown { raw: text.to_string() };
+                return BotCommand::Unknown {
+                    raw: text.to_string(),
+                };
             }
 
             // Check if second part is an agent name (contains no spaces in remaining)
@@ -127,11 +121,13 @@ pub fn parse_bot_text(text: &str) -> BotCommand {
                 prompt: remaining,
                 agent_name: None,
             }
-        },
+        }
         "team" => {
             // /team <agents> <prompt> or /team broadcast <prompt>
             if parts.len() < 3 {
-                return BotCommand::Unknown { raw: text.to_string() };
+                return BotCommand::Unknown {
+                    raw: text.to_string(),
+                };
             }
 
             let routing = if parts[1] == "broadcast" {
@@ -155,31 +151,37 @@ pub fn parse_bot_text(text: &str) -> BotCommand {
                 agents,
                 routing: routing.to_string(),
             }
-        },
+        }
         "pause" => {
             if parts.len() < 2 {
-                return BotCommand::Unknown { raw: text.to_string() };
+                return BotCommand::Unknown {
+                    raw: text.to_string(),
+                };
             }
             BotCommand::Pause {
                 agent_id: parts[1].to_string(),
             }
-        },
+        }
         "resume" => {
             if parts.len() < 2 {
-                return BotCommand::Unknown { raw: text.to_string() };
+                return BotCommand::Unknown {
+                    raw: text.to_string(),
+                };
             }
             BotCommand::Resume {
                 agent_id: parts[1].to_string(),
             }
-        },
+        }
         "cancel" => {
             if parts.len() < 2 {
-                return BotCommand::Unknown { raw: text.to_string() };
+                return BotCommand::Unknown {
+                    raw: text.to_string(),
+                };
             }
             BotCommand::Cancel {
                 target_id: parts[1].to_string(),
             }
-        },
+        }
         "history" => {
             let limit = if parts.len() > 1 {
                 parts[1].parse::<u64>().ok()
@@ -187,8 +189,10 @@ pub fn parse_bot_text(text: &str) -> BotCommand {
                 Some(10)
             };
             BotCommand::History { limit }
+        }
+        _ => BotCommand::Unknown {
+            raw: text.to_string(),
         },
-        _ => BotCommand::Unknown { raw: text.to_string() },
     }
 }
 
@@ -255,7 +259,7 @@ mod tests {
             BotCommand::Agent { prompt, agent_name } => {
                 assert_eq!(prompt, "write hello world");
                 assert!(agent_name.is_none());
-            },
+            }
             _ => panic!("Expected Agent command"),
         }
 
@@ -268,21 +272,29 @@ mod tests {
     fn test_parse_team_command() {
         let cmd = parse_bot_text("/team codex,claude-code review this code");
         match cmd {
-            BotCommand::Team { prompt, agents, routing } => {
+            BotCommand::Team {
+                prompt,
+                agents,
+                routing,
+            } => {
                 assert_eq!(prompt, "review this code");
                 assert_eq!(agents, vec!["codex", "claude-code"]);
                 assert_eq!(routing, "single");
-            },
+            }
             _ => panic!("Expected Team command"),
         }
 
         let cmd = parse_bot_text("/team broadcast analyze the system");
         match cmd {
-            BotCommand::Team { prompt, agents, routing } => {
+            BotCommand::Team {
+                prompt,
+                agents,
+                routing,
+            } => {
                 assert_eq!(prompt, "analyze the system");
                 assert!(agents.is_empty());
                 assert_eq!(routing, "broadcast");
-            },
+            }
             _ => panic!("Expected Team command with broadcast"),
         }
     }

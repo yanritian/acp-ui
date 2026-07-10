@@ -3,9 +3,9 @@
 // Phase 4 Week 4: Cost Tracker + Token 追踪
 // Unified cost aggregation, budget limits, cost alerts
 
+use chrono::{DateTime, Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc, Datelike};
 
 /// Cost Tracker for managing API costs across adapters
 pub struct CostTracker {
@@ -74,7 +74,7 @@ pub struct CostBudget {
 impl Default for CostBudget {
     fn default() -> Self {
         Self {
-            daily_limit: 10.0, // $10/day default
+            daily_limit: 10.0,    // $10/day default
             monthly_limit: 100.0, // $100/month default
             currency: "USD".to_string(),
             hard_stop: false,
@@ -190,14 +190,16 @@ impl CostTracker {
         self.usage.total_all_time += record.amount;
 
         // Update adapter totals
-        self.usage.adapter_totals
+        self.usage
+            .adapter_totals
             .entry(record.adapter_id.clone())
             .and_modify(|v| *v += record.amount)
             .or_insert(record.amount);
 
         // Update scene totals
         if let Some(scene) = &record.scene {
-            self.usage.scene_totals
+            self.usage
+                .scene_totals
                 .entry(scene.clone())
                 .and_modify(|v| *v += record.amount)
                 .or_insert(record.amount);
@@ -302,7 +304,9 @@ impl CostTracker {
         let predicted_monthly = self.usage.monthly_total + (avg_daily * days_remaining as f32);
 
         // Budget remaining percentage
-        let budget_remaining = ((self.budget.monthly_limit - self.usage.monthly_total) / self.budget.monthly_limit) * 100.0;
+        let budget_remaining = ((self.budget.monthly_limit - self.usage.monthly_total)
+            / self.budget.monthly_limit)
+            * 100.0;
 
         CostForecast {
             predicted_daily: avg_daily,

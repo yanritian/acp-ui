@@ -3,9 +3,9 @@
 //! Provides direct frontend access to the Skill meta-tool system.
 //! These commands wrap the hermes-tools Skill handlers for Tauri IPC.
 
-use tauri::State;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tauri::State;
 
 use crate::AppState;
 
@@ -78,31 +78,58 @@ pub fn skills_list(_state: State<AppState>) -> Result<Vec<SkillMeta>, String> {
     // In production, this would call SkillProvider through ToolRegistry
     // For now, return core skills list
     let core_skills = [
-        ("web-research", "Core", "Web search and information extraction"),
+        (
+            "web-research",
+            "Core",
+            "Web search and information extraction",
+        ),
         ("code-execution", "Core", "Execute and debug code"),
-        ("file-operations", "Core", "Read, write, search, patch files"),
-        ("browser-automation", "Core", "Browser control and automation"),
-        ("vision-analysis", "Core", "Image understanding and analysis"),
+        (
+            "file-operations",
+            "Core",
+            "Read, write, search, patch files",
+        ),
+        (
+            "browser-automation",
+            "Core",
+            "Browser control and automation",
+        ),
+        (
+            "vision-analysis",
+            "Core",
+            "Image understanding and analysis",
+        ),
         ("media-generation", "Core", "Generate images, video, audio"),
-        ("skill-management", "Management", "CRUD and version management"),
+        (
+            "skill-management",
+            "Management",
+            "CRUD and version management",
+        ),
         ("memory-ops", "Management", "Memory store and retrieve"),
         ("task-management", "Management", "Todo and task planning"),
         ("communication", "Management", "Messages and clarification"),
         ("delegation", "Management", "Delegate to sub-agents"),
         ("security-audit", "Management", "Security scanning"),
-        ("code-review", "Development", "Code review and quality check"),
+        (
+            "code-review",
+            "Development",
+            "Code review and quality check",
+        ),
         ("testing", "Development", "Test generation and execution"),
         ("planning", "Development", "Project planning and breakdown"),
         ("documentation", "Development", "Documentation generation"),
     ];
 
-    Ok(core_skills.iter().map(|(name, category, desc)| SkillMeta {
-        name: name.to_string(),
-        category: Some(category.to_string()),
-        description: Some(desc.to_string()),
-        version: Some("1.0.0".to_string()),
-        generation: Some(0),
-    }).collect())
+    Ok(core_skills
+        .iter()
+        .map(|(name, category, desc)| SkillMeta {
+            name: name.to_string(),
+            category: Some(category.to_string()),
+            description: Some(desc.to_string()),
+            version: Some("1.0.0".to_string()),
+            generation: Some(0),
+        })
+        .collect())
 }
 
 /// View a specific skill's content
@@ -128,9 +155,7 @@ pub fn skill_view(name: String) -> Result<String, String> {
 
 /// Invoke a skill (meta-tool entry point)
 #[tauri::command]
-pub async fn invoke_skill(
-    invocation: SkillInvocation,
-) -> Result<SkillExecutionResult, String> {
+pub async fn invoke_skill(invocation: SkillInvocation) -> Result<SkillExecutionResult, String> {
     // In production, this would:
     // 1. Load skill from SkillProvider
     // 2. Execute through InvokeSkillHandler
@@ -140,7 +165,10 @@ pub async fn invoke_skill(
     // For now, return a mock result
     Ok(SkillExecutionResult {
         success: true,
-        output: format!("Skill '{}' invoked with params: {}", invocation.skill_name, invocation.parameters),
+        output: format!(
+            "Skill '{}' invoked with params: {}",
+            invocation.skill_name, invocation.parameters
+        ),
         error: None,
         duration_ms: 100,
         tool_calls_count: 1,
@@ -151,11 +179,13 @@ pub async fn invoke_skill(
 
 /// Create a skill from natural language
 #[tauri::command]
-pub async fn create_skill(
-    request: CreateSkillRequest,
-) -> Result<CreateSkillResult, String> {
+pub async fn create_skill(request: CreateSkillRequest) -> Result<CreateSkillResult, String> {
     // Validate skill name (kebab-case)
-    if !request.name.chars().all(|c| c.is_alphanumeric() || c == '-') {
+    if !request
+        .name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-')
+    {
         return Err("Skill name must be kebab-case (alphanumeric and hyphens only)".to_string());
     }
 
@@ -172,9 +202,7 @@ pub async fn create_skill(
          3. Verify and report results\n\n\
          ## Parameters\n\
          (Define based on usage patterns)\n",
-        request.name,
-        request.description,
-        request.natural_spec
+        request.name, request.description, request.natural_spec
     );
 
     // In production, this would call SkillProvider.create_skill()
@@ -182,7 +210,11 @@ pub async fn create_skill(
     Ok(CreateSkillResult {
         created: true,
         name: request.name.clone(),
-        message: format!("Skill '{}' created successfully. Content preview:\n\n{}", request.name, &content[..content.len().min(200)]),
+        message: format!(
+            "Skill '{}' created successfully. Content preview:\n\n{}",
+            request.name,
+            &content[..content.len().min(200)]
+        ),
     })
 }
 
@@ -256,10 +288,7 @@ pub async fn skill_manage(
 
 /// Rate a skill (used by self-evolution feedback loop)
 #[tauri::command]
-pub async fn skill_rate(
-    skill_name: String,
-    rating: u8,
-) -> Result<Value, String> {
+pub async fn skill_rate(skill_name: String, rating: u8) -> Result<Value, String> {
     if !(1..=5).contains(&rating) {
         return Err("Rating must be between 1 and 5".to_string());
     }

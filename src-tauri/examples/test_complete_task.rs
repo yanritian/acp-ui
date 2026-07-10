@@ -1,9 +1,9 @@
 //! 完整的任务执行测试 - 发送任务，等待结果，验证文件生成
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use serde_json::json;
 use std::time::Duration;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +13,7 @@ async fn main() {
     let ws_url = "ws://127.0.0.1:1421";
     println!("连接 WebSocket: {}", ws_url);
 
-    let (ws_stream, _) = connect_async(ws_url)
-        .await
-        .expect("无法连接 WebSocket");
+    let (ws_stream, _) = connect_async(ws_url).await.expect("无法连接 WebSocket");
 
     println!("✅ WebSocket 连接成功\n");
 
@@ -38,13 +36,17 @@ async fn main() {
         }
     });
 
-    write.send(Message::Text(init_cmd.to_string().into()))
+    write
+        .send(Message::Text(init_cmd.to_string().into()))
         .await
         .expect("发送初始化命令失败");
 
     // 等待初始化响应
     if let Some(msg) = tokio::time::timeout(Duration::from_secs(10), read.next())
-        .await.ok().flatten() {
+        .await
+        .ok()
+        .flatten()
+    {
         if let Ok(Message::Text(text)) = msg {
             println!("初始化响应: {}", text);
         }
@@ -74,11 +76,15 @@ async fn main() {
         }
     });
 
-    write.send(Message::Text(execute_cmd.to_string().into()))
+    write
+        .send(Message::Text(execute_cmd.to_string().into()))
         .await
         .expect("发送执行命令失败");
 
-    println!("✅ 任务已发送: {}", task_request.lines().take(3).collect::<Vec<_>>().join("\n"));
+    println!(
+        "✅ 任务已发送: {}",
+        task_request.lines().take(3).collect::<Vec<_>>().join("\n")
+    );
 
     // 3. 监听事件和结果
     println!("\n3. 监听执行结果...\n");
@@ -94,18 +100,24 @@ async fn main() {
                 match msg {
                     Ok(Message::Text(text)) => {
                         event_count += 1;
-                        println!("[事件 {}] {}", event_count, text.chars().take(200).collect::<String>());
+                        println!(
+                            "[事件 {}] {}",
+                            event_count,
+                            text.chars().take(200).collect::<String>()
+                        );
 
                         // 检查是否完成
-                        if text.contains("task-completed") ||
-                           text.contains("\"status\":\"completed\"") ||
-                           text.contains("files") && text.contains("GeneratedFile") {
+                        if text.contains("task-completed")
+                            || text.contains("\"status\":\"completed\"")
+                            || text.contains("files") && text.contains("GeneratedFile")
+                        {
                             println!("\n✅ 任务执行完成！");
                             task_completed = true;
 
                             // 解析结果
                             if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-                                if let Some(files) = value.get("data").and_then(|d| d.get("files")) {
+                                if let Some(files) = value.get("data").and_then(|d| d.get("files"))
+                                {
                                     println!("\n生成的文件:");
                                     for file in files.as_array().unwrap_or(&vec![]) {
                                         if let Some(path) = file.get("relative_path") {

@@ -3,12 +3,13 @@
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::game_detector::{GameDetector, GameEngine};
-    use crate::game_engine::GameEngineManager;
-    use crate::game_launcher::GameLauncher;
-    use crate::game_process_monitor::ProcessMonitor;
-    use crate::game_error_handler::{GameErrorHandler, create_error, GameErrorType, ErrorContext};
-    use std::path::PathBuf;
+    use acp_ui_lib::game_detector::{GameDetector, GameEngine};
+    use acp_ui_lib::game_engine::GameEngineManager;
+    use acp_ui_lib::game_error_handler::{
+        create_error, ErrorContext, GameErrorHandler, GameErrorType,
+    };
+    use acp_ui_lib::game_launcher::GameLauncher;
+    use acp_ui_lib::game_process_monitor::ProcessMonitor;
     use tempfile::tempdir;
 
     // ===== Detection Tests =====
@@ -17,10 +18,14 @@ mod integration_tests {
     fn test_detect_godot_project() {
         let dir = tempdir().unwrap();
         let project_file = dir.path().join("project.godot");
-        std::fs::write(&project_file, r#"[application]
+        std::fs::write(
+            &project_file,
+            r#"[application]
 config/name="Test Game"
 config/features=PackedStringArray("4.2", "GL Compatibility")
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let info = GameDetector::detect(dir.path()).unwrap();
         assert_eq!(info.engine, GameEngine::Godot);
@@ -128,12 +133,15 @@ config/features=PackedStringArray("4.2", "GL Compatibility")
                 true,
             );
 
-            handler.handle_error(error, &ErrorContext {
-                engine: None,
-                project_path: None,
-                build_target: None,
-                process_id: None,
-            });
+            handler.handle_error(
+                error,
+                &ErrorContext {
+                    engine: None,
+                    project_path: None,
+                    build_target: None,
+                    process_id: None,
+                },
+            );
         }
 
         assert_eq!(handler.get_error_history().len(), 10);
@@ -146,10 +154,14 @@ config/features=PackedStringArray("4.2", "GL Compatibility")
         // Create a mock Godot project
         let dir = tempdir().unwrap();
         let project_file = dir.path().join("project.godot");
-        std::fs::write(&project_file, r#"[application]
+        std::fs::write(
+            &project_file,
+            r#"[application]
 config/name="Integration Test Game"
 config/features=PackedStringArray("4.2", "GL Compatibility")
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         // Step 1: Detect
         let info = GameDetector::detect(dir.path()).unwrap();
@@ -174,7 +186,10 @@ config/features=PackedStringArray("4.2", "GL Compatibility")
 
         // Simulate multiple errors
         let errors = vec![
-            (GameErrorType::MissingDependencies, "Export template missing"),
+            (
+                GameErrorType::MissingDependencies,
+                "Export template missing",
+            ),
             (GameErrorType::BuildFailed, "Compilation failed"),
             (GameErrorType::LaunchFailed, "Executable not found"),
         ];
@@ -203,7 +218,7 @@ config/features=PackedStringArray("4.2", "GL Compatibility")
 
 #[cfg(test)]
 mod performance_tests {
-    use crate::game_process_monitor::ProcessMonitor;
+    use acp_ui_lib::game_process_monitor::{ProcessMetrics, ProcessMonitor};
     use std::time::Instant;
 
     #[test]
@@ -214,7 +229,7 @@ mod performance_tests {
 
         // Record 1000 metrics
         for i in 0..1000 {
-            let metrics = crate::game_process_monitor::ProcessMetrics {
+            let metrics = ProcessMetrics {
                 process_id: 1234,
                 memory_mb: 500.0 + i as f64,
                 cpu_percent: 50.0,
@@ -237,7 +252,7 @@ mod performance_tests {
 
         // Record 1000 metrics
         for i in 0..1000 {
-            let metrics = crate::game_process_monitor::ProcessMetrics {
+            let metrics = ProcessMetrics {
                 process_id: 1234,
                 memory_mb: 500.0,
                 cpu_percent: 50.0,

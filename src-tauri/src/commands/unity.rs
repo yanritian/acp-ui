@@ -12,7 +12,7 @@ use std::process::Command;
 #[serde(rename_all = "camelCase")]
 pub struct UnityBuildRequest {
     pub cwd: String,
-    pub target: String,  // "Win64", "OSX", "Linux64", "Android", "iOS", "WebGL"
+    pub target: String, // "Win64", "OSX", "Linux64", "Android", "iOS", "WebGL"
     pub output: String,
     pub development: Option<bool>,
 }
@@ -35,16 +35,15 @@ pub async fn unity_build(request: UnityBuildRequest) -> Result<UnityBuildRespons
     let output = PathBuf::from(&request.output);
 
     // Validate Unity project
-    let info = GameDetector::detect(&cwd)
-        .map_err(|e| format!("Not a valid game project: {}", e))?;
+    let info =
+        GameDetector::detect(&cwd).map_err(|e| format!("Not a valid game project: {}", e))?;
 
     if info.engine != crate::game_detector::GameEngine::Unity {
         return Err("Not a Unity project".to_string());
     }
 
     // Find Unity executable
-    let unity_path = find_unity_executable()
-        .map_err(|e| format!("Unity not found: {}", e))?;
+    let unity_path = find_unity_executable().map_err(|e| format!("Unity not found: {}", e))?;
 
     let start = std::time::Instant::now();
 
@@ -88,14 +87,12 @@ pub async fn unity_build(request: UnityBuildRequest) -> Result<UnityBuildRespons
                 })
             }
         }
-        Err(e) => {
-            Ok(UnityBuildResponse {
-                success: false,
-                output_path: None,
-                build_time_ms: build_time,
-                error: Some(format!("Failed to run Unity: {}", e)),
-            })
-        }
+        Err(e) => Ok(UnityBuildResponse {
+            success: false,
+            output_path: None,
+            build_time_ms: build_time,
+            error: Some(format!("Failed to run Unity: {}", e)),
+        }),
     }
 }
 

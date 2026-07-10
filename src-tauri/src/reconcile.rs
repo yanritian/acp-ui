@@ -256,7 +256,11 @@ impl ReconcileLoop {
         ));
 
         // Add feedback from previous iteration
-        if let Some(feedback) = goal.iteration_log.last().and_then(|i| i.feedback.as_deref()) {
+        if let Some(feedback) = goal
+            .iteration_log
+            .last()
+            .and_then(|i| i.feedback.as_deref())
+        {
             prompt.push_str("--- Previous Attempt Feedback ---\n");
             prompt.push_str(feedback);
             prompt.push_str("\n\nPlease address the above issues and try again.\n");
@@ -265,9 +269,7 @@ impl ReconcileLoop {
         // Add iteration context
         prompt.push_str(&format!(
             "\nAttempt {}/{} (tokens used: {})\n",
-            goal.current_iteration,
-            goal.max_iterations,
-            goal.tokens_used,
+            goal.current_iteration, goal.max_iterations, goal.tokens_used,
         ));
 
         prompt
@@ -347,9 +349,13 @@ impl ReconcileLoop {
         );
 
         // Send evaluation task to Queen
-        let queen_task_id = format!("queen-eval-{}-{}", primary_worker_id, crate::swarm_adapters::now_ms());
-        let queen_task = TaskDescription::new(queen_task_id.clone(), queen_prompt)
-            .with_timeout(60_000); // 60 seconds for Queen evaluation
+        let queen_task_id = format!(
+            "queen-eval-{}-{}",
+            primary_worker_id,
+            crate::swarm_adapters::now_ms()
+        );
+        let queen_task =
+            TaskDescription::new(queen_task_id.clone(), queen_prompt).with_timeout(60_000); // 60 seconds for Queen evaluation
 
         match queen_adapter.send_task(&queen_task) {
             Ok(_handle) => {
@@ -365,7 +371,10 @@ impl ReconcileLoop {
                         let _ = queen_adapter.cancel_task(&queen_task_id);
                         return EvaluationResult {
                             passed: false,
-                            explanation: format!("Queen evaluation timed out after {}ms", queen_timeout_ms),
+                            explanation: format!(
+                                "Queen evaluation timed out after {}ms",
+                                queen_timeout_ms
+                            ),
                             details: vec![ConditionResult {
                                 description: "Queen evaluation".into(),
                                 passed: false,
@@ -404,9 +413,15 @@ impl ReconcileLoop {
                 EvaluationResult {
                     passed,
                     explanation: if passed {
-                        format!("Queen judged as CONVERGED: {}", extract_explanation(&queen_output))
+                        format!(
+                            "Queen judged as CONVERGED: {}",
+                            extract_explanation(&queen_output)
+                        )
                     } else {
-                        format!("Queen judged as NOT_CONVERGED: {}", extract_explanation(&queen_output))
+                        format!(
+                            "Queen judged as NOT_CONVERGED: {}",
+                            extract_explanation(&queen_output)
+                        )
                     },
                     details: vec![ConditionResult {
                         description: format!("Queen judgment: {}", criteria),
@@ -431,11 +446,23 @@ impl ReconcileLoop {
 /// Human-readable description of a completion condition.
 fn describe_condition(condition: &CompletionCondition) -> String {
     match condition {
-        CompletionCondition::CommandSuccess { command, expected_exit_code } => {
-            format!("Command '{}' exits with code {}", command, expected_exit_code)
+        CompletionCondition::CommandSuccess {
+            command,
+            expected_exit_code,
+        } => {
+            format!(
+                "Command '{}' exits with code {}",
+                command, expected_exit_code
+            )
         }
-        CompletionCondition::OutputContains { text, case_sensitive } => {
-            format!("Output contains '{}' (case_sensitive={})", text, case_sensitive)
+        CompletionCondition::OutputContains {
+            text,
+            case_sensitive,
+        } => {
+            format!(
+                "Output contains '{}' (case_sensitive={})",
+                text, case_sensitive
+            )
         }
         CompletionCondition::OutputMatches { pattern } => {
             format!("Output matches regex '{}'", pattern)
@@ -448,7 +475,11 @@ fn describe_condition(condition: &CompletionCondition) -> String {
             let descs: Vec<String> = conditions.iter().map(describe_condition).collect();
             format!("ANY of: [{}]", descs.join("; "))
         }
-        CompletionCondition::FileCheck { path, must_exist, content_contains } => {
+        CompletionCondition::FileCheck {
+            path,
+            must_exist,
+            content_contains,
+        } => {
             let exist_desc = if *must_exist {
                 format!("File '{}' exists", path)
             } else {
@@ -459,7 +490,10 @@ fn describe_condition(condition: &CompletionCondition) -> String {
                 None => exist_desc,
             }
         }
-        CompletionCondition::HttpHealthCheck { url, expected_status } => {
+        CompletionCondition::HttpHealthCheck {
+            url,
+            expected_status,
+        } => {
             format!("HTTP GET '{}' returns status {}", url, expected_status)
         }
         CompletionCondition::QueenJudgment { criteria } => {

@@ -9,9 +9,7 @@
 //! - `All` / `Any` → compound logic
 //! - `QueenJudgment` → deferred to reconcile.rs (requires Queen worker)
 
-use crate::goal::{
-    CompletionCondition, ConditionResult, EvaluationResult,
-};
+use crate::goal::{CompletionCondition, ConditionResult, EvaluationResult};
 use std::process::Command;
 
 /// Evaluates completion conditions against worker output.
@@ -27,27 +25,28 @@ impl ConditionEvaluator {
     /// Returns an `EvaluationResult` with per-condition details.
     pub fn eval(&self, condition: &CompletionCondition, output: &str) -> EvaluationResult {
         match condition {
-            CompletionCondition::CommandSuccess { command, expected_exit_code } => {
-                self.eval_command(command, *expected_exit_code)
-            }
-            CompletionCondition::OutputContains { text, case_sensitive } => {
-                self.eval_output_contains(output, text, *case_sensitive)
-            }
+            CompletionCondition::CommandSuccess {
+                command,
+                expected_exit_code,
+            } => self.eval_command(command, *expected_exit_code),
+            CompletionCondition::OutputContains {
+                text,
+                case_sensitive,
+            } => self.eval_output_contains(output, text, *case_sensitive),
             CompletionCondition::OutputMatches { pattern } => {
                 self.eval_output_matches(output, pattern)
             }
-            CompletionCondition::All { conditions } => {
-                self.eval_all(conditions, output)
-            }
-            CompletionCondition::Any { conditions } => {
-                self.eval_any(conditions, output)
-            }
-            CompletionCondition::FileCheck { path, must_exist, content_contains } => {
-                self.eval_file_check(path, *must_exist, content_contains.as_deref())
-            }
-            CompletionCondition::HttpHealthCheck { url, expected_status } => {
-                self.eval_http_health(url, *expected_status)
-            }
+            CompletionCondition::All { conditions } => self.eval_all(conditions, output),
+            CompletionCondition::Any { conditions } => self.eval_any(conditions, output),
+            CompletionCondition::FileCheck {
+                path,
+                must_exist,
+                content_contains,
+            } => self.eval_file_check(path, *must_exist, content_contains.as_deref()),
+            CompletionCondition::HttpHealthCheck {
+                url,
+                expected_status,
+            } => self.eval_http_health(url, *expected_status),
             CompletionCondition::QueenJudgment { criteria } => {
                 // Queen judgment requires a live worker — handled by ReconcileLoop
                 EvaluationResult {
@@ -70,10 +69,23 @@ impl ConditionEvaluator {
 
     /// Commands that are never allowed in completion checks (security denylist).
     const DENIED_COMMANDS: &'static [&'static str] = &[
-        "rm -rf /", "rm -rf /*", "mkfs", "dd if=", ":(){:|:&};:",
-        "chmod -R 777 /", "wget", "curl", "nc ", "ncat ",
-        "bash -i", "python -c", "perl -e", "ruby -e",
-        "> /dev/sda", "mv / ", "format c:",
+        "rm -rf /",
+        "rm -rf /*",
+        "mkfs",
+        "dd if=",
+        ":(){:|:&};:",
+        "chmod -R 777 /",
+        "wget",
+        "curl",
+        "nc ",
+        "ncat ",
+        "bash -i",
+        "python -c",
+        "perl -e",
+        "ruby -e",
+        "> /dev/sda",
+        "mv / ",
+        "format c:",
     ];
 
     fn eval_command(&self, command: &str, expected_exit_code: i32) -> EvaluationResult {
@@ -112,10 +124,7 @@ impl ConditionEvaluator {
             };
         }
 
-        let result = Command::new("sh")
-            .arg("-c")
-            .arg(command)
-            .output();
+        let result = Command::new("sh").arg("-c").arg(command).output();
 
         match result {
             Ok(output) => {
@@ -135,7 +144,10 @@ impl ConditionEvaluator {
                         )
                     },
                     details: vec![ConditionResult {
-                        description: format!("Command: {} (expect exit {})", command, expected_exit_code),
+                        description: format!(
+                            "Command: {} (expect exit {})",
+                            command, expected_exit_code
+                        ),
                         passed,
                         evidence: format!(
                             "exit_code={}, stdout={}, stderr={}",
@@ -173,7 +185,10 @@ impl ConditionEvaluator {
         EvaluationResult {
             passed,
             explanation: if passed {
-                format!("Output contains '{}' (case_sensitive={})", text, case_sensitive)
+                format!(
+                    "Output contains '{}' (case_sensitive={})",
+                    text, case_sensitive
+                )
             } else {
                 format!(
                     "Output does NOT contain '{}' (case_sensitive={})",
@@ -181,7 +196,10 @@ impl ConditionEvaluator {
                 )
             },
             details: vec![ConditionResult {
-                description: format!("Output contains '{}' (case_sensitive={})", text, case_sensitive),
+                description: format!(
+                    "Output contains '{}' (case_sensitive={})",
+                    text, case_sensitive
+                ),
                 passed,
                 evidence: format!("Output length: {} chars", output.len()),
             }],
@@ -319,7 +337,10 @@ impl ConditionEvaluator {
                             ConditionResult {
                                 description: format!("Contains: '{}'", needle),
                                 passed,
-                                evidence: format!("Content preview: {}...", content.chars().take(100).collect::<String>()),
+                                evidence: format!(
+                                    "Content preview: {}...",
+                                    content.chars().take(100).collect::<String>()
+                                ),
                             },
                         ],
                     }
@@ -350,7 +371,16 @@ impl ConditionEvaluator {
     fn eval_http_health(&self, url: &str, expected_status: u16) -> EvaluationResult {
         // Use curl as a fallback HTTP client (avoids pulling in reqwest dependency)
         let result = Command::new("curl")
-            .args(["-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "10", url])
+            .args([
+                "-s",
+                "-o",
+                "/dev/null",
+                "-w",
+                "%{http_code}",
+                "--max-time",
+                "10",
+                url,
+            ])
             .output();
 
         match result {
@@ -362,9 +392,15 @@ impl ConditionEvaluator {
                 EvaluationResult {
                     passed,
                     explanation: if passed {
-                        format!("HTTP {} returned status {} (expected {})", url, status_code, expected_status)
+                        format!(
+                            "HTTP {} returned status {} (expected {})",
+                            url, status_code, expected_status
+                        )
                     } else {
-                        format!("HTTP {} returned status {} (expected {})", url, status_code, expected_status)
+                        format!(
+                            "HTTP {} returned status {} (expected {})",
+                            url, status_code, expected_status
+                        )
                     },
                     details: vec![ConditionResult {
                         description: format!("HTTP GET {} → {}", url, expected_status),

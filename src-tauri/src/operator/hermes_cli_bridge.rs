@@ -1,13 +1,14 @@
 // Hermes CLI Bridge - Connects Operator to Hermes CLI subprocess
 // This module spawns Hermes CLI as a subprocess and parses its output
 
+use crate::operator::hermes_process::apply_d_drive_hermes_env;
+use crate::operator::{EventLevel, OperatorEvent, OperatorEventType};
+use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
-use serde::{Deserialize, Serialize};
-use crate::operator::{OperatorEvent, OperatorEventType, EventLevel};
 
 // ============================================================================
 // Hermes CLI Bridge
@@ -30,7 +31,9 @@ impl HermesCliBridge {
 
     /// Check if Hermes CLI is available
     pub fn is_available(&self) -> bool {
-        Command::new(&self.cli_path)
+        let mut command = Command::new(&self.cli_path);
+        apply_d_drive_hermes_env(&mut command);
+        command
             .arg("--version")
             .output()
             .map(|output| output.status.success())
@@ -48,8 +51,12 @@ impl HermesCliBridge {
         let goal = goal.to_string();
 
         thread::spawn(move || {
-            if let Err(e) = Self::run_hermes_process(&cli_path, &project_path, &task_id, &goal, tx.clone()) {
-                let _ = tx.send(HermesEvent::Error { message: e.to_string() });
+            if let Err(e) =
+                Self::run_hermes_process(&cli_path, &project_path, &task_id, &goal, tx.clone())
+            {
+                let _ = tx.send(HermesEvent::Error {
+                    message: e.to_string(),
+                });
             }
         });
 
@@ -63,7 +70,9 @@ impl HermesCliBridge {
         goal: &str,
         tx: Sender<HermesEvent>,
     ) -> Result<(), HermesCliError> {
-        let mut child = Command::new(cli_path)
+        let mut command = Command::new(cli_path);
+        apply_d_drive_hermes_env(&mut command);
+        let mut child = command
             .arg("execute")
             .arg("--goal")
             .arg(goal)
@@ -92,13 +101,16 @@ impl HermesCliBridge {
                     }
                 }
                 Err(e) => {
-                    let _ = tx.send(HermesEvent::Error { message: format!("Read error: {}", e) });
+                    let _ = tx.send(HermesEvent::Error {
+                        message: format!("Read error: {}", e),
+                    });
                     break;
                 }
             }
         }
 
-        let status = child.wait()
+        let status = child
+            .wait()
             .map_err(|e| HermesCliError::ProcessError(e.to_string()))?;
 
         if status.success() {
@@ -112,7 +124,9 @@ impl HermesCliBridge {
 
     /// Analyze project using Hermes CLI
     pub fn analyze_project(&self) -> Result<HermesAnalysisResult, HermesCliError> {
-        let output = Command::new(&self.cli_path)
+        let mut command = Command::new(&self.cli_path);
+        apply_d_drive_hermes_env(&mut command);
+        let output = command
             .arg("analyze")
             .arg("--project")
             .arg(&self.project_path)
@@ -123,7 +137,7 @@ impl HermesCliBridge {
 
         if !output.status.success() {
             return Err(HermesCliError::AnalysisFailed(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -133,7 +147,9 @@ impl HermesCliBridge {
 
     /// Generate plan using Hermes CLI
     pub fn generate_plan(&self, goal: &str) -> Result<HermesPlan, HermesCliError> {
-        let output = Command::new(&self.cli_path)
+        let mut command = Command::new(&self.cli_path);
+        apply_d_drive_hermes_env(&mut command);
+        let output = command
             .arg("plan")
             .arg("--goal")
             .arg(goal)
@@ -146,7 +162,7 @@ impl HermesCliBridge {
 
         if !output.status.success() {
             return Err(HermesCliError::PlanningFailed(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -155,8 +171,13 @@ impl HermesCliBridge {
     }
 
     /// Execute a single step using Hermes CLI
-    pub fn execute_step(&self, step_id: u32, approve: bool) -> Result<HermesStepResult, HermesCliError> {
+    pub fn execute_step(
+        &self,
+        step_id: u32,
+        approve: bool,
+    ) -> Result<HermesStepResult, HermesCliError> {
         let mut cmd = Command::new(&self.cli_path);
+        apply_d_drive_hermes_env(&mut cmd);
         cmd.arg("step")
             .arg("--step-id")
             .arg(step_id.to_string())
@@ -167,12 +188,13 @@ impl HermesCliBridge {
             cmd.arg("--approve");
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| HermesCliError::ProcessError(e.to_string()))?;
 
         if !output.status.success() {
             return Err(HermesCliError::ExecutionFailed(
-                String::from_utf8_lossy(&output.stderr).to_string()
+                String::from_utf8_lossy(&output.stderr).to_string(),
             ));
         }
 
@@ -195,22 +217,42 @@ pub enum HermesEvent {
     PhaseChanged { task_id: String, phase: String },
 
     #[serde(rename = "progress")]
-    Progress { task_id: String, message: String, percentage: u8 },
+    Progress {
+        task_id: String,
+        message: String,
+        percentage: u8,
+    },
 
     #[serde(rename = "file_read")]
     FileRead { task_id: String, path: String },
 
     #[serde(rename = "file_modified")]
-    FileModified { task_id: String, path: String, diff: Option<String> },
+    FileModified {
+        task_id: String,
+        path: String,
+        diff: Option<String>,
+    },
 
     #[serde(rename = "tool_call")]
-    ToolCall { task_id: String, tool: String, input: serde_json::Value },
+    ToolCall {
+        task_id: String,
+        tool: String,
+        input: serde_json::Value,
+    },
 
     #[serde(rename = "tool_result")]
-    ToolResult { task_id: String, tool: String, output: serde_json::Value },
+    ToolResult {
+        task_id: String,
+        tool: String,
+        output: serde_json::Value,
+    },
 
     #[serde(rename = "approval_required")]
-    ApprovalRequired { task_id: String, approval_id: String, message: String },
+    ApprovalRequired {
+        task_id: String,
+        approval_id: String,
+        message: String,
+    },
 
     #[serde(rename = "error")]
     Error { message: String },
@@ -223,38 +265,72 @@ impl HermesEvent {
     /// Convert to OperatorEvent
     pub fn to_operator_event(&self, task_id: &str) -> OperatorEvent {
         let (event_type, title, message) = match self {
-            HermesEvent::TaskStarted { .. } => {
-                (OperatorEventType::TaskStarted, "Task started".to_string(), Some("Task execution started".to_string()))
-            }
-            HermesEvent::PhaseChanged { phase, .. } => {
-                (OperatorEventType::StepStarted, format!("Phase: {}", phase), Some(format!("Entered {} phase", phase)))
-            }
-            HermesEvent::Progress { message, percentage, .. } => {
-                (OperatorEventType::StepExecuting, message.clone(), Some(format!("{}% - {}", percentage, message)))
-            }
-            HermesEvent::FileRead { path, .. } => {
-                (OperatorEventType::FileRead, format!("Read: {}", path), Some(format!("Reading file: {}", path)))
-            }
-            HermesEvent::FileModified { path, diff, .. } => {
-                (OperatorEventType::FileModified, format!("Modified: {}", path), diff.clone())
-            }
-            HermesEvent::ToolCall { tool, input, .. } => {
-                (OperatorEventType::ToolCallStarted, format!("Call: {}", tool), Some(format!("{:?}", input)))
-            }
-            HermesEvent::ToolResult { tool, output, .. } => {
-                (OperatorEventType::ToolCallSucceeded, format!("Result: {}", tool), Some(format!("{:?}", output)))
-            }
-            HermesEvent::ApprovalRequired { approval_id, message, .. } => {
-                (OperatorEventType::ApprovalRequested, format!("Approval: {}", approval_id), Some(message.clone()))
-            }
-            HermesEvent::Error { message } => {
-                (OperatorEventType::TaskFailed, "Error".to_string(), Some(message.clone()))
-            }
+            HermesEvent::TaskStarted { .. } => (
+                OperatorEventType::TaskStarted,
+                "Task started".to_string(),
+                Some("Task execution started".to_string()),
+            ),
+            HermesEvent::PhaseChanged { phase, .. } => (
+                OperatorEventType::StepStarted,
+                format!("Phase: {}", phase),
+                Some(format!("Entered {} phase", phase)),
+            ),
+            HermesEvent::Progress {
+                message,
+                percentage,
+                ..
+            } => (
+                OperatorEventType::StepExecuting,
+                message.clone(),
+                Some(format!("{}% - {}", percentage, message)),
+            ),
+            HermesEvent::FileRead { path, .. } => (
+                OperatorEventType::FileRead,
+                format!("Read: {}", path),
+                Some(format!("Reading file: {}", path)),
+            ),
+            HermesEvent::FileModified { path, diff, .. } => (
+                OperatorEventType::FileModified,
+                format!("Modified: {}", path),
+                diff.clone(),
+            ),
+            HermesEvent::ToolCall { tool, input, .. } => (
+                OperatorEventType::ToolCallStarted,
+                format!("Call: {}", tool),
+                Some(format!("{:?}", input)),
+            ),
+            HermesEvent::ToolResult { tool, output, .. } => (
+                OperatorEventType::ToolCallSucceeded,
+                format!("Result: {}", tool),
+                Some(format!("{:?}", output)),
+            ),
+            HermesEvent::ApprovalRequired {
+                approval_id,
+                message,
+                ..
+            } => (
+                OperatorEventType::ApprovalRequested,
+                format!("Approval: {}", approval_id),
+                Some(message.clone()),
+            ),
+            HermesEvent::Error { message } => (
+                OperatorEventType::TaskFailed,
+                "Error".to_string(),
+                Some(message.clone()),
+            ),
             HermesEvent::Completed { success } => {
                 if *success {
-                    (OperatorEventType::TaskCompleted, "Completed".to_string(), Some("Task completed successfully".to_string()))
+                    (
+                        OperatorEventType::TaskCompleted,
+                        "Completed".to_string(),
+                        Some("Task completed successfully".to_string()),
+                    )
                 } else {
-                    (OperatorEventType::TaskFailed, "Failed".to_string(), Some("Task failed".to_string()))
+                    (
+                        OperatorEventType::TaskFailed,
+                        "Failed".to_string(),
+                        Some("Task failed".to_string()),
+                    )
                 }
             }
         };

@@ -4,10 +4,12 @@
 // Supports Unity project build, asset import, and cross-platform compilation
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -128,7 +130,12 @@ impl UnityAdapter {
     }
 
     /// Build Unity project using CLI
-    pub async fn build(&self, cwd: &PathBuf, target: UnityPlatform, dev: bool) -> Result<String, AgentError> {
+    pub async fn build(
+        &self,
+        cwd: &PathBuf,
+        target: UnityPlatform,
+        dev: bool,
+    ) -> Result<String, AgentError> {
         // Unity CLI: Unity.exe -quit -batchmode -executeMethod BuildPipeline.Build
         let unity_path = self.find_unity_executable()?;
         let cwd_str = cwd.to_string_lossy().to_string();
@@ -197,7 +204,8 @@ impl UnityAdapter {
             let base = "/Applications/Unity/Hub/Editor";
             if let Ok(entries) = std::fs::read_dir(base) {
                 for entry in entries.flatten() {
-                    let unity_path = entry.path()
+                    let unity_path = entry
+                        .path()
                         .join("Unity.app")
                         .join("Contents")
                         .join("MacOS")
@@ -221,8 +229,7 @@ impl UnityAdapter {
     /// Detect Unity project
     pub fn detect_unity_project(cwd: &PathBuf) -> bool {
         // Check for Assets folder and .csproj files
-        cwd.join("Assets").exists() &&
-        cwd.join("ProjectSettings").exists()
+        cwd.join("Assets").exists() && cwd.join("ProjectSettings").exists()
     }
 
     /// Get Unity scenes
@@ -285,7 +292,10 @@ impl AgentAdapter for UnityAdapter {
         })?;
 
         let cwd = PathBuf::from(config.cwd.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap().to_string_lossy().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }));
 
         let start = Instant::now();
@@ -379,7 +389,12 @@ impl AgentAdapter for UnityAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -415,9 +430,18 @@ mod tests {
 
     #[test]
     fn test_unity_platform_from_str() {
-        assert_eq!(UnityPlatform::from_str("windows").unwrap(), UnityPlatform::Windows);
-        assert_eq!(UnityPlatform::from_str("android").unwrap(), UnityPlatform::Android);
-        assert_eq!(UnityPlatform::from_str("webgl").unwrap(), UnityPlatform::WebGL);
+        assert_eq!(
+            UnityPlatform::from_str("windows").unwrap(),
+            UnityPlatform::Windows
+        );
+        assert_eq!(
+            UnityPlatform::from_str("android").unwrap(),
+            UnityPlatform::Android
+        );
+        assert_eq!(
+            UnityPlatform::from_str("webgl").unwrap(),
+            UnityPlatform::WebGL
+        );
         assert!(UnityPlatform::from_str("unknown").is_err());
     }
 

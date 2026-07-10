@@ -1,8 +1,11 @@
 //! 测试 Hermes 与阿里百炼云 API 连接
 
-use hermes_agent::{AgentLoop, agent_builder::{build_agent_config, build_provider, bridge_tool_registry}};
-use hermes_core::Message;
+use hermes_agent::{
+    agent_builder::{bridge_tool_registry, build_agent_config, build_provider},
+    AgentLoop,
+};
 use hermes_config::load_config;
+use hermes_core::Message;
 use hermes_tools::ToolRegistry;
 use std::sync::Arc;
 
@@ -19,7 +22,10 @@ async fn main() {
             println!("✅ 配置加载成功");
             println!("   Model: {:?}", cfg.model);
             if let Some(providers) = cfg.llm_providers.get("alibaba-coding-plan") {
-                println!("   API Key: {}...", &providers.api_key.as_ref().unwrap()[..10]);
+                println!(
+                    "   API Key: {}...",
+                    &providers.api_key.as_ref().unwrap()[..10]
+                );
                 println!("   Base URL: {:?}", providers.base_url);
             }
             cfg
@@ -43,7 +49,9 @@ async fn main() {
 
     // 执行简单任务
     println!("\n执行测试任务: 写一个简单的 Hello World 程序");
-    let messages = vec![Message::user("写一个简单的 Rust Hello World 程序，只需要打印 Hello World 即可。")];
+    let messages = vec![Message::user(
+        "写一个简单的 Rust Hello World 程序，只需要打印 Hello World 即可。",
+    )];
 
     println!("开始调用 API...\n");
     let result = agent_loop.run(messages, None).await;

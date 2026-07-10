@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
-use serde::{Serialize, Deserialize};
 
 /// Ngrok tunnel manager
 #[derive(Clone)]
@@ -26,7 +26,13 @@ impl NgrokManager {
     }
 
     /// Start ngrok tunnel and return public URL
-    pub fn start(&self, token: &str, port: u16, region: &str, app_handle: AppHandle) -> Result<String, String> {
+    pub fn start(
+        &self,
+        token: &str,
+        port: u16,
+        region: &str,
+        app_handle: AppHandle,
+    ) -> Result<String, String> {
         // Check if already running
         if self.is_running() {
             return Err("Tunnel already running".to_string());
@@ -48,8 +54,12 @@ impl NgrokManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        let child = cmd.spawn()
-            .map_err(|e| format!("Failed to start ngrok: {}. Please ensure ngrok is installed and in PATH.", e))?;
+        let child = cmd.spawn().map_err(|e| {
+            format!(
+                "Failed to start ngrok: {}. Please ensure ngrok is installed and in PATH.",
+                e
+            )
+        })?;
 
         // Store process
         *self.process.lock().unwrap() = Some(child);
@@ -61,10 +71,13 @@ impl NgrokManager {
         *self.public_url.lock().unwrap() = Some(public_url.clone());
 
         // Emit event
-        let _ = app_handle.emit("tunnel-started", serde_json::json!({
-            "provider": "ngrok",
-            "public_url": public_url,
-        }));
+        let _ = app_handle.emit(
+            "tunnel-started",
+            serde_json::json!({
+                "provider": "ngrok",
+                "public_url": public_url,
+            }),
+        );
 
         Ok(public_url)
     }
@@ -74,7 +87,8 @@ impl NgrokManager {
         let mut process_guard = self.process.lock().unwrap();
 
         if let Some(mut child) = process_guard.take() {
-            child.kill()
+            child
+                .kill()
                 .map_err(|e| format!("Failed to kill ngrok process: {}", e))?;
 
             // Wait for process to exit
@@ -138,11 +152,7 @@ impl NgrokManager {
         // Check common Unix locations
         #[cfg(not(windows))]
         {
-            let common_paths = [
-                "/usr/local/bin/ngrok",
-                "/usr/bin/ngrok",
-                "/opt/ngrok/ngrok",
-            ];
+            let common_paths = ["/usr/local/bin/ngrok", "/usr/bin/ngrok", "/opt/ngrok/ngrok"];
 
             for path in common_paths.iter() {
                 if std::path::Path::new(path).exists() {
@@ -188,7 +198,8 @@ impl NgrokManager {
             .call()
             .map_err(|e| format!("Failed to call ngrok API: {}", e))?;
 
-        let json: serde_json::Value = response.into_json()
+        let json: serde_json::Value = response
+            .into_json()
             .map_err(|e| format!("Failed to parse ngrok API response: {}", e))?;
 
         Ok(json)
@@ -199,7 +210,8 @@ impl NgrokManager {
         if let Some(tunnels) = json.get("tunnels").and_then(|t| t.as_array()) {
             for tunnel in tunnels {
                 // Check if this tunnel is for our port (exact match, not substring)
-                let addr = tunnel.get("config")
+                let addr = tunnel
+                    .get("config")
                     .and_then(|c| c.get("addr"))
                     .and_then(|a| a.as_str());
 
@@ -207,7 +219,9 @@ impl NgrokManager {
                     // Parse port from addr (format: "127.0.0.1:PORT" or "PORT")
                     let tunnel_port = if addr_str.contains(':') {
                         // Split on ':' and parse the last part as port
-                        addr_str.split(':').next_back()
+                        addr_str
+                            .split(':')
+                            .next_back()
                             .and_then(|s| s.parse::<u16>().ok())
                     } else {
                         // Try to parse the whole string as port
@@ -217,7 +231,8 @@ impl NgrokManager {
                     // Exact port match (not substring)
                     if tunnel_port == Some(expected_port) {
                         // Get public URL
-                        return tunnel.get("public_url")
+                        return tunnel
+                            .get("public_url")
                             .and_then(|u| u.as_str())
                             .map(|s| s.to_string());
                     }
@@ -225,7 +240,8 @@ impl NgrokManager {
 
                 // Fallback: just return first https tunnel
                 if tunnel.get("proto").and_then(|p| p.as_str()) == Some("https") {
-                    return tunnel.get("public_url")
+                    return tunnel
+                        .get("public_url")
                         .and_then(|u| u.as_str())
                         .map(|s| s.to_string());
                 }

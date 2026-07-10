@@ -1,5 +1,5 @@
-use crate::AppState;
 use crate::websocket;
+use crate::AppState;
 use tauri::{AppHandle, State};
 use uuid::Uuid;
 
@@ -22,7 +22,9 @@ pub fn generate_app_qrcode(state: State<AppState>) -> Result<String, String> {
     // Use tunnel URL if available, otherwise use local IP
     let ws_url = if let Some(public_url) = tunnel_url {
         // Convert https URL to wss WebSocket URL
-        let wss_url = public_url.replace("https://", "wss://").replace("http://", "ws://");
+        let wss_url = public_url
+            .replace("https://", "wss://")
+            .replace("http://", "ws://");
         format!("{}?token={}", wss_url, token)
     } else {
         let local_ip = get_local_ip().unwrap_or_else(|| "localhost".to_string());
@@ -40,7 +42,7 @@ pub async fn start_ws_server(
     port: u16,
     bind_external: bool,
     state: State<'_, AppState>,
-    app_handle: AppHandle
+    app_handle: AppHandle,
 ) -> Result<String, String> {
     // Create server
     let server = websocket::WebSocketServer::new(port);
@@ -67,7 +69,9 @@ pub fn stop_ws_server(state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_connected_clients(state: State<AppState>) -> Result<Vec<websocket::RemoteClient>, String> {
+pub fn get_connected_clients(
+    state: State<AppState>,
+) -> Result<Vec<websocket::RemoteClient>, String> {
     let ws = state.ws_server.lock().unwrap();
     if let Some(server) = ws.as_ref() {
         Ok(server.get_clients())

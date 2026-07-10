@@ -10,8 +10,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::State;
 
+use crate::workflow_engine::{
+    StageAgent, StageStrategy, WorkflowDefinition, WorkflowEngine, WorkflowStage, WorkflowStatus,
+};
 use crate::AppState;
-use crate::workflow_engine::{WorkflowEngine, WorkflowDefinition, WorkflowStage, WorkflowStatus, StageStrategy, StageAgent};
 
 // ---------------------------------------------------------------------------
 // Development Flow Types (mirrors frontend dev-flow-skills.ts)
@@ -19,14 +21,14 @@ use crate::workflow_engine::{WorkflowEngine, WorkflowDefinition, WorkflowStage, 
 
 /// Development flow stage names - mirrors DEVELOPMENT_FLOW_SKILLS in frontend
 const DEV_FLOW_STAGES: &[&str] = &[
-    "analysis",        // 需求分析
-    "planning",        // 计划撰写
-    "code-execution",  // 写代码
-    "code-review",     // 代码审查
-    "adjustments",     // 代码调整
-    "testing",         // 功能测试
-    "documentation",   // 文档生成
-    "communication",   // 反馈用户
+    "analysis",       // 需求分析
+    "planning",       // 计划撰写
+    "code-execution", // 写代码
+    "code-review",    // 代码审查
+    "adjustments",    // 代码调整
+    "testing",        // 功能测试
+    "documentation",  // 文档生成
+    "communication",  // 反馈用户
 ];
 
 /// Flow context passed from frontend
@@ -202,32 +204,36 @@ impl HermesFlowOrchestrator {
         let _flow_id = uuid::Uuid::new_v4().to_string();
 
         // Create workflow stages based on dev flow
-        let stages: Vec<WorkflowStage> = DEV_FLOW_STAGES.iter().enumerate().map(|(idx, stage_name)| {
-            let depends_on = if idx == 0 {
-                vec![]
-            } else {
-                vec![DEV_FLOW_STAGES[idx - 1].to_string()]
-            };
+        let stages: Vec<WorkflowStage> = DEV_FLOW_STAGES
+            .iter()
+            .enumerate()
+            .map(|(idx, stage_name)| {
+                let depends_on = if idx == 0 {
+                    vec![]
+                } else {
+                    vec![DEV_FLOW_STAGES[idx - 1].to_string()]
+                };
 
-            WorkflowStage {
-                id: format!("stage-{}", stage_name),
-                name: stage_name.to_string(),
-                description: get_stage_description(stage_name),
-                strategy: StageStrategy::Sequential,
-                agents: vec![StageAgent {
-                    agent_id: agent_name.to_string(),
-                    role: stage_name.to_string(),
-                    prompt_template: get_stage_prompt(stage_name, request),
-                    max_tokens: Some(get_stage_token_budget(stage_name)),
-                }],
-                depends_on,
-                sync_points: vec![],
-                status: WorkflowStatus::Draft,
-                results: vec![],
-                started_at: None,
-                completed_at: None,
-            }
-        }).collect();
+                WorkflowStage {
+                    id: format!("stage-{}", stage_name),
+                    name: stage_name.to_string(),
+                    description: get_stage_description(stage_name),
+                    strategy: StageStrategy::Sequential,
+                    agents: vec![StageAgent {
+                        agent_id: agent_name.to_string(),
+                        role: stage_name.to_string(),
+                        prompt_template: get_stage_prompt(stage_name, request),
+                        max_tokens: Some(get_stage_token_budget(stage_name)),
+                    }],
+                    depends_on,
+                    sync_points: vec![],
+                    status: WorkflowStatus::Draft,
+                    results: vec![],
+                    started_at: None,
+                    completed_at: None,
+                }
+            })
+            .collect();
 
         // Use workflow engine's create_workflow method
         let workflow = self.workflow_engine.create_workflow(
@@ -262,7 +268,10 @@ impl HermesFlowOrchestrator {
         self.active_flows.insert(workflow_id.clone(), context);
 
         #[cfg(debug_assertions)]
-        println!("[HermesFlow] Created dev flow '{}' for request: {}", workflow_id, request);
+        println!(
+            "[HermesFlow] Created dev flow '{}' for request: {}",
+            workflow_id, request
+        );
         Ok((workflow_id, workflow))
     }
 
@@ -278,7 +287,8 @@ impl HermesFlowOrchestrator {
         stage_name: &str,
         result: serde_json::Value,
     ) -> Result<(), String> {
-        let context = self.active_flows
+        let context = self
+            .active_flows
             .get_mut(flow_id)
             .ok_or_else(|| format!("Flow '{}' not found", flow_id))?;
 
@@ -332,7 +342,10 @@ impl HermesFlowOrchestrator {
         }
 
         context.current_stage = stage_name.to_string();
-        println!("[HermesFlow] Updated flow '{}' stage '{}' with result", flow_id, stage_name);
+        println!(
+            "[HermesFlow] Updated flow '{}' stage '{}' with result",
+            flow_id, stage_name
+        );
         Ok(())
     }
 
@@ -344,7 +357,8 @@ impl HermesFlowOrchestrator {
         error: &str,
         retry_count: u32,
     ) -> Result<(), String> {
-        let context = self.active_flows
+        let context = self
+            .active_flows
             .get_mut(flow_id)
             .ok_or_else(|| format!("Flow '{}' not found", flow_id))?;
 
@@ -355,17 +369,22 @@ impl HermesFlowOrchestrator {
             retry_count,
         });
 
-        println!("[HermesFlow] Flow '{}' error at stage '{}': {}", flow_id, stage, error);
+        println!(
+            "[HermesFlow] Flow '{}' error at stage '{}': {}",
+            flow_id, stage, error
+        );
         Ok(())
     }
 
     /// Get flow status summary
     pub fn get_flow_status(&self, flow_id: &str) -> Result<FlowStatus, String> {
-        let context = self.active_flows
+        let context = self
+            .active_flows
             .get(flow_id)
             .ok_or_else(|| format!("Flow '{}' not found", flow_id))?;
 
-        let workflow = self.workflow_engine
+        let workflow = self
+            .workflow_engine
             .get_workflow(flow_id)
             .ok_or_else(|| format!("Workflow '{}' not found", flow_id))?;
 
@@ -389,19 +408,24 @@ impl HermesFlowOrchestrator {
     /// 2. Parse and store results in flow context
     /// 3. Handle stage failures with retry/fallback logic
     pub fn execute_flow_sync(&mut self, flow_id: &str) -> Result<FlowContext, String> {
-        let _workflow = self.workflow_engine
+        let _workflow = self
+            .workflow_engine
             .get_workflow(flow_id)
             .ok_or_else(|| format!("Workflow '{}' not found", flow_id))?
             .clone();
 
         // Update workflow status to Running
-        self.workflow_engine.update_status(flow_id, WorkflowStatus::Running)?;
+        self.workflow_engine
+            .update_status(flow_id, WorkflowStatus::Running)?;
 
         // Get ready stages (dependencies satisfied)
         let ready_stages = self.workflow_engine.get_ready_stages(flow_id)?;
 
         if let Some(stage_id) = ready_stages.into_iter().next() {
-            println!("[HermesFlow] Executing stage '{}' in flow '{}'", stage_id, flow_id);
+            println!(
+                "[HermesFlow] Executing stage '{}' in flow '{}'",
+                stage_id, flow_id
+            );
 
             // TODO(Phase 2): Replace with actual Executive Agent skill invocation.
             // For now, return an explicit error rather than fake data.
@@ -413,7 +437,8 @@ impl HermesFlowOrchestrator {
         }
 
         // Get final context
-        let context = self.active_flows
+        let context = self
+            .active_flows
             .get(flow_id)
             .cloned()
             .ok_or_else(|| format!("Flow '{}' context not found", flow_id))?;
@@ -491,16 +516,40 @@ fn get_stage_token_budget(stage: &str) -> u64 {
 // Fallback parsers for non-structured output
 fn parse_analysis_fallback(output: &str) -> Option<AnalysisResult> {
     Some(AnalysisResult {
-        requirements: output.lines().filter(|l| l.contains("REQ")).map(|l| l.replace("REQ:", "").trim().to_string()).collect(),
-        constraints: output.lines().filter(|l| l.contains("CONST")).map(|l| l.replace("CONST:", "").trim().to_string()).collect(),
-        dependencies: output.lines().filter(|l| l.contains("DEP")).map(|l| l.replace("DEP:", "").trim().to_string()).collect(),
-        complexity: if output.contains("high") { "high" } else if output.contains("medium") { "medium" } else { "low" }.to_string(),
-        suggested_approach: output.lines().find(|l| l.contains("APPROACH")).map(|l| l.replace("APPROACH:", "").trim().to_string()).unwrap_or_default(),
+        requirements: output
+            .lines()
+            .filter(|l| l.contains("REQ"))
+            .map(|l| l.replace("REQ:", "").trim().to_string())
+            .collect(),
+        constraints: output
+            .lines()
+            .filter(|l| l.contains("CONST"))
+            .map(|l| l.replace("CONST:", "").trim().to_string())
+            .collect(),
+        dependencies: output
+            .lines()
+            .filter(|l| l.contains("DEP"))
+            .map(|l| l.replace("DEP:", "").trim().to_string())
+            .collect(),
+        complexity: if output.contains("high") {
+            "high"
+        } else if output.contains("medium") {
+            "medium"
+        } else {
+            "low"
+        }
+        .to_string(),
+        suggested_approach: output
+            .lines()
+            .find(|l| l.contains("APPROACH"))
+            .map(|l| l.replace("APPROACH:", "").trim().to_string())
+            .unwrap_or_default(),
     })
 }
 
 fn parse_plan_fallback(output: &str) -> Option<PlanResult> {
-    let steps: Vec<PlanStep> = output.lines()
+    let steps: Vec<PlanStep> = output
+        .lines()
         .enumerate()
         .filter(|(_, l)| l.contains(":"))
         .map(|(idx, l)| PlanStep {
@@ -509,7 +558,8 @@ fn parse_plan_fallback(output: &str) -> Option<PlanResult> {
             description: l.to_string(),
             skill: None,
             estimated_ms: 5000,
-        }).collect();
+        })
+        .collect();
 
     let estimated_time = steps.len() as u64 * 5000;
 
@@ -605,7 +655,8 @@ pub fn hermes_flow_get_context(
     flow_id: String,
 ) -> Result<FlowContext, String> {
     let orchestrator = state.hermes_flow.lock().map_err(|e| e.to_string())?;
-    orchestrator.get_flow_context(&flow_id)
+    orchestrator
+        .get_flow_context(&flow_id)
         .cloned()
         .ok_or_else(|| format!("Flow '{}' not found", flow_id))
 }
@@ -632,21 +683,20 @@ pub fn hermes_flow_execute(
 
 /// Cancel a flow
 #[tauri::command]
-pub fn hermes_flow_cancel(
-    state: State<'_, AppState>,
-    flow_id: String,
-) -> Result<(), String> {
+pub fn hermes_flow_cancel(state: State<'_, AppState>, flow_id: String) -> Result<(), String> {
     let mut orchestrator = state.hermes_flow.lock().map_err(|e| e.to_string())?;
     orchestrator.cancel_flow(&flow_id)
 }
 
 /// List active flows
 #[tauri::command]
-pub fn hermes_flow_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<FlowContext>, String> {
+pub fn hermes_flow_list(state: State<'_, AppState>) -> Result<Vec<FlowContext>, String> {
     let orchestrator = state.hermes_flow.lock().map_err(|e| e.to_string())?;
-    Ok(orchestrator.list_active_flows().into_iter().cloned().collect())
+    Ok(orchestrator
+        .list_active_flows()
+        .into_iter()
+        .cloned()
+        .collect())
 }
 
 /// Update flow stage result (called by Executive Agent after skill execution)

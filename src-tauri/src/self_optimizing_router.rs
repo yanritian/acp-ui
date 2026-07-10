@@ -6,11 +6,11 @@
 // - Cost-performance trade-off optimization
 // - Privacy-aware routing decisions
 
-use crate::agent_adapter::types::{ExecutionRecord, SceneType, Platform};
-use crate::smart_router::{TaskAnalyzer, InputType, RouteTarget, RouteDecision};
-use std::collections::HashMap;
+use crate::agent_adapter::types::{ExecutionRecord, Platform, SceneType};
+use crate::smart_router::{InputType, RouteDecision, RouteTarget, TaskAnalyzer};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Self-Optimizing Router configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +98,8 @@ impl ProficiencyScore {
         // Update averages (simple moving average for now)
         let total = self.success_count + self.failure_count;
         if total > 0 {
-            self.avg_latency_ms = (self.avg_latency_ms * (total - 1) as u64 + latency_ms) / total as u64;
+            self.avg_latency_ms =
+                (self.avg_latency_ms * (total - 1) as u64 + latency_ms) / total as u64;
             self.avg_cost = (self.avg_cost * (total - 1) as f32 + cost) / total as f32;
         }
 
@@ -120,7 +121,8 @@ impl ProficiencyScore {
         let latency_score = 1.0 - (self.avg_latency_ms as f32 / 10000.0).min(0.5); // Max 10s penalty
 
         // Composite score
-        config.performance_weight * (success_rate * 0.5 + self.proficiency * 0.3 + latency_score * 0.2)
+        config.performance_weight
+            * (success_rate * 0.5 + self.proficiency * 0.3 + latency_score * 0.2)
             + config.cost_weight * cost_score
             + config.privacy_weight * 0.5 // Local agents get privacy bonus
     }
@@ -162,12 +164,26 @@ impl SelfOptimizingRouter {
     /// Record execution for learning
     pub fn record_execution(&mut self, record: ExecutionRecord) {
         // Update proficiency
-        let key = format!("{}:{}:{}", record.agent_id, scene_to_str(&record.scene_type), platform_to_str(&record.platform));
+        let key = format!(
+            "{}:{}:{}",
+            record.agent_id,
+            scene_to_str(&record.scene_type),
+            platform_to_str(&record.platform)
+        );
         let proficiency = self.proficiencies.entry(key).or_insert_with(|| {
-            ProficiencyScore::new(record.agent_id.clone(), record.scene_type.clone(), record.platform.clone())
+            ProficiencyScore::new(
+                record.agent_id.clone(),
+                record.scene_type.clone(),
+                record.platform.clone(),
+            )
         });
 
-        proficiency.update(record.success, record.duration_ms, record.cost, self.config.ewma_alpha);
+        proficiency.update(
+            record.success,
+            record.duration_ms,
+            record.cost,
+            self.config.ewma_alpha,
+        );
 
         // Add to history
         self.history.push(record);
@@ -208,9 +224,15 @@ impl SelfOptimizingRouter {
         let platform = platform.unwrap_or(Platform::Web);
 
         // Find proficiency scores for available agents
-        let scores: Vec<ProficiencyScore> = available_agents.iter()
+        let scores: Vec<ProficiencyScore> = available_agents
+            .iter()
             .filter_map(|agent_id| {
-                let key = format!("{}:{}:{}", agent_id, scene_to_str(&scene), platform_to_str(&platform));
+                let key = format!(
+                    "{}:{}:{}",
+                    agent_id,
+                    scene_to_str(&scene),
+                    platform_to_str(&platform)
+                );
                 self.proficiencies.get(&key).cloned()
             })
             .collect();
@@ -227,14 +249,16 @@ impl SelfOptimizingRouter {
         }
 
         // Select best agent based on composite score
-        let best = scores.iter()
-            .max_by(|a, b| {
-                let score_a = a.composite_score(&self.config);
-                let score_b = b.composite_score(&self.config);
-                score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
-            });
+        let best = scores.iter().max_by(|a, b| {
+            let score_a = a.composite_score(&self.config);
+            let score_b = b.composite_score(&self.config);
+            score_a
+                .partial_cmp(&score_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let (selected_agent, best_score) = best.map(|p| (p.agent_id.clone(), p.composite_score(&self.config)))
+        let (selected_agent, best_score) = best
+            .map(|p| (p.agent_id.clone(), p.composite_score(&self.config)))
             .unwrap_or_else(|| (default_agent, 0.0));
 
         SelfOptimizingDecision {
@@ -242,38 +266,41 @@ impl SelfOptimizingRouter {
             selected_agent: selected_agent.clone(),
             optimization_applied: true,
             proficiency_scores: scores,
-            reason: format!("Selected {} with composite score {:.2}", selected_agent, best_score),
+            reason: format!(
+                "Selected {} with composite score {:.2}",
+                selected_agent, best_score
+            ),
         }
     }
 
     /// Get default agent for route target
     fn default_agent(&self, target: &RouteTarget, available: &[String]) -> String {
         match target {
-            RouteTarget::ClaudeCodeHaiku | RouteTarget::ClaudeCodeSonnet => {
-                available.iter()
-                    .find(|a| a.contains("claude"))
+            RouteTarget::ClaudeCodeHaiku | RouteTarget::ClaudeCodeSonnet => available
+                .iter()
+                .find(|a| a.contains("claude"))
+                .cloned()
+                .unwrap_or_else(|| "claude-code".to_string()),
+            RouteTarget::CodexHaiku | RouteTarget::CodexSonnet => available
+                .iter()
+                .find(|a| a.contains("codex"))
+                .cloned()
+                .unwrap_or_else(|| "codex".to_string()),
+            RouteTarget::Team => {
+                // For team, select the best leader agent
+                available
+                    .first()
                     .cloned()
                     .unwrap_or_else(|| "claude-code".to_string())
             }
-            RouteTarget::CodexHaiku | RouteTarget::CodexSonnet => {
-                available.iter()
-                    .find(|a| a.contains("codex"))
-                    .cloned()
-                    .unwrap_or_else(|| "codex".to_string())
-            }
-            RouteTarget::Team => {
-                // For team, select the best leader agent
-                available.first().cloned().unwrap_or_else(|| "claude-code".to_string())
-            }
-            RouteTarget::HumanReview => {
-                "human-review".to_string()
-            }
+            RouteTarget::HumanReview => "human-review".to_string(),
         }
     }
 
     /// Get proficiency stats for an agent
     pub fn get_agent_stats(&self, agent_id: &str) -> Vec<ProficiencyScore> {
-        self.proficiencies.values()
+        self.proficiencies
+            .values()
             .filter(|p| p.agent_id == agent_id)
             .cloned()
             .collect()
@@ -299,7 +326,11 @@ impl SelfOptimizingRouter {
             total_executions: total,
             success_count: successes,
             failure_count: total - successes,
-            success_rate: if total > 0 { successes as f32 / total as f32 } else { 0.0 },
+            success_rate: if total > 0 {
+                successes as f32 / total as f32
+            } else {
+                0.0
+            },
             avg_latency_ms: avg_latency,
             total_cost,
         }

@@ -6,7 +6,7 @@
 #![allow(dead_code)] // Reserved for future session persistence feature
 
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, params, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -75,12 +75,19 @@ impl SessionManager {
     }
 
     /// Create a new session for an agent
-    pub fn create_session(&mut self, agent_id: &str, branch: Option<&str>) -> Result<Session, String> {
+    pub fn create_session(
+        &mut self,
+        agent_id: &str,
+        branch: Option<&str>,
+    ) -> Result<Session, String> {
         // Check for branch lock collision (Claw Code)
         if let Some(b) = branch {
             if self.branch_locks.contains_key(b) {
                 let existing_session = self.branch_locks.get(b).unwrap();
-                return Err(format!("Branch '{}' is locked by session '{}'", b, existing_session));
+                return Err(format!(
+                    "Branch '{}' is locked by session '{}'",
+                    b, existing_session
+                ));
             }
         }
 
@@ -108,7 +115,12 @@ impl SessionManager {
     }
 
     /// Add a message to a session
-    pub fn add_message(&mut self, session_id: &str, role: MessageRole, content: &str) -> Result<(), String> {
+    pub fn add_message(
+        &mut self,
+        session_id: &str,
+        role: MessageRole,
+        content: &str,
+    ) -> Result<(), String> {
         // Get session first to check if it exists
         if !self.sessions.contains_key(session_id) {
             return Err(format!("Session '{}' not found", session_id));
@@ -147,7 +159,9 @@ impl SessionManager {
         self.compact_session_internal(session_id)?;
 
         // Save to database
-        let session = self.sessions.get(session_id)
+        let session = self
+            .sessions
+            .get(session_id)
             .ok_or_else(|| format!("Session '{}' not found", session_id))?;
         self.save_session(session)?;
         Ok(())
@@ -155,7 +169,9 @@ impl SessionManager {
 
     /// Internal compaction logic
     fn compact_session_internal(&mut self, session_id: &str) -> Result<(), String> {
-        let session = self.sessions.get_mut(session_id)
+        let session = self
+            .sessions
+            .get_mut(session_id)
             .ok_or_else(|| format!("Session '{}' not found", session_id))?;
 
         if session.messages.len() <= self.compaction_threshold {
@@ -176,7 +192,10 @@ impl SessionManager {
         session.compaction_count += 1;
         session.status = SessionStatus::Compacted;
 
-        println!("Session '{}' compacted (count: {})", session_id, session.compaction_count);
+        println!(
+            "Session '{}' compacted (count: {})",
+            session_id, session.compaction_count
+        );
         Ok(())
     }
 
@@ -247,7 +266,9 @@ impl SessionManager {
     /// End a session and release branch lock
     pub fn end_session(&mut self, session_id: &str) -> Result<(), String> {
         // Get branch lock before modifying
-        let branch_lock = self.sessions.get(session_id)
+        let branch_lock = self
+            .sessions
+            .get(session_id)
             .and_then(|s| s.branch_lock.clone());
 
         // Update session status
@@ -276,7 +297,8 @@ impl SessionManager {
 
     /// Get active sessions for an agent
     pub fn get_agent_sessions(&self, agent_id: &str) -> Vec<&Session> {
-        self.sessions.values()
+        self.sessions
+            .values()
             .filter(|s| s.agent_id == agent_id && s.status == SessionStatus::Active)
             .collect()
     }
@@ -300,7 +322,8 @@ impl SessionManager {
                 compaction_count INTEGER DEFAULT 0
             )",
             [],
-        ).map_err(|e| format!("Failed to create claw_sessions table: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create claw_sessions table: {}", e))?;
 
         Ok(())
     }
@@ -347,7 +370,9 @@ mod tests {
 
         // Add messages beyond threshold
         for i in 0..15 {
-            manager.add_message(&session.id, MessageRole::User, &format!("Message {}", i)).unwrap();
+            manager
+                .add_message(&session.id, MessageRole::User, &format!("Message {}", i))
+                .unwrap();
         }
 
         let loaded = manager.sessions.get(&session.id).unwrap();

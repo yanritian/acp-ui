@@ -314,12 +314,13 @@ impl WorkflowEngine {
 
         for stage in &workflow.stages {
             if !visited.contains(&stage.id)
-                && self.has_cycle_dfs(&stage.id, &adj, &mut visited, &mut rec_stack) {
-                    return Err(format!(
-                        "Cycle detected in workflow '{}' involving stage '{}'",
-                        workflow_id, stage.id
-                    ));
-                }
+                && self.has_cycle_dfs(&stage.id, &adj, &mut visited, &mut rec_stack)
+            {
+                return Err(format!(
+                    "Cycle detected in workflow '{}' involving stage '{}'",
+                    workflow_id, stage.id
+                ));
+            }
         }
 
         // 4. Check for orphan stages (no dependencies and nothing depends on them)
@@ -396,20 +397,13 @@ impl WorkflowEngine {
     }
 
     /// Update workflow status
-    pub fn update_status(
-        &mut self,
-        id: &str,
-        status: WorkflowStatus,
-    ) -> Result<(), String> {
+    pub fn update_status(&mut self, id: &str, status: WorkflowStatus) -> Result<(), String> {
         let workflow = self
             .workflows
             .get_mut(id)
             .ok_or_else(|| format!("Workflow '{}' not found", id))?;
         workflow.status = status.clone();
-        println!(
-            "[WorkflowEngine] Workflow '{}' status -> {}",
-            id, status
-        );
+        println!("[WorkflowEngine] Workflow '{}' status -> {}", id, status);
         Ok(())
     }
 
@@ -604,14 +598,11 @@ impl WorkflowEngine {
             .stages
             .iter()
             .filter(|s| s.status == WorkflowStatus::Completed)
-            .map(|s| {
-                s.results.iter().map(|r| r.duration_ms).sum::<u64>()
-            })
+            .map(|s| s.results.iter().map(|r| r.duration_ms).sum::<u64>())
             .collect();
 
         let estimated_remaining_ms = if !completed_durations.is_empty() && completed_stages > 0 {
-            let avg_duration =
-                completed_durations.iter().sum::<u64>() / completed_stages as u64;
+            let avg_duration = completed_durations.iter().sum::<u64>() / completed_stages as u64;
             let remaining_stages = total_stages - completed_stages - failed_stages;
             Some(avg_duration * remaining_stages as u64)
         } else {
@@ -619,13 +610,14 @@ impl WorkflowEngine {
         };
 
         // Calculate elapsed time from created_at
-        let elapsed_ms = if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&workflow.created_at) {
-            let now = chrono::Utc::now();
-            let elapsed = now.signed_duration_since(created.with_timezone(&chrono::Utc));
-            elapsed.num_milliseconds().max(0) as u64
-        } else {
-            0
-        };
+        let elapsed_ms =
+            if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&workflow.created_at) {
+                let now = chrono::Utc::now();
+                let elapsed = now.signed_duration_since(created.with_timezone(&chrono::Utc));
+                elapsed.num_milliseconds().max(0) as u64
+            } else {
+                0
+            };
 
         let progress = WorkflowProgress {
             workflow_id: workflow_id.to_string(),
@@ -690,13 +682,14 @@ impl WorkflowEngine {
             .map(|r| r.tokens_used)
             .sum();
 
-        let elapsed_ms = if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&workflow.created_at) {
-            let now = chrono::Utc::now();
-            let elapsed = now.signed_duration_since(created.with_timezone(&chrono::Utc));
-            elapsed.num_milliseconds().max(0) as u64
-        } else {
-            0
-        };
+        let elapsed_ms =
+            if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&workflow.created_at) {
+                let now = chrono::Utc::now();
+                let elapsed = now.signed_duration_since(created.with_timezone(&chrono::Utc));
+                elapsed.num_milliseconds().max(0) as u64
+            } else {
+                0
+            };
 
         Ok(WorkflowProgress {
             workflow_id: workflow_id.to_string(),
@@ -769,10 +762,7 @@ impl WorkflowEngine {
                 .map(|id| StageAgent {
                     agent_id: id.clone(),
                     role: "researcher".to_string(),
-                    prompt_template: format!(
-                        "Research and analyze: {}",
-                        task_description
-                    ),
+                    prompt_template: format!("Research and analyze: {}", task_description),
                     max_tokens: Some(4096),
                 })
                 .collect();
@@ -818,7 +808,10 @@ impl WorkflowEngine {
                     completed_at: None,
                 },
             ]
-        } else if desc_lower.contains("code") || desc_lower.contains("implement") || desc_lower.contains("build") {
+        } else if desc_lower.contains("code")
+            || desc_lower.contains("implement")
+            || desc_lower.contains("build")
+        {
             // Code task: Competitive (multiple implementations) + review
             let coder_agents: Vec<StageAgent> = available_agents
                 .iter()
@@ -826,10 +819,7 @@ impl WorkflowEngine {
                 .map(|id| StageAgent {
                     agent_id: id.clone(),
                     role: "coder".to_string(),
-                    prompt_template: format!(
-                        "Implement the following: {}",
-                        task_description
-                    ),
+                    prompt_template: format!("Implement the following: {}", task_description),
                     max_tokens: Some(8192),
                 })
                 .collect();
@@ -875,7 +865,10 @@ impl WorkflowEngine {
                     completed_at: None,
                 },
             ]
-        } else if desc_lower.contains("file") || desc_lower.contains("multi-file") || desc_lower.contains("refactor") {
+        } else if desc_lower.contains("file")
+            || desc_lower.contains("multi-file")
+            || desc_lower.contains("refactor")
+        {
             // Multi-file task: MapReduce (map per file, reduce at end)
             let mapper_agents: Vec<StageAgent> = available_agents
                 .iter()
@@ -883,10 +876,7 @@ impl WorkflowEngine {
                 .map(|id| StageAgent {
                     agent_id: id.clone(),
                     role: "mapper".to_string(),
-                    prompt_template: format!(
-                        "Process assigned files for: {}",
-                        task_description
-                    ),
+                    prompt_template: format!("Process assigned files for: {}", task_description),
                     max_tokens: Some(4096),
                 })
                 .collect();
@@ -957,7 +947,10 @@ impl WorkflowEngine {
 
         let workflow = WorkflowDefinition {
             id: workflow_id.clone(),
-            name: format!("Generated: {}", &task_description[..task_description.len().min(50)]),
+            name: format!(
+                "Generated: {}",
+                &task_description[..task_description.len().min(50)]
+            ),
             description: task_description.to_string(),
             stages,
             max_concurrent_agents: available_agents.len() as u32,
@@ -987,10 +980,7 @@ impl WorkflowEngine {
     }
 
     /// Load a previously saved workflow from JSON
-    pub fn load_workflow(
-        &mut self,
-        data: serde_json::Value,
-    ) -> Result<WorkflowDefinition, String> {
+    pub fn load_workflow(&mut self, data: serde_json::Value) -> Result<WorkflowDefinition, String> {
         let workflow: WorkflowDefinition = serde_json::from_value(data)
             .map_err(|e| format!("Failed to deserialize workflow: {}", e))?;
 
@@ -1032,33 +1022,21 @@ pub fn workflow_create(
 
 /// Validate a workflow (DAG acyclicity check, dependency resolution)
 #[tauri::command]
-pub fn workflow_validate(
-    state: State<'_, AppState>,
-    workflow_id: String,
-) -> Result<bool, String> {
+pub fn workflow_validate(state: State<'_, AppState>, workflow_id: String) -> Result<bool, String> {
     let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
     engine.validate_workflow(&workflow_id)
 }
 
 /// List all workflows
 #[tauri::command]
-pub fn workflow_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<WorkflowDefinition>, String> {
+pub fn workflow_list(state: State<'_, AppState>) -> Result<Vec<WorkflowDefinition>, String> {
     let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
-    Ok(engine
-        .list_workflows()
-        .into_iter()
-        .cloned()
-        .collect())
+    Ok(engine.list_workflows().into_iter().cloned().collect())
 }
 
 /// Get a specific workflow by ID
 #[tauri::command]
-pub fn workflow_get(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<WorkflowDefinition, String> {
+pub fn workflow_get(state: State<'_, AppState>, id: String) -> Result<WorkflowDefinition, String> {
     let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
     engine
         .get_workflow(&id)
@@ -1113,20 +1091,14 @@ pub fn workflow_generate_from_task(
 
 /// Cancel a workflow
 #[tauri::command]
-pub fn workflow_cancel(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<(), String> {
+pub fn workflow_cancel(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let mut engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
     engine.cancel_workflow(&id)
 }
 
 /// Save a workflow as JSON for replay, also persisting to the database
 #[tauri::command]
-pub fn workflow_save(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<serde_json::Value, String> {
+pub fn workflow_save(state: State<'_, AppState>, id: String) -> Result<serde_json::Value, String> {
     // First serialize the workflow from the engine
     let workflow_json = {
         let engine = state.workflow_engine.lock().map_err(|e| e.to_string())?;
@@ -1139,15 +1111,18 @@ pub fn workflow_save(
         let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
         // Extract name and description from the serialized JSON
-        let name = workflow_json.get("name")
+        let name = workflow_json
+            .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let description = workflow_json.get("description")
+        let description = workflow_json
+            .get("description")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let created_at = workflow_json.get("created_at")
+        let created_at = workflow_json
+            .get("created_at")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
@@ -1172,22 +1147,20 @@ pub fn workflow_save(
 
 /// Load all persisted workflows from the database into the engine
 #[tauri::command]
-pub fn workflow_load_all(
-    state: State<'_, AppState>,
-) -> Result<Vec<WorkflowDefinition>, String> {
+pub fn workflow_load_all(state: State<'_, AppState>) -> Result<Vec<WorkflowDefinition>, String> {
     // First, collect all definition JSON strings from the database
     let definition_jsons: Vec<String> = {
         let db_guard = state.database.lock().map_err(|e| e.to_string())?;
         let db = db_guard.as_ref().ok_or("Database not initialized")?;
         let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
-        let mut stmt = conn.prepare(
-            "SELECT definition_json FROM workflows ORDER BY created_at DESC"
-        ).map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT definition_json FROM workflows ORDER BY created_at DESC")
+            .map_err(|e| e.to_string())?;
 
-        let workflow_rows = stmt.query_map([], |row| {
-            row.get::<_, String>(0)
-        }).map_err(|e| e.to_string())?;
+        let workflow_rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
 
         let mut results = Vec::new();
         for row in workflow_rows {
@@ -1210,7 +1183,10 @@ pub fn workflow_load_all(
                 loaded_workflows.push(workflow);
             }
             Err(e) => {
-                println!("[WorkflowEngine] Warning: failed to load workflow from database: {}", e);
+                println!(
+                    "[WorkflowEngine] Warning: failed to load workflow from database: {}",
+                    e
+                );
             }
         }
     }

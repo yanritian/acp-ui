@@ -7,22 +7,25 @@
 //! 4. Status iteration tracking
 //! 5. GoalRuntime conversion
 
+use acp_core::{GoalRuntime, GoalYamlFile};
 use acp_ui_lib::{
-    Goal, CompletionCondition, CompletionConditionSpec, EvaluatorSpec,
-    GoalStatus, GoalGraph,
-    IterationRecord, EvaluationResult, ConditionResult,
+    CompletionCondition, CompletionConditionSpec, ConditionResult, EvaluationResult, EvaluatorSpec,
+    Goal, GoalGraph, GoalStatus, IterationRecord,
 };
-use acp_core::{GoalYamlFile, GoalRuntime};
 use swarm_engine::EchoExecutor;
 
 /// Helper: convert local CompletionCondition to CompletionConditionSpec
 fn make_queen_judgment(criteria: &str) -> CompletionConditionSpec {
-    CompletionConditionSpec::QueenJudgment { criteria: criteria.to_string() }
+    CompletionConditionSpec::QueenJudgment {
+        criteria: criteria.to_string(),
+    }
 }
 
 /// Helper: convert local Evaluator to EvaluatorSpec
 fn make_queen_evaluator(queen_worker_id: &str) -> EvaluatorSpec {
-    EvaluatorSpec::Queen { queen_worker_id: queen_worker_id.to_string() }
+    EvaluatorSpec::Queen {
+        queen_worker_id: queen_worker_id.to_string(),
+    }
 }
 
 #[test]
@@ -36,7 +39,10 @@ fn test_queen_judgment_goal_creation() {
     goal.executor = Some("reviewer-worker".to_string());
 
     assert_eq!(goal.id, "code-review-001");
-    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
     assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
     assert_eq!(goal.executor, Some("reviewer-worker".to_string()));
 }
@@ -68,14 +74,20 @@ goals:
 
     let goal = &parsed.goals[0];
     assert_eq!(goal.id, "test-goal");
-    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
     assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
 }
 
 #[test]
 fn test_goal_yaml_from_file() {
     // Parse the actual example file
-    let yaml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/queen-judgment.goal.yaml");
+    let yaml_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/queen-judgment.goal.yaml"
+    );
     let content = std::fs::read_to_string(yaml_path).expect("Read yaml file");
 
     let parsed: GoalYamlFile = serde_yaml::from_str(&content).expect("Parse yaml");
@@ -86,20 +98,34 @@ fn test_goal_yaml_from_file() {
     // First goal: code-review
     let goal1 = &parsed.goals[0];
     assert_eq!(goal1.id, "code-review");
-    assert!(matches!(goal1.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal1.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
     assert!(matches!(goal1.evaluator, EvaluatorSpec::Queen { .. }));
 
     // Second goal: architecture-decision
     let goal2 = &parsed.goals[1];
     assert_eq!(goal2.id, "architecture-decision");
-    assert!(matches!(goal2.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal2.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
 }
 
 #[test]
 fn test_echo_executor_available() {
     // Verify EchoExecutor can be created for mock testing
-    let _executor = EchoExecutor::new("test-worker".to_string(), "success output".to_string(), true);
-    let _executor_fail = EchoExecutor::new("test-worker".to_string(), "failure output".to_string(), false);
+    let _executor = EchoExecutor::new(
+        "test-worker".to_string(),
+        "success output".to_string(),
+        true,
+    );
+    let _executor_fail = EchoExecutor::new(
+        "test-worker".to_string(),
+        "failure output".to_string(),
+        false,
+    );
     // EchoExecutor exists and can be instantiated
     assert!(true);
 }
@@ -122,7 +148,10 @@ fn test_goal_graph_submit_queen_judgment() {
     // Retrieve
     let retrieved = graph.get(&goal.id).expect("Get failed");
     assert_eq!(retrieved.id, goal.id);
-    assert!(matches!(retrieved.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        retrieved.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
 }
 
 #[test]
@@ -141,9 +170,15 @@ fn test_queen_judgment_criteria_variants() {
         };
 
         // Verify condition can be created and converted
-        assert!(matches!(condition, CompletionCondition::QueenJudgment { .. }));
+        assert!(matches!(
+            condition,
+            CompletionCondition::QueenJudgment { .. }
+        ));
         let spec = condition.to_spec();
-        assert!(matches!(spec, CompletionConditionSpec::QueenJudgment { .. }));
+        assert!(matches!(
+            spec,
+            CompletionConditionSpec::QueenJudgment { .. }
+        ));
     }
 }
 
@@ -220,7 +255,10 @@ fn test_goal_to_runtime_conversion_queen_judgment() {
 
     // Goal IS GoalRuntime (re-exported), so it already has the spec fields
     assert_eq!(goal.id, "conversion-test");
-    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
     assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
 }
 
@@ -256,6 +294,9 @@ fn test_goal_from_runtime_conversion_queen_judgment() {
     let goal: Goal = runtime.clone();
 
     assert_eq!(goal.id, runtime.id);
-    assert!(matches!(goal.completion_condition, CompletionConditionSpec::QueenJudgment { .. }));
+    assert!(matches!(
+        goal.completion_condition,
+        CompletionConditionSpec::QueenJudgment { .. }
+    ));
     assert!(matches!(goal.evaluator, EvaluatorSpec::Queen { .. }));
 }

@@ -183,7 +183,9 @@ pub struct InstantWrapper {
 impl InstantWrapper {
     /// Create with the current time
     pub fn now() -> Self {
-        Self { timestamp_ms: now_ms() }
+        Self {
+            timestamp_ms: now_ms(),
+        }
     }
 
     /// Create from a specific UNIX millisecond timestamp
@@ -338,8 +340,8 @@ pub trait SwarmAgentAdapter: Send + Sync {
 // Module Exports
 // ---------------------------------------------------------------------------
 
-mod codex;
 mod claude_code;
+mod codex;
 
-pub use codex::CodexAdapter;
 pub use claude_code::ClaudeCodeAdapter;
+pub use codex::CodexAdapter;

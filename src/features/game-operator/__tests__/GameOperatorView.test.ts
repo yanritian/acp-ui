@@ -2,6 +2,8 @@
 // Tests for the main GameOperatorView component logic
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { createApp, nextTick } from 'vue'
+import gameOperatorViewSource from '../views/GameOperatorView.vue?raw'
 
 // Mock Tauri APIs
 vi.mock('@tauri-apps/plugin-dialog', () => ({
@@ -19,6 +21,7 @@ const mockApprove = vi.fn()
 const mockListEvents = vi.fn()
 const mockGetPendingApprovals = vi.fn()
 const mockDetectProject = vi.fn()
+const mockGetRemotePlatforms = vi.fn()
 
 vi.mock('@/api/operatorApi', () => ({
   OperatorApi: {
@@ -43,11 +46,18 @@ vi.mock('@/api/operatorApi', () => ({
   }
 }))
 
+vi.mock('@/api/operatorRemoteApi', () => ({
+  OperatorRemoteApi: {
+    getPlatforms: mockGetRemotePlatforms,
+  },
+}))
+
 describe('GameOperatorView Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListTasks.mockResolvedValue([])
     mockDetectProject.mockResolvedValue(true)
+    mockGetRemotePlatforms.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -77,6 +87,17 @@ describe('GameOperatorView Logic', () => {
       const tasks = await mockListTasks()
       const activeTask = tasks.find((t: any) => !['completed', 'failed', 'cancelled'].includes(t.status))
       expect(activeTask?.task_id).toBe('task_002')
+    })
+
+    it('should keep the operator surface scrollable and form fields shrinkable', () => {
+      expect(gameOperatorViewSource).toMatch(
+        /\.game-operator-view\s*\{[^}]*overflow-y:\s*auto;/s,
+      )
+      expect(gameOperatorViewSource).toMatch(
+        /\.path-field,\s*\.goal-field\s*\{[^}]*min-width:\s*0;/s,
+      )
+      expect(gameOperatorViewSource).toContain('container-type: inline-size;')
+      expect(gameOperatorViewSource).toContain('@container (max-width: 1050px)')
     })
   })
 
@@ -162,10 +183,44 @@ describe('GameOperatorView Logic', () => {
       expect(events.length).toBe(1)
     })
 
-    it('should stop polling on terminal state', async () => {
-      const terminalStates = ['completed', 'failed', 'cancelled']
-      expect(terminalStates.includes('completed')).toBe(true)
-      expect(terminalStates.includes('running')).toBe(false)
+    it('should discover a task created remotely after the view mounted empty', async () => {
+      vi.useFakeTimers()
+      const remoteTask = {
+        task_id: 'task_remote_001',
+        domain: 'game.godot',
+        project_path: 'D:/games/remote-project',
+        goal: 'Remote-created dash task',
+        status: 'waiting_approval',
+        mode: 'propose_then_apply',
+        approval_policy: 'safe_default',
+        created_at: '2026-07-10T00:00:00Z',
+        updated_at: '2026-07-10T00:00:01Z',
+      }
+      mockListTasks
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([remoteTask])
+      mockGetTask.mockResolvedValue(remoteTask)
+      mockListEvents.mockResolvedValue([])
+      mockGetPendingApprovals.mockResolvedValue([])
+
+      const host = document.createElement('div')
+      document.body.appendChild(host)
+      const { default: GameOperatorView } = await import('../views/GameOperatorView.vue')
+      const app = createApp(GameOperatorView)
+      app.mount(host)
+      await Promise.resolve()
+      await nextTick()
+
+      expect(host.textContent).toContain('Godot Project Path')
+      await vi.advanceTimersByTimeAsync(2100)
+      await nextTick()
+
+      expect(mockListTasks).toHaveBeenCalledTimes(2)
+      expect(host.textContent).toContain('Remote-created dash task')
+
+      app.unmount()
+      host.remove()
+      vi.useRealTimers()
     })
 
     it('should poll approvals', async () => {

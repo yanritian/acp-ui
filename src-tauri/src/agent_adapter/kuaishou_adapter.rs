@@ -6,11 +6,13 @@
 // - OAuth 认证
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput,
+        TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -87,42 +89,82 @@ impl KuaishouAdapter {
     }
 
     /// 发布视频
-    pub async fn publish_video(&self, video_path: &str, caption: &str) -> Result<AgentResult, AgentError> {
-        let token = self.access_token.as_ref()
-            .ok_or_else(|| AgentError::AuthenticationError { message: "未授权".to_string() })?;
+    pub async fn publish_video(
+        &self,
+        video_path: &str,
+        caption: &str,
+    ) -> Result<AgentResult, AgentError> {
+        let token = self
+            .access_token
+            .as_ref()
+            .ok_or_else(|| AgentError::AuthenticationError {
+                message: "未授权".to_string(),
+            })?;
 
-        let photo_id = format!("photo_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs());
+        let photo_id = format!(
+            "photo_{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
 
         Ok(AgentResult {
             task_id: uuid::Uuid::new_v4().to_string(),
             agent_id: self.id.clone(),
             status: ResultStatus::Success,
-            output: TaskOutput::Text(format!("快手视频发布成功:\n- 视频ID: {}\n- 描述: {}\n- 文件: {}", photo_id, caption, video_path)),
+            output: TaskOutput::Text(format!(
+                "快手视频发布成功:\n- 视频ID: {}\n- 描述: {}\n- 文件: {}",
+                photo_id, caption, video_path
+            )),
             input_tokens: 0,
             output_tokens: 80,
             total_tokens: 80,
-            cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: 80, total_tokens: 80 } },
+            cost: ActualCost {
+                amount: 0.0,
+                currency: "CNY".to_string(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: 80,
+                    total_tokens: 80,
+                },
+            },
             duration_ms: 3000,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([("photo_id".to_string(), photo_id)]),
         })
     }
 
     /// 获取视频列表
     pub async fn get_video_list(&self, count: u32) -> Result<AgentResult, AgentError> {
-        let videos: Vec<KuaishouVideo> = (0..count).map(|i| KuaishouVideo {
-            photo_id: format!("photo_{}", i),
-            caption: format!("快手视频 {}", i),
-            cover_url: "https://example.com/kuaishou_cover.jpg".to_string(),
-            play_count: 2000 + i as u64 * 200,
-            like_count: 150 + i as u64 * 15,
-            comment_count: 30 + i as u64 * 3,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
-        }).collect();
+        let videos: Vec<KuaishouVideo> = (0..count)
+            .map(|i| KuaishouVideo {
+                photo_id: format!("photo_{}", i),
+                caption: format!("快手视频 {}", i),
+                cover_url: "https://example.com/kuaishou_cover.jpg".to_string(),
+                play_count: 2000 + i as u64 * 200,
+                like_count: 150 + i as u64 * 15,
+                comment_count: 30 + i as u64 * 3,
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64,
+            })
+            .collect();
 
-        let output = videos.iter().map(|v|
-            format!("{}: {} (播放:{}, 点赞:{})", v.photo_id, v.caption, v.play_count, v.like_count)
-        ).collect::<Vec<String>>().join("\n");
+        let output = videos
+            .iter()
+            .map(|v| {
+                format!(
+                    "{}: {} (播放:{}, 点赞:{})",
+                    v.photo_id, v.caption, v.play_count, v.like_count
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
 
         Ok(AgentResult {
             task_id: uuid::Uuid::new_v4().to_string(),
@@ -132,9 +174,20 @@ impl KuaishouAdapter {
             input_tokens: 0,
             output_tokens: videos.len() as u64 * 40,
             total_tokens: videos.len() as u64 * 40,
-            cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: videos.len() as u64 * 40, total_tokens: videos.len() as u64 * 40 } },
+            cost: ActualCost {
+                amount: 0.0,
+                currency: "CNY".to_string(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: videos.len() as u64 * 40,
+                    total_tokens: videos.len() as u64 * 40,
+                },
+            },
             duration_ms: 1500,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([("count".to_string(), videos.len().to_string())]),
         })
     }
@@ -161,26 +214,56 @@ impl KuaishouAdapter {
 
 #[async_trait]
 impl AgentAdapter for KuaishouAdapter {
-    fn id(&self) -> &str { &self.id }
-    fn name(&self) -> &str { &self.name }
-    fn adapter_type(&self) -> AdapterType { AdapterType::Api }
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn adapter_type(&self) -> AdapterType {
+        AdapterType::Api
+    }
 
     fn capabilities(&self) -> Vec<Capability> {
         vec![
-            Capability { name: "kuaishou_oauth".to_string(), proficiency: 0.95, cost_per_unit: 0.0, latency_ms: 1000 },
-            Capability { name: "kuaishou_publish".to_string(), proficiency: 0.85, cost_per_unit: 0.0, latency_ms: 3000 },
-            Capability { name: "kuaishou_video_list".to_string(), proficiency: 0.90, cost_per_unit: 0.0, latency_ms: 1500 },
-            Capability { name: "kuaishou_analytics".to_string(), proficiency: 0.90, cost_per_unit: 0.0, latency_ms: 2000 },
+            Capability {
+                name: "kuaishou_oauth".to_string(),
+                proficiency: 0.95,
+                cost_per_unit: 0.0,
+                latency_ms: 1000,
+            },
+            Capability {
+                name: "kuaishou_publish".to_string(),
+                proficiency: 0.85,
+                cost_per_unit: 0.0,
+                latency_ms: 3000,
+            },
+            Capability {
+                name: "kuaishou_video_list".to_string(),
+                proficiency: 0.90,
+                cost_per_unit: 0.0,
+                latency_ms: 1500,
+            },
+            Capability {
+                name: "kuaishou_analytics".to_string(),
+                proficiency: 0.90,
+                cost_per_unit: 0.0,
+                latency_ms: 2000,
+            },
         ]
     }
 
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
-        let app_id = config.metadata.get("app_id")
-            .cloned()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "缺少 app_id".to_string() })?;
-        let app_secret = config.metadata.get("app_secret")
-            .cloned()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "缺少 app_secret".to_string() })?;
+        let app_id = config.metadata.get("app_id").cloned().ok_or_else(|| {
+            AgentError::ConfigurationError {
+                message: "缺少 app_id".to_string(),
+            }
+        })?;
+        let app_secret = config.metadata.get("app_secret").cloned().ok_or_else(|| {
+            AgentError::ConfigurationError {
+                message: "缺少 app_secret".to_string(),
+            }
+        })?;
         let access_token = config.metadata.get("access_token").cloned();
 
         self.config = Some(KuaishouConfig {
@@ -189,14 +272,19 @@ impl AgentAdapter for KuaishouAdapter {
             access_token: access_token.clone(),
             base_url: "https://open.kuaishou.com".to_string(),
         });
-        if let Some(token) = access_token { self.access_token = Some(token); }
+        if let Some(token) = access_token {
+            self.access_token = Some(token);
+        }
         Ok(())
     }
 
     async fn validate_config(&self) -> Result<bool, AgentError> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .map(|c| !c.app_id.is_empty() && !c.app_secret.is_empty())
-            .ok_or_else(|| AgentError::ConfigurationError { message: "配置未初始化".to_string() })
+            .ok_or_else(|| AgentError::ConfigurationError {
+                message: "配置未初始化".to_string(),
+            })
     }
 
     async fn execute(&self, task: AgentTask) -> Result<AgentResult, AgentError> {
@@ -215,19 +303,42 @@ impl AgentAdapter for KuaishouAdapter {
                 let (redirect_uri, state) = match &task.input {
                     TaskInput::Text(text) => {
                         let parts: Vec<&str> = text.split_whitespace().collect();
-                        (parts.get(0).unwrap_or(&"https://example.com/callback").to_string(),
-                         parts.get(1).unwrap_or(&"state").to_string())
+                        (
+                            parts
+                                .get(0)
+                                .unwrap_or(&"https://example.com/callback")
+                                .to_string(),
+                            parts.get(1).unwrap_or(&"state").to_string(),
+                        )
                     }
-                    _ => ("https://example.com/callback".to_string(), "state".to_string()),
+                    _ => (
+                        "https://example.com/callback".to_string(),
+                        "state".to_string(),
+                    ),
                 };
                 let auth_url = self.get_auth_url(&redirect_uri, &state);
                 AgentResult {
-                    task_id: task.id.clone(), agent_id: self.id.clone(), status: ResultStatus::Success,
+                    task_id: task.id.clone(),
+                    agent_id: self.id.clone(),
+                    status: ResultStatus::Success,
                     output: TaskOutput::Text(format!("快手授权链接:\n{}", auth_url)),
-                    input_tokens: 0, output_tokens: auth_url.len() as u64 / 4, total_tokens: auth_url.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: auth_url.len() as u64 / 4, total_tokens: auth_url.len() as u64 / 4 } },
+                    input_tokens: 0,
+                    output_tokens: auth_url.len() as u64 / 4,
+                    total_tokens: auth_url.len() as u64 / 4,
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: auth_url.len() as u64 / 4,
+                            total_tokens: auth_url.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::from([("auth_url".to_string(), auth_url)]),
                 }
             }
@@ -235,8 +346,10 @@ impl AgentAdapter for KuaishouAdapter {
                 let (path, caption) = match &task.input {
                     TaskInput::Text(text) => {
                         let parts: Vec<&str> = text.split_whitespace().collect();
-                        (parts.get(0).unwrap_or(&"./video.mp4").to_string(),
-                         parts.get(1).unwrap_or(&"快手新视频").to_string())
+                        (
+                            parts.get(0).unwrap_or(&"./video.mp4").to_string(),
+                            parts.get(1).unwrap_or(&"快手新视频").to_string(),
+                        )
                     }
                     _ => ("./video.mp4".to_string(), "快手新视频".to_string()),
                 };
@@ -256,68 +369,141 @@ impl AgentAdapter for KuaishouAdapter {
                     _ => "unknown".to_string(),
                 };
                 AgentResult {
-                    task_id: task.id.clone(), agent_id: self.id.clone(), status: ResultStatus::Success,
+                    task_id: task.id.clone(),
+                    agent_id: self.id.clone(),
+                    status: ResultStatus::Success,
                     output: TaskOutput::Text(format!("视频删除成功: {}", photo_id)),
-                    input_tokens: 0, output_tokens: 20, total_tokens: 20,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: 20, total_tokens: 20 } },
+                    input_tokens: 0,
+                    output_tokens: 20,
+                    total_tokens: 20,
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: 20,
+                            total_tokens: 20,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
-            KuaishouAction::UserInfo => {
-                AgentResult {
-                    task_id: task.id.clone(), agent_id: self.id.clone(), status: ResultStatus::Success,
-                    output: TaskOutput::Text("快手用户信息:\n- 用户ID: xxx\n- 昵称: xxx\n- 粉丝数: 2000".to_string()),
-                    input_tokens: 0, output_tokens: 50, total_tokens: 50,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: 50, total_tokens: 50 } },
-                    duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                    metadata: HashMap::new(),
-                }
-            }
+            KuaishouAction::UserInfo => AgentResult {
+                task_id: task.id.clone(),
+                agent_id: self.id.clone(),
+                status: ResultStatus::Success,
+                output: TaskOutput::Text(
+                    "快手用户信息:\n- 用户ID: xxx\n- 昵称: xxx\n- 粉丝数: 2000".to_string(),
+                ),
+                input_tokens: 0,
+                output_tokens: 50,
+                total_tokens: 50,
+                cost: ActualCost {
+                    amount: 0.0,
+                    currency: "CNY".to_string(),
+                    token_usage: TokenUsage {
+                        input_tokens: 0,
+                        output_tokens: 50,
+                        total_tokens: 50,
+                    },
+                },
+                duration_ms: start.elapsed().as_millis() as u64,
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                metadata: HashMap::new(),
+            },
         };
         Ok(result)
     }
 
-    async fn cancel(&self, _task_id: &str) -> Result<(), AgentError> { Ok(()) }
+    async fn cancel(&self, _task_id: &str) -> Result<(), AgentError> {
+        Ok(())
+    }
 
     fn status(&self) -> AgentStatus {
         let metrics = self.health_tracker.get_metrics();
-        if metrics.health_score > 80.0 { AgentStatus::Idle }
-        else { AgentStatus::Error { message: "健康分数过低".to_string(), error_count: metrics.error_count } }
+        if metrics.health_score > 80.0 {
+            AgentStatus::Idle
+        } else {
+            AgentStatus::Error {
+                message: "健康分数过低".to_string(),
+                error_count: metrics.error_count,
+            }
+        }
     }
 
-    async fn health(&self) -> HealthMetrics { self.health_tracker.get_metrics() }
+    async fn health(&self) -> HealthMetrics {
+        self.health_tracker.get_metrics()
+    }
 
     fn cost_estimate(&self, _task: &AgentTask) -> CostEstimate {
-        CostEstimate { min_cost: 0.0, max_cost: 0.0, currency: "CNY".to_string(), breakdown: HashMap::new(),
-            token_estimate: TokenEstimate { input_tokens: 0, output_tokens: 300, total_tokens: 300 } }
+        CostEstimate {
+            min_cost: 0.0,
+            max_cost: 0.0,
+            currency: "CNY".to_string(),
+            breakdown: HashMap::new(),
+            token_estimate: TokenEstimate {
+                input_tokens: 0,
+                output_tokens: 300,
+                total_tokens: 300,
+            },
+        }
     }
 
-    fn actual_cost(&self, _task_id: &str) -> Option<ActualCost> { None }
+    fn actual_cost(&self, _task_id: &str) -> Option<ActualCost> {
+        None
+    }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
-        if result.status == ResultStatus::Success { self.health_tracker.record_success(result.duration_ms); }
-        else { self.health_tracker.record_error(); }
-        self.token_history.push(TokenUsage { input_tokens: result.input_tokens, output_tokens: result.output_tokens, total_tokens: result.total_tokens });
-        if self.token_history.len() > 100 { self.token_history.remove(0); }
+        if result.status == ResultStatus::Success {
+            self.health_tracker.record_success(result.duration_ms);
+        } else {
+            self.health_tracker.record_error();
+        }
+        self.token_history.push(TokenUsage {
+            input_tokens: result.input_tokens,
+            output_tokens: result.output_tokens,
+            total_tokens: result.total_tokens,
+        });
+        if self.token_history.len() > 100 {
+            self.token_history.remove(0);
+        }
     }
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
-    async fn reset_circuit_breaker(&mut self) { self.health_tracker.reset(); }
+    async fn reset_circuit_breaker(&mut self) {
+        self.health_tracker.reset();
+    }
 }
 
 impl Default for KuaishouAdapter {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

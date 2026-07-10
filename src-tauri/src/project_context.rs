@@ -6,8 +6,8 @@
 // - Recent changes and patterns
 // - Scene-specific context (web, mini-program, desktop, game)
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -99,7 +99,8 @@ impl ProjectContext {
         ]);
 
         // Count files by extension
-        let counts: HashMap<ProjectLanguage, usize> = files.iter()
+        let counts: HashMap<ProjectLanguage, usize> = files
+            .iter()
             .filter_map(|f| {
                 let path = PathBuf::from(&f.path);
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
@@ -111,13 +112,18 @@ impl ProjectContext {
             });
 
         // Return most common language
-        counts.iter()
+        counts
+            .iter()
             .max_by_key(|(_, count)| *count)
             .map(|(lang, _)| lang.clone())
             .unwrap_or(ProjectLanguage::Unknown)
     }
 
-    fn detect_framework(&self, files: &[FileInfo], language: &ProjectLanguage) -> Option<ProjectFramework> {
+    fn detect_framework(
+        &self,
+        files: &[FileInfo],
+        language: &ProjectLanguage,
+    ) -> Option<ProjectFramework> {
         // Check for config files
         for file in files {
             let path = PathBuf::from(&file.path);
@@ -144,7 +150,9 @@ impl ProjectContext {
                     return Some(ProjectFramework::RustNative);
                 }
                 "go.mod" => return Some(ProjectFramework::GoNative),
-                "requirements.txt" | "pyproject.toml" => return Some(ProjectFramework::PythonNative),
+                "requirements.txt" | "pyproject.toml" => {
+                    return Some(ProjectFramework::PythonNative)
+                }
                 _ => {}
             }
         }
@@ -162,39 +170,61 @@ impl ProjectContext {
 
     fn detect_scene(&self, files: &[FileInfo]) -> Scene {
         // Check for Tauri indicators
-        if files.iter().any(|f| f.path.contains("tauri.conf.json") || f.path.contains("src-tauri")) {
+        if files
+            .iter()
+            .any(|f| f.path.contains("tauri.conf.json") || f.path.contains("src-tauri"))
+        {
             return Scene::Desktop;
         }
 
         // Check for Electron indicators
-        if files.iter().any(|f| f.path.contains("electron") || f.path.contains("electron-builder")) {
+        if files
+            .iter()
+            .any(|f| f.path.contains("electron") || f.path.contains("electron-builder"))
+        {
             return Scene::Desktop;
         }
 
         // Check for Flutter indicators
-        if files.iter().any(|f| f.path.contains("pubspec.yaml") || f.path.contains("flutter")) {
+        if files
+            .iter()
+            .any(|f| f.path.contains("pubspec.yaml") || f.path.contains("flutter"))
+        {
             return Scene::Desktop;
         }
 
         // Check for mini-program indicators
-        if files.iter().any(|f| f.path.contains("miniprogram") || f.path.contains("app.json")) {
+        if files
+            .iter()
+            .any(|f| f.path.contains("miniprogram") || f.path.contains("app.json"))
+        {
             return Scene::MiniProgram;
         }
 
         // Check for game indicators
-        if files.iter().any(|f| f.path.contains("unity") || f.path.contains("godot") || f.path.contains("game")) {
+        if files.iter().any(|f| {
+            f.path.contains("unity") || f.path.contains("godot") || f.path.contains("game")
+        }) {
             return Scene::Game;
         }
 
         // Check for web indicators
-        if files.iter().any(|f| f.path.ends_with(".html") || f.path.ends_with(".vue") || f.path.contains("public") || f.path.contains("www")) {
+        if files.iter().any(|f| {
+            f.path.ends_with(".html")
+                || f.path.ends_with(".vue")
+                || f.path.contains("public")
+                || f.path.contains("www")
+        }) {
             return Scene::Web;
         }
 
         // Check for common web frameworks via package.json
         let has_web_framework = files.iter().any(|f| {
-            f.path.contains("package.json") &&
-            (f.path.contains("vite") || f.path.contains("next") || f.path.contains("nuxt") || f.path.contains("svelte"))
+            f.path.contains("package.json")
+                && (f.path.contains("vite")
+                    || f.path.contains("next")
+                    || f.path.contains("nuxt")
+                    || f.path.contains("svelte"))
         });
 
         if has_web_framework {
@@ -370,10 +400,12 @@ impl FileSummary {
         let doc_files = files.iter().filter(|f| f.is_doc).count();
         let total_lines = files.iter().map(|f| f.line_count).sum();
 
-        let largest_file = files.iter()
+        let largest_file = files
+            .iter()
             .max_by_key(|f| f.line_count)
             .map(|f| f.path.clone());
-        let largest_file_lines = files.iter()
+        let largest_file_lines = files
+            .iter()
             .max_by_key(|f| f.line_count)
             .map(|f| f.line_count)
             .unwrap_or(0);
@@ -435,16 +467,16 @@ pub struct CodePattern {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PatternType {
-    Component,      // Vue/React component
-    Service,        // Service layer
-    Repository,     // Data access layer
-    Controller,     // API handler
-    Model,          // Data model
-    Utility,        // Helper functions
-    Test,           // Test pattern
-    Config,         // Configuration
-    Hook,           // React/Vue hook
-    Middleware,     // Middleware
+    Component,  // Vue/React component
+    Service,    // Service layer
+    Repository, // Data access layer
+    Controller, // API handler
+    Model,      // Data model
+    Utility,    // Helper functions
+    Test,       // Test pattern
+    Config,     // Configuration
+    Hook,       // React/Vue hook
+    Middleware, // Middleware
 }
 
 /// Context summary for routing decisions
@@ -474,7 +506,12 @@ impl ProjectContextManager {
     }
 
     /// Create a new project context
-    pub fn create_context(&mut self, id: String, name: String, root_path: PathBuf) -> ProjectContext {
+    pub fn create_context(
+        &mut self,
+        id: String,
+        name: String,
+        root_path: PathBuf,
+    ) -> ProjectContext {
         let context = ProjectContext::new(id.clone(), name, root_path);
         self.contexts.insert(id, context.clone());
         self.current_project = Some(context.id.clone());
@@ -483,7 +520,9 @@ impl ProjectContextManager {
 
     /// Get current project context
     pub fn get_current(&self) -> Option<&ProjectContext> {
-        self.current_project.as_ref().and_then(|id| self.contexts.get(id))
+        self.current_project
+            .as_ref()
+            .and_then(|id| self.contexts.get(id))
     }
 
     /// Get context by ID
@@ -535,7 +574,11 @@ mod tests {
 
     #[test]
     fn test_project_context_new() {
-        let ctx = ProjectContext::new("proj-1".to_string(), "MyProject".to_string(), PathBuf::from("/tmp/myproject"));
+        let ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "MyProject".to_string(),
+            PathBuf::from("/tmp/myproject"),
+        );
         assert_eq!(ctx.id, "proj-1");
         assert_eq!(ctx.name, "MyProject");
         assert_eq!(ctx.language, ProjectLanguage::Unknown);
@@ -543,12 +586,37 @@ mod tests {
 
     #[test]
     fn test_detect_language_typescript() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
         let files = vec![
-            FileInfo { path: "src/main.ts".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "src/utils.ts".to_string(), line_count: 50, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "src/index.ts".to_string(), line_count: 30, is_source: true, is_test: false, is_config: false, is_doc: false },
+            FileInfo {
+                path: "src/main.ts".to_string(),
+                line_count: 100,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src/utils.ts".to_string(),
+                line_count: 50,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src/index.ts".to_string(),
+                line_count: 30,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
         ];
 
         ctx.detect_from_files(&files);
@@ -557,11 +625,29 @@ mod tests {
 
     #[test]
     fn test_detect_language_vue() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
         let files = vec![
-            FileInfo { path: "src/App.vue".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "src/components/Button.vue".to_string(), line_count: 50, is_source: true, is_test: false, is_config: false, is_doc: false },
+            FileInfo {
+                path: "src/App.vue".to_string(),
+                line_count: 100,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src/components/Button.vue".to_string(),
+                line_count: 50,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
         ];
 
         ctx.detect_from_files(&files);
@@ -571,12 +657,37 @@ mod tests {
 
     #[test]
     fn test_detect_framework_tauri() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
         let files = vec![
-            FileInfo { path: "src-tauri/Cargo.toml".to_string(), line_count: 30, is_source: false, is_test: false, is_config: true, is_doc: false },
-            FileInfo { path: "src-tauri/tauri.conf.json".to_string(), line_count: 50, is_source: false, is_test: false, is_config: true, is_doc: false },
-            FileInfo { path: "src/main.rs".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
+            FileInfo {
+                path: "src-tauri/Cargo.toml".to_string(),
+                line_count: 30,
+                is_source: false,
+                is_test: false,
+                is_config: true,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src-tauri/tauri.conf.json".to_string(),
+                line_count: 50,
+                is_source: false,
+                is_test: false,
+                is_config: true,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src/main.rs".to_string(),
+                line_count: 100,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
         ];
 
         ctx.detect_from_files(&files);
@@ -587,11 +698,29 @@ mod tests {
 
     #[test]
     fn test_detect_scene_mini_program() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
         let files = vec![
-            FileInfo { path: "miniprogram/pages/index/index.js".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "miniprogram/app.json".to_string(), line_count: 50, is_source: false, is_test: false, is_config: true, is_doc: false },
+            FileInfo {
+                path: "miniprogram/pages/index/index.js".to_string(),
+                line_count: 100,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "miniprogram/app.json".to_string(),
+                line_count: 50,
+                is_source: false,
+                is_test: false,
+                is_config: true,
+                is_doc: false,
+            },
         ];
 
         ctx.detect_from_files(&files);
@@ -601,9 +730,30 @@ mod tests {
     #[test]
     fn test_file_summary() {
         let files = vec![
-            FileInfo { path: "src/a.ts".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "src/b.ts".to_string(), line_count: 200, is_source: true, is_test: false, is_config: false, is_doc: false },
-            FileInfo { path: "test/a.test.ts".to_string(), line_count: 50, is_source: false, is_test: true, is_config: false, is_doc: false },
+            FileInfo {
+                path: "src/a.ts".to_string(),
+                line_count: 100,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "src/b.ts".to_string(),
+                line_count: 200,
+                is_source: true,
+                is_test: false,
+                is_config: false,
+                is_doc: false,
+            },
+            FileInfo {
+                path: "test/a.test.ts".to_string(),
+                line_count: 50,
+                is_source: false,
+                is_test: true,
+                is_config: false,
+                is_doc: false,
+            },
         ];
 
         let summary = FileSummary::from_files(&files);
@@ -617,7 +767,11 @@ mod tests {
 
     #[test]
     fn test_record_change() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
         ctx.record_change(ChangeRecord {
             id: "change-1".to_string(),
@@ -637,7 +791,11 @@ mod tests {
     fn test_context_manager() {
         let mut manager = ProjectContextManager::new();
 
-        let ctx = manager.create_context("proj-1".to_string(), "MyProject".to_string(), PathBuf::from("/tmp/myproject"));
+        let ctx = manager.create_context(
+            "proj-1".to_string(),
+            "MyProject".to_string(),
+            PathBuf::from("/tmp/myproject"),
+        );
         assert_eq!(ctx.id, "proj-1");
         assert!(manager.get_current().is_some());
 
@@ -647,11 +805,20 @@ mod tests {
 
     #[test]
     fn test_get_summary() {
-        let mut ctx = ProjectContext::new("proj-1".to_string(), "Test".to_string(), PathBuf::from("/tmp"));
+        let mut ctx = ProjectContext::new(
+            "proj-1".to_string(),
+            "Test".to_string(),
+            PathBuf::from("/tmp"),
+        );
 
-        let files = vec![
-            FileInfo { path: "src/App.vue".to_string(), line_count: 100, is_source: true, is_test: false, is_config: false, is_doc: false },
-        ];
+        let files = vec![FileInfo {
+            path: "src/App.vue".to_string(),
+            line_count: 100,
+            is_source: true,
+            is_test: false,
+            is_config: false,
+            is_doc: false,
+        }];
 
         ctx.detect_from_files(&files);
         let summary = ctx.get_summary();

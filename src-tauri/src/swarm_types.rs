@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use crate::swarm_adapters::{WorkerId, HealthStatus, OutputFormat, now_ms};
+pub use crate::swarm_adapters::{now_ms, HealthStatus, OutputFormat, WorkerId};
 
 // ---------------------------------------------------------------------------
 // Task Shard (ES Sharding Pattern)
@@ -203,7 +203,8 @@ impl TaskShard {
 
     /// Get the final result (primary or replica)
     pub fn get_result(&self) -> Option<&String> {
-        self.primary_result.as_ref()
+        self.primary_result
+            .as_ref()
             .or(self.replica_result.as_ref())
     }
 
@@ -301,12 +302,8 @@ impl ShardGroup {
 
     /// Update completion counts
     fn update_counts(&mut self) {
-        self.completed_count = self.shards.values()
-            .filter(|s| s.is_complete())
-            .count() as u32;
-        self.failed_count = self.shards.values()
-            .filter(|s| s.is_failed())
-            .count() as u32;
+        self.completed_count = self.shards.values().filter(|s| s.is_complete()).count() as u32;
+        self.failed_count = self.shards.values().filter(|s| s.is_failed()).count() as u32;
     }
 
     /// Check if all shards are complete or failed
@@ -316,7 +313,9 @@ impl ShardGroup {
 
     /// Aggregate results from all shards
     pub fn aggregate_results(&mut self) {
-        let results: Vec<String> = self.shards.values()
+        let results: Vec<String> = self
+            .shards
+            .values()
             .filter_map(|s| s.get_result().cloned())
             .collect();
 
@@ -327,7 +326,9 @@ impl ShardGroup {
             self.status = ShardGroupStatus::Completed;
         } else if self.failed_count > 0 {
             // Some shards failed
-            self.errors = self.shards.values()
+            self.errors = self
+                .shards
+                .values()
                 .filter_map(|s| s.error.clone())
                 .collect();
             self.status = ShardGroupStatus::Failed;
@@ -343,15 +344,22 @@ impl ShardGroup {
 
     /// Get all pending shards
     pub fn get_pending_shards(&self) -> Vec<&TaskShard> {
-        self.shards.values()
+        self.shards
+            .values()
             .filter(|s| s.status == ShardStatus::Pending)
             .collect()
     }
 
     /// Get all running shards
     pub fn get_running_shards(&self) -> Vec<&TaskShard> {
-        self.shards.values()
-            .filter(|s| matches!(s.status, ShardStatus::RunningPrimary | ShardStatus::RunningReplica))
+        self.shards
+            .values()
+            .filter(|s| {
+                matches!(
+                    s.status,
+                    ShardStatus::RunningPrimary | ShardStatus::RunningReplica
+                )
+            })
             .collect()
     }
 }

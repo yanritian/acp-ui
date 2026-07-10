@@ -10,12 +10,9 @@
 //! 5. service.rs 包含 create_user 函数
 //! 6. api.rs 包含 POST /users 路由
 
-use swarm_engine::{
-    CompletionCondition,
-    ConditionEvaluator,
-};
 use std::fs;
 use std::path::Path;
+use swarm_engine::{CompletionCondition, ConditionEvaluator};
 
 fn main() {
     println!("========================================");
@@ -31,27 +28,40 @@ fn main() {
     println!("");
 
     let acceptance_conditions = vec![
-        ("用户实体定义", CompletionCondition::FileCheck {
-            path: "D:/tmp/erp-user/src/user/domain.rs".to_string(),
-            content_contains: Some("pub struct User".to_string()),
-            max_size_bytes: None,
-        }),
-        ("CRUD服务", CompletionCondition::FileCheck {
-            path: "D:/tmp/erp-user/src/user/service.rs".to_string(),
-            content_contains: Some("pub fn create_user".to_string()),
-            max_size_bytes: None,
-        }),
-        ("API接口", CompletionCondition::FileCheck {
-            path: "D:/tmp/erp-user/src/user/api.rs".to_string(),
-            content_contains: Some("POST /users".to_string()),
-            max_size_bytes: None,
-        }),
+        (
+            "用户实体定义",
+            CompletionCondition::FileCheck {
+                path: "D:/tmp/erp-user/src/user/domain.rs".to_string(),
+                content_contains: Some("pub struct User".to_string()),
+                max_size_bytes: None,
+            },
+        ),
+        (
+            "CRUD服务",
+            CompletionCondition::FileCheck {
+                path: "D:/tmp/erp-user/src/user/service.rs".to_string(),
+                content_contains: Some("pub fn create_user".to_string()),
+                max_size_bytes: None,
+            },
+        ),
+        (
+            "API接口",
+            CompletionCondition::FileCheck {
+                path: "D:/tmp/erp-user/src/user/api.rs".to_string(),
+                content_contains: Some("POST /users".to_string()),
+                max_size_bytes: None,
+            },
+        ),
     ];
 
     for (i, (name, cond)) in acceptance_conditions.iter().enumerate() {
         println!("  {}. {}:", i + 1, name);
         match cond {
-            CompletionCondition::FileCheck { path, content_contains, .. } => {
+            CompletionCondition::FileCheck {
+                path,
+                content_contains,
+                ..
+            } => {
                 println!("     文件: {}", path);
                 if let Some(content) = content_contains {
                     println!("     必须包含: \"{}\"", content);
@@ -67,8 +77,16 @@ fn main() {
     let evaluator = ConditionEvaluator::new();
     for (name, cond) in &acceptance_conditions {
         let result = evaluator.evaluate(cond);
-        println!("  {}: converged={} ({})", name, result.converged,
-            if result.converged { "已存在" } else { "不存在" });
+        println!(
+            "  {}: converged={} ({})",
+            name,
+            result.converged,
+            if result.converged {
+                "已存在"
+            } else {
+                "不存在"
+            }
+        );
     }
     println!("  结论: 系统未收敛，需要执行\n");
 
@@ -288,7 +306,11 @@ pub async fn list_users(
     let mut all_converged = true;
     for (name, cond) in &acceptance_conditions {
         let result = evaluator.evaluate(cond);
-        let status = if result.converged { "✅ 通过" } else { "❌ 失败" };
+        let status = if result.converged {
+            "✅ 通过"
+        } else {
+            "❌ 失败"
+        };
         println!("  {}: converged={} {}", name, result.converged, status);
         if !result.converged {
             all_converged = false;

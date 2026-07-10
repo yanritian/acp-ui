@@ -7,12 +7,9 @@
 //! 3. Evaluate (check file exists with content)
 //! 4. Converge when condition met
 
-use swarm_engine::{
-    Goal, GoalStatus, CompletionCondition,
-    ConditionEvaluator, EvaluationResult,
-};
 use std::fs;
 use std::path::Path;
+use swarm_engine::{CompletionCondition, ConditionEvaluator, EvaluationResult, Goal, GoalStatus};
 
 // ============================================================================
 // Requirement: "Create README-test.md with 'Hello ACP'"
@@ -38,11 +35,18 @@ fn test_requirement_create_file_with_content() {
     assert!(!initial_result.converged, "File should not exist initially");
 
     // === Step 4: Execute (create file) ===
-    fs::write("D:/tmp/README-test.md", "Hello ACP - Created by ACP-UI System").unwrap();
+    fs::write(
+        "D:/tmp/README-test.md",
+        "Hello ACP - Created by ACP-UI System",
+    )
+    .unwrap();
 
     // === Step 5: Evaluate (verify file created) ===
     let after_result = evaluator.evaluate(&completion_condition);
-    assert!(after_result.converged, "File should exist with correct content");
+    assert!(
+        after_result.converged,
+        "File should exist with correct content"
+    );
     assert!(after_result.feedback.is_empty(), "No error feedback");
 
     // === Step 6: Cleanup ===
@@ -87,7 +91,10 @@ fn test_requirement_file_content_negative() {
     };
 
     let result = evaluator.evaluate(&condition_has_password);
-    assert!(!result.converged, "File correctly does NOT contain 'password'");
+    assert!(
+        !result.converged,
+        "File correctly does NOT contain 'password'"
+    );
 
     // Cleanup
     fs::remove_file("D:/tmp/config-safe.txt").ok();
@@ -149,7 +156,10 @@ fn test_requirement_any_condition() {
     let evaluator = ConditionEvaluator::new();
     let result = evaluator.evaluate(&any_condition);
 
-    assert!(result.converged, "At least one condition (echo) should pass");
+    assert!(
+        result.converged,
+        "At least one condition (echo) should pass"
+    );
 }
 
 // ============================================================================
@@ -158,8 +168,8 @@ fn test_requirement_any_condition() {
 
 #[tokio::test]
 async fn test_full_requirement_workflow() {
-    use swarm_engine::{GoalGraph, ReconcileLoop, GoalOutcome};
     use std::sync::Arc;
+    use swarm_engine::{GoalGraph, GoalOutcome, ReconcileLoop};
     use tokio::sync::Mutex;
 
     // === Requirement: Create a test file ===
@@ -207,13 +217,17 @@ async fn test_full_requirement_workflow() {
     let outcome = reconciler.reconcile_goal(&mut goal).await;
 
     // === Step 4: Verify convergence ===
-    assert!(matches!(outcome, GoalOutcome::Converged { .. }),
-        "Goal should converge after file creation");
+    assert!(
+        matches!(outcome, GoalOutcome::Converged { .. }),
+        "Goal should converge after file creation"
+    );
     assert_eq!(goal.status, GoalStatus::Converged);
 
     // === Step 5: Verify file exists ===
-    assert!(Path::new("D:/tmp/workflow-test.txt").exists(),
-        "File should be created");
+    assert!(
+        Path::new("D:/tmp/workflow-test.txt").exists(),
+        "File should be created"
+    );
 
     // === Cleanup ===
     fs::remove_file("D:/tmp/workflow-test.txt").ok();
@@ -225,7 +239,7 @@ async fn test_full_requirement_workflow() {
 
 #[test]
 fn test_requirement_sandbox_blocks_env_file() {
-    use tool_sandbox::{SandboxConfig, DeniedPatterns};
+    use tool_sandbox::{DeniedPatterns, SandboxConfig};
 
     // === Requirement: Read .env file (should be BLOCKED) ===
     let requirement = "读取 .env 配置文件";
@@ -235,10 +249,14 @@ fn test_requirement_sandbox_blocks_env_file() {
     let patterns = DeniedPatterns::default_patterns();
 
     // === Verify blocked ===
-    assert!(!sandbox.is_path_allowed(".env"),
-        "Sandbox should block .env files");
-    assert!(patterns.is_denied(".env").is_some(),
-        "DeniedPatterns should flag .env");
+    assert!(
+        !sandbox.is_path_allowed(".env"),
+        "Sandbox should block .env files"
+    );
+    assert!(
+        patterns.is_denied(".env").is_some(),
+        "DeniedPatterns should flag .env"
+    );
 
     // === Result: Requirement CANNOT be fulfilled (security) ===
     // This is correct behavior - system protects sensitive files

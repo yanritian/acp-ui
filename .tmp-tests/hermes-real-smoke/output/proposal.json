@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "summary": "为项目添加可复用的生命值组件 scripts/health.gd。脚本通过 @export 暴露参数，在 _ready() 完成初始化，提供 damage() 与 heal() 方法处理数值边界，并在状态变化时发射 changed 信号。符合 Godot 4 类型安全与单一职责最佳实践。",
+  "changes": [
+    {
+      "path": "scripts/health.gd",
+      "operation": "create",
+      "content": "extends Node\nclass_name HealthComponent\n\n## 最大生命值（可在编辑器中配置）\n@export var max_health: float = 100.0\n\n## 当前生命值（可在编辑器中查看，运行时由脚本管理）\n@export var current_health: float = 0.0\n\n## 生命值变化信号：提供新值与旧值，供 UI 或逻辑监听\nsignal changed(new_value: float, old_value: float)\n\n## 生命值归零信号：可用于触发死亡动画或游戏结束逻辑\nsignal died\n\nfunc _ready() -> void:\n\t# 初始化：确保节点进入场景树时生命值处于满状态\n\tcurrent_health = max_health\n\tchanged.emit(current_health, current_health)\n\n## 受到伤害\n## 用法：health.damage(15.0)\nfunc damage(amount: float) -> void:\n\tif amount <= 0.0:\n\t\treturn\n\tvar old_value: float = current_health\n\tcurrent_health = max(0.0, current_health - amount)\n\tif current_health != old_value:\n\t\tchanged.emit(current_health, old_value)\n\t\tif current_health <= 0.0:\n\t\t\tdied.emit()\n\n## 恢复生命\n## 用法：health.heal(10.0)\nfunc heal(amount: float) -> void:\n\tif amount <= 0.0:\n\t\treturn\n\tvar old_value: float = current_health\n\tcurrent_health = min(max_health, current_health + amount)\n\tif current_health != old_value:\n\t\tchanged.emit(current_health, old_value)"
+    }
+  ],
+  "validation": [
+    "在 Godot 4 编辑器中创建脚本并粘贴内容，确认无语法错误或类型警告。",
+    "将 HealthComponent 作为子节点挂载到任意 Node，检查 Inspector 是否正确暴露 max_health 与 current_health。",
+    "编写测试逻辑调用 damage() 与 heal()，验证 changed 信号仅在数值实际变化时触发，且 current_health 严格限制在 [0, max_health] 范围内。",
+    "确认 _ready() 执行后 current_health 自动初始化为 max_health，避免外部未赋值导致的 0 初始状态。"
+  ]
+}

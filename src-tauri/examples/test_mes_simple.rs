@@ -2,14 +2,12 @@
 //!
 //! 需求：只创建生产管理模块
 
-use swarm_engine::{
-    Goal, CompletionCondition,
-    ConditionEvaluator, ReconcileLoop, GoalOutcome,
-    AIWorkerExecutor,
-};
 use std::fs;
-use tokio::sync::Mutex;
 use std::sync::Arc;
+use swarm_engine::{
+    AIWorkerExecutor, CompletionCondition, ConditionEvaluator, Goal, GoalOutcome, ReconcileLoop,
+};
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
@@ -35,8 +33,11 @@ async fn main() {
 
     println!("【执行】发送任务给 Claude Code...\n");
 
-    let executor = AIWorkerExecutor::new("claude-worker", "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd")
-        .with_cwd("D:/tmp/mes-simple");
+    let executor = AIWorkerExecutor::new(
+        "claude-worker",
+        "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd",
+    )
+    .with_cwd("D:/tmp/mes-simple");
     let reconciler = ReconcileLoop::new(Arc::new(Mutex::new(executor)));
 
     let outcome = reconciler.reconcile_goal(&mut goal).await;
@@ -47,7 +48,10 @@ async fn main() {
     if std::path::Path::new("D:/tmp/mes-simple/src/production.ts").exists() {
         let content = fs::read_to_string("D:/tmp/mes-simple/src/production.ts").unwrap();
         println!("✅ 文件创建成功 ({:.1} KB)", content.len() as f64 / 1024.0);
-        println!("✅ 包含 ProductionOrder: {}", content.contains("ProductionOrder"));
+        println!(
+            "✅ 包含 ProductionOrder: {}",
+            content.contains("ProductionOrder")
+        );
         println!("\n内容预览:");
         println!("---");
         for line in content.lines().take(20) {

@@ -9,10 +9,9 @@
 //! 6. User calls goal_get_graph_summary → View progress
 
 use acp_ui_lib::{
-    Goal, GoalGraph, GoalStatus, CompletionCondition,
-    IterationRecord, EvaluationResult, ConditionResult,
-    SwarmOrchestrator, SwarmAgent, AgentRole, AgentSwarmStatus,
-    SwarmTopology, ConsensusStrategy,
+    AgentRole, AgentSwarmStatus, CompletionCondition, ConditionResult, ConsensusStrategy,
+    EvaluationResult, Goal, GoalGraph, GoalStatus, IterationRecord, SwarmAgent, SwarmOrchestrator,
+    SwarmTopology,
 };
 
 // ============================================================================
@@ -30,7 +29,8 @@ fn test_goal_submit_to_converge_chain() {
         CompletionCondition::OutputContains {
             text: "Build successful".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
 
     // Simulate goal_submit Tauri command
@@ -48,7 +48,9 @@ fn test_goal_submit_to_converge_chain() {
     assert_eq!(ready[0].id, "user-task-001");
 
     // === Step 4: User assigns worker ===
-    graph.assign_worker("user-task-001", "claude-code-worker".to_string()).unwrap();
+    graph
+        .assign_worker("user-task-001", "claude-code-worker".to_string())
+        .unwrap();
 
     let assigned = graph.get("user-task-001").unwrap();
     assert_eq!(assigned.status, GoalStatus::Active);
@@ -100,7 +102,9 @@ fn test_goal_submit_to_converge_chain() {
     graph.add_iteration("user-task-001", iteration2).unwrap();
 
     // === Step 8: User marks goal as converged ===
-    graph.update_status("user-task-001", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("user-task-001", GoalStatus::Converged)
+        .unwrap();
 
     // === Step 9: User checks final status ===
     let final_goal = graph.get("user-task-001").unwrap();
@@ -127,7 +131,8 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Tests written".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
     graph.submit(goal_a).unwrap();
 
@@ -137,7 +142,8 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Tests pass".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
     goal_b.depends_on.push("goal-a".to_string());
     graph.submit(goal_b).unwrap();
@@ -148,7 +154,8 @@ fn test_goal_chain_with_dependencies() {
         CompletionCondition::OutputContains {
             text: "Coverage report generated".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
     goal_c.depends_on.push("goal-b".to_string());
     graph.submit(goal_c).unwrap();
@@ -159,9 +166,15 @@ fn test_goal_chain_with_dependencies() {
     assert_eq!(ready[0].id, "goal-a");
 
     // === User executes A ===
-    graph.assign_worker("goal-a", "worker-1".to_string()).unwrap();
-    graph.add_iteration("goal-a", create_success_iteration(1, "Tests written")).unwrap();
-    graph.update_status("goal-a", GoalStatus::Converged).unwrap();
+    graph
+        .assign_worker("goal-a", "worker-1".to_string())
+        .unwrap();
+    graph
+        .add_iteration("goal-a", create_success_iteration(1, "Tests written"))
+        .unwrap();
+    graph
+        .update_status("goal-a", GoalStatus::Converged)
+        .unwrap();
 
     // === Now B is ready ===
     let ready = graph.get_ready_goals();
@@ -169,9 +182,15 @@ fn test_goal_chain_with_dependencies() {
     assert_eq!(ready[0].id, "goal-b");
 
     // === User executes B ===
-    graph.assign_worker("goal-b", "worker-2".to_string()).unwrap();
-    graph.add_iteration("goal-b", create_success_iteration(1, "Tests pass")).unwrap();
-    graph.update_status("goal-b", GoalStatus::Converged).unwrap();
+    graph
+        .assign_worker("goal-b", "worker-2".to_string())
+        .unwrap();
+    graph
+        .add_iteration("goal-b", create_success_iteration(1, "Tests pass"))
+        .unwrap();
+    graph
+        .update_status("goal-b", GoalStatus::Converged)
+        .unwrap();
 
     // === Now C is ready ===
     let ready = graph.get_ready_goals();
@@ -179,9 +198,18 @@ fn test_goal_chain_with_dependencies() {
     assert_eq!(ready[0].id, "goal-c");
 
     // === User executes C ===
-    graph.assign_worker("goal-c", "worker-3".to_string()).unwrap();
-    graph.add_iteration("goal-c", create_success_iteration(1, "Coverage report generated")).unwrap();
-    graph.update_status("goal-c", GoalStatus::Converged).unwrap();
+    graph
+        .assign_worker("goal-c", "worker-3".to_string())
+        .unwrap();
+    graph
+        .add_iteration(
+            "goal-c",
+            create_success_iteration(1, "Coverage report generated"),
+        )
+        .unwrap();
+    graph
+        .update_status("goal-c", GoalStatus::Converged)
+        .unwrap();
 
     // === Final: All converged ===
     let summary = graph.summary();
@@ -223,31 +251,41 @@ fn test_swarm_task_creation_to_completion_chain() {
     orchestrator.register_agent(exec2).unwrap();
 
     // === Step 2: User creates task ===
-    let task = orchestrator.create_task(
-        "Fix all TypeScript errors".to_string(),
-        Some(SwarmTopology::Hierarchical),
-        Some(ConsensusStrategy::FirstWins),
-    ).unwrap();
+    let task = orchestrator
+        .create_task(
+            "Fix all TypeScript errors".to_string(),
+            Some(SwarmTopology::Hierarchical),
+            Some(ConsensusStrategy::FirstWins),
+        )
+        .unwrap();
 
     assert!(!task.id.is_empty());
     assert!(task.assigned_agents.len() >= 2);
 
     // === Step 3: User checks agent status ===
     let agents = orchestrator.list_agents();
-    for agent in agents.iter().filter(|a| task.assigned_agents.contains(&a.id)) {
+    for agent in agents
+        .iter()
+        .filter(|a| task.assigned_agents.contains(&a.id))
+    {
         assert_eq!(agent.status, AgentSwarmStatus::Assigned);
     }
 
     // === Step 4: Worker submits result ===
     let result = create_test_result(&task.id, true, "Fixed all errors");
-    let status = orchestrator.submit_result(&task.id, &task.assigned_agents[0], result).unwrap();
+    let status = orchestrator
+        .submit_result(&task.id, &task.assigned_agents[0], result)
+        .unwrap();
 
     // With FirstWins, first success should complete
     assert_eq!(status, acp_ui_lib::SwarmTaskStatus::Completed);
 
     // === Step 5: User checks task status ===
     let completed_task = orchestrator.get_task(&task.id).unwrap();
-    assert_eq!(completed_task.status, acp_ui_lib::SwarmTaskStatus::Completed);
+    assert_eq!(
+        completed_task.status,
+        acp_ui_lib::SwarmTaskStatus::Completed
+    );
     assert!(completed_task.completed_at.is_some());
 
     // === Step 6: User checks health ===
@@ -267,7 +305,9 @@ fn test_swarm_cancel_and_retry_chain() {
     orchestrator.register_agent(exec).unwrap();
 
     // === Step 1: Create task ===
-    let task = orchestrator.create_task("Task to cancel".to_string(), None, None).unwrap();
+    let task = orchestrator
+        .create_task("Task to cancel".to_string(), None, None)
+        .unwrap();
 
     // === Step 2: Cancel task ===
     orchestrator.cancel_task(&task.id).unwrap();
@@ -279,12 +319,16 @@ fn test_swarm_cancel_and_retry_chain() {
     }
 
     // === Step 4: Create new task (retry) ===
-    let new_task = orchestrator.create_task("Retry task".to_string(), None, None).unwrap();
+    let new_task = orchestrator
+        .create_task("Retry task".to_string(), None, None)
+        .unwrap();
     assert_ne!(new_task.id, task.id);
 
     // === Step 5: Complete new task ===
     let result = create_test_result(&new_task.id, true, "Success");
-    orchestrator.submit_result(&new_task.id, &new_task.assigned_agents[0], result).unwrap();
+    orchestrator
+        .submit_result(&new_task.id, &new_task.assigned_agents[0], result)
+        .unwrap();
 
     let health = orchestrator.get_health();
     assert_eq!(health.completed_tasks, 1);
@@ -331,12 +375,15 @@ fn test_goal_cancel_chain() {
         CompletionCondition::OutputContains {
             text: "done".to_string(),
             case_sensitive: false,
-        }.to_spec(),
+        }
+        .to_spec(),
     );
     graph.submit(goal).unwrap();
 
     // === User assigns worker ===
-    graph.assign_worker("cancel-test", "worker-001".to_string()).unwrap();
+    graph
+        .assign_worker("cancel-test", "worker-001".to_string())
+        .unwrap();
     assert_eq!(graph.get("cancel-test").unwrap().status, GoalStatus::Active);
 
     // === User cancels goal ===

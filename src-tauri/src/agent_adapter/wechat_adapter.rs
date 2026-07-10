@@ -7,11 +7,13 @@
 // - 代码审查
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            SceneType, Platform, AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, Platform, ResultStatus, SceneType, TaskInput,
+        TaskOutput, TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -117,11 +119,17 @@ impl WeChatMiniProgramAdapter {
     }
 
     /// 执行微信开发者工具 CLI 命令
-    async fn execute_cli(&self, action: WeChatAction, args: &[String]) -> Result<String, AgentError> {
-        let cli_path = self.devtools_path.clone()
+    async fn execute_cli(
+        &self,
+        action: WeChatAction,
+        args: &[String],
+    ) -> Result<String, AgentError> {
+        let cli_path = self
+            .devtools_path
+            .clone()
             .or_else(|| Self::detect_devtools_path())
             .ok_or_else(|| AgentError::ConfigurationError {
-                message: "微信开发者工具未安装或路径未配置".to_string()
+                message: "微信开发者工具未安装或路径未配置".to_string(),
             })?;
 
         let mut cmd = Command::new(&cli_path);
@@ -154,11 +162,10 @@ impl WeChatMiniProgramAdapter {
             }
         }
 
-        let output = cmd.output()
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("执行微信开发者工具失败: {}", e),
-                retryable: false,
-            })?;
+        let output = cmd.output().map_err(|e| AgentError::ExecutionError {
+            message: format!("执行微信开发者工具失败: {}", e),
+            retryable: false,
+        })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -171,7 +178,11 @@ impl WeChatMiniProgramAdapter {
     }
 
     /// 创建小程序项目
-    async fn create_project(&self, project_name: &str, path: &str) -> Result<AgentResult, AgentError> {
+    async fn create_project(
+        &self,
+        project_name: &str,
+        path: &str,
+    ) -> Result<AgentResult, AgentError> {
         let args = vec![
             "--project".to_string(),
             path.to_string(),
@@ -199,13 +210,20 @@ impl WeChatMiniProgramAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::new(),
         })
     }
 
     /// 编译项目
-    async fn compile_project(&self, project_path: &str, mode: WeChatCompileMode) -> Result<AgentResult, AgentError> {
+    async fn compile_project(
+        &self,
+        project_path: &str,
+        mode: WeChatCompileMode,
+    ) -> Result<AgentResult, AgentError> {
         let args = vec![
             "--project".to_string(),
             project_path.to_string(),
@@ -233,7 +251,10 @@ impl WeChatMiniProgramAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::new(),
         })
     }
@@ -267,13 +288,21 @@ impl WeChatMiniProgramAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([("qr_code".to_string(), "generated".to_string())]),
         })
     }
 
     /// 上传代码
-    async fn upload_project(&self, project_path: &str, version: &str, desc: &str) -> Result<AgentResult, AgentError> {
+    async fn upload_project(
+        &self,
+        project_path: &str,
+        version: &str,
+        desc: &str,
+    ) -> Result<AgentResult, AgentError> {
         let args = vec![
             "--project".to_string(),
             project_path.to_string(),
@@ -303,10 +332,20 @@ impl WeChatMiniProgramAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("version".to_string(), version.to_string()),
-                ("upload_time".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()),
+                (
+                    "upload_time".to_string(),
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                        .to_string(),
+                ),
             ]),
         })
     }
@@ -363,16 +402,15 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
 
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
         // 解析微信配置
-        let app_id = config.metadata.get("app_id")
-            .cloned()
-            .unwrap_or_default();
+        let app_id = config.metadata.get("app_id").cloned().unwrap_or_default();
 
-        let project_path = config.metadata.get("project_path")
+        let project_path = config
+            .metadata
+            .get("project_path")
             .map(PathBuf::from)
             .unwrap_or_default();
 
-        let devtools_path = config.metadata.get("devtools_path")
-            .map(PathBuf::from);
+        let devtools_path = config.metadata.get("devtools_path").map(PathBuf::from);
 
         self.devtools_path = devtools_path.or_else(|| Self::detect_devtools_path());
 
@@ -391,7 +429,7 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
     async fn validate_config(&self) -> Result<bool, AgentError> {
         if self.devtools_path.is_none() {
             return Err(AgentError::ConfigurationError {
-                message: "微信开发者工具未安装".to_string()
+                message: "微信开发者工具未安装".to_string(),
             });
         }
 
@@ -404,7 +442,9 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
         // 解析任务类型
         let action = match task.description.as_str() {
             s if s.contains("创建") || s.contains("create") => WeChatAction::Create,
-            s if s.contains("编译") || s.contains("compile") || s.contains("build") => WeChatAction::Compile,
+            s if s.contains("编译") || s.contains("compile") || s.contains("build") => {
+                WeChatAction::Compile
+            }
             s if s.contains("预览") || s.contains("preview") => WeChatAction::Preview,
             s if s.contains("上传") || s.contains("upload") => WeChatAction::Upload,
             s if s.contains("审查") || s.contains("audit") => WeChatAction::Audit,
@@ -423,15 +463,30 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
                 let d = parts.get(3).unwrap_or(&"上传").to_string();
                 (path, name, ver, d)
             }
-            TaskInput::File(path) => (path.clone(), "miniprogram".to_string(), "1.0.0".to_string(), "上传".to_string()),
-            _ => (self.config.as_ref().map(|c| c.project_path.to_string_lossy().to_string()).unwrap_or(".".to_string()),
-                  "miniprogram".to_string(), "1.0.0".to_string(), "上传".to_string()),
+            TaskInput::File(path) => (
+                path.clone(),
+                "miniprogram".to_string(),
+                "1.0.0".to_string(),
+                "上传".to_string(),
+            ),
+            _ => (
+                self.config
+                    .as_ref()
+                    .map(|c| c.project_path.to_string_lossy().to_string())
+                    .unwrap_or(".".to_string()),
+                "miniprogram".to_string(),
+                "1.0.0".to_string(),
+                "上传".to_string(),
+            ),
         };
 
         // 执行对应操作
         let result = match action {
             WeChatAction::Create => self.create_project(&project_name, &project_path).await?,
-            WeChatAction::Compile => self.compile_project(&project_path, WeChatCompileMode::Development).await?,
+            WeChatAction::Compile => {
+                self.compile_project(&project_path, WeChatCompileMode::Development)
+                    .await?
+            }
             WeChatAction::Preview => self.preview_project(&project_path).await?,
             WeChatAction::Upload => self.upload_project(&project_path, &version, &desc).await?,
             WeChatAction::Audit => {
@@ -448,13 +503,20 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
                     cost: ActualCost {
                         amount: 0.0,
                         currency: "CNY".to_string(),
-                        token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
                     },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
-            },
+            }
             WeChatAction::BuildNpm => {
                 let args = vec!["--project".to_string(), project_path.clone()];
                 let output = self.execute_cli(WeChatAction::BuildNpm, &args).await?;
@@ -469,13 +531,20 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
                     cost: ActualCost {
                         amount: 0.0,
                         currency: "CNY".to_string(),
-                        token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
                     },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
-            },
+            }
         };
 
         Ok(result)
@@ -522,7 +591,12 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -546,7 +620,11 @@ impl AgentAdapter for WeChatMiniProgramAdapter {
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
     async fn reset_circuit_breaker(&mut self) {

@@ -9,11 +9,13 @@
 // - YAML 配置生成
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput,
+        TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -142,7 +144,7 @@ impl KubernetesAdapter {
             .arg("--client")
             .output()
             .map_err(|e| AgentError::ConfigurationError {
-                message: format!("kubectl 未安装: {}", e)
+                message: format!("kubectl 未安装: {}", e),
             })?;
 
         Ok(output.status.success())
@@ -153,11 +155,10 @@ impl KubernetesAdapter {
         let mut cmd = Command::new("kubectl");
         cmd.args(args);
 
-        let output = cmd.output()
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("执行 kubectl 命令失败: {}", e),
-                retryable: false,
-            })?;
+        let output = cmd.output().map_err(|e| AgentError::ExecutionError {
+            message: format!("执行 kubectl 命令失败: {}", e),
+            retryable: false,
+        })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -287,13 +288,19 @@ impl KubernetesAdapter {
     }
 
     /// 生成完整 K8s YAML 配置
-    async fn generate_full_yaml(&self, config: &KubernetesConfig) -> Result<AgentResult, AgentError> {
+    async fn generate_full_yaml(
+        &self,
+        config: &KubernetesConfig,
+    ) -> Result<AgentResult, AgentError> {
         let deployment_yaml = self.generate_deployment_yaml(config);
         let service_yaml = self.generate_service_yaml(config);
 
         let full_yaml = if let Some(ingress) = &config.ingress {
             let ingress_yaml = self.generate_ingress_yaml(config, ingress);
-            format!("---\n{}\n---\n{}\n---\n{}", deployment_yaml, service_yaml, ingress_yaml)
+            format!(
+                "---\n{}\n---\n{}\n---\n{}",
+                deployment_yaml, service_yaml, ingress_yaml
+            )
         } else {
             format!("---\n{}\n---\n{}", deployment_yaml, service_yaml)
         };
@@ -316,7 +323,10 @@ impl KubernetesAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("namespace".to_string(), config.namespace.clone()),
                 ("deployment".to_string(), config.deployment_name.clone()),
@@ -325,31 +335,42 @@ impl KubernetesAdapter {
     }
 
     /// 应用 K8s 配置
-    async fn apply_config(&self, yaml_content: &str, namespace: &str) -> Result<AgentResult, AgentError> {
-        let args = vec!["apply".to_string(), "-f".to_string(), "-".to_string(), "-n".to_string(), namespace.to_string()];
+    async fn apply_config(
+        &self,
+        yaml_content: &str,
+        namespace: &str,
+    ) -> Result<AgentResult, AgentError> {
+        let args = vec![
+            "apply".to_string(),
+            "-f".to_string(),
+            "-".to_string(),
+            "-n".to_string(),
+            namespace.to_string(),
+        ];
 
         // 使用 stdin 传入 YAML
         let mut cmd = Command::new("kubectl");
         cmd.args(&args);
         cmd.stdin(std::process::Stdio::piped());
 
-        let mut child = cmd.spawn()
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("执行 kubectl apply 失败: {}", e),
-                retryable: false,
-            })?;
+        let mut child = cmd.spawn().map_err(|e| AgentError::ExecutionError {
+            message: format!("执行 kubectl apply 失败: {}", e),
+            retryable: false,
+        })?;
 
         // 写入 YAML 到 stdin
         use std::io::Write;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(yaml_content.as_bytes())
+            stdin
+                .write_all(yaml_content.as_bytes())
                 .map_err(|e| AgentError::ExecutionError {
                     message: format!("写入 YAML 失败: {}", e),
                     retryable: false,
                 })?;
         }
 
-        let output = child.wait_with_output()
+        let output = child
+            .wait_with_output()
             .map_err(|e| AgentError::ExecutionError {
                 message: format!("等待 kubectl 执行失败: {}", e),
                 retryable: false,
@@ -364,9 +385,20 @@ impl KubernetesAdapter {
                 input_tokens: 0,
                 output_tokens: output.stdout.len() as u64 / 4,
                 total_tokens: output.stdout.len() as u64 / 4,
-                cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.stdout.len() as u64 / 4, total_tokens: output.stdout.len() as u64 / 4 } },
+                cost: ActualCost {
+                    amount: 0.0,
+                    currency: "CNY".to_string(),
+                    token_usage: TokenUsage {
+                        input_tokens: 0,
+                        output_tokens: output.stdout.len() as u64 / 4,
+                        total_tokens: output.stdout.len() as u64 / 4,
+                    },
+                },
                 duration_ms: 0,
-                timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
                 metadata: HashMap::new(),
             })
         } else {
@@ -378,8 +410,18 @@ impl KubernetesAdapter {
     }
 
     /// 获取 Deployment 状态
-    async fn get_deployment_status(&self, name: &str, namespace: &str) -> Result<AgentResult, AgentError> {
-        let args = vec!["get".to_string(), "deployment".to_string(), name.to_string(), "-n".to_string(), namespace.to_string()];
+    async fn get_deployment_status(
+        &self,
+        name: &str,
+        namespace: &str,
+    ) -> Result<AgentResult, AgentError> {
+        let args = vec![
+            "get".to_string(),
+            "deployment".to_string(),
+            name.to_string(),
+            "-n".to_string(),
+            namespace.to_string(),
+        ];
         let output = self.execute_kubectl(&args).await?;
 
         Ok(AgentResult {
@@ -390,9 +432,20 @@ impl KubernetesAdapter {
             input_tokens: 0,
             output_tokens: output.len() as u64 / 4,
             total_tokens: output.len() as u64 / 4,
-            cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+            cost: ActualCost {
+                amount: 0.0,
+                currency: "CNY".to_string(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
+            },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("deployment".to_string(), name.to_string()),
                 ("namespace".to_string(), namespace.to_string()),
@@ -401,7 +454,12 @@ impl KubernetesAdapter {
     }
 
     /// 扩缩容
-    async fn scale_deployment(&self, name: &str, namespace: &str, replicas: u32) -> Result<AgentResult, AgentError> {
+    async fn scale_deployment(
+        &self,
+        name: &str,
+        namespace: &str,
+        replicas: u32,
+    ) -> Result<AgentResult, AgentError> {
         let args = vec![
             "scale".to_string(),
             "deployment".to_string(),
@@ -416,13 +474,27 @@ impl KubernetesAdapter {
             task_id: uuid::Uuid::new_v4().to_string(),
             agent_id: self.id.clone(),
             status: ResultStatus::Success,
-            output: TaskOutput::Text(format!("扩缩容成功: {} -> {} replicas\n{}", name, replicas, output)),
+            output: TaskOutput::Text(format!(
+                "扩缩容成功: {} -> {} replicas\n{}",
+                name, replicas, output
+            )),
             input_tokens: 0,
             output_tokens: output.len() as u64 / 4,
             total_tokens: output.len() as u64 / 4,
-            cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+            cost: ActualCost {
+                amount: 0.0,
+                currency: "CNY".to_string(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
+            },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("deployment".to_string(), name.to_string()),
                 ("replicas".to_string(), replicas.to_string()),
@@ -489,19 +561,39 @@ impl AgentAdapter for KubernetesAdapter {
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
         Self::check_kubectl_installed()?;
 
-        let namespace = config.metadata.get("namespace").cloned().unwrap_or("default".to_string());
-        let deployment_name = config.metadata.get("deployment_name").cloned().unwrap_or("app".to_string());
-        let image = config.metadata.get("image").cloned().unwrap_or("app:latest".to_string());
-        let replicas = config.metadata.get("replicas")
+        let namespace = config
+            .metadata
+            .get("namespace")
+            .cloned()
+            .unwrap_or("default".to_string());
+        let deployment_name = config
+            .metadata
+            .get("deployment_name")
+            .cloned()
+            .unwrap_or("app".to_string());
+        let image = config
+            .metadata
+            .get("image")
+            .cloned()
+            .unwrap_or("app:latest".to_string());
+        let replicas = config
+            .metadata
+            .get("replicas")
             .and_then(|r| r.parse::<u32>().ok())
             .unwrap_or(3);
-        let container_port = config.metadata.get("container_port")
+        let container_port = config
+            .metadata
+            .get("container_port")
             .and_then(|p| p.parse::<u32>().ok())
             .unwrap_or(8080);
-        let service_port = config.metadata.get("service_port")
+        let service_port = config
+            .metadata
+            .get("service_port")
             .and_then(|p| p.parse::<u32>().ok())
             .unwrap_or(80);
-        let service_type = config.metadata.get("service_type")
+        let service_type = config
+            .metadata
+            .get("service_type")
             .map(|t| match t.as_str() {
                 "NodePort" => ServiceType::NodePort,
                 "LoadBalancer" => ServiceType::LoadBalancer,
@@ -510,7 +602,11 @@ impl AgentAdapter for KubernetesAdapter {
             .unwrap_or(ServiceType::ClusterIP);
 
         let ingress_host = config.metadata.get("ingress_host").cloned();
-        let ingress_path = config.metadata.get("ingress_path").cloned().unwrap_or("/".to_string());
+        let ingress_path = config
+            .metadata
+            .get("ingress_path")
+            .cloned()
+            .unwrap_or("/".to_string());
 
         let ingress = ingress_host.map(|host| IngressConfig {
             host,
@@ -543,8 +639,12 @@ impl AgentAdapter for KubernetesAdapter {
         let start = Instant::now();
 
         let action = match task.description.as_str() {
-            s if s.contains("生成") || s.contains("yaml") || s.contains("配置") => KubernetesAction::GenerateYaml,
-            s if s.contains("应用") || s.contains("apply") || s.contains("部署") => KubernetesAction::Apply,
+            s if s.contains("生成") || s.contains("yaml") || s.contains("配置") => {
+                KubernetesAction::GenerateYaml
+            }
+            s if s.contains("应用") || s.contains("apply") || s.contains("部署") => {
+                KubernetesAction::Apply
+            }
             s if s.contains("删除") || s.contains("delete") => KubernetesAction::Delete,
             s if s.contains("状态") || s.contains("get") => KubernetesAction::Get,
             s if s.contains("日志") || s.contains("logs") => KubernetesAction::Logs,
@@ -554,8 +654,12 @@ impl AgentAdapter for KubernetesAdapter {
             _ => KubernetesAction::GenerateYaml,
         };
 
-        let config = self.config.as_ref()
-            .ok_or_else(|| AgentError::ConfigurationError { message: "K8s 配置未初始化".to_string() })?;
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| AgentError::ConfigurationError {
+                message: "K8s 配置未初始化".to_string(),
+            })?;
 
         let result = match action {
             KubernetesAction::GenerateYaml => self.generate_full_yaml(config).await?,
@@ -568,7 +672,13 @@ impl AgentAdapter for KubernetesAdapter {
                 self.apply_config(&yaml_content, &config.namespace).await?
             }
             KubernetesAction::Delete => {
-                let args = vec!["delete".to_string(), "deployment".to_string(), config.deployment_name.clone(), "-n".to_string(), config.namespace.clone()];
+                let args = vec![
+                    "delete".to_string(),
+                    "deployment".to_string(),
+                    config.deployment_name.clone(),
+                    "-n".to_string(),
+                    config.namespace.clone(),
+                ];
                 let output = self.execute_kubectl(&args).await?;
                 AgentResult {
                     task_id: task.id.clone(),
@@ -578,22 +688,42 @@ impl AgentAdapter for KubernetesAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
-            KubernetesAction::Get => self.get_deployment_status(&config.deployment_name, &config.namespace).await?,
+            KubernetesAction::Get => {
+                self.get_deployment_status(&config.deployment_name, &config.namespace)
+                    .await?
+            }
             KubernetesAction::Scale => {
                 let new_replicas = match &task.input {
                     TaskInput::Text(text) => text.trim().parse::<u32>().unwrap_or(5),
                     _ => 5,
                 };
-                self.scale_deployment(&config.deployment_name, &config.namespace, new_replicas).await?
+                self.scale_deployment(&config.deployment_name, &config.namespace, new_replicas)
+                    .await?
             }
             KubernetesAction::Logs => {
-                let args = vec!["logs".to_string(), format!("deployment/{}", config.deployment_name), "-n".to_string(), config.namespace.clone()];
+                let args = vec![
+                    "logs".to_string(),
+                    format!("deployment/{}", config.deployment_name),
+                    "-n".to_string(),
+                    config.namespace.clone(),
+                ];
                 let output = self.execute_kubectl(&args).await?;
                 AgentResult {
                     task_id: task.id.clone(),
@@ -603,14 +733,30 @@ impl AgentAdapter for KubernetesAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
             KubernetesAction::Events => {
-                let args = vec!["get".to_string(), "events".to_string(), "-n".to_string(), config.namespace.clone()];
+                let args = vec![
+                    "get".to_string(),
+                    "events".to_string(),
+                    "-n".to_string(),
+                    config.namespace.clone(),
+                ];
                 let output = self.execute_kubectl(&args).await?;
                 AgentResult {
                     task_id: task.id.clone(),
@@ -620,9 +766,20 @@ impl AgentAdapter for KubernetesAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -630,25 +787,51 @@ impl AgentAdapter for KubernetesAdapter {
                 let (local_port, pod_port) = match &task.input {
                     TaskInput::Text(text) => {
                         let parts: Vec<&str> = text.split(':').collect();
-                        let lp = parts.get(0).and_then(|s| s.parse::<u16>().ok()).unwrap_or(8080);
-                        let pp = parts.get(1).and_then(|s| s.parse::<u16>().ok()).unwrap_or(80);
+                        let lp = parts
+                            .get(0)
+                            .and_then(|s| s.parse::<u16>().ok())
+                            .unwrap_or(8080);
+                        let pp = parts
+                            .get(1)
+                            .and_then(|s| s.parse::<u16>().ok())
+                            .unwrap_or(80);
                         (lp, pp)
                     }
                     _ => (8080, 80),
                 };
-                let args = vec!["port-forward".to_string(), format!("deployment/{}", config.deployment_name), "-n".to_string(), config.namespace.clone(), format!("{}:{}", local_port, pod_port)];
+                let args = vec![
+                    "port-forward".to_string(),
+                    format!("deployment/{}", config.deployment_name),
+                    "-n".to_string(),
+                    config.namespace.clone(),
+                    format!("{}:{}", local_port, pod_port),
+                ];
                 let output = self.execute_kubectl(&args).await?;
                 AgentResult {
                     task_id: task.id.clone(),
                     agent_id: self.id.clone(),
                     status: ResultStatus::Success,
-                    output: TaskOutput::Text(format!("端口转发成功: {} -> {}\n{}", local_port, pod_port, output)),
+                    output: TaskOutput::Text(format!(
+                        "端口转发成功: {} -> {}\n{}",
+                        local_port, pod_port, output
+                    )),
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -696,7 +879,12 @@ impl AgentAdapter for KubernetesAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -717,7 +905,11 @@ impl AgentAdapter for KubernetesAdapter {
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
     async fn reset_circuit_breaker(&mut self) {

@@ -193,11 +193,7 @@ impl McpClient {
     }
 
     /// Initialize connection to an MCP server (send initialize request)
-    pub fn connect(
-        &mut self,
-        server_name: &str,
-        process: Child,
-    ) -> Result<Vec<McpTool>, String> {
+    pub fn connect(&mut self, server_name: &str, process: Child) -> Result<Vec<McpTool>, String> {
         if self.connections.contains_key(server_name) {
             return Err(format!("Already connected to MCP server '{}'", server_name));
         }
@@ -214,7 +210,8 @@ impl McpClient {
             }
         });
 
-        let init_response = Self::send_request_internal(&mut conn, "initialize", Some(init_params))?;
+        let init_response =
+            Self::send_request_internal(&mut conn, "initialize", Some(init_params))?;
 
         if let Some(err) = init_response.error {
             return Err(format!("Initialize failed: {}", err));
@@ -426,7 +423,10 @@ impl McpClient {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
-                        let text = resource.get("text").and_then(|v| v.as_str()).map(String::from);
+                        let text = resource
+                            .get("text")
+                            .and_then(|v| v.as_str())
+                            .map(String::from);
                         contents.push(McpContent::Resource { uri, text });
                     }
                 }
@@ -490,8 +490,14 @@ impl McpClient {
         }
 
         // Parse response
-        let response: JsonRpcResponse = serde_json::from_str(response_line.trim())
-            .map_err(|e| format!("Failed to parse JSON-RPC response: {} - line: {}", e, response_line.trim()))?;
+        let response: JsonRpcResponse =
+            serde_json::from_str(response_line.trim()).map_err(|e| {
+                format!(
+                    "Failed to parse JSON-RPC response: {} - line: {}",
+                    e,
+                    response_line.trim()
+                )
+            })?;
 
         // Verify response ID matches
         if response.id != id {
@@ -517,8 +523,8 @@ impl McpClient {
             "params": params.unwrap_or(Value::Null)
         });
 
-        let notification_json = serde_json::to_string(&notification)
-            .map_err(|e| format!("Serialize error: {}", e))?;
+        let notification_json =
+            serde_json::to_string(&notification).map_err(|e| format!("Serialize error: {}", e))?;
 
         let stdin = conn
             .stdin
@@ -646,7 +652,8 @@ pub fn mcp_connect(
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
-        let child = cmd.spawn()
+        let child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to spawn MCP server '{}': {}", server_name, e))?;
 
         let mut client = state.mcp_client.lock().map_err(|e| e.to_string())?;

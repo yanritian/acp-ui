@@ -1,10 +1,10 @@
 // Game Build Monitor
 // Phase 2 Day 7: Real-time build progress monitoring
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
 // ===== Types =====
@@ -15,7 +15,7 @@ pub struct BuildProgress {
     pub id: String,
     pub engine: String,
     pub stage: BuildStage,
-    pub progress: f32,  // 0.0 to 1.0
+    pub progress: f32, // 0.0 to 1.0
     pub message: String,
     pub started_at: u64,
     pub elapsed_ms: u64,
@@ -145,7 +145,8 @@ impl BuildMonitor {
             // Estimate remaining time
             if progress_value > 0.0 && progress_value < 1.0 {
                 let total_estimated = (elapsed as f64 / progress_value as f64) as u64;
-                state.progress.estimated_remaining_ms = Some(total_estimated.saturating_sub(elapsed));
+                state.progress.estimated_remaining_ms =
+                    Some(total_estimated.saturating_sub(elapsed));
             }
 
             // Add log entry

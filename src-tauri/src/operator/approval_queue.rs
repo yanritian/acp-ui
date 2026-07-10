@@ -1,9 +1,9 @@
 // Approval Queue - Manage approval requests for dangerous operations
 
-use crate::operator::{ApprovalRequest, ApprovalLevel, ApprovalDecision};
+use crate::operator::{ApprovalDecision, ApprovalLevel, ApprovalRequest};
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Approval Queue
@@ -24,7 +24,9 @@ impl ApprovalQueue {
 
     /// Add an approval request to the queue
     pub fn enqueue(&self, request: ApprovalRequest) -> Result<(), ApprovalQueueError> {
-        let mut queue = self.queue.lock()
+        let mut queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
         queue.push_back(request);
@@ -33,7 +35,9 @@ impl ApprovalQueue {
 
     /// Get the next pending approval request
     pub fn dequeue(&self) -> Result<Option<ApprovalRequest>, ApprovalQueueError> {
-        let mut queue = self.queue.lock()
+        let mut queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
         Ok(queue.pop_front())
@@ -41,28 +45,41 @@ impl ApprovalQueue {
 
     /// Get all pending approval requests
     pub fn get_pending(&self) -> Result<Vec<ApprovalRequest>, ApprovalQueueError> {
-        let queue = self.queue.lock()
+        let queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
-        Ok(queue.iter()
+        Ok(queue
+            .iter()
             .filter(|r| r.decision.is_none())
             .cloned()
             .collect())
     }
 
     /// Get approval request by ID
-    pub fn get_by_id(&self, approval_id: &str) -> Result<Option<ApprovalRequest>, ApprovalQueueError> {
-        let queue = self.queue.lock()
+    pub fn get_by_id(
+        &self,
+        approval_id: &str,
+    ) -> Result<Option<ApprovalRequest>, ApprovalQueueError> {
+        let queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
-        Ok(queue.iter()
-            .find(|r| r.approval_id == approval_id)
-            .cloned())
+        Ok(queue.iter().find(|r| r.approval_id == approval_id).cloned())
     }
 
     /// Resolve an approval request
-    pub fn resolve(&self, approval_id: &str, decision: ApprovalDecision, resolved_by: &str) -> Result<(), ApprovalQueueError> {
-        let mut queue = self.queue.lock()
+    pub fn resolve(
+        &self,
+        approval_id: &str,
+        decision: ApprovalDecision,
+        resolved_by: &str,
+    ) -> Result<(), ApprovalQueueError> {
+        let mut queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
         if let Some(request) = queue.iter_mut().find(|r| r.approval_id == approval_id) {
@@ -77,13 +94,21 @@ impl ApprovalQueue {
 
     /// Get queue statistics
     pub fn get_stats(&self) -> Result<ApprovalQueueStats, ApprovalQueueError> {
-        let queue = self.queue.lock()
+        let queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
         let total = queue.len();
         let pending = queue.iter().filter(|r| r.decision.is_none()).count();
-        let approved = queue.iter().filter(|r| matches!(r.decision, Some(ApprovalDecision::Approve))).count();
-        let rejected = queue.iter().filter(|r| matches!(r.decision, Some(ApprovalDecision::Reject))).count();
+        let approved = queue
+            .iter()
+            .filter(|r| matches!(r.decision, Some(ApprovalDecision::Approve)))
+            .count();
+        let rejected = queue
+            .iter()
+            .filter(|r| matches!(r.decision, Some(ApprovalDecision::Reject)))
+            .count();
 
         Ok(ApprovalQueueStats {
             task_id: self.task_id.clone(),
@@ -96,7 +121,9 @@ impl ApprovalQueue {
 
     /// Clear resolved requests from the queue
     pub fn clear_resolved(&self) -> Result<usize, ApprovalQueueError> {
-        let mut queue = self.queue.lock()
+        let mut queue = self
+            .queue
+            .lock()
             .map_err(|e| ApprovalQueueError::LockError(e.to_string()))?;
 
         let initial_len = queue.len();

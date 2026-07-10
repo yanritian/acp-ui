@@ -10,7 +10,7 @@
 
 #![allow(dead_code)] // Helper functions reserved for future topology builders
 
-use crate::goal::{Goal, GoalStatus, CompletionCondition};
+use crate::goal::{CompletionCondition, Goal, GoalStatus};
 use crate::goal_graph::GoalGraph;
 use crate::reconcile::ReconcileLoop;
 use crate::swarm_adapters::WorkerId;
@@ -32,14 +32,14 @@ pub enum Topology {
 ///
 /// All goals execute in parallel — no dependencies.
 /// Returns when all goals reach a terminal state.
-pub fn execute_star(
-    goals: Vec<Goal>,
-    reconcile: &ReconcileLoop,
-) -> HashMap<String, GoalStatus> {
+pub fn execute_star(goals: Vec<Goal>, reconcile: &ReconcileLoop) -> HashMap<String, GoalStatus> {
     let mut graph = GoalGraph::new();
     for goal in goals {
         if let Err(e) = graph.add_goal(goal) {
-            eprintln!("[topology] Warning: failed to add goal to star graph: {}", e);
+            eprintln!(
+                "[topology] Warning: failed to add goal to star graph: {}",
+                e
+            );
         }
     }
 
@@ -50,10 +50,7 @@ pub fn execute_star(
 ///
 /// Each goal depends on the previous one — sequential execution.
 /// The output of each goal is fed as context to the next.
-pub fn execute_chain(
-    goals: Vec<Goal>,
-    reconcile: &ReconcileLoop,
-) -> HashMap<String, GoalStatus> {
+pub fn execute_chain(goals: Vec<Goal>, reconcile: &ReconcileLoop) -> HashMap<String, GoalStatus> {
     let mut graph = GoalGraph::new();
     let mut prev_id: Option<String> = None;
 
@@ -64,7 +61,10 @@ pub fn execute_chain(
         let id = goal.id.clone();
         prev_id = Some(id.clone());
         if let Err(e) = graph.add_goal(goal) {
-            eprintln!("[topology] Warning: failed to add goal to chain graph: {}", e);
+            eprintln!(
+                "[topology] Warning: failed to add goal to chain graph: {}",
+                e
+            );
         }
     }
 
@@ -78,10 +78,7 @@ pub fn execute_chain(
 /// 2. Execute each ready goal through reconcile loop
 /// 3. Check for blocked/deadlocked goals
 /// 4. Repeat until all goals are terminal or blocked
-fn run_graph(
-    graph: &mut GoalGraph,
-    reconcile: &ReconcileLoop,
-) -> HashMap<String, GoalStatus> {
+fn run_graph(graph: &mut GoalGraph, reconcile: &ReconcileLoop) -> HashMap<String, GoalStatus> {
     let mut results: HashMap<String, GoalStatus> = HashMap::new();
 
     loop {
@@ -134,7 +131,9 @@ fn run_graph(
 
     // Collect final statuses
     for goal in graph.all_goals() {
-        results.entry(goal.id.clone()).or_insert_with(|| goal.status.clone());
+        results
+            .entry(goal.id.clone())
+            .or_insert_with(|| goal.status.clone());
     }
 
     results

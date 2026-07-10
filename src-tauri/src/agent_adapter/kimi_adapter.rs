@@ -4,11 +4,13 @@
 // Supports text generation, translation, copywriting
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenEstimate,
+        TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use reqwest::Client;
@@ -150,18 +152,31 @@ impl KimiAdapter {
     }
 
     /// Generate text via Kimi API
-    pub async fn generate(&self, prompt: &str, system_prompt: Option<&str>) -> Result<(String, KimiUsage), AgentError> {
+    pub async fn generate(
+        &self,
+        prompt: &str,
+        system_prompt: Option<&str>,
+    ) -> Result<(String, KimiUsage), AgentError> {
         let config = self.config.as_ref().ok_or(AgentError::ConfigurationError {
             message: "Kimi API key not configured".to_string(),
         })?;
 
         let messages = if let Some(system) = system_prompt {
             vec![
-                KimiMessage { role: "system".to_string(), content: system.to_string() },
-                KimiMessage { role: "user".to_string(), content: prompt.to_string() },
+                KimiMessage {
+                    role: "system".to_string(),
+                    content: system.to_string(),
+                },
+                KimiMessage {
+                    role: "user".to_string(),
+                    content: prompt.to_string(),
+                },
             ]
         } else {
-            vec![KimiMessage { role: "user".to_string(), content: prompt.to_string() }]
+            vec![KimiMessage {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+            }]
         };
 
         let request = KimiRequest {
@@ -174,7 +189,8 @@ impl KimiAdapter {
         let url = format!("{}/chat/completions", config.base_url);
         let start = Instant::now();
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .header("Content-Type", "application/json")
@@ -185,12 +201,15 @@ impl KimiAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                let kimi_response: KimiResponse = resp.json().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse Kimi response: {}", e),
-                    retryable: false,
-                })?;
+                let kimi_response: KimiResponse =
+                    resp.json().await.map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse Kimi response: {}", e),
+                        retryable: false,
+                    })?;
 
-                let content = kimi_response.choices.first()
+                let content = kimi_response
+                    .choices
+                    .first()
                     .map(|c| c.message.content.clone())
                     .unwrap_or_default();
 
@@ -215,11 +234,7 @@ impl KimiAdapter {
     fn calculate_cost(usage: &KimiUsage, model: &str) -> f32 {
         // Kimi pricing: $0.012/1K input tokens, $0.012/1K output tokens
         // moonshot-v1-128k is $0.05/1K tokens
-        let rate = if model.contains("128k") {
-            0.05
-        } else {
-            0.012
-        };
+        let rate = if model.contains("128k") { 0.05 } else { 0.012 };
 
         let input_cost = (usage.prompt_tokens as f32 / 1000.0) * rate;
         let output_cost = (usage.completion_tokens as f32 / 1000.0) * rate;
@@ -256,16 +271,24 @@ impl AgentAdapter for KimiAdapter {
         let kimi_config = if let Some(api_key) = config.metadata.get("api_key") {
             KimiConfig {
                 api_key: api_key.clone(),
-                base_url: config.metadata.get("base_url")
+                base_url: config
+                    .metadata
+                    .get("base_url")
                     .cloned()
                     .unwrap_or_else(|| "https://api.moonshot.cn/v1".to_string()),
-                model: config.metadata.get("model")
+                model: config
+                    .metadata
+                    .get("model")
                     .cloned()
                     .unwrap_or_else(|| "moonshot-v1-8k".to_string()),
-                temperature: config.metadata.get("temperature")
+                temperature: config
+                    .metadata
+                    .get("temperature")
                     .and_then(|t| t.parse::<f32>().ok())
                     .unwrap_or(0.7),
-                max_tokens: config.metadata.get("max_tokens")
+                max_tokens: config
+                    .metadata
+                    .get("max_tokens")
                     .and_then(|t| t.parse::<u32>().ok())
                     .unwrap_or(4096),
             }
@@ -309,21 +332,31 @@ impl AgentAdapter for KimiAdapter {
             }
             TaskInput::Url(url) => format!("请处理以下URL内容: {}", url),
             TaskInput::Data(data) => data.clone(),
-            TaskInput::Multi(inputs) => inputs.iter().map(|i| match i {
-                TaskInput::Text(t) => t.clone(),
-                TaskInput::File(p) => std::fs::read_to_string(p).unwrap_or_default(),
-                TaskInput::Url(u) => format!("URL: {}", u),
-                TaskInput::Data(d) => d.clone(),
-                TaskInput::Multi(_) => String::new(),
-            }).collect::<Vec<_>>().join("\n"),
+            TaskInput::Multi(inputs) => inputs
+                .iter()
+                .map(|i| match i {
+                    TaskInput::Text(t) => t.clone(),
+                    TaskInput::File(p) => std::fs::read_to_string(p).unwrap_or_default(),
+                    TaskInput::Url(u) => format!("URL: {}", u),
+                    TaskInput::Data(d) => d.clone(),
+                    TaskInput::Multi(_) => String::new(),
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
         };
 
         // Determine system prompt based on task description
-        let system_prompt = if task.description.to_lowercase().contains("翻译") || task.description.to_lowercase().contains("translate") {
+        let system_prompt = if task.description.to_lowercase().contains("翻译")
+            || task.description.to_lowercase().contains("translate")
+        {
             Some("你是一个专业的翻译助手，请准确翻译用户提供的文本，保持原文的风格和语气。")
-        } else if task.description.to_lowercase().contains("文案") || task.description.to_lowercase().contains("copywriting") {
+        } else if task.description.to_lowercase().contains("文案")
+            || task.description.to_lowercase().contains("copywriting")
+        {
             Some("你是一个专业的文案撰写助手，请创作有吸引力、简洁有力的文案内容。")
-        } else if task.description.to_lowercase().contains("总结") || task.description.to_lowercase().contains("summary") {
+        } else if task.description.to_lowercase().contains("总结")
+            || task.description.to_lowercase().contains("summary")
+        {
             Some("你是一个专业的总结助手，请提取关键信息，简洁概括内容要点。")
         } else {
             Some("你是一个智能助手，请根据用户需求提供专业、准确的回复。")
@@ -387,21 +420,32 @@ impl AgentAdapter for KimiAdapter {
             TaskInput::File(_) => 1000, // Assume 1000 chars
             TaskInput::Url(_) => 500,
             TaskInput::Data(data) => data.len(),
-            TaskInput::Multi(inputs) => inputs.iter().map(|i| match i {
-                TaskInput::Text(t) => t.len(),
-                TaskInput::File(_) => 1000,
-                TaskInput::Url(_) => 500,
-                TaskInput::Data(d) => d.len(),
-                TaskInput::Multi(_) => 0,
-            }).sum(),
+            TaskInput::Multi(inputs) => inputs
+                .iter()
+                .map(|i| match i {
+                    TaskInput::Text(t) => t.len(),
+                    TaskInput::File(_) => 1000,
+                    TaskInput::Url(_) => 500,
+                    TaskInput::Data(d) => d.len(),
+                    TaskInput::Multi(_) => 0,
+                })
+                .sum(),
         };
 
         let estimated_input_tokens = (prompt_length / 4) as u64; // ~4 chars per token
         let estimated_output_tokens = 500u64; // Average response
         let estimated_total = estimated_input_tokens + estimated_output_tokens;
 
-        let rate = self.config.as_ref()
-            .map(|c| if c.model.contains("128k") { 0.05 } else { 0.012 })
+        let rate = self
+            .config
+            .as_ref()
+            .map(|c| {
+                if c.model.contains("128k") {
+                    0.05
+                } else {
+                    0.012
+                }
+            })
             .unwrap_or(0.012);
 
         let estimated_cost = (estimated_total as f32 / 1000.0) * rate;
@@ -411,8 +455,14 @@ impl AgentAdapter for KimiAdapter {
             max_cost: estimated_cost * 2.0,
             currency: "USD".to_string(),
             breakdown: HashMap::from([
-                ("input".to_string(), (estimated_input_tokens as f32 / 1000.0) * rate),
-                ("output".to_string(), (estimated_output_tokens as f32 / 1000.0) * rate),
+                (
+                    "input".to_string(),
+                    (estimated_input_tokens as f32 / 1000.0) * rate,
+                ),
+                (
+                    "output".to_string(),
+                    (estimated_output_tokens as f32 / 1000.0) * rate,
+                ),
             ]),
             token_estimate: TokenEstimate {
                 input_tokens: estimated_input_tokens,
@@ -428,7 +478,12 @@ impl AgentAdapter for KimiAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {

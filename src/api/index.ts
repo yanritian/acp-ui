@@ -1,6 +1,7 @@
 // API Index - Export all API modules
 
 export * from './agent-adapter';
+export * from './operatorRemoteApi';
 
 // Re-export types for convenience
 export type {

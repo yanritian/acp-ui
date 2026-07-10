@@ -7,8 +7,7 @@
 //! 4. Verify all Goals converge in correct order
 
 use swarm_engine::{
-    Goal, GoalGraph as SwarmGoalGraph, GoalStatus, CompletionCondition,
-    ReconcileLoop, GoalOutcome,
+    CompletionCondition, Goal, GoalGraph as SwarmGoalGraph, GoalOutcome, GoalStatus, ReconcileLoop,
 };
 
 /// Simulates the hello-swarm workflow from examples/hello-swarm.goal.yaml
@@ -46,7 +45,11 @@ fn create_hello_swarm_goals() -> Vec<Goal> {
 
 /// Helper to count goals by status
 fn count_by_status(graph: &SwarmGoalGraph, status: GoalStatus) -> usize {
-    graph.all_goals().iter().filter(|g| g.status == status).count()
+    graph
+        .all_goals()
+        .iter()
+        .filter(|g| g.status == status)
+        .count()
 }
 
 #[tokio::test]
@@ -121,7 +124,12 @@ async fn test_workflow_handles_dependency_failure() {
     graph.add_goal(goal_run_tests);
 
     // Simulate fix-typescript failing
-    graph.update_goal_status("fix-typescript", GoalStatus::Failed { reason: "TypeScript errors".into() });
+    graph.update_goal_status(
+        "fix-typescript",
+        GoalStatus::Failed {
+            reason: "TypeScript errors".into(),
+        },
+    );
 
     // Verify blocked goals detection
     let blocked = graph.has_blocked_goals();
@@ -140,8 +148,14 @@ fn test_goal_yaml_structure_matches_spec() {
 
     // Verify goal_fix_ts matches YAML
     let fix_ts = goals.iter().find(|g| g.id == "fix-typescript").unwrap();
-    assert_eq!(fix_ts.description, "Fix all TypeScript compilation errors in the project");
-    assert!(matches!(fix_ts.completion_condition, CompletionCondition::CommandSuccess { .. }));
+    assert_eq!(
+        fix_ts.description,
+        "Fix all TypeScript compilation errors in the project"
+    );
+    assert!(matches!(
+        fix_ts.completion_condition,
+        CompletionCondition::CommandSuccess { .. }
+    ));
     assert_eq!(fix_ts.executor.as_ref().unwrap(), "claude-code-worker");
     assert_eq!(fix_ts.max_iterations, 5);
 

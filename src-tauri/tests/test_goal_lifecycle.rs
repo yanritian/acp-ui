@@ -2,7 +2,10 @@
 //!
 //! Validates the full flow: Submit → Assign → Execute → Iterate → Converge
 
-use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionConditionSpec, IterationRecord, EvaluationResult, ConditionResult};
+use acp_ui_lib::{
+    CompletionConditionSpec, ConditionResult, EvaluationResult, Goal, GoalGraph, GoalStatus,
+    IterationRecord,
+};
 
 /// Helper to create a goal with OutputContains condition
 fn create_goal(id: &str, description: &str) -> Goal {
@@ -40,7 +43,9 @@ fn test_goal_assign_worker_transitions_to_active() {
     graph.submit(goal).unwrap();
 
     // Assign worker
-    graph.assign_worker("g1", "codex-worker-001".to_string()).unwrap();
+    graph
+        .assign_worker("g1", "codex-worker-001".to_string())
+        .unwrap();
 
     // Should transition to Active
     let assigned = graph.get("g1").unwrap();
@@ -145,7 +150,9 @@ fn test_goal_summary_tracks_all_statuses() {
     graph.submit(g3).unwrap();
 
     let mut g4 = create_goal("g4", "Failed goal");
-    g4.status = GoalStatus::Failed { reason: "Max iterations".to_string() };
+    g4.status = GoalStatus::Failed {
+        reason: "Max iterations".to_string(),
+    };
     graph.submit(g4).unwrap();
 
     // Get summary

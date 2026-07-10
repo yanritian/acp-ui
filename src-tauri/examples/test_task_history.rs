@@ -1,8 +1,8 @@
 //! 测试 WebSocket 查询任务历史
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use serde_json::json;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
@@ -11,9 +11,7 @@ async fn main() {
     let ws_url = "ws://127.0.0.1:1421";
     println!("连接 WebSocket: {}", ws_url);
 
-    let (ws_stream, _) = connect_async(ws_url)
-        .await
-        .expect("无法连接 WebSocket");
+    let (ws_stream, _) = connect_async(ws_url).await.expect("无法连接 WebSocket");
 
     println!("✅ WebSocket 连接成功\n");
 
@@ -30,15 +28,17 @@ async fn main() {
         }
     });
 
-    write.send(Message::Text(history_cmd.to_string().into()))
+    write
+        .send(Message::Text(history_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
     // 等待响应
-    if let Some(msg) = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        read.next()
-    ).await.ok().flatten() {
+    if let Some(msg) = tokio::time::timeout(std::time::Duration::from_secs(10), read.next())
+        .await
+        .ok()
+        .flatten()
+    {
         if let Ok(Message::Text(text)) = msg {
             println!("\n收到响应:\n{}", text);
 
@@ -73,14 +73,16 @@ async fn main() {
         "command": "get_task_statistics"
     });
 
-    write.send(Message::Text(stats_cmd.to_string().into()))
+    write
+        .send(Message::Text(stats_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
-    if let Some(msg) = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        read.next()
-    ).await.ok().flatten() {
+    if let Some(msg) = tokio::time::timeout(std::time::Duration::from_secs(10), read.next())
+        .await
+        .ok()
+        .flatten()
+    {
         if let Ok(Message::Text(text)) = msg {
             println!("\n收到统计响应:\n{}", text);
         }

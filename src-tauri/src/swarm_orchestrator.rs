@@ -376,7 +376,10 @@ impl SwarmOrchestrator {
                 if let Some(orch) = orchestrators.first() {
                     ids.push(orch.id.clone());
                 }
-                for exec in executors.iter().take(self.max_concurrent_agents as usize - 1) {
+                for exec in executors
+                    .iter()
+                    .take(self.max_concurrent_agents as usize - 1)
+                {
                     ids.push(exec.id.clone());
                 }
                 ids
@@ -498,7 +501,10 @@ impl SwarmOrchestrator {
             .ok_or_else(|| format!("Task '{}' not found", task_id))?;
         task.status = new_status.clone();
 
-        if matches!(new_status, SwarmTaskStatus::Completed | SwarmTaskStatus::Failed) {
+        if matches!(
+            new_status,
+            SwarmTaskStatus::Completed | SwarmTaskStatus::Failed
+        ) {
             task.completed_at = Some(chrono::Utc::now().to_rfc3339());
         }
 
@@ -640,7 +646,9 @@ impl SwarmOrchestrator {
             .filter(|a| {
                 matches!(
                     a.status,
-                    AgentSwarmStatus::Running | AgentSwarmStatus::Assigned | AgentSwarmStatus::WaitingSync
+                    AgentSwarmStatus::Running
+                        | AgentSwarmStatus::Assigned
+                        | AgentSwarmStatus::WaitingSync
                 )
             })
             .count() as u32;
@@ -652,7 +660,12 @@ impl SwarmOrchestrator {
         let failed_agents = self
             .agents
             .values()
-            .filter(|a| matches!(a.status, AgentSwarmStatus::Failed | AgentSwarmStatus::Evicted))
+            .filter(|a| {
+                matches!(
+                    a.status,
+                    AgentSwarmStatus::Failed | AgentSwarmStatus::Evicted
+                )
+            })
             .count() as u32;
 
         let pending_tasks = self
@@ -736,25 +749,16 @@ impl Default for SwarmOrchestrator {
 
 /// Register an agent in the swarm
 #[tauri::command]
-pub fn swarm_register_agent(
-    state: State<'_, AppState>,
-    agent: SwarmAgent,
-) -> Result<(), String> {
+pub fn swarm_register_agent(state: State<'_, AppState>, agent: SwarmAgent) -> Result<(), String> {
     let mut orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
     orchestrator.register_agent(agent)
 }
 
 /// List all agents in the swarm
 #[tauri::command]
-pub fn swarm_list_agents(
-    state: State<'_, AppState>,
-) -> Result<Vec<SwarmAgent>, String> {
+pub fn swarm_list_agents(state: State<'_, AppState>) -> Result<Vec<SwarmAgent>, String> {
     let orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
-    Ok(orchestrator
-        .list_agents()
-        .into_iter()
-        .cloned()
-        .collect())
+    Ok(orchestrator.list_agents().into_iter().cloned().collect())
 }
 
 /// Create a new swarm task
@@ -794,10 +798,7 @@ pub fn swarm_submit_result(
 
 /// Get task status and progress
 #[tauri::command]
-pub fn swarm_get_task(
-    state: State<'_, AppState>,
-    task_id: String,
-) -> Result<SwarmTask, String> {
+pub fn swarm_get_task(state: State<'_, AppState>, task_id: String) -> Result<SwarmTask, String> {
     let orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
     orchestrator
         .get_task(&task_id)
@@ -807,19 +808,14 @@ pub fn swarm_get_task(
 
 /// Get swarm health summary
 #[tauri::command]
-pub fn swarm_get_health(
-    state: State<'_, AppState>,
-) -> Result<SwarmHealth, String> {
+pub fn swarm_get_health(state: State<'_, AppState>) -> Result<SwarmHealth, String> {
     let orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
     Ok(orchestrator.get_health())
 }
 
 /// Cancel a running task in swarm orchestrator
 #[tauri::command]
-pub fn swarm_cancel_task(
-    state: State<'_, AppState>,
-    task_id: String,
-) -> Result<(), String> {
+pub fn swarm_cancel_task(state: State<'_, AppState>, task_id: String) -> Result<(), String> {
     let mut orchestrator = state.swarm_orchestrator.lock().map_err(|e| e.to_string())?;
     orchestrator.cancel_task(&task_id)
 }
@@ -846,12 +842,17 @@ impl SwarmOrchestrator {
         let mut stage_results: Vec<StageResult> = Vec::new();
 
         for (i, worker_id) in worker_ids.iter().enumerate() {
-            let agent = self.agents.get(worker_id)
+            let agent = self
+                .agents
+                .get(worker_id)
                 .ok_or_else(|| format!("Worker '{}' not found", worker_id))?;
 
             // Check worker availability
             if agent.status != AgentSwarmStatus::Idle {
-                return Err(format!("Worker '{}' is not idle (status: {})", worker_id, agent.status));
+                return Err(format!(
+                    "Worker '{}' is not idle (status: {})",
+                    worker_id, agent.status
+                ));
             }
 
             // Build stage prompt
@@ -956,17 +957,17 @@ impl SwarmOrchestrator {
         // Assign task to replacement
         if let Some(agent) = self.agents.get_mut(&replacement) {
             agent.status = AgentSwarmStatus::Running;
-            println!("[SwarmOrchestrator] Reassigned task to replacement worker '{}'", replacement);
+            println!(
+                "[SwarmOrchestrator] Reassigned task to replacement worker '{}'",
+                replacement
+            );
         }
 
         Ok(replacement)
     }
 
     /// Find a replacement worker based on capabilities
-    fn find_replacement_worker(
-        &self,
-        required_capabilities: &[String],
-    ) -> Result<String, String> {
+    fn find_replacement_worker(&self, required_capabilities: &[String]) -> Result<String, String> {
         let available = self.get_available_agents(required_capabilities);
 
         if available.is_empty() {

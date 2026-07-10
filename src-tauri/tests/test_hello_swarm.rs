@@ -6,11 +6,14 @@
 //! 3. GoalGraph submission with dependencies
 //! 4. Topological execution order verification
 
-use acp_core::{GoalYamlFile, GoalRuntime, GoalStatus};
+use acp_core::{GoalRuntime, GoalStatus, GoalYamlFile};
 use acp_ui_lib::{Goal, GoalGraph};
 
 fn load_hello_swarm_yaml() -> GoalYamlFile {
-    let yaml_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../examples/hello-swarm.goal.yaml");
+    let yaml_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../examples/hello-swarm.goal.yaml"
+    );
     let content = std::fs::read_to_string(yaml_path).expect("Read yaml file");
     serde_yaml::from_str(&content).expect("Parse yaml")
 }
@@ -56,7 +59,11 @@ fn test_hello_swarm_yaml_parse() {
 #[test]
 fn test_hello_swarm_goal_fix_typescript() {
     let parsed = load_hello_swarm_yaml();
-    let goal = parsed.goals.iter().find(|g| g.id == "fix-typescript").expect("Find goal");
+    let goal = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "fix-typescript")
+        .expect("Find goal");
 
     assert_eq!(goal.executor, Some("claude-code-worker".to_string()));
     assert!(goal.depends_on.is_empty());
@@ -68,7 +75,11 @@ fn test_hello_swarm_goal_fix_typescript() {
 #[test]
 fn test_hello_swarm_goal_run_tests() {
     let parsed = load_hello_swarm_yaml();
-    let goal = parsed.goals.iter().find(|g| g.id == "run-tests").expect("Find goal");
+    let goal = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "run-tests")
+        .expect("Find goal");
 
     assert_eq!(goal.executor, Some("codex-worker".to_string()));
     assert_eq!(goal.depends_on, vec!["fix-typescript"]);
@@ -79,7 +90,11 @@ fn test_hello_swarm_goal_run_tests() {
 #[test]
 fn test_hello_swarm_goal_generate_docs() {
     let parsed = load_hello_swarm_yaml();
-    let goal = parsed.goals.iter().find(|g| g.id == "generate-docs").expect("Find goal");
+    let goal = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "generate-docs")
+        .expect("Find goal");
 
     assert_eq!(goal.executor, Some("claude-code-worker".to_string()));
     assert_eq!(goal.depends_on, vec!["run-tests"]);
@@ -127,9 +142,21 @@ fn test_hello_swarm_topological_order() {
     let parsed = load_hello_swarm_yaml();
 
     // Verify dependency chain: fix-typescript → run-tests → generate-docs
-    let g1 = parsed.goals.iter().find(|g| g.id == "fix-typescript").expect("Goal 1");
-    let g2 = parsed.goals.iter().find(|g| g.id == "run-tests").expect("Goal 2");
-    let g3 = parsed.goals.iter().find(|g| g.id == "generate-docs").expect("Goal 3");
+    let g1 = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "fix-typescript")
+        .expect("Goal 1");
+    let g2 = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "run-tests")
+        .expect("Goal 2");
+    let g3 = parsed
+        .goals
+        .iter()
+        .find(|g| g.id == "generate-docs")
+        .expect("Goal 3");
 
     assert!(g1.depends_on.is_empty());
     assert!(g2.depends_on.contains(&"fix-typescript".to_string()));
@@ -142,10 +169,18 @@ fn test_hello_swarm_topological_order() {
 fn test_hello_swarm_worker_config() {
     let parsed = load_hello_swarm_yaml();
 
-    let cc_worker = parsed.workers.iter().find(|w| w.id == "claude-code-worker").expect("Worker");
+    let cc_worker = parsed
+        .workers
+        .iter()
+        .find(|w| w.id == "claude-code-worker")
+        .expect("Worker");
     assert_eq!(cc_worker.worker_type, "claude_code");
 
-    let codex_worker = parsed.workers.iter().find(|w| w.id == "codex-worker").expect("Worker");
+    let codex_worker = parsed
+        .workers
+        .iter()
+        .find(|w| w.id == "codex-worker")
+        .expect("Worker");
     assert_eq!(codex_worker.worker_type, "codex");
 }
 

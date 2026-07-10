@@ -64,8 +64,8 @@ impl ProcessMonitor {
             metrics_history: VecDeque::with_capacity(max_samples),
             max_samples,
             alerts: Vec::new(),
-            memory_threshold_mb: 2048.0,  // 2GB default
-            cpu_threshold_percent: 90.0,   // 90% default
+            memory_threshold_mb: 2048.0, // 2GB default
+            cpu_threshold_percent: 90.0, // 90% default
         }
     }
 
@@ -117,19 +117,29 @@ impl ProcessMonitor {
 
         let samples = self.metrics_history.len() as u32;
 
-        let avg_memory = self.metrics_history.iter()
+        let avg_memory = self
+            .metrics_history
+            .iter()
             .map(|m| m.memory_mb)
-            .sum::<f64>() / samples as f64;
+            .sum::<f64>()
+            / samples as f64;
 
-        let max_memory = self.metrics_history.iter()
+        let max_memory = self
+            .metrics_history
+            .iter()
             .map(|m| m.memory_mb)
             .fold(0.0_f64, |a, b| a.max(b));
 
-        let avg_cpu = self.metrics_history.iter()
+        let avg_cpu = self
+            .metrics_history
+            .iter()
             .map(|m| m.cpu_percent)
-            .sum::<f64>() / samples as f64;
+            .sum::<f64>()
+            / samples as f64;
 
-        let max_cpu = self.metrics_history.iter()
+        let max_cpu = self
+            .metrics_history
+            .iter()
             .map(|m| m.cpu_percent)
             .fold(0.0_f64, |a, b| a.max(b));
 
@@ -163,7 +173,8 @@ impl ProcessMonitor {
 
     /// Get recent metrics
     pub fn get_recent_metrics(&self, count: usize) -> Vec<ProcessMetrics> {
-        self.metrics_history.iter()
+        self.metrics_history
+            .iter()
             .rev()
             .take(count)
             .cloned()
@@ -226,8 +237,8 @@ fn get_process_metrics_windows(process_id: u32) -> Option<ProcessMetrics> {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Parse JSON (simplified - in production use serde_json)
-    let memory_mb = extract_json_f64(&stdout, "WorkingSet64")
-        .map(|bytes| bytes / 1024.0 / 1024.0)?;
+    let memory_mb =
+        extract_json_f64(&stdout, "WorkingSet64").map(|bytes| bytes / 1024.0 / 1024.0)?;
 
     let cpu_percent = extract_json_f64(&stdout, "CPU").unwrap_or(0.0);
     let thread_count = extract_json_u32(&stdout, "Threads").unwrap_or(0);
@@ -288,7 +299,7 @@ fn get_process_metrics_macos(process_id: u32) -> Option<ProcessMetrics> {
         memory_mb,
         cpu_percent,
         thread_count,
-        handle_count: 0,  // Not available on macOS via ps
+        handle_count: 0, // Not available on macOS via ps
         timestamp,
     })
 }
@@ -323,7 +334,7 @@ fn get_process_metrics_linux(process_id: u32) -> Option<ProcessMetrics> {
     // Read CPU usage from /proc/[pid]/stat
     let stat_path = format!("/proc/{}/stat", process_id);
     let stat = fs::read_to_string(&stat_path).ok()?;
-    let cpu_percent = 0.0;  // Simplified - would need to calculate over time
+    let cpu_percent = 0.0; // Simplified - would need to calculate over time
 
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -335,7 +346,7 @@ fn get_process_metrics_linux(process_id: u32) -> Option<ProcessMetrics> {
         memory_mb,
         cpu_percent,
         thread_count: threads,
-        handle_count: 0,  // Not available on Linux
+        handle_count: 0, // Not available on Linux
         timestamp,
     })
 }
@@ -393,7 +404,7 @@ mod tests {
 
         let metrics = ProcessMetrics {
             process_id: 1234,
-            memory_mb: 200.0,  // Above threshold
+            memory_mb: 200.0, // Above threshold
             cpu_percent: 50.0,
             thread_count: 4,
             handle_count: 100,
@@ -415,7 +426,7 @@ mod tests {
         let metrics = ProcessMetrics {
             process_id: 1234,
             memory_mb: 50.0,
-            cpu_percent: 90.0,  // Above threshold
+            cpu_percent: 90.0, // Above threshold
             thread_count: 4,
             handle_count: 100,
             timestamp: 1000,

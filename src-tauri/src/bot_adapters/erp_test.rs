@@ -6,7 +6,7 @@
 //! 3. 发送 /team 多Agent协作开发
 //! 4. 发送 /history 查看任务历史
 
-use crate::bot_adapters::{parse_bot_text, BotCommand, BotResponse, format_response};
+use crate::bot_adapters::{format_response, parse_bot_text, BotCommand, BotResponse};
 
 /// ERP系统开发测试场景
 #[cfg(test)]
@@ -68,7 +68,7 @@ mod erp_test_scenarios {
                 let feishu_output = format_response(&response, "feishu");
                 assert!(feishu_output.contains("✅"));
                 println!("Feishu输出: {}", feishu_output);
-            },
+            }
             _ => panic!("期望Agent命令，收到: {:?}", cmd),
         }
     }
@@ -77,10 +77,15 @@ mod erp_test_scenarios {
     #[test]
     fn test_erp_multi_agent_collaboration() {
         // 模拟用户发送: /team codex,claude-code 开发ERP财务模块，需要会计核算和报表生成功能
-        let cmd = parse_bot_text("/team codex,claude-code 开发ERP财务模块，需要会计核算和报表生成功能");
+        let cmd =
+            parse_bot_text("/team codex,claude-code 开发ERP财务模块，需要会计核算和报表生成功能");
 
         match cmd {
-            BotCommand::Team { prompt, agents, routing } => {
+            BotCommand::Team {
+                prompt,
+                agents,
+                routing,
+            } => {
                 assert_eq!(prompt, "开发ERP财务模块，需要会计核算和报表生成功能");
                 assert_eq!(agents, vec!["codex", "claude-code"]);
                 assert_eq!(routing, "single");
@@ -104,7 +109,7 @@ mod erp_test_scenarios {
                 assert!(telegram_output.contains("codex"));
                 assert!(telegram_output.contains("claude-code"));
                 println!("Telegram输出: {}", telegram_output);
-            },
+            }
             _ => panic!("期望Team命令，收到: {:?}", cmd),
         }
     }
@@ -116,13 +121,17 @@ mod erp_test_scenarios {
         let cmd = parse_bot_text("/team broadcast 分析ERP系统架构设计");
 
         match cmd {
-            BotCommand::Team { prompt, agents, routing } => {
+            BotCommand::Team {
+                prompt,
+                agents,
+                routing,
+            } => {
                 assert_eq!(prompt, "分析ERP系统架构设计");
                 assert!(agents.is_empty());
                 assert_eq!(routing, "broadcast");
 
                 println!("ERP架构分析 - Broadcast模式触发成功");
-            },
+            }
             _ => panic!("期望Team broadcast命令，收到: {:?}", cmd),
         }
     }
@@ -135,7 +144,7 @@ mod erp_test_scenarios {
         match pause_cmd {
             BotCommand::Pause { agent_id } => {
                 assert_eq!(agent_id, "inventory-agent-001");
-            },
+            }
             _ => panic!("期望Pause命令"),
         }
 
@@ -144,7 +153,7 @@ mod erp_test_scenarios {
         match resume_cmd {
             BotCommand::Resume { agent_id } => {
                 assert_eq!(agent_id, "inventory-agent-001");
-            },
+            }
             _ => panic!("期望Resume命令"),
         }
 
@@ -153,7 +162,7 @@ mod erp_test_scenarios {
         match cancel_cmd {
             BotCommand::Cancel { target_id } => {
                 assert_eq!(target_id, "finance-task-002");
-            },
+            }
             _ => panic!("期望Cancel命令"),
         }
     }
@@ -166,7 +175,7 @@ mod erp_test_scenarios {
         match cmd {
             BotCommand::History { limit } => {
                 assert_eq!(limit, Some(5));
-            },
+            }
             _ => panic!("期望History命令"),
         }
 
@@ -175,7 +184,7 @@ mod erp_test_scenarios {
         match cmd {
             BotCommand::History { limit } => {
                 assert_eq!(limit, Some(10));
-            },
+            }
             _ => panic!("期望History命令"),
         }
     }
@@ -195,11 +204,17 @@ mod erp_test_scenarios {
 
         // Step 3: 创建库存模块任务
         let inventory_cmd = parse_bot_text("/agent 开发库存管理模块");
-        println!("Step 3: 发送命令 /agent 开发库存管理模块 -> {:?}", inventory_cmd);
+        println!(
+            "Step 3: 发送命令 /agent 开发库存管理模块 -> {:?}",
+            inventory_cmd
+        );
 
         // Step 4: 多Agent开发财务模块
         let finance_cmd = parse_bot_text("/team codex,claude-code 开发财务模块");
-        println!("Step 4: 发送命令 /team codex,claude-code 开发财务模块 -> {:?}", finance_cmd);
+        println!(
+            "Step 4: 发送命令 /team codex,claude-code 开发财务模块 -> {:?}",
+            finance_cmd
+        );
 
         // Step 5: 查看开发历史
         let history_cmd = parse_bot_text("/history 5");

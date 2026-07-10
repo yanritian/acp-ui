@@ -4,7 +4,7 @@
 //! - GoalGraph: add_goal, remove_goal, ready_goals, topological_order
 //! - Goal lifecycle: submit → active → converged/failed
 
-use acp_ui_lib::{Goal, GoalGraph, GoalStatus, CompletionConditionSpec};
+use acp_ui_lib::{CompletionConditionSpec, Goal, GoalGraph, GoalStatus};
 
 /// Helper to create a simple goal
 fn create_goal(id: &str, description: &str) -> Goal {
@@ -46,7 +46,9 @@ fn test_goal_graph_dependency_missing() {
 
     let result = graph.submit(goal);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Dependency 'missing_dep' not found"));
+    assert!(result
+        .unwrap_err()
+        .contains("Dependency 'missing_dep' not found"));
 }
 
 #[test]
@@ -68,7 +70,9 @@ fn test_goal_graph_ready_goals() {
     assert_eq!(ready[0].id, "parent");
 
     // Mark parent as converged
-    graph.update_status("parent", GoalStatus::Converged).unwrap();
+    graph
+        .update_status("parent", GoalStatus::Converged)
+        .unwrap();
 
     // Now child should be ready
     let ready = graph.get_ready_goals();
@@ -171,7 +175,9 @@ fn test_goal_status_budget_exhausted() {
     graph.submit(goal).unwrap();
 
     // Update to budget exhausted
-    graph.update_status("g1", GoalStatus::BudgetExhausted).unwrap();
+    graph
+        .update_status("g1", GoalStatus::BudgetExhausted)
+        .unwrap();
 
     let stored = graph.get("g1").unwrap();
     assert_eq!(stored.status, GoalStatus::BudgetExhausted);
@@ -185,9 +191,14 @@ fn test_goal_status_iterating_with_feedback() {
     graph.submit(goal).unwrap();
 
     // Mark as iterating with feedback
-    graph.update_status("g1", GoalStatus::Iterating {
-        feedback: "Need to fix the API endpoint".to_string(),
-    }).unwrap();
+    graph
+        .update_status(
+            "g1",
+            GoalStatus::Iterating {
+                feedback: "Need to fix the API endpoint".to_string(),
+            },
+        )
+        .unwrap();
 
     let stored = graph.get("g1").unwrap();
     if let GoalStatus::Iterating { feedback } = stored.status {
@@ -204,9 +215,14 @@ fn test_goal_failed_status() {
     graph.submit(goal).unwrap();
 
     // Mark as failed with reason
-    graph.update_status("g1", GoalStatus::Failed {
-        reason: "Max iterations reached without convergence".to_string(),
-    }).unwrap();
+    graph
+        .update_status(
+            "g1",
+            GoalStatus::Failed {
+                reason: "Max iterations reached without convergence".to_string(),
+            },
+        )
+        .unwrap();
 
     let stored = graph.get("g1").unwrap();
     if let GoalStatus::Failed { reason } = stored.status {

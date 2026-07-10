@@ -9,13 +9,13 @@
 
 #![allow(dead_code)] // Reserved for future Agent Teams orchestration
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // Re-export for self-optimizing router integration
+pub use crate::agent_adapter::types::{Platform, SceneType};
 pub use crate::self_optimizing_router::{ProficiencyScore, SelfOptimizingConfig};
-pub use crate::agent_adapter::types::{SceneType, Platform};
 
 /// Agent Base - the "Image" layer
 /// Defines the foundational agent configuration (e.g., claude-code-base, codex-base)
@@ -38,11 +38,10 @@ pub struct AgentBase {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransportType {
-    Stdio,      // Local process (stdin/stdout)
-    WebSocket,  // Remote WebSocket connection
-    Acp,        // Agent Client Protocol
+    Stdio,     // Local process (stdin/stdout)
+    WebSocket, // Remote WebSocket connection
+    Acp,       // Agent Client Protocol
 }
-
 
 impl TransportType {
     pub fn as_str(&self) -> &'static str {
@@ -84,11 +83,10 @@ pub struct AgentTemplate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigStrategy {
-    Append,     // Add to base configuration
-    Override,   // Replace base configuration (except deny permissions)
-    Exclude,    // Remove from base configuration
+    Append,   // Add to base configuration
+    Override, // Replace base configuration (except deny permissions)
+    Exclude,  // Remove from base configuration
 }
-
 
 impl ConfigStrategy {
     pub fn as_str(&self) -> &'static str {
@@ -140,7 +138,6 @@ pub enum InstanceStatus {
     Restarting,
 }
 
-
 impl InstanceStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -177,7 +174,6 @@ pub struct PermissionConfig {
     pub cwd_restrict: bool,
 }
 
-
 impl Default for PermissionConfig {
     fn default() -> Self {
         Self {
@@ -204,7 +200,6 @@ pub struct AgentRegistry {
     /// Self-optimizing config
     optimizing_config: SelfOptimizingConfig,
 }
-
 
 impl AgentRegistry {
     /// Create a new Agent Registry
@@ -287,13 +282,19 @@ impl AgentRegistry {
 
     /// Get merged configuration for an Instance
     pub fn get_merged_config(&self, instance_id: &str) -> Result<AgentMergedConfig, String> {
-        let instance = self.instances.get(instance_id)
+        let instance = self
+            .instances
+            .get(instance_id)
             .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-        let template = self.templates.get(&instance.template_id)
+        let template = self
+            .templates
+            .get(&instance.template_id)
             .ok_or_else(|| format!("Template {} not found", instance.template_id))?;
 
-        let base = self.bases.get(&template.base_id)
+        let base = self
+            .bases
+            .get(&template.base_id)
             .ok_or_else(|| format!("Base {} not found", template.base_id))?;
 
         // Merge configurations according to strategies
@@ -324,16 +325,21 @@ impl AgentRegistry {
             }
             ConfigStrategy::Override => {
                 // Use only template skills
-                template.config_override.get("skills")
+                template
+                    .config_override
+                    .get("skills")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_else(|| base.default_skills.clone())
             }
             ConfigStrategy::Exclude => {
                 // Remove excluded skills from base
-                let excluded: Vec<String> = template.config_override.get("exclude_skills")
+                let excluded: Vec<String> = template
+                    .config_override
+                    .get("exclude_skills")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                base.default_skills.iter()
+                base.default_skills
+                    .iter()
                     .filter(|s| !excluded.contains(s))
                     .cloned()
                     .collect()
@@ -345,16 +351,19 @@ impl AgentRegistry {
     fn merge_hooks(&self, base: &AgentBase, template: &AgentTemplate) -> Vec<String> {
         match template.hooks_strategy {
             ConfigStrategy::Append => base.default_hooks.clone(),
-            ConfigStrategy::Override => {
-                template.config_override.get("hooks")
-                    .and_then(|v| serde_json::from_value(v.clone()).ok())
-                    .unwrap_or_else(|| base.default_hooks.clone())
-            }
+            ConfigStrategy::Override => template
+                .config_override
+                .get("hooks")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_else(|| base.default_hooks.clone()),
             ConfigStrategy::Exclude => {
-                let excluded: Vec<String> = template.config_override.get("exclude_hooks")
+                let excluded: Vec<String> = template
+                    .config_override
+                    .get("exclude_hooks")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default();
-                base.default_hooks.iter()
+                base.default_hooks
+                    .iter()
                     .filter(|h| !excluded.contains(h))
                     .cloned()
                     .collect()
@@ -390,7 +399,9 @@ impl AgentRegistry {
 
     /// Stop an instance
     pub fn stop_instance(&mut self, instance_id: &str) -> Result<(), String> {
-        let instance = self.instances.get_mut(instance_id)
+        let instance = self
+            .instances
+            .get_mut(instance_id)
             .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
         instance.status = InstanceStatus::Stopped;
@@ -400,7 +411,9 @@ impl AgentRegistry {
 
     /// Get instance status
     pub fn get_instance_status(&self, instance_id: &str) -> Result<InstanceStatus, String> {
-        let instance = self.instances.get(instance_id)
+        let instance = self
+            .instances
+            .get(instance_id)
             .ok_or_else(|| format!("Instance {} not found", instance_id))?;
         Ok(instance.status.clone())
     }
@@ -432,15 +445,22 @@ impl AgentRegistry {
         latency_ms: u64,
         cost: f32,
     ) {
-        let key = format!("{}:{}", scene_to_short(&scene), platform_to_short(&platform));
+        let key = format!(
+            "{}:{}",
+            scene_to_short(&scene),
+            platform_to_short(&platform)
+        );
 
         // Get or create agent's proficiency map
-        let agent_scores = self.proficiency_scores.entry(agent_id.to_string()).or_insert_with(HashMap::new);
+        let agent_scores = self
+            .proficiency_scores
+            .entry(agent_id.to_string())
+            .or_insert_with(HashMap::new);
 
         // Get or create proficiency score for this scene+platform
-        let score = agent_scores.entry(key.clone()).or_insert_with(|| {
-            ProficiencyScore::new(agent_id.to_string(), scene, platform)
-        });
+        let score = agent_scores
+            .entry(key.clone())
+            .or_insert_with(|| ProficiencyScore::new(agent_id.to_string(), scene, platform));
 
         // Update proficiency
         score.update(success, latency_ms, cost, self.optimizing_config.ewma_alpha);
@@ -448,7 +468,11 @@ impl AgentRegistry {
 
     /// Get best agent for scene+platform based on proficiency
     pub fn get_best_agent_for(&self, scene: SceneType, platform: Platform) -> Option<String> {
-        let key = format!("{}:{}", scene_to_short(&scene), platform_to_short(&platform));
+        let key = format!(
+            "{}:{}",
+            scene_to_short(&scene),
+            platform_to_short(&platform)
+        );
 
         // Find agent with highest proficiency for this scene+platform
         let mut best: Option<(String, f32)> = None;
@@ -467,12 +491,15 @@ impl AgentRegistry {
 
     /// Get agent proficiency scores
     pub fn get_agent_proficiencies(&self, agent_id: &str) -> Option<Vec<ProficiencyScore>> {
-        self.proficiency_scores.get(agent_id).map(|scores| scores.values().cloned().collect())
+        self.proficiency_scores
+            .get(agent_id)
+            .map(|scores| scores.values().cloned().collect())
     }
 
     /// Get all proficiency scores
     pub fn get_all_proficiencies(&self) -> Vec<ProficiencyScore> {
-        self.proficiency_scores.values()
+        self.proficiency_scores
+            .values()
             .flat_map(|scores| scores.values().cloned())
             .collect()
     }
@@ -486,9 +513,11 @@ impl AgentRegistry {
     pub fn get_agents_for_scene(&self, scene: SceneType) -> Vec<String> {
         let scene_str = scene_to_short(&scene);
 
-        self.proficiency_scores.keys()
+        self.proficiency_scores
+            .keys()
             .filter(|agent_id| {
-                self.proficiency_scores.get(*agent_id)
+                self.proficiency_scores
+                    .get(*agent_id)
                     .map(|scores| scores.keys().any(|k| k.starts_with(&scene_str)))
                     .unwrap_or(false)
             })

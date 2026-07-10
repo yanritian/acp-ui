@@ -2,17 +2,17 @@
 //!
 //! Implements Closed → Open → HalfOpen pattern for agent failure handling
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Circuit breaker state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CircuitState {
-    Closed,     // Normal operation
-    Open,       // Failing, rejecting requests
-    HalfOpen,   // Testing recovery
+    Closed,   // Normal operation
+    Open,     // Failing, rejecting requests
+    HalfOpen, // Testing recovery
 }
 
 impl CircuitState {
@@ -37,10 +37,10 @@ impl CircuitState {
 /// Circuit breaker configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircuitBreakerConfig {
-    pub failure_threshold: u32,      // Failures before opening
-    pub success_threshold: u32,      // Successes to close from half-open
-    pub timeout_ms: u64,             // Time before half-open
-    pub half_open_max_calls: u32,    // Max calls in half-open state
+    pub failure_threshold: u32,   // Failures before opening
+    pub success_threshold: u32,   // Successes to close from half-open
+    pub timeout_ms: u64,          // Time before half-open
+    pub half_open_max_calls: u32, // Max calls in half-open state
 }
 
 impl Default for CircuitBreakerConfig {
@@ -58,7 +58,7 @@ impl Default for CircuitBreakerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircuitBreakerRecord {
     pub id: String,
-    pub target: String,              // Agent or service name
+    pub target: String, // Agent or service name
     pub state: CircuitState,
     pub failure_count: u32,
     pub success_count: u32,
@@ -143,11 +143,12 @@ impl CircuitBreakerManager {
 
             // In half-open, check if enough successes to close
             if breaker.state == CircuitState::HalfOpen
-                && breaker.success_count >= breaker.config.success_threshold {
-                    breaker.state = CircuitState::Closed;
-                    breaker.failure_count = 0;
-                    breaker.success_count = 0;
-                    breaker.cool_down_until = None;
+                && breaker.success_count >= breaker.config.success_threshold
+            {
+                breaker.state = CircuitState::Closed;
+                breaker.failure_count = 0;
+                breaker.success_count = 0;
+                breaker.cool_down_until = None;
             }
         }
     }
@@ -163,11 +164,12 @@ impl CircuitBreakerManager {
 
             // In closed state, check if threshold reached
             if breaker.state == CircuitState::Closed
-                && breaker.failure_count >= breaker.config.failure_threshold {
-                    breaker.state = CircuitState::Open;
-                    breaker.cool_down_until = Some(
-                        Utc::now() + chrono::Duration::milliseconds(breaker.config.timeout_ms as i64)
-                    );
+                && breaker.failure_count >= breaker.config.failure_threshold
+            {
+                breaker.state = CircuitState::Open;
+                breaker.cool_down_until = Some(
+                    Utc::now() + chrono::Duration::milliseconds(breaker.config.timeout_ms as i64),
+                );
             }
 
             // In half-open, any failure returns to open
@@ -175,7 +177,7 @@ impl CircuitBreakerManager {
                 breaker.state = CircuitState::Open;
                 breaker.success_count = 0;
                 breaker.cool_down_until = Some(
-                    Utc::now() + chrono::Duration::milliseconds(breaker.config.timeout_ms as i64)
+                    Utc::now() + chrono::Duration::milliseconds(breaker.config.timeout_ms as i64),
                 );
             }
         }
@@ -214,7 +216,8 @@ impl CircuitBreakerManager {
     /// Count open circuit breakers
     pub fn count_open(&self) -> u32 {
         let breakers = self.breakers.lock().unwrap();
-        breakers.values()
+        breakers
+            .values()
             .filter(|b| b.state == CircuitState::Open)
             .count() as u32
     }

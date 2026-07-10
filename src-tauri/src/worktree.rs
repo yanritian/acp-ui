@@ -77,7 +77,12 @@ impl WorktreeManager {
 
         // 使用 git worktree remove
         let output = Command::new("git")
-            .args(["worktree", "remove", "--force", &worktree_path.to_string_lossy()])
+            .args([
+                "worktree",
+                "remove",
+                "--force",
+                &worktree_path.to_string_lossy(),
+            ])
             .current_dir(&self.repo_path)
             .output()
             .map_err(|e| WorktreeError::GitCommandFailed(e.to_string()))?;

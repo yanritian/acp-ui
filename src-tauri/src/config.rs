@@ -1,14 +1,14 @@
+use indexmap::IndexMap;
 #[cfg(desktop)]
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher, EventKind};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use indexmap::IndexMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::AppHandle;
 #[cfg(desktop)]
 use tauri::Emitter;
-use tauri::AppHandle;
 #[cfg(not(desktop))]
 use tauri::Manager;
 
@@ -193,10 +193,7 @@ impl Default for AgentsConfig {
             "Qoder CLI".to_string(),
             AgentConfig::stdio(
                 "npx".to_string(),
-                vec![
-                    "@qoder-ai/qodercli@latest".to_string(),
-                    "--acp".to_string(),
-                ],
+                vec!["@qoder-ai/qodercli@latest".to_string(), "--acp".to_string()],
                 std::collections::HashMap::new(),
             ),
         );
@@ -355,6 +352,11 @@ fn get_config_path(_app: &AppHandle) -> Result<PathBuf, String> {
     // so existing installations don't need to migrate.
     #[cfg(desktop)]
     {
+        if let Some(path) =
+            crate::operator::hermes_process::d_drive_path_override("ACP_UI_CONFIG_PATH")?
+        {
+            return Ok(path);
+        }
         dirs::config_dir()
             .map(|p| p.join("acp-ui").join("agents.json"))
             .ok_or_else(|| "Could not find config directory".to_string())
@@ -388,18 +390,19 @@ fn setup_watcher(
     app_handle: AppHandle,
 ) -> Result<RecommendedWatcher, String> {
     let config_path_for_watcher = config_path.clone();
-    
+
     let mut watcher = RecommendedWatcher::new(
         move |res: Result<notify::Event, notify::Error>| {
             if let Ok(event) = res {
                 match event.kind {
                     EventKind::Modify(_) | EventKind::Create(_)
-                        if event.paths.iter().any(|p| p == &config_path_for_watcher) => {
-                            if let Ok(new_config) = load_config(&config_path_for_watcher) {
-                                *config.write() = new_config.clone();
-                                let _ = app_handle.emit("config-changed", new_config);
-                            }
+                        if event.paths.iter().any(|p| p == &config_path_for_watcher) =>
+                    {
+                        if let Ok(new_config) = load_config(&config_path_for_watcher) {
+                            *config.write() = new_config.clone();
+                            let _ = app_handle.emit("config-changed", new_config);
                         }
+                    }
                     _ => {}
                 }
             }

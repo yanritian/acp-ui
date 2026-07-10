@@ -10,8 +10,8 @@
 
 #![allow(dead_code)] // DEPRECATED - Use Goal-driven architecture instead
 
-use crate::swarm_types::{TaskShard, TaskPayload, ShardGroup, WorkerId};
-use crate::swarm_adapters::{WorkerCapabilities, SwarmError};
+use crate::swarm_adapters::{SwarmError, WorkerCapabilities};
+use crate::swarm_types::{ShardGroup, TaskPayload, TaskShard, WorkerId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -200,7 +200,9 @@ impl TaskPartitioner {
             // Find best worker for this subtask
             let best_worker = self.find_best_worker(subtask, available_workers)?;
 
-            decomposition.worker_assignments.insert(subtask.id.clone(), best_worker.worker_id.clone());
+            decomposition
+                .worker_assignments
+                .insert(subtask.id.clone(), best_worker.worker_id.clone());
         }
 
         Ok(())
@@ -221,10 +223,8 @@ impl TaskPartitioner {
         let mut best_worker: Option<&WorkerCapabilities> = None;
 
         for worker in workers {
-            let capability_match = self.score_capability_match(
-                &subtask.required_capabilities,
-                &worker.capabilities,
-            );
+            let capability_match =
+                self.score_capability_match(&subtask.required_capabilities, &worker.capabilities);
             let complexity_score = if worker.max_complexity >= subtask.estimated_complexity {
                 10
             } else {
@@ -246,7 +246,8 @@ impl TaskPartitioner {
 
     /// Score capability match (0-10)
     fn score_capability_match(&self, required: &[String], available: &[String]) -> u8 {
-        let matched = required.iter()
+        let matched = required
+            .iter()
             .filter(|r| available.iter().any(|a| a.eq_ignore_ascii_case(r)))
             .count();
 
@@ -306,7 +307,10 @@ impl TaskPartitioner {
                 index: 1,
                 prompt: "Create form validation logic for login page".to_string(),
                 expected_output: "code".to_string(),
-                required_capabilities: vec!["code_generation".to_string(), "validation".to_string()],
+                required_capabilities: vec![
+                    "code_generation".to_string(),
+                    "validation".to_string(),
+                ],
                 estimated_complexity: 2,
                 is_critical: false,
                 working_dir: None,
@@ -366,18 +370,22 @@ impl TaskPartitioner {
 
         // Scale by prompt complexity indicators
         let indicators = ["multiple", "多个", "components", "组件", "files", "文件"];
-        let indicator_count = indicators.iter()
-            .filter(|i| prompt.contains(*i))
-            .count();
+        let indicator_count = indicators.iter().filter(|i| prompt.contains(*i)).count();
 
         (base_count + indicator_count as u32).min(self.max_shards)
     }
 
     /// Estimate complexity (1-5)
     fn estimate_complexity(&self, prompt: &str) -> u8 {
-        let length_score = if prompt.len() > 500 { 2 } else if prompt.len() > 200 { 1 } else { 0 };
-        let keyword_score = prompt.matches("complex").count() as u8
-            + prompt.matches("复杂").count() as u8;
+        let length_score = if prompt.len() > 500 {
+            2
+        } else if prompt.len() > 200 {
+            1
+        } else {
+            0
+        };
+        let keyword_score =
+            prompt.matches("complex").count() as u8 + prompt.matches("复杂").count() as u8;
 
         (1 + length_score + keyword_score).min(5)
     }
@@ -424,11 +432,16 @@ impl TaskPartitioner {
         decomposition: &TaskDecomposition,
         parent_task_id: String,
     ) -> ShardGroup {
-        let mut group = ShardGroup::new(parent_task_id.clone(), decomposition.original_prompt.clone());
+        let mut group = ShardGroup::new(
+            parent_task_id.clone(),
+            decomposition.original_prompt.clone(),
+        );
         group.status = crate::swarm_types::ShardGroupStatus::Assigning;
 
         for subtask in &decomposition.subtasks {
-            let worker_id = decomposition.worker_assignments.get(&subtask.id)
+            let worker_id = decomposition
+                .worker_assignments
+                .get(&subtask.id)
                 .cloned()
                 .unwrap_or_else(|| "default-worker".to_string());
 

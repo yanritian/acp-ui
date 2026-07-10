@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -54,7 +54,7 @@ pub struct LogEntry {
     pub log_type: LogType,
     pub content: String,
     pub timestamp: DateTime<Utc>,
-    pub source: String, // stdout or stderr
+    pub source: String,           // stdout or stderr
     pub metadata: Option<String>, // JSON string for additional metadata
 }
 
@@ -138,37 +138,84 @@ impl LogClassifier {
     pub fn new() -> Self {
         Self {
             compile_patterns: vec![
-                "compiling".to_string(), "building".to_string(), "tsc".to_string(),
-                "webpack".to_string(), "vite".to_string(), "esbuild".to_string(),
-                "error TS".to_string(), "error:".to_string(), "failed to compile".to_string(),
-                "build failed".to_string(), "npm run build".to_string(), "cargo build".to_string(),
-                "gradle".to_string(), "make".to_string(), ".ts:".to_string(),
-                ".tsx:".to_string(), ".js:".to_string(), ".jsx:".to_string(), ".vue:".to_string(),
+                "compiling".to_string(),
+                "building".to_string(),
+                "tsc".to_string(),
+                "webpack".to_string(),
+                "vite".to_string(),
+                "esbuild".to_string(),
+                "error TS".to_string(),
+                "error:".to_string(),
+                "failed to compile".to_string(),
+                "build failed".to_string(),
+                "npm run build".to_string(),
+                "cargo build".to_string(),
+                "gradle".to_string(),
+                "make".to_string(),
+                ".ts:".to_string(),
+                ".tsx:".to_string(),
+                ".js:".to_string(),
+                ".jsx:".to_string(),
+                ".vue:".to_string(),
             ],
             debug_patterns: vec![
-                "debug:".to_string(), "dbg:".to_string(), "breakpoint".to_string(),
-                "console.log".to_string(), "console.debug".to_string(),
-                "inspect".to_string(), "debugger".to_string(), "step".to_string(), "trace".to_string(),
+                "debug:".to_string(),
+                "dbg:".to_string(),
+                "breakpoint".to_string(),
+                "console.log".to_string(),
+                "console.debug".to_string(),
+                "inspect".to_string(),
+                "debugger".to_string(),
+                "step".to_string(),
+                "trace".to_string(),
             ],
             network_patterns: vec![
-                "http://".to_string(), "https://".to_string(), "ws://".to_string(), "wss://".to_string(),
-                "api".to_string(), "request".to_string(), "response".to_string(),
-                "fetch".to_string(), "axios".to_string(), "xhr".to_string(),
-                "GET".to_string(), "POST".to_string(), "PUT".to_string(), "DELETE".to_string(),
-                "status:".to_string(), "status code".to_string(), "network".to_string(),
-                "connection".to_string(), "timeout".to_string(),
+                "http://".to_string(),
+                "https://".to_string(),
+                "ws://".to_string(),
+                "wss://".to_string(),
+                "api".to_string(),
+                "request".to_string(),
+                "response".to_string(),
+                "fetch".to_string(),
+                "axios".to_string(),
+                "xhr".to_string(),
+                "GET".to_string(),
+                "POST".to_string(),
+                "PUT".to_string(),
+                "DELETE".to_string(),
+                "status:".to_string(),
+                "status code".to_string(),
+                "network".to_string(),
+                "connection".to_string(),
+                "timeout".to_string(),
             ],
             error_patterns: vec![
-                "error:".to_string(), "exception".to_string(), "failed".to_string(),
-                "crash".to_string(), "fatal".to_string(), "panic".to_string(),
-                "assertion".to_string(), "null".to_string(), "undefined is not".to_string(),
-                "cannot".to_string(), "ENOENT".to_string(), "ENOTFOUND".to_string(),
-                "ECONNREFUSED".to_string(), "ETIMEDOUT".to_string(),
+                "error:".to_string(),
+                "exception".to_string(),
+                "failed".to_string(),
+                "crash".to_string(),
+                "fatal".to_string(),
+                "panic".to_string(),
+                "assertion".to_string(),
+                "null".to_string(),
+                "undefined is not".to_string(),
+                "cannot".to_string(),
+                "ENOENT".to_string(),
+                "ENOTFOUND".to_string(),
+                "ECONNREFUSED".to_string(),
+                "ETIMEDOUT".to_string(),
             ],
             warning_patterns: vec![
-                "warn:".to_string(), "warning:".to_string(), "deprecated".to_string(),
-                "caution".to_string(), "note:".to_string(), "consider".to_string(),
-                "suggest".to_string(), "might".to_string(), "potential".to_string(),
+                "warn:".to_string(),
+                "warning:".to_string(),
+                "deprecated".to_string(),
+                "caution".to_string(),
+                "note:".to_string(),
+                "consider".to_string(),
+                "suggest".to_string(),
+                "might".to_string(),
+                "potential".to_string(),
             ],
         }
     }
@@ -359,9 +406,9 @@ impl LogStreamManager {
         // Escape SQL LIKE wildcards to prevent unintended matches
         // % matches any sequence, _ matches any single character
         let escaped_keyword = keyword
-            .replace('\\', "\\\\")  // Escape backslash first
-            .replace('%', "\\%")    // Escape percent
-            .replace('_', "\\_");   // Escape underscore
+            .replace('\\', "\\\\") // Escape backslash first
+            .replace('%', "\\%") // Escape percent
+            .replace('_', "\\_"); // Escape underscore
         let pattern = format!("%{}%", escaped_keyword);
 
         let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -568,22 +615,23 @@ pub fn init_logs_table(conn: &Connection) -> Result<(), String> {
             metadata TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_logs_agent ON logs(agent_id)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_logs_type ON logs(type)",
-        [],
-    ).map_err(|e| e.to_string())?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_type ON logs(type)", [])
+        .map_err(|e| e.to_string())?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

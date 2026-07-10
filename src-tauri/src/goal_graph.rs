@@ -245,7 +245,9 @@ impl GoalGraph {
                 GoalStatus::Pending => summary.pending += 1,
                 GoalStatus::Failed { .. } => summary.failed += 1,
                 GoalStatus::Iterating { .. } => summary.iterating += 1,
-                GoalStatus::BudgetExhausted | GoalStatus::Cancelled | GoalStatus::MaxIterReached => summary.blocked += 1,
+                GoalStatus::BudgetExhausted
+                | GoalStatus::Cancelled
+                | GoalStatus::MaxIterReached => summary.blocked += 1,
             }
         }
 

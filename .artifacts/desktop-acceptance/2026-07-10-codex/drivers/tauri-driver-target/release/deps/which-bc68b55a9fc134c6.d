@@ -1,0 +1,12 @@
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\which-bc68b55a9fc134c6.d: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\checker.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\finder.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\helper.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\sys.rs
+
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\libwhich-bc68b55a9fc134c6.rlib: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\checker.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\finder.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\helper.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\sys.rs
+
+D:\dingsun\acp-ui\.artifacts\desktop-acceptance\2026-07-10-codex\drivers\tauri-driver-target\release\deps\libwhich-bc68b55a9fc134c6.rmeta: D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\lib.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\checker.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\error.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\finder.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\helper.rs D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\sys.rs
+
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\lib.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\checker.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\error.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\finder.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\helper.rs:
+D:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\which-8.0.0\src\sys.rs:

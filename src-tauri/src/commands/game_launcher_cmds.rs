@@ -1,7 +1,7 @@
 // Game Launcher Commands
 // Phase 3 Day 8: Tauri commands for game launcher
 
-use crate::game_launcher::{GameLauncher, LaunchRequest, LaunchResponse, GameStatus};
+use crate::game_launcher::{GameLauncher, GameStatus, LaunchRequest, LaunchResponse};
 
 #[tauri::command]
 pub async fn game_launch(request: LaunchRequest) -> Result<LaunchResponse, String> {

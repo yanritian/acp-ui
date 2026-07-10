@@ -2,7 +2,7 @@
 // Manages human-in-the-loop approval queue across devices (desktop, mobile, web)
 
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -168,8 +168,7 @@ impl ApprovalEngine {
             // default: set created_at to now if not set to a meaningful value
         }
 
-        let options_json =
-            serde_json::to_string(&request.options).map_err(|e| e.to_string())?;
+        let options_json = serde_json::to_string(&request.options).map_err(|e| e.to_string())?;
 
         conn.execute(
             "INSERT INTO approval_requests (
@@ -204,10 +203,8 @@ impl ApprovalEngine {
         let db_requests = self.load_by_status(conn, ApprovalStatus::Pending)?;
 
         let map = self.requests.read().unwrap();
-        let mut merged: HashMap<String, ApprovalRequest> = db_requests
-            .into_iter()
-            .map(|r| (r.id.clone(), r))
-            .collect();
+        let mut merged: HashMap<String, ApprovalRequest> =
+            db_requests.into_iter().map(|r| (r.id.clone(), r)).collect();
 
         // In-memory entries that may not yet be in DB take precedence
         for (id, req) in map.iter() {
@@ -256,8 +253,7 @@ impl ApprovalEngine {
 
             let response = match (response_json, decided_at_str, source) {
                 (Some(resp_json), Some(decided_at_str), Some(src)) => {
-                    let feedback: Option<String> =
-                        serde_json::from_str(&resp_json).unwrap_or(None);
+                    let feedback: Option<String> = serde_json::from_str(&resp_json).unwrap_or(None);
                     let decided_at = DateTime::parse_from_rfc3339(&decided_at_str)
                         .map(|dt| dt.with_timezone(&Utc))
                         .ok();
@@ -326,7 +322,8 @@ impl ApprovalEngine {
             let mut stmt = conn
                 .prepare("SELECT options_json FROM approval_requests WHERE id = ?1")
                 .ok()?;
-            let options_json: String = stmt.query_row(params![request_id], |row| row.get(0)).ok()?;
+            let options_json: String =
+                stmt.query_row(params![request_id], |row| row.get(0)).ok()?;
             let options: Vec<ApprovalOption> = serde_json::from_str(&options_json).ok()?;
             options
                 .iter()
@@ -339,7 +336,10 @@ impl ApprovalEngine {
             Some(ApprovalAction::Reject) => ApprovalStatus::Rejected,
             Some(ApprovalAction::Feedback) => ApprovalStatus::Pending,
             None => {
-                return Err(format!("Option '{}' not found in request '{}'", decision.option_id, request_id));
+                return Err(format!(
+                    "Option '{}' not found in request '{}'",
+                    decision.option_id, request_id
+                ));
             }
         };
 
@@ -411,7 +411,9 @@ impl ApprovalEngine {
     /// Get aggregate statistics.
     pub fn get_stats(&self, conn: &Connection) -> Result<ApprovalStats, String> {
         let total: u64 = conn
-            .query_row("SELECT COUNT(*) FROM approval_requests", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM approval_requests", [], |row| {
+                row.get(0)
+            })
             .map_err(|e| e.to_string())?;
 
         let pending: u64 = conn
@@ -472,9 +474,7 @@ impl ApprovalEngine {
             .map_err(|e| e.to_string())?;
 
         let rows = stmt
-            .query_map(params![status.as_str()], |row| {
-                parse_approval_row(row)
-            })
+            .query_map(params![status.as_str()], |row| parse_approval_row(row))
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
@@ -484,9 +484,7 @@ impl ApprovalEngine {
 }
 
 /// Parse a single approval row from the database.
-fn parse_approval_row(
-    row: &rusqlite::Row<'_>,
-) -> Result<ApprovalRequest, rusqlite::Error> {
+fn parse_approval_row(row: &rusqlite::Row<'_>) -> Result<ApprovalRequest, rusqlite::Error> {
     let status_str: String = row.get(6)?;
     let deadline_str: String = row.get(7)?;
     let created_at_str: String = row.get(9)?;
@@ -495,8 +493,7 @@ fn parse_approval_row(
     let decided_at_str: Option<String> = row.get(10)?;
     let source: Option<String> = row.get(11)?;
 
-    let options: Vec<ApprovalOption> =
-        serde_json::from_str(&options_json).unwrap_or_default();
+    let options: Vec<ApprovalOption> = serde_json::from_str(&options_json).unwrap_or_default();
 
     let response = match (response_json, decided_at_str, source) {
         (Some(resp_json), Some(decided_at_str), Some(src)) => {
@@ -505,7 +502,7 @@ fn parse_approval_row(
                 .ok();
 
             // Try to deserialize the full ApprovalDecision from JSON
-            
+
             serde_json::from_str::<ApprovalDecision>(&resp_json)
                 .ok()
                 .or_else(|| {
@@ -594,9 +591,7 @@ use tauri::State;
 
 /// Get all pending approval requests.
 #[tauri::command]
-pub fn approval_get_pending(
-    state: State<AppState>,
-) -> Result<Vec<ApprovalRequest>, String> {
+pub fn approval_get_pending(state: State<AppState>) -> Result<Vec<ApprovalRequest>, String> {
     let engine = state.approval_engine.lock().map_err(|e| e.to_string())?;
     let db = state.database.lock().map_err(|e| e.to_string())?;
     let conn = db
@@ -645,9 +640,7 @@ pub fn approval_decide(
 
 /// Get approval system statistics.
 #[tauri::command]
-pub fn approval_get_stats(
-    state: State<AppState>,
-) -> Result<ApprovalStats, String> {
+pub fn approval_get_stats(state: State<AppState>) -> Result<ApprovalStats, String> {
     let engine = state.approval_engine.lock().map_err(|e| e.to_string())?;
     let db = state.database.lock().map_err(|e| e.to_string())?;
     let conn = db

@@ -1,8 +1,8 @@
 //! 测试 Hermes Native 执行功能
 //! 直接调用 Hermes AgentLoop 执行简单编码任务
 
-use std::sync::Arc;
 use hermes_core::Message;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -24,11 +24,19 @@ async fn main() {
             println!("   模型: {:?}", config.model);
 
             if let Some(provider) = config.llm_providers.get("alibaba-coding-plan") {
-                let api_key_preview = provider.api_key.as_deref()
+                let api_key_preview = provider
+                    .api_key
+                    .as_deref()
                     .unwrap_or("未设置")
-                    .chars().take(10).collect::<String>() + "...";
+                    .chars()
+                    .take(10)
+                    .collect::<String>()
+                    + "...";
                 println!("   API Key: {}", api_key_preview);
-                println!("   Base URL: {}", provider.base_url.as_deref().unwrap_or_default());
+                println!(
+                    "   Base URL: {}",
+                    provider.base_url.as_deref().unwrap_or_default()
+                );
             }
         }
         Err(e) => {
@@ -43,26 +51,23 @@ async fn main() {
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
     // 构建 AgentConfig
-    let agent_config = hermes_agent::agent_builder::build_agent_config(
-        &gateway_config,
-        &model,
-        Some("test"),
-    );
+    let agent_config =
+        hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
     println!("✅ AgentConfig 构建成功");
     println!("   max_turns: {}", agent_config.max_turns);
     println!("   stream: {}", agent_config.stream);
 
     // 构建 Provider
-    let llm_provider = hermes_agent::agent_builder::build_provider(
-        &gateway_config,
-        &model,
-    );
+    let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     println!("✅ LLM Provider 构建成功");
 
     // 创建空的 ToolRegistry
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
-    println!("✅ ToolRegistry 构建成功 (工具数量: {})", tool_registry.names().len());
+    println!(
+        "✅ ToolRegistry 构建成功 (工具数量: {})",
+        tool_registry.names().len()
+    );
 
     // 创建 AgentLoop
     let agent_loop = hermes_agent::AgentLoop::new(agent_config, tool_registry, llm_provider);
@@ -87,7 +92,10 @@ fn main() {
     let messages = vec![Message::user(test_prompt)];
 
     println!("--- 测试 Hermes AgentLoop 执行 ---");
-    println!("提示词预览:\n{}\n", test_prompt.lines().take(5).collect::<Vec<_>>().join("\n"));
+    println!(
+        "提示词预览:\n{}\n",
+        test_prompt.lines().take(5).collect::<Vec<_>>().join("\n")
+    );
 
     // 执行
     println!("开始执行 AgentLoop.run()...\n");
@@ -98,7 +106,9 @@ fn main() {
             println!("   总 turns: {}", result.total_turns);
 
             // 提取响应内容
-            let response = result.messages.iter()
+            let response = result
+                .messages
+                .iter()
                 .rev()
                 .find_map(|m| {
                     if m.role == hermes_core::MessageRole::Assistant {

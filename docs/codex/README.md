@@ -1,11 +1,33 @@
 # Codex Planning Documents
 
-> 更新时间：2026-07-08  
-> 用途：给项目负责人、Qwen3.7 Plus、Claude Code 和后续执行 Agent 使用。
+> 更新时间：2026-07-10  
+> 用途：给项目负责人、使用 Qwen 3.7 Plus 模型的 Claude Code 和后续执行 Agent 使用。
 
 这个目录不是普通备忘录，而是 Hermes Game Operator 的执行依据。后续做游戏开发 Agent、VSCode 插件、IDEA 插件、Skill/MCP/Hook、记忆面板和进度面板时，优先读这里。
 
-## 必读顺序
+## 当前交接
+
+从 2026-07-10 起，后续执行先读以下四份：
+
+1. [Hermes Game Operator 完整产品与技术蓝图](./2026-07-10-hermes-game-operator-complete-product-blueprint.md)
+
+   不按阶段切割的完整目标产品规范。一次性定义产品不变量、完整用户旅程、状态机、平台合同、国际化、Agent 扩展、安全、可靠性、发布和最终完成定义。
+
+2. [游戏开发 Agent 当前交接与执行状态](./2026-07-10-game-agent-handoff-and-execution-plan.md)
+
+   当前真实状态、桌面验收证据、未解决问题和 D 盘执行环境。它用于描述“现在在哪里”，不再用于定义最终产品边界。
+
+3. [Claude Code（Qwen 3.7 Plus 模型）一体化执行提示词](./2026-07-10-qwen-claude-execution-prompts.md)
+
+   可直接发给同一个 Claude Code 会话的规划、继续实施、冷启动自审、修复及后续阶段提示词，不需要人工在两个角色之间转发。
+
+4. [Game Agent 执行与验收台账模板](./2026-07-10-execution-ledger-template.md)
+
+   每轮必须填写的 acceptance IDs、测试结果、真实证据、安全不变量和阻塞记录。
+
+完整产品蓝图定义“最终必须是什么”，当前交接定义“现在哪里”，执行提示词定义“同一个 Agent 如何工作”。三者职责不同，不得用当前缺口清单缩小完整产品边界。早期文档仍用于理解设计历史。
+
+## 历史必读顺序
 
 1. [Hermes Game Operator 总纲规划](./2026-07-08-hermes-game-operator-master-plan.md)
 
@@ -17,7 +39,7 @@
 
 3. [Qwen3.7 Plus + Claude Code 执行交接说明](./2026-07-08-qwen-claude-execution-brief.md)
 
-   最后看执行：Qwen 负责拆产品和测试，Claude Code 负责修构建、落代码、接入真实 Godot MVP。
+   这是早期按两个角色编写的历史说明。当前实际运行方式是 Claude Code 使用 Qwen 3.7 Plus 模型，最新一体化提示词优先。
 
 ## 核心判断
 
@@ -39,4 +61,3 @@
 ```
 
 这个闭环成立后，再扩 VSCode、IDEA、其他引擎和其他行业。
-

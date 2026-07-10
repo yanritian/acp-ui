@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -50,7 +50,11 @@ impl AgentConfigParser {
     pub fn new() -> Self {
         Self {
             required_fields: vec!["name".to_string(), "transport".to_string()],
-            valid_transports: vec!["stdio".to_string(), "websocket".to_string(), "http".to_string()],
+            valid_transports: vec![
+                "stdio".to_string(),
+                "websocket".to_string(),
+                "http".to_string(),
+            ],
         }
     }
 
@@ -68,11 +72,14 @@ impl AgentConfigParser {
                     Ok(c) => {
                         warnings.push(format!("Used fallback parser (serde_yaml failed: {})", e));
                         Some(c)
-                    },
+                    }
                     Err(fallback_err) => {
                         errors.push(ValidationError {
                             field: "yaml".to_string(),
-                            message: format!("Failed to parse YAML: {} (fallback also failed: {})", e, fallback_err),
+                            message: format!(
+                                "Failed to parse YAML: {} (fallback also failed: {})",
+                                e, fallback_err
+                            ),
                         });
                         None
                     }
@@ -82,7 +89,13 @@ impl AgentConfigParser {
 
         let config = match config {
             Some(c) => c,
-            None => return ParseResult { config: None, errors, warnings },
+            None => {
+                return ParseResult {
+                    config: None,
+                    errors,
+                    warnings,
+                }
+            }
         };
 
         // Validate required fields
@@ -96,25 +109,36 @@ impl AgentConfigParser {
             if field == "transport" && !self.valid_transports.contains(&config.transport) {
                 errors.push(ValidationError {
                     field: "transport".to_string(),
-                    message: format!("Invalid transport '{}'. Valid options: {}", config.transport, self.valid_transports.join(", ")),
+                    message: format!(
+                        "Invalid transport '{}'. Valid options: {}",
+                        config.transport,
+                        self.valid_transports.join(", ")
+                    ),
                 });
             }
         }
 
         // Validate transport-specific requirements
         if config.transport == "stdio" {
-            if config.command.is_none() || config.command.as_ref().map(|c| c.is_empty()).unwrap_or(true) {
+            if config.command.is_none()
+                || config
+                    .command
+                    .as_ref()
+                    .map(|c| c.is_empty())
+                    .unwrap_or(true)
+            {
                 errors.push(ValidationError {
                     field: "command".to_string(),
                     message: "stdio transport requires 'command' field".to_string(),
                 });
             }
         } else if (config.transport == "websocket" || config.transport == "http")
-            && (config.url.is_none() || config.url.as_ref().map(|u| u.is_empty()).unwrap_or(true)) {
-                errors.push(ValidationError {
-                    field: "url".to_string(),
-                    message: format!("{} transport requires 'url' field", config.transport),
-                });
+            && (config.url.is_none() || config.url.as_ref().map(|u| u.is_empty()).unwrap_or(true))
+        {
+            errors.push(ValidationError {
+                field: "url".to_string(),
+                message: format!("{} transport requires 'url' field", config.transport),
+            });
         }
 
         // Validate working directory if specified
@@ -137,9 +161,17 @@ impl AgentConfigParser {
         }
 
         if errors.is_empty() {
-            ParseResult { config: Some(config), errors, warnings }
+            ParseResult {
+                config: Some(config),
+                errors,
+                warnings,
+            }
         } else {
-            ParseResult { config: None, errors, warnings }
+            ParseResult {
+                config: None,
+                errors,
+                warnings,
+            }
         }
     }
 
@@ -205,14 +237,16 @@ impl AgentConfigParser {
         // Parse comma-separated list or YAML array format
         if value.starts_with('[') && value.ends_with(']') {
             // Array format: [item1, item2]
-            let inner = &value[1..value.len()-1];
-            inner.split(',')
+            let inner = &value[1..value.len() - 1];
+            inner
+                .split(',')
                 .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
                 .filter(|s| !s.is_empty())
                 .collect()
         } else {
             // Comma-separated
-            value.split(',')
+            value
+                .split(',')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect()
@@ -220,7 +254,11 @@ impl AgentConfigParser {
     }
 
     /// Save parsed config to SQLite
-    pub fn save_to_db(&self, config: &AgentConfigParsed, conn: &Connection) -> Result<String, String> {
+    pub fn save_to_db(
+        &self,
+        config: &AgentConfigParsed,
+        conn: &Connection,
+    ) -> Result<String, String> {
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
 
@@ -238,23 +276,29 @@ impl AgentConfigParser {
                 updated_at TEXT NOT NULL
             )",
             [],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         // Insert or update
         conn.execute(
             "INSERT OR REPLACE INTO agent_configs (id, name, config_json, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
             params![id, config.name, config_json, now, now],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         Ok(id)
     }
 
     /// Load config from SQLite by name
-    pub fn load_from_db(&self, name: &str, conn: &Connection) -> Result<Option<AgentConfigParsed>, String> {
-        let mut stmt = conn.prepare(
-            "SELECT config_json FROM agent_configs WHERE name = ?1"
-        ).map_err(|e| e.to_string())?;
+    pub fn load_from_db(
+        &self,
+        name: &str,
+        conn: &Connection,
+    ) -> Result<Option<AgentConfigParsed>, String> {
+        let mut stmt = conn
+            .prepare("SELECT config_json FROM agent_configs WHERE name = ?1")
+            .map_err(|e| e.to_string())?;
 
         let result = stmt.query_row(params![name], |row| {
             let json: String = row.get(0)?;
@@ -266,7 +310,7 @@ impl AgentConfigParser {
                 let config: AgentConfigParsed = serde_json::from_str(&json)
                     .map_err(|e| format!("Failed to deserialize config: {}", e))?;
                 Ok(Some(config))
-            },
+            }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e.to_string()),
         }
@@ -274,26 +318,25 @@ impl AgentConfigParser {
 
     /// List all saved configs
     pub fn list_configs(&self, conn: &Connection) -> Result<Vec<(String, String)>, String> {
-        let mut stmt = conn.prepare(
-            "SELECT id, name FROM agent_configs ORDER BY name"
-        ).map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare("SELECT id, name FROM agent_configs ORDER BY name")
+            .map_err(|e| e.to_string())?;
 
-        let configs = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+        let configs = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
 
         Ok(configs)
     }
 
     /// Delete config by name
     pub fn delete_config(&self, name: &str, conn: &Connection) -> Result<(), String> {
-        conn.execute(
-            "DELETE FROM agent_configs WHERE name = ?1",
-            params![name],
-        ).map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM agent_configs WHERE name = ?1", params![name])
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -326,5 +369,6 @@ capabilities: [file-read, file-write, bash]
 #   deny:
 #     - pattern: "Bash:rm -rf.*"
 #       description: "Cannot run destructive commands"
-"#.to_string()
+"#
+    .to_string()
 }

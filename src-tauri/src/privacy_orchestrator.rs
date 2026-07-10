@@ -6,9 +6,9 @@
 // - Data sanitization before remote API calls
 // - Privacy zones per scene/platform
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use regex::Regex;
 
 /// Privacy level for data handling
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,7 +96,8 @@ impl PrivacyZone {
             r#"db[_\s]*password[_\s]*[:=][_ \s]*['"]?[^\s'"]{8,}['"]?"#.to_string(),
             r#"database[_\s]*url[_\s]*[:=][_ \s]*['"]?postgres://[^\s'"]+['"]?"#.to_string(),
             // OAuth secrets
-            r#"oauth[_\s]*client[_\s]*secret[_\s]*[:=][_ \s]*['"]?[a-zA-Z0-9_-]{20,}['"]?"#.to_string(),
+            r#"oauth[_\s]*client[_\s]*secret[_\s]*[:=][_ \s]*['"]?[a-zA-Z0-9_-]{20,}['"]?"#
+                .to_string(),
             // JWT secrets
             r#"jwt[_\s]*secret[_\s]*[:=][_ \s]*['"]?[a-zA-Z0-9_-]{20,}['"]?"#.to_string(),
         ]
@@ -194,9 +195,30 @@ impl PrivacyOrchestrator {
         let mut zones = HashMap::new();
 
         // Create default privacy zones
-        zones.insert("strict".to_string(), PrivacyZone::new("strict".to_string(), "Strict Local".to_string(), PrivacyLevel::StrictLocal));
-        zones.insert("sanitized".to_string(), PrivacyZone::new("sanitized".to_string(), "Sanitized External".to_string(), PrivacyLevel::Sanitized));
-        zones.insert("standard".to_string(), PrivacyZone::new("standard".to_string(), "Standard Privacy".to_string(), PrivacyLevel::Standard));
+        zones.insert(
+            "strict".to_string(),
+            PrivacyZone::new(
+                "strict".to_string(),
+                "Strict Local".to_string(),
+                PrivacyLevel::StrictLocal,
+            ),
+        );
+        zones.insert(
+            "sanitized".to_string(),
+            PrivacyZone::new(
+                "sanitized".to_string(),
+                "Sanitized External".to_string(),
+                PrivacyLevel::Sanitized,
+            ),
+        );
+        zones.insert(
+            "standard".to_string(),
+            PrivacyZone::new(
+                "standard".to_string(),
+                "Standard Privacy".to_string(),
+                PrivacyLevel::Standard,
+            ),
+        );
 
         Self {
             zones,
@@ -228,12 +250,13 @@ impl PrivacyOrchestrator {
         file_paths: &[String],
         command: Option<&str>,
     ) -> PrivacyDecision {
-        let zone = self.get_active_zone().unwrap_or_else(|| {
-            self.zones.get("standard").unwrap()
-        });
+        let zone = self
+            .get_active_zone()
+            .unwrap_or_else(|| self.zones.get("standard").unwrap());
 
         // Check excluded files
-        let excluded_files: Vec<String> = file_paths.iter()
+        let excluded_files: Vec<String> = file_paths
+            .iter()
             .filter(|p| zone.is_path_excluded(p))
             .cloned()
             .collect();
@@ -243,7 +266,9 @@ impl PrivacyOrchestrator {
         let sensitive_data_detected = !sensitive_matches.is_empty();
 
         // Check for local-only commands
-        let command_local_only = command.map(|c| zone.is_command_local_only(c)).unwrap_or(false);
+        let command_local_only = command
+            .map(|c| zone.is_command_local_only(c))
+            .unwrap_or(false);
 
         // Local execution required if command is local-only OR files are excluded
         let requires_local_execution = command_local_only || !excluded_files.is_empty();
@@ -262,11 +287,12 @@ impl PrivacyOrchestrator {
         };
 
         // Sanitize content if needed
-        let sanitized_content = if sensitive_data_detected && privacy_level == PrivacyLevel::Sanitized {
-            Some(self.sanitize_content(content, &sensitive_matches))
-        } else {
-            None
-        };
+        let sanitized_content =
+            if sensitive_data_detected && privacy_level == PrivacyLevel::Sanitized {
+                Some(self.sanitize_content(content, &sensitive_matches))
+            } else {
+                None
+            };
 
         let reason = format!(
             "Privacy level {} due to: {} excluded files, {} sensitive matches, {} local-only command",
@@ -302,9 +328,9 @@ impl PrivacyOrchestrator {
 
     /// Check if a path is safe for external processing
     pub fn is_path_safe(&self, path: &str) -> bool {
-        let zone = self.get_active_zone().unwrap_or_else(|| {
-            self.zones.get("standard").unwrap()
-        });
+        let zone = self
+            .get_active_zone()
+            .unwrap_or_else(|| self.zones.get("standard").unwrap());
         !zone.is_path_excluded(path)
     }
 
@@ -328,7 +354,8 @@ impl PrivacyOrchestrator {
         if zone_id == "standard" {
             return Err("Cannot remove default 'standard' zone".to_string());
         }
-        self.zones.remove(zone_id)
+        self.zones
+            .remove(zone_id)
             .ok_or_else(|| format!("Privacy zone '{}' not found", zone_id))
     }
 }
@@ -345,7 +372,11 @@ mod tests {
 
     #[test]
     fn test_privacy_zone_new() {
-        let zone = PrivacyZone::new("test".to_string(), "Test Zone".to_string(), PrivacyLevel::StrictLocal);
+        let zone = PrivacyZone::new(
+            "test".to_string(),
+            "Test Zone".to_string(),
+            PrivacyLevel::StrictLocal,
+        );
         assert_eq!(zone.id, "test");
         assert_eq!(zone.privacy_level, PrivacyLevel::StrictLocal);
         assert!(zone.enabled);
@@ -353,7 +384,11 @@ mod tests {
 
     #[test]
     fn test_path_excluded() {
-        let zone = PrivacyZone::new("test".to_string(), "Test".to_string(), PrivacyLevel::Standard);
+        let zone = PrivacyZone::new(
+            "test".to_string(),
+            "Test".to_string(),
+            PrivacyLevel::Standard,
+        );
         assert!(zone.is_path_excluded(".env"));
         assert!(zone.is_path_excluded("config/secrets/api.key"));
         assert!(zone.is_path_excluded("src/main.rs") == false);
@@ -361,7 +396,11 @@ mod tests {
 
     #[test]
     fn test_command_local_only() {
-        let zone = PrivacyZone::new("test".to_string(), "Test".to_string(), PrivacyLevel::Standard);
+        let zone = PrivacyZone::new(
+            "test".to_string(),
+            "Test".to_string(),
+            PrivacyLevel::Standard,
+        );
         assert!(zone.is_command_local_only("delete credentials"));
         assert!(zone.is_command_local_only("show password"));
         assert!(zone.is_command_local_only("read file") == false);
@@ -369,7 +408,11 @@ mod tests {
 
     #[test]
     fn test_detect_sensitive_api_key() {
-        let zone = PrivacyZone::new("test".to_string(), "Test".to_string(), PrivacyLevel::Standard);
+        let zone = PrivacyZone::new(
+            "test".to_string(),
+            "Test".to_string(),
+            PrivacyLevel::Standard,
+        );
         let text = "api_key = 'sk-1234567890abcdefghij'";
         let matches = zone.detect_sensitive_data(text);
         assert!(matches.len() > 0);
@@ -385,12 +428,7 @@ mod tests {
     #[test]
     fn test_analyze_task_strict_local() {
         let orchestrator = PrivacyOrchestrator::new();
-        let decision = orchestrator.analyze_task(
-            "task-1",
-            "content",
-            &[".env".to_string()],
-            None,
-        );
+        let decision = orchestrator.analyze_task("task-1", "content", &[".env".to_string()], None);
         assert_eq!(decision.privacy_level, PrivacyLevel::StrictLocal);
         assert!(decision.requires_local_execution);
     }
@@ -411,14 +449,22 @@ mod tests {
     #[test]
     fn test_sanitize_content() {
         let orchestrator = PrivacyOrchestrator::new();
-        let zone = PrivacyZone::new("test".to_string(), "Test".to_string(), PrivacyLevel::Standard);
+        let zone = PrivacyZone::new(
+            "test".to_string(),
+            "Test".to_string(),
+            PrivacyLevel::Standard,
+        );
         let matches = zone.detect_sensitive_data("api_key = sk-1234567890abcdefghij123456");
         if matches.is_empty() {
             // 如果没有匹配，使用敏感内容测试
-            let sanitized = orchestrator.sanitize_content("password = secret12345678", &zone.detect_sensitive_data("password = secret12345678"));
+            let sanitized = orchestrator.sanitize_content(
+                "password = secret12345678",
+                &zone.detect_sensitive_data("password = secret12345678"),
+            );
             assert!(sanitized.contains("[REDACTED") || matches.is_empty());
         } else {
-            let sanitized = orchestrator.sanitize_content("api_key = sk-1234567890abcdefghij123456", &matches);
+            let sanitized =
+                orchestrator.sanitize_content("api_key = sk-1234567890abcdefghij123456", &matches);
             assert!(sanitized.contains("[REDACTED"));
         }
     }

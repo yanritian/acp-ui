@@ -4,10 +4,12 @@
 // supports Godot project build, GDScript, and export templates
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        HealthMetrics, ResultStatus, TaskOutput, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -121,11 +123,20 @@ impl GodotAdapter {
     }
 
     /// Export Godot project using headless mode
-    pub async fn export(&self, cwd: &PathBuf, target: GodotPlatform, dev: bool) -> Result<String, AgentError> {
+    pub async fn export(
+        &self,
+        cwd: &PathBuf,
+        target: GodotPlatform,
+        dev: bool,
+    ) -> Result<String, AgentError> {
         // Godot CLI: godot --headless --export-release "Windows Desktop" output.exe
         let godot_path = self.find_godot_executable()?;
 
-        let export_mode = if dev { "--export-debug" } else { "--export-release" };
+        let export_mode = if dev {
+            "--export-debug"
+        } else {
+            "--export-release"
+        };
         let output_name = self.get_output_name(target, dev);
         let output_path = cwd.join(&output_name);
         let output_str = output_path.to_string_lossy().to_string();
@@ -148,7 +159,10 @@ impl GodotAdapter {
         match output {
             Ok(o) if o.status.success() => Ok(format!("Exported to: {}", output_str)),
             Ok(o) => Err(AgentError::ExecutionError {
-                message: format!("Godot export failed: {}", String::from_utf8_lossy(&o.stderr)),
+                message: format!(
+                    "Godot export failed: {}",
+                    String::from_utf8_lossy(&o.stderr)
+                ),
                 retryable: true,
             }),
             Err(e) => Err(AgentError::ExecutionError {
@@ -178,17 +192,18 @@ impl GodotAdapter {
         // Linux: /usr/bin/godot4 or ~/.local/bin/godot4
 
         if cfg!(target_os = "windows") {
-            let paths = [
-                "C:\\Program Files\\Godot",
-                "C:\\Godot",
-            ];
+            let paths = ["C:\\Program Files\\Godot", "C:\\Godot"];
 
             for base in paths {
                 if let Ok(entries) = std::fs::read_dir(base) {
                     for entry in entries.flatten() {
                         let path = entry.path();
                         if path.extension().map(|e| e == "exe").unwrap_or(false) {
-                            if path.file_name().map(|n| n.to_string_lossy().contains("Godot")).unwrap_or(false) {
+                            if path
+                                .file_name()
+                                .map(|n| n.to_string_lossy().contains("Godot"))
+                                .unwrap_or(false)
+                            {
                                 return Ok(path.to_string_lossy().to_string());
                             }
                         }
@@ -318,7 +333,10 @@ impl AgentAdapter for GodotAdapter {
         })?;
 
         let cwd = PathBuf::from(config.cwd.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap().to_string_lossy().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }));
 
         let start = Instant::now();
@@ -326,7 +344,9 @@ impl AgentAdapter for GodotAdapter {
         // Parse task for build type
         let desc_lower = task.description.to_lowercase();
         let is_dev = desc_lower.contains("dev") || desc_lower.contains("debug");
-        let is_export = desc_lower.contains("export") || desc_lower.contains("build") || desc_lower.contains("release");
+        let is_export = desc_lower.contains("export")
+            || desc_lower.contains("build")
+            || desc_lower.contains("release");
 
         // Parse platform
         let platform = if desc_lower.contains("android") {
@@ -412,7 +432,12 @@ impl AgentAdapter for GodotAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -448,8 +473,14 @@ mod tests {
 
     #[test]
     fn test_godot_platform_from_str() {
-        assert_eq!(GodotPlatform::from_str("windows").unwrap(), GodotPlatform::Windows);
-        assert_eq!(GodotPlatform::from_str("android").unwrap(), GodotPlatform::Android);
+        assert_eq!(
+            GodotPlatform::from_str("windows").unwrap(),
+            GodotPlatform::Windows
+        );
+        assert_eq!(
+            GodotPlatform::from_str("android").unwrap(),
+            GodotPlatform::Android
+        );
         assert_eq!(GodotPlatform::from_str("web").unwrap(), GodotPlatform::Web);
         assert!(GodotPlatform::from_str("unknown").is_err());
     }
@@ -486,8 +517,17 @@ mod tests {
     #[test]
     fn test_output_name() {
         let adapter = GodotAdapter::new();
-        assert_eq!(adapter.get_output_name(GodotPlatform::Windows, false), "game.exe");
-        assert_eq!(adapter.get_output_name(GodotPlatform::Windows, true), "game_dev.exe");
-        assert_eq!(adapter.get_output_name(GodotPlatform::Android, false), "game.apk");
+        assert_eq!(
+            adapter.get_output_name(GodotPlatform::Windows, false),
+            "game.exe"
+        );
+        assert_eq!(
+            adapter.get_output_name(GodotPlatform::Windows, true),
+            "game_dev.exe"
+        );
+        assert_eq!(
+            adapter.get_output_name(GodotPlatform::Android, false),
+            "game.apk"
+        );
     }
 }

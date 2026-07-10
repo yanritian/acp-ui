@@ -12,11 +12,11 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 #[cfg(desktop)]
 use std::thread;
+use tauri::AppHandle;
 #[cfg(desktop)]
 use tauri::Emitter;
 #[cfg(desktop)]
 use uuid::Uuid;
-use tauri::AppHandle;
 
 #[cfg(all(desktop, target_os = "windows"))]
 use std::os::windows::process::CommandExt;
@@ -214,7 +214,12 @@ impl AgentManager {
             }
             // Agent process ended, remove from map
             agents_clone.write().remove(&agent_id_clone);
-            let _ = app_handle_clone.emit("agent-closed", AgentClosedEvent { agent_id: agent_id_clone });
+            let _ = app_handle_clone.emit(
+                "agent-closed",
+                AgentClosedEvent {
+                    agent_id: agent_id_clone,
+                },
+            );
         });
 
         // Spawn a thread to read stderr and emit events (for startup progress)
@@ -239,10 +244,7 @@ impl AgentManager {
         let running_agent = RunningAgent { child, stdin };
         self.agents.write().insert(agent_id.clone(), running_agent);
 
-        Ok(AgentInstance {
-            id: agent_id,
-            name,
-        })
+        Ok(AgentInstance { id: agent_id, name })
     }
 
     pub fn send_message(&self, agent_id: &str, message: &str) -> Result<(), String> {

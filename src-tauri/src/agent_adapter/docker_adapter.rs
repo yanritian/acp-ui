@@ -8,11 +8,13 @@
 // - compose 编排
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            AgentStatus, CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentStatus, AgentTask,
+        Capability, CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput,
+        TokenEstimate, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -104,7 +106,7 @@ impl DockerAdapter {
             .arg("--version")
             .output()
             .map_err(|e| AgentError::ConfigurationError {
-                message: format!("Docker 未安装: {}", e)
+                message: format!("Docker 未安装: {}", e),
             })?;
 
         Ok(output.status.success())
@@ -115,11 +117,10 @@ impl DockerAdapter {
         let mut cmd = Command::new("docker");
         cmd.args(args);
 
-        let output = cmd.output()
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("执行 Docker 命令失败: {}", e),
-                retryable: false,
-            })?;
+        let output = cmd.output().map_err(|e| AgentError::ExecutionError {
+            message: format!("执行 Docker 命令失败: {}", e),
+            retryable: false,
+        })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -132,7 +133,12 @@ impl DockerAdapter {
     }
 
     /// 生成 Dockerfile（根据项目类型）
-    async fn generate_dockerfile(&self, project_type: &str, base_image: &str, port: u16) -> Result<AgentResult, AgentError> {
+    async fn generate_dockerfile(
+        &self,
+        project_type: &str,
+        base_image: &str,
+        port: u16,
+    ) -> Result<AgentResult, AgentError> {
         let dockerfile_content = match project_type.to_lowercase().as_str() {
             "rust" | "tauri" => {
                 format!(
@@ -226,7 +232,10 @@ impl DockerAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("project_type".to_string(), project_type.to_string()),
                 ("base_image".to_string(), base_image.to_string()),
@@ -236,7 +245,12 @@ impl DockerAdapter {
     }
 
     /// 构建镜像
-    async fn build_image(&self, tag: &str, context: &str, dockerfile: Option<&str>) -> Result<AgentResult, AgentError> {
+    async fn build_image(
+        &self,
+        tag: &str,
+        context: &str,
+        dockerfile: Option<&str>,
+    ) -> Result<AgentResult, AgentError> {
         let mut args = vec!["build".to_string(), "-t".to_string(), tag.to_string()];
 
         if let Some(df) = dockerfile {
@@ -266,7 +280,10 @@ impl DockerAdapter {
                 },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("image_tag".to_string(), tag.to_string()),
                 ("build_context".to_string(), context.to_string()),
@@ -275,14 +292,33 @@ impl DockerAdapter {
     }
 
     /// 运行容器
-    async fn run_container(&self, image: &str, name: &str, ports: &[PortMapping], env: &HashMap<String, String>) -> Result<AgentResult, AgentError> {
-        let mut args = vec!["run".to_string(), "-d".to_string(), "--name".to_string(), name.to_string()];
+    async fn run_container(
+        &self,
+        image: &str,
+        name: &str,
+        ports: &[PortMapping],
+        env: &HashMap<String, String>,
+    ) -> Result<AgentResult, AgentError> {
+        let mut args = vec![
+            "run".to_string(),
+            "-d".to_string(),
+            "--name".to_string(),
+            name.to_string(),
+        ];
 
         // 端口映射
         for pm in ports {
             args.push("-p".to_string());
-            args.push(format!("{}:{}{}", pm.host_port, pm.container_port,
-                if pm.protocol == Protocol::Udp { "/udp" } else { "" }));
+            args.push(format!(
+                "{}:{}{}",
+                pm.host_port,
+                pm.container_port,
+                if pm.protocol == Protocol::Udp {
+                    "/udp"
+                } else {
+                    ""
+                }
+            ));
         }
 
         // 环境变量
@@ -302,17 +338,27 @@ impl DockerAdapter {
             task_id: uuid::Uuid::new_v4().to_string(),
             agent_id: self.id.clone(),
             status: ResultStatus::Success,
-            output: TaskOutput::Text(format!("容器运行成功: {} (ID: {})\n{}", name, container_id, output)),
+            output: TaskOutput::Text(format!(
+                "容器运行成功: {} (ID: {})\n{}",
+                name, container_id, output
+            )),
             input_tokens: 0,
             output_tokens: output.len() as u64 / 4,
             total_tokens: output.len() as u64 / 4,
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             metadata: HashMap::from([
                 ("container_id".to_string(), container_id),
                 ("container_name".to_string(), name.to_string()),
@@ -322,7 +368,11 @@ impl DockerAdapter {
     }
 
     /// 推送镜像
-    async fn push_image(&self, image: &str, registry: Option<&str>) -> Result<AgentResult, AgentError> {
+    async fn push_image(
+        &self,
+        image: &str,
+        registry: Option<&str>,
+    ) -> Result<AgentResult, AgentError> {
         let full_image = if let Some(reg) = registry {
             format!("{}{}", reg, image)
         } else {
@@ -343,19 +393,30 @@ impl DockerAdapter {
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            metadata: HashMap::from([
-                ("pushed_image".to_string(), full_image),
-            ]),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            metadata: HashMap::from([("pushed_image".to_string(), full_image)]),
         })
     }
 
     /// Docker Compose up
     async fn compose_up(&self, compose_file: &str) -> Result<AgentResult, AgentError> {
-        let args = vec!["compose".to_string(), "-f".to_string(), compose_file.to_string(), "up".to_string(), "-d".to_string()];
+        let args = vec![
+            "compose".to_string(),
+            "-f".to_string(),
+            compose_file.to_string(),
+            "up".to_string(),
+            "-d".to_string(),
+        ];
         let output = self.execute_docker(&args).await?;
 
         Ok(AgentResult {
@@ -369,13 +430,18 @@ impl DockerAdapter {
             cost: ActualCost {
                 amount: 0.0,
                 currency: "CNY".to_string(),
-                token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 },
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: output.len() as u64 / 4,
+                    total_tokens: output.len() as u64 / 4,
+                },
             },
             duration_ms: 0,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            metadata: HashMap::from([
-                ("compose_file".to_string(), compose_file.to_string()),
-            ]),
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            metadata: HashMap::from([("compose_file".to_string(), compose_file.to_string())]),
         })
     }
 }
@@ -438,15 +504,31 @@ impl AgentAdapter for DockerAdapter {
     async fn configure(&mut self, config: AgentConfig) -> Result<(), AgentError> {
         Self::check_docker_installed()?;
 
-        let image_name = config.metadata.get("image_name").cloned().unwrap_or("app".to_string());
-        let tag = config.metadata.get("tag").cloned().unwrap_or("latest".to_string());
-        let dockerfile_path = config.metadata.get("dockerfile_path")
+        let image_name = config
+            .metadata
+            .get("image_name")
+            .cloned()
+            .unwrap_or("app".to_string());
+        let tag = config
+            .metadata
+            .get("tag")
+            .cloned()
+            .unwrap_or("latest".to_string());
+        let dockerfile_path = config
+            .metadata
+            .get("dockerfile_path")
             .map(PathBuf::from)
             .unwrap_or(PathBuf::from("Dockerfile"));
-        let build_context = config.metadata.get("build_context")
+        let build_context = config
+            .metadata
+            .get("build_context")
             .map(PathBuf::from)
             .unwrap_or(PathBuf::from("."));
-        let container_name = config.metadata.get("container_name").cloned().unwrap_or("app-container".to_string());
+        let container_name = config
+            .metadata
+            .get("container_name")
+            .cloned()
+            .unwrap_or("app-container".to_string());
         let registry = config.metadata.get("registry").cloned();
 
         self.config = Some(DockerConfig {
@@ -455,7 +537,11 @@ impl AgentAdapter for DockerAdapter {
             dockerfile_path,
             build_context,
             container_name,
-            port_mappings: vec![PortMapping { host_port: 8080, container_port: 80, protocol: Protocol::Tcp }],
+            port_mappings: vec![PortMapping {
+                host_port: 8080,
+                container_port: 80,
+                protocol: Protocol::Tcp,
+            }],
             env_vars: HashMap::new(),
             registry,
         });
@@ -472,12 +558,16 @@ impl AgentAdapter for DockerAdapter {
 
         // 解析操作类型
         let action = match task.description.as_str() {
-            s if s.contains("dockerfile") || s.contains("生成") => DockerAction::GenerateDockerfile,
+            s if s.contains("dockerfile") || s.contains("生成") => {
+                DockerAction::GenerateDockerfile
+            }
             s if s.contains("构建") || s.contains("build") => DockerAction::BuildImage,
             s if s.contains("运行") || s.contains("run") => DockerAction::RunContainer,
             s if s.contains("停止") || s.contains("stop") => DockerAction::StopContainer,
             s if s.contains("推送") || s.contains("push") => DockerAction::PushImage,
-            s if s.contains("删除") || s.contains("remove") || s.contains("rm") => DockerAction::RemoveImage,
+            s if s.contains("删除") || s.contains("remove") || s.contains("rm") => {
+                DockerAction::RemoveImage
+            }
             s if s.contains("日志") || s.contains("logs") => DockerAction::Logs,
             s if s.contains("compose") && s.contains("up") => DockerAction::ComposeUp,
             s if s.contains("compose") && s.contains("down") => DockerAction::ComposeDown,
@@ -492,37 +582,51 @@ impl AgentAdapter for DockerAdapter {
                         let parts: Vec<&str> = text.split_whitespace().collect();
                         let pt = parts.get(0).unwrap_or(&"rust");
                         let bi = parts.get(1).unwrap_or(&"rust:latest");
-                        let p = parts.get(2).and_then(|s| s.parse::<u16>().ok()).unwrap_or(8080);
+                        let p = parts
+                            .get(2)
+                            .and_then(|s| s.parse::<u16>().ok())
+                            .unwrap_or(8080);
                         (pt.to_string(), bi.to_string(), p)
                     }
                     _ => ("rust".to_string(), "rust:latest".to_string(), 8080),
                 };
-                self.generate_dockerfile(&project_type, &base_image, port).await?
+                self.generate_dockerfile(&project_type, &base_image, port)
+                    .await?
             }
             DockerAction::BuildImage => {
                 let config = self.config.as_ref();
-                let tag = config.map(|c| format!("{}:{}", c.image_name, c.tag))
+                let tag = config
+                    .map(|c| format!("{}:{}", c.image_name, c.tag))
                     .unwrap_or("app:latest".to_string());
-                let context = config.map(|c| c.build_context.to_string_lossy().to_string())
+                let context = config
+                    .map(|c| c.build_context.to_string_lossy().to_string())
                     .unwrap_or(".".to_string());
                 let dockerfile = config.map(|c| c.dockerfile_path.to_string_lossy().to_string());
-                self.build_image(&tag, &context, dockerfile.as_deref()).await?
+                self.build_image(&tag, &context, dockerfile.as_deref())
+                    .await?
             }
             DockerAction::RunContainer => {
                 let config = self.config.as_ref();
-                let image = config.map(|c| format!("{}:{}", c.image_name, c.tag))
+                let image = config
+                    .map(|c| format!("{}:{}", c.image_name, c.tag))
                     .unwrap_or("app:latest".to_string());
-                let name = config.map(|c| c.container_name.clone())
+                let name = config
+                    .map(|c| c.container_name.clone())
                     .unwrap_or("app-container".to_string());
-                let ports = config.map(|c| c.port_mappings.clone())
-                    .unwrap_or(vec![PortMapping { host_port: 8080, container_port: 80, protocol: Protocol::Tcp }]);
-                let env = config.map(|c| c.env_vars.clone())
-                    .unwrap_or(HashMap::new());
+                let ports = config
+                    .map(|c| c.port_mappings.clone())
+                    .unwrap_or(vec![PortMapping {
+                        host_port: 8080,
+                        container_port: 80,
+                        protocol: Protocol::Tcp,
+                    }]);
+                let env = config.map(|c| c.env_vars.clone()).unwrap_or(HashMap::new());
                 self.run_container(&image, &name, &ports, &env).await?
             }
             DockerAction::PushImage => {
                 let config = self.config.as_ref();
-                let image = config.map(|c| format!("{}:{}", c.image_name, c.tag))
+                let image = config
+                    .map(|c| format!("{}:{}", c.image_name, c.tag))
                     .unwrap_or("app:latest".to_string());
                 let registry = config.and_then(|c| c.registry.as_deref());
                 self.push_image(&image, registry).await?
@@ -536,7 +640,10 @@ impl AgentAdapter for DockerAdapter {
                 self.compose_up(&compose_file).await?
             }
             DockerAction::StopContainer => {
-                let name = self.config.as_ref().map(|c| c.container_name.clone())
+                let name = self
+                    .config
+                    .as_ref()
+                    .map(|c| c.container_name.clone())
                     .unwrap_or("app-container".to_string());
                 let args = vec!["stop".to_string(), name.clone()];
                 let output = self.execute_docker(&args).await?;
@@ -548,14 +655,28 @@ impl AgentAdapter for DockerAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
             DockerAction::Logs => {
-                let name = self.config.as_ref().map(|c| c.container_name.clone())
+                let name = self
+                    .config
+                    .as_ref()
+                    .map(|c| c.container_name.clone())
                     .unwrap_or("app-container".to_string());
                 let args = vec!["logs".to_string(), name.clone()];
                 let output = self.execute_docker(&args).await?;
@@ -567,9 +688,20 @@ impl AgentAdapter for DockerAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -584,14 +716,27 @@ impl AgentAdapter for DockerAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
             DockerAction::RemoveImage => {
-                let tag = self.config.as_ref()
+                let tag = self
+                    .config
+                    .as_ref()
                     .map(|c| format!("{}:{}", c.image_name, c.tag))
                     .unwrap_or("app:latest".to_string());
                 let args = vec!["rmi".to_string(), tag.clone()];
@@ -604,9 +749,20 @@ impl AgentAdapter for DockerAdapter {
                     input_tokens: 0,
                     output_tokens: output.len() as u64 / 4,
                     total_tokens: output.len() as u64 / 4,
-                    cost: ActualCost { amount: 0.0, currency: "CNY".to_string(), token_usage: TokenUsage { input_tokens: 0, output_tokens: output.len() as u64 / 4, total_tokens: output.len() as u64 / 4 } },
+                    cost: ActualCost {
+                        amount: 0.0,
+                        currency: "CNY".to_string(),
+                        token_usage: TokenUsage {
+                            input_tokens: 0,
+                            output_tokens: output.len() as u64 / 4,
+                            total_tokens: output.len() as u64 / 4,
+                        },
+                    },
                     duration_ms: start.elapsed().as_millis() as u64,
-                    timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                     metadata: HashMap::new(),
                 }
             }
@@ -654,7 +810,12 @@ impl AgentAdapter for DockerAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -675,7 +836,11 @@ impl AgentAdapter for DockerAdapter {
 
     fn is_circuit_breaker_allowed(&self) -> bool {
         let metrics = self.health_tracker.get_metrics();
-        matches!(metrics.circuit_breaker_state, crate::agent_adapter::types::CircuitBreakerState::Closed | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. })
+        matches!(
+            metrics.circuit_breaker_state,
+            crate::agent_adapter::types::CircuitBreakerState::Closed
+                | crate::agent_adapter::types::CircuitBreakerState::HalfOpen { .. }
+        )
     }
 
     async fn reset_circuit_breaker(&mut self) {
@@ -713,7 +878,11 @@ mod tests {
 
     #[test]
     fn test_port_mapping() {
-        let pm = PortMapping { host_port: 8080, container_port: 80, protocol: Protocol::Tcp };
+        let pm = PortMapping {
+            host_port: 8080,
+            container_port: 80,
+            protocol: Protocol::Tcp,
+        };
         assert_eq!(pm.host_port, 8080);
         assert_eq!(pm.container_port, 80);
     }

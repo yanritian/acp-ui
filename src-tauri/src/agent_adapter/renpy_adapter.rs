@@ -4,16 +4,18 @@
 // Supports Ren'Py project creation, script generation, and game building
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use serde::{Deserialize, Serialize};
 
 /// Ren'Py Game Adapter
 pub struct RenPyAdapter {
@@ -223,7 +225,8 @@ impl RenPyAdapter {
         }
 
         Err(AgentError::ConfigurationError {
-            message: "Ren'Py not found. Please install Ren'Py SDK and configure the path.".to_string(),
+            message: "Ren'Py not found. Please install Ren'Py SDK and configure the path."
+                .to_string(),
         })
     }
 
@@ -250,14 +253,21 @@ impl RenPyAdapter {
             Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
         } else {
             Err(AgentError::ExecutionError {
-                message: format!("Failed to get version: {}", String::from_utf8_lossy(&output.stderr)),
+                message: format!(
+                    "Failed to get version: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ),
                 retryable: false,
             })
         }
     }
 
     /// Create a new Ren'Py project
-    pub async fn create_project(&self, name: &str, base_path: &PathBuf) -> Result<PathBuf, AgentError> {
+    pub async fn create_project(
+        &self,
+        name: &str,
+        base_path: &PathBuf,
+    ) -> Result<PathBuf, AgentError> {
         let project_path = base_path.join(name);
 
         // Check if project already exists
@@ -269,7 +279,8 @@ impl RenPyAdapter {
 
         // Create project by copying template
         let renpy_exe = self.find_renpy_executable()?;
-        let renpy_sdk = renpy_exe.parent()
+        let renpy_sdk = renpy_exe
+            .parent()
             .ok_or_else(|| AgentError::ConfigurationError {
                 message: "Failed to get Ren'Py SDK path".to_string(),
             })?;
@@ -315,71 +326,86 @@ impl RenPyAdapter {
     }
 
     /// Update project configuration
-    async fn update_project_config(&self, project_path: &PathBuf, name: &str) -> Result<(), AgentError> {
+    async fn update_project_config(
+        &self,
+        project_path: &PathBuf,
+        name: &str,
+    ) -> Result<(), AgentError> {
         // Update project.json
         let project_json_path = project_path.join("project.json");
         if project_json_path.exists() {
-            let content = std::fs::read_to_string(&project_json_path)
-                .map_err(|e| AgentError::ExecutionError {
+            let content = std::fs::read_to_string(&project_json_path).map_err(|e| {
+                AgentError::ExecutionError {
                     message: format!("Failed to read project.json: {}", e),
                     retryable: false,
-                })?;
+                }
+            })?;
 
-            let mut config: serde_json::Value = serde_json::from_str(&content)
-                .map_err(|e| AgentError::ExecutionError {
+            let mut config: serde_json::Value =
+                serde_json::from_str(&content).map_err(|e| AgentError::ExecutionError {
                     message: format!("Failed to parse project.json: {}", e),
                     retryable: false,
                 })?;
 
             config["display_name"] = serde_json::Value::String(name.to_string());
 
-            let new_content = serde_json::to_string_pretty(&config)
-                .map_err(|e| AgentError::ExecutionError {
+            let new_content =
+                serde_json::to_string_pretty(&config).map_err(|e| AgentError::ExecutionError {
                     message: format!("Failed to serialize project.json: {}", e),
                     retryable: false,
                 })?;
 
-            std::fs::write(&project_json_path, new_content)
-                .map_err(|e| AgentError::ExecutionError {
+            std::fs::write(&project_json_path, new_content).map_err(|e| {
+                AgentError::ExecutionError {
                     message: format!("Failed to write project.json: {}", e),
                     retryable: false,
-                })?;
+                }
+            })?;
         }
 
         // Update options.rpy
         let options_rpy_path = project_path.join("game/options.rpy");
         if options_rpy_path.exists() {
-            let content = std::fs::read_to_string(&options_rpy_path)
-                .map_err(|e| AgentError::ExecutionError {
+            let content = std::fs::read_to_string(&options_rpy_path).map_err(|e| {
+                AgentError::ExecutionError {
                     message: format!("Failed to read options.rpy: {}", e),
                     retryable: false,
-                })?;
+                }
+            })?;
 
             // Replace game name
             let new_content = content.replace(
                 "define config.name = _(",
-                &format!("define config.name = _(\"{}\")\n## OLD: define config.name = _(", name)
+                &format!(
+                    "define config.name = _(\"{}\")\n## OLD: define config.name = _(",
+                    name
+                ),
             );
 
             // Update save directory
             let save_dir = name.to_lowercase().replace(" ", "-");
             let new_content = new_content.replace(
                 "define config.save_directory =",
-                &format!("define config.save_directory = \"{}\"", save_dir)
+                &format!("define config.save_directory = \"{}\"", save_dir),
             );
 
-            std::fs::write(&options_rpy_path, new_content)
-                .map_err(|e| AgentError::ExecutionError {
+            std::fs::write(&options_rpy_path, new_content).map_err(|e| {
+                AgentError::ExecutionError {
                     message: format!("Failed to write options.rpy: {}", e),
                     retryable: false,
-                })?;
+                }
+            })?;
         }
 
         Ok(())
     }
 
     /// Generate Ren'Py script from story specification
-    pub async fn generate_script(&self, spec: &StorySpec, project_path: &PathBuf) -> Result<String, AgentError> {
+    pub async fn generate_script(
+        &self,
+        spec: &StorySpec,
+        project_path: &PathBuf,
+    ) -> Result<String, AgentError> {
         // Validate specification
         self.validate_story_spec(spec)?;
 
@@ -467,11 +493,10 @@ impl RenPyAdapter {
 
         // Write to file
         let script_path = project_path.join("game/script.rpy");
-        std::fs::write(&script_path, &script)
-            .map_err(|e| AgentError::ExecutionError {
-                message: format!("Failed to write script.rpy: {}", e),
-                retryable: false,
-            })?;
+        std::fs::write(&script_path, &script).map_err(|e| AgentError::ExecutionError {
+            message: format!("Failed to write script.rpy: {}", e),
+            retryable: false,
+        })?;
 
         Ok(script)
     }
@@ -500,13 +525,17 @@ impl RenPyAdapter {
         }
 
         // Validate jump targets
-        let labels: std::collections::HashSet<_> = spec.scenes.iter().map(|s| s.label.as_str()).collect();
+        let labels: std::collections::HashSet<_> =
+            spec.scenes.iter().map(|s| s.label.as_str()).collect();
 
         for scene in &spec.scenes {
             if let Some(next) = &scene.next_label {
                 if !labels.contains(next.as_str()) {
                     return Err(AgentError::ConfigurationError {
-                        message: format!("Scene '{}' jumps to non-existent label: {}", scene.label, next),
+                        message: format!(
+                            "Scene '{}' jumps to non-existent label: {}",
+                            scene.label, next
+                        ),
                     });
                 }
             }
@@ -515,7 +544,10 @@ impl RenPyAdapter {
                 for choice in &menu.choices {
                     if !labels.contains(choice.target_label.as_str()) {
                         return Err(AgentError::ConfigurationError {
-                            message: format!("Choice in '{}' jumps to non-existent label: {}", scene.label, choice.target_label),
+                            message: format!(
+                                "Choice in '{}' jumps to non-existent label: {}",
+                                scene.label, choice.target_label
+                            ),
                         });
                     }
                 }
@@ -558,7 +590,10 @@ impl RenPyAdapter {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             Err(AgentError::ExecutionError {
-                message: format!("Compilation failed: {}", String::from_utf8_lossy(&output.stderr)),
+                message: format!(
+                    "Compilation failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ),
                 retryable: true,
             })
         }
@@ -634,7 +669,10 @@ impl AgentAdapter for RenPyAdapter {
         })?;
 
         let cwd = PathBuf::from(config.cwd.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap().to_string_lossy().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }));
 
         let start = Instant::now();
@@ -655,7 +693,10 @@ impl AgentAdapter for RenPyAdapter {
             };
 
             let project_path = self.create_project(&name, &cwd).await?;
-            format!("Created Ren'Py project at: {}", project_path.to_string_lossy())
+            format!(
+                "Created Ren'Py project at: {}",
+                project_path.to_string_lossy()
+            )
         } else if is_run {
             // Run game
             let pid = self.run_game(&cwd).await?;
@@ -698,9 +739,7 @@ impl AgentAdapter for RenPyAdapter {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as u64,
-            metadata: HashMap::from([
-                ("cwd".to_string(), cwd.to_string_lossy().to_string()),
-            ]),
+            metadata: HashMap::from([("cwd".to_string(), cwd.to_string_lossy().to_string())]),
         })
     }
 
@@ -735,7 +774,12 @@ impl AgentAdapter for RenPyAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -771,9 +815,18 @@ mod tests {
 
     #[test]
     fn test_renpy_platform_from_str() {
-        assert_eq!(RenPyPlatform::from_str("windows").unwrap(), RenPyPlatform::Windows);
-        assert_eq!(RenPyPlatform::from_str("mac").unwrap(), RenPyPlatform::MacOS);
-        assert_eq!(RenPyPlatform::from_str("linux").unwrap(), RenPyPlatform::Linux);
+        assert_eq!(
+            RenPyPlatform::from_str("windows").unwrap(),
+            RenPyPlatform::Windows
+        );
+        assert_eq!(
+            RenPyPlatform::from_str("mac").unwrap(),
+            RenPyPlatform::MacOS
+        );
+        assert_eq!(
+            RenPyPlatform::from_str("linux").unwrap(),
+            RenPyPlatform::Linux
+        );
         assert!(RenPyPlatform::from_str("unknown").is_err());
     }
 

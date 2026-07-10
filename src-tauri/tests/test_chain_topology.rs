@@ -2,7 +2,7 @@
 //!
 //! Validates Worker A → B → C sequential pipeline execution
 
-use acp_ui_lib::{SwarmOrchestrator, SwarmAgent, AgentRole, AgentSwarmStatus};
+use acp_ui_lib::{AgentRole, AgentSwarmStatus, SwarmAgent, SwarmOrchestrator};
 
 fn create_worker(id: &str, name: &str) -> SwarmAgent {
     SwarmAgent {
@@ -33,10 +33,16 @@ fn test_chain_execute_assigns_workers_sequentially() {
     orchestrator.register_agent(worker_c).unwrap();
 
     // Execute chain
-    let result = orchestrator.execute_chain(
-        "Write a test suite for the new feature",
-        &["worker-a".to_string(), "worker-b".to_string(), "worker-c".to_string()],
-    ).unwrap();
+    let result = orchestrator
+        .execute_chain(
+            "Write a test suite for the new feature",
+            &[
+                "worker-a".to_string(),
+                "worker-b".to_string(),
+                "worker-c".to_string(),
+            ],
+        )
+        .unwrap();
 
     // Should have 3 stages
     assert_eq!(result.total_stages, 3);
@@ -78,7 +84,8 @@ fn test_chain_requires_idle_workers() {
     }
 
     // Can execute another chain
-    let result = orchestrator.execute_chain("Task 2", &["worker-a".to_string(), "worker-b".to_string()]);
+    let result =
+        orchestrator.execute_chain("Task 2", &["worker-a".to_string(), "worker-b".to_string()]);
     assert!(result.is_ok());
 }
 
@@ -110,7 +117,9 @@ fn test_chain_fails_with_busy_worker() {
     orchestrator.register_agent(worker_b).unwrap();
 
     // Create a task that assigns worker_b
-    let task = orchestrator.create_task("Busy task".to_string(), None, None).unwrap();
+    let task = orchestrator
+        .create_task("Busy task".to_string(), None, None)
+        .unwrap();
 
     // If worker_b was assigned, try to use it in chain
     if task.assigned_agents.contains(&"worker-b".to_string()) {

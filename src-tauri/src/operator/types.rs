@@ -85,6 +85,10 @@ pub enum OperatorEventType {
     FileModified,
     FilePatchProposed,
     FilePatchApplied,
+    ValidationStarted,
+    ValidationPassed,
+    ValidationFailed,
+    ValidationSkipped,
     MemoryRead,
     MemoryWritten,
     HookStarted,
@@ -115,6 +119,7 @@ pub struct OperatorEvent {
     pub event_id: String,
     pub task_id: String,
     pub timestamp: String,
+    #[serde(rename = "type")]
     pub event_type: OperatorEventType,
     pub level: EventLevel,
     pub title: String,
@@ -166,6 +171,15 @@ pub struct ApprovalPreview {
     pub files: Option<Vec<String>>,
     pub diff_id: Option<String>,
     pub command: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diffs: Option<Vec<FileDiffPreview>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileDiffPreview {
+    pub path: String,
+    pub operation: String,
+    pub diff: String,
 }
 
 // ============================================================================

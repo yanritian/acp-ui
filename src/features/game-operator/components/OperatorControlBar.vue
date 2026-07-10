@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OperatorTask } from '@/types/operator'
 
-const props = defineProps<{
+defineProps<{
   task: OperatorTask
 }>()
 
@@ -23,6 +23,8 @@ const statusColors: Record<string, string> = {
   failed: '#EF4444',
   completed: '#10B981',
 }
+
+const stoppableStatuses = ['planning', 'waiting_approval', 'running', 'paused', 'redirecting']
 </script>
 
 <template>
@@ -46,21 +48,21 @@ const statusColors: Record<string, string> = {
         @click="emit('pause')"
         class="control-btn pause-btn"
       >
-        ⏸️ Pause
+        Pause
       </button>
       <button
         v-if="task.status === 'paused'"
         @click="emit('resume')"
         class="control-btn resume-btn"
       >
-        ▶️ Resume
+        Resume
       </button>
       <button
-        v-if="task.status === 'running' || task.status === 'paused'"
+        v-if="stoppableStatuses.includes(task.status)"
         @click="emit('stop')"
         class="control-btn stop-btn"
       >
-        ⏹️ Stop
+        Stop
       </button>
     </div>
   </div>
@@ -68,9 +70,14 @@ const statusColors: Record<string, string> = {
 
 <style scoped>
 .operator-control-bar {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   padding: 1rem;
   background: var(--bg-sidebar);
   border-radius: 8px;
@@ -80,6 +87,9 @@ const statusColors: Record<string, string> = {
 .task-info {
   display: flex;
   align-items: center;
+  flex: 1 1 420px;
+  max-width: 100%;
+  min-width: 0;
   gap: 1rem;
 }
 
@@ -89,27 +99,40 @@ const statusColors: Record<string, string> = {
   color: white;
   font-weight: 600;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .task-details {
   display: flex;
+  flex: 1 1 220px;
+  min-width: 0;
   flex-direction: column;
   gap: 0.25rem;
 }
 
 .task-goal {
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 .task-meta {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 1rem;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
+.task-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .control-buttons {
   display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
   gap: 0.5rem;
 }
 
@@ -139,5 +162,28 @@ const statusColors: Record<string, string> = {
 .stop-btn {
   background: #EF4444;
   color: white;
+}
+
+@container (max-width: 700px) {
+  .operator-control-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .task-info {
+    align-items: flex-start;
+    flex: 0 1 auto;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .task-details {
+    flex: 0 1 auto;
+    width: 100%;
+  }
+
+  .control-buttons {
+    margin-left: 0;
+  }
 }
 </style>

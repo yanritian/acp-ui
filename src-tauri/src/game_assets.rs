@@ -141,8 +141,19 @@ impl GameAssetDetector {
 
     fn default_texture_formats() -> HashMap<String, Vec<String>> {
         HashMap::from([
-            ("unity".to_string(), vec!["png".to_string(), "jpg".to_string(), "tga".to_string(), "dds".to_string()]),
-            ("godot".to_string(), vec!["png".to_string(), "jpg".to_string(), "webp".to_string()]),
+            (
+                "unity".to_string(),
+                vec![
+                    "png".to_string(),
+                    "jpg".to_string(),
+                    "tga".to_string(),
+                    "dds".to_string(),
+                ],
+            ),
+            (
+                "godot".to_string(),
+                vec!["png".to_string(), "jpg".to_string(), "webp".to_string()],
+            ),
         ])
     }
 
@@ -211,7 +222,9 @@ impl GameAssetDetector {
             // 2D Sprites/Textures
             "png" | "jpg" | "jpeg" | "bmp" | "tga" | "gif" | "webp" => GameAssetType::Sprite2D,
             // 3D Models
-            "fbx" | "obj" | "gltf" | "glb" | "dae" | "blend" | "3ds" | "max" => GameAssetType::Model3D,
+            "fbx" | "obj" | "gltf" | "glb" | "dae" | "blend" | "3ds" | "max" => {
+                GameAssetType::Model3D
+            }
             // Unity/Godot specific
             "prefab" | "mat" | "mesh" => GameAssetType::Model3D,
             // Animations
@@ -232,7 +245,12 @@ impl GameAssetDetector {
         }
     }
 
-    pub fn get_optimization_suggestions(&self, asset_type: GameAssetType, size: u64, format: &str) -> Vec<AssetOptimization> {
+    pub fn get_optimization_suggestions(
+        &self,
+        asset_type: GameAssetType,
+        size: u64,
+        format: &str,
+    ) -> Vec<AssetOptimization> {
         let mut suggestions = Vec::new();
 
         // Large file warning
@@ -240,7 +258,10 @@ impl GameAssetDetector {
             suggestions.push(AssetOptimization {
                 suggestion_type: OptimizationType::Compress,
                 priority: 4,
-                description: format!("Large file ({}MB) - consider compression", size / 1024 / 1024),
+                description: format!(
+                    "Large file ({}MB) - consider compression",
+                    size / 1024 / 1024
+                ),
                 estimated_savings: Some(EstimatedSaving::Percentage(30.0)),
             });
         }
@@ -312,12 +333,15 @@ impl GameAssetDetector {
             type_counts.entry(asset.asset_type).and_modify(|c| *c += 1);
 
             type_sizes.entry(asset.asset_type).or_insert(0);
-            type_sizes.entry(asset.asset_type).and_modify(|s| *s += asset.size_bytes);
+            type_sizes
+                .entry(asset.asset_type)
+                .and_modify(|s| *s += asset.size_bytes);
 
             total_size += asset.size_bytes;
         }
 
-        let optimization_count = assets.iter()
+        let optimization_count = assets
+            .iter()
             .map(|a| a.optimization_suggestions.len())
             .sum();
 
@@ -361,7 +385,8 @@ impl AssetStats {
     }
 
     pub fn get_largest_type(&self) -> Option<(GameAssetType, u64)> {
-        self.type_sizes.iter()
+        self.type_sizes
+            .iter()
             .max_by_key(|(_, size)| *size)
             .map(|(t, s)| (*t, *s))
     }
@@ -382,7 +407,10 @@ mod tests {
     fn test_asset_type_from_str() {
         assert_eq!(GameAssetType::from_str("sprite"), GameAssetType::Sprite2D);
         assert_eq!(GameAssetType::from_str("model"), GameAssetType::Model3D);
-        assert_eq!(GameAssetType::from_str("unknown_type"), GameAssetType::Unknown);
+        assert_eq!(
+            GameAssetType::from_str("unknown_type"),
+            GameAssetType::Unknown
+        );
     }
 
     #[test]
@@ -394,11 +422,26 @@ mod tests {
     #[test]
     fn test_get_asset_type_from_extension() {
         let detector = GameAssetDetector::new();
-        assert_eq!(detector.get_asset_type_from_extension("png"), GameAssetType::Sprite2D);
-        assert_eq!(detector.get_asset_type_from_extension("fbx"), GameAssetType::Model3D);
-        assert_eq!(detector.get_asset_type_from_extension("wav"), GameAssetType::Audio);
-        assert_eq!(detector.get_asset_type_from_extension("shader"), GameAssetType::Shader);
-        assert_eq!(detector.get_asset_type_from_extension("txt"), GameAssetType::Unknown);
+        assert_eq!(
+            detector.get_asset_type_from_extension("png"),
+            GameAssetType::Sprite2D
+        );
+        assert_eq!(
+            detector.get_asset_type_from_extension("fbx"),
+            GameAssetType::Model3D
+        );
+        assert_eq!(
+            detector.get_asset_type_from_extension("wav"),
+            GameAssetType::Audio
+        );
+        assert_eq!(
+            detector.get_asset_type_from_extension("shader"),
+            GameAssetType::Shader
+        );
+        assert_eq!(
+            detector.get_asset_type_from_extension("txt"),
+            GameAssetType::Unknown
+        );
     }
 
     #[test]
@@ -407,10 +450,12 @@ mod tests {
         let suggestions = detector.get_optimization_suggestions(
             GameAssetType::Sprite2D,
             10 * 1024 * 1024, // 10MB
-            "png"
+            "png",
         );
         assert!(!suggestions.is_empty());
-        assert!(suggestions.iter().any(|s| s.suggestion_type == OptimizationType::Compress));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.suggestion_type == OptimizationType::Compress));
     }
 
     #[test]
@@ -419,9 +464,11 @@ mod tests {
         let suggestions = detector.get_optimization_suggestions(
             GameAssetType::Sprite2D,
             500 * 1024, // 500KB
-            "bmp"
+            "bmp",
         );
-        assert!(suggestions.iter().any(|s| s.suggestion_type == OptimizationType::ConvertFormat));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.suggestion_type == OptimizationType::ConvertFormat));
     }
 
     #[test]
@@ -430,9 +477,11 @@ mod tests {
         let suggestions = detector.get_optimization_suggestions(
             GameAssetType::Audio,
             2 * 1024 * 1024, // 2MB
-            "wav"
+            "wav",
         );
-        assert!(suggestions.iter().any(|s| s.suggestion_type == OptimizationType::OptimizeAudio));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.suggestion_type == OptimizationType::OptimizeAudio));
     }
 
     #[test]

@@ -1,0 +1,81 @@
+{
+  "agents": {
+    "GitHub Copilot": {
+      "command": "npx",
+      "args": [
+        "@github/copilot-language-server@latest",
+        "--acp"
+      ]
+    },
+    "Claude Code": {
+      "command": "npx",
+      "args": [
+        "@agentclientprotocol/claude-agent-acp@latest"
+      ]
+    },
+    "Gemini CLI": {
+      "command": "npx",
+      "args": [
+        "@google/gemini-cli@latest",
+        "--experimental-acp"
+      ]
+    },
+    "Qwen Code": {
+      "command": "npx",
+      "args": [
+        "@qwen-code/qwen-code@latest",
+        "--acp",
+        "--experimental-skills"
+      ]
+    },
+    "Auggie CLI": {
+      "command": "npx",
+      "args": [
+        "@augmentcode/auggie@latest",
+        "--acp"
+      ],
+      "env": {
+        "AUGMENT_DISABLE_AUTO_UPDATE": "1"
+      }
+    },
+    "Qoder CLI": {
+      "command": "npx",
+      "args": [
+        "@qoder-ai/qodercli@latest",
+        "--acp"
+      ]
+    },
+    "Codex CLI": {
+      "command": "npx",
+      "args": [
+        "@zed-industries/codex-acp@latest"
+      ]
+    },
+    "OpenCode": {
+      "command": "npx",
+      "args": [
+        "opencode-ai@latest",
+        "acp"
+      ]
+    },
+    "OpenClaw": {
+      "command": "npx",
+      "args": [
+        "openclaw",
+        "acp"
+      ]
+    },
+    "Kiro CLI": {
+      "command": "kiro-cli",
+      "args": [
+        "acp"
+      ]
+    },
+    "Hermes Agent": {
+      "command": "hermes",
+      "args": [
+        "acp"
+      ]
+    }
+  }
+}

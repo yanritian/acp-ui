@@ -35,7 +35,9 @@ pub fn save_memory(
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -61,7 +63,9 @@ pub fn search_memories(
     state: State<AppState>,
 ) -> Result<Vec<MemoryRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let pattern = format!("%{}%", query);
@@ -125,7 +129,9 @@ pub fn get_agent_memories(
     state: State<AppState>,
 ) -> Result<Vec<MemoryRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
 
@@ -168,7 +174,9 @@ pub fn get_shared_memories(
     state: State<AppState>,
 ) -> Result<Vec<MemoryRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -207,18 +215,18 @@ pub fn get_shared_memories(
 }
 
 #[tauri::command]
-pub fn delete_memory(
-    memory_id: String,
-    state: State<AppState>,
-) -> Result<(), String> {
+pub fn delete_memory(memory_id: String, state: State<AppState>) -> Result<(), String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     conn.execute(
         "DELETE FROM memories WHERE id = ?1",
         rusqlite::params![memory_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

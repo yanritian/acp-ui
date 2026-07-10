@@ -2,6 +2,7 @@
 // Tests for task control buttons (pause, resume, stop)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import operatorControlBarSource from '../components/OperatorControlBar.vue?raw'
 
 // Mock props
 const mockTask = {
@@ -117,6 +118,22 @@ describe('OperatorControlBar', () => {
   })
 
   describe('Task Info Display', () => {
+    it('should keep long task details and controls reachable in a narrow operator surface', () => {
+      expect(operatorControlBarSource).toMatch(
+        /\.operator-control-bar\s*\{[^}]*flex-wrap:\s*wrap;/s,
+      )
+      expect(operatorControlBarSource).toMatch(
+        /\.task-info\s*\{[^}]*flex:\s*1 1 420px;/s,
+      )
+      expect(operatorControlBarSource).toMatch(
+        /\.task-goal\s*\{[^}]*overflow-wrap:\s*anywhere;/s,
+      )
+      expect(operatorControlBarSource).toContain('@container (max-width: 700px)')
+      expect(operatorControlBarSource).toMatch(
+        /@container \(max-width: 700px\)[\s\S]*?\.task-info\s*\{[^}]*flex:\s*0 1 auto;[^}]*flex-direction:\s*column;/,
+      )
+    })
+
     it('should show task goal', () => {
       const task = { ...mockTask, goal: 'Add double jump' }
       expect(task.goal).toBe('Add double jump')

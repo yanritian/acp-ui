@@ -44,7 +44,9 @@ pub fn save_evolution(
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -53,8 +55,18 @@ pub fn save_evolution(
     conn.execute(
         "INSERT INTO evolutions (id, type, domain, before, after, reason, evidence, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        rusqlite::params![id, evolution_type, domain, before, after, reason, evidence, now],
-    ).map_err(|e| e.to_string())?;
+        rusqlite::params![
+            id,
+            evolution_type,
+            domain,
+            before,
+            after,
+            reason,
+            evidence,
+            now
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(id)
 }
@@ -67,7 +79,9 @@ pub fn get_evolutions(
     state: State<AppState>,
 ) -> Result<Vec<EvolutionRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -96,7 +110,8 @@ pub fn get_evolutions(
     };
 
     let records: Vec<EvolutionRecord> = match (&evolution_type, &domain) {
-        (Some(t), Some(d)) => conn.prepare(&sql)
+        (Some(t), Some(d)) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![t, d], |row| {
                 Ok(EvolutionRecord {
@@ -113,7 +128,8 @@ pub fn get_evolutions(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (Some(t), None) => conn.prepare(&sql)
+        (Some(t), None) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![t], |row| {
                 Ok(EvolutionRecord {
@@ -130,7 +146,8 @@ pub fn get_evolutions(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (None, Some(d)) => conn.prepare(&sql)
+        (None, Some(d)) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map(rusqlite::params![d], |row| {
                 Ok(EvolutionRecord {
@@ -147,7 +164,8 @@ pub fn get_evolutions(
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?,
-        (None, None) => conn.prepare(&sql)
+        (None, None) => conn
+            .prepare(&sql)
             .map_err(|e| e.to_string())?
             .query_map([], |row| {
                 Ok(EvolutionRecord {
@@ -180,7 +198,9 @@ pub fn save_pattern(
     state: State<AppState>,
 ) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -202,7 +222,9 @@ pub fn get_patterns(
     state: State<AppState>,
 ) -> Result<Vec<PatternRecord>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let conn = db.conn.lock().unwrap();
     let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
@@ -271,7 +293,9 @@ pub fn update_pattern_usage(
     state: State<AppState>,
 ) -> Result<(), String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     let now = chrono::Utc::now().to_rfc3339();
     let conn = db.conn.lock().unwrap();
@@ -280,7 +304,8 @@ pub fn update_pattern_usage(
     conn.execute(
         "UPDATE patterns SET usage_count = usage_count + 1, updated_at = ?1 WHERE id = ?2",
         rusqlite::params![now, pattern_id],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Update success rate
     if success {

@@ -15,9 +15,9 @@ pub enum AdapterType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capability {
     pub name: String,
-    pub proficiency: f32,    // 0.0 - 1.0, skill level
-    pub cost_per_unit: f32,  // USD or CNY, unit cost
-    pub latency_ms: u64,     // Average response time
+    pub proficiency: f32,   // 0.0 - 1.0, skill level
+    pub cost_per_unit: f32, // USD or CNY, unit cost
+    pub latency_ms: u64,    // Average response time
 }
 
 /// Agent configuration
@@ -28,7 +28,7 @@ pub struct AgentConfig {
     pub model: Option<String>,
     pub timeout_ms: u64,
     pub max_retries: u32,
-    pub cwd: Option<String>,  // Working directory (CLI Agent)
+    pub cwd: Option<String>, // Working directory (CLI Agent)
     pub metadata: HashMap<String, String>,
 }
 
@@ -80,9 +80,9 @@ pub enum SceneType {
     GameArtGeneration,
     GameCrossPlatform,
     GamePerformanceOptimization,
-    Marketing,      // Reserved for future
-    Finance,        // Reserved for future
-    Design,         // Reserved for future
+    Marketing, // Reserved for future
+    Finance,   // Reserved for future
+    Design,    // Reserved for future
 }
 
 /// Platform
@@ -117,7 +117,7 @@ pub struct TaskConstraints {
 impl Default for TaskConstraints {
     fn default() -> Self {
         Self {
-            timeout_ms: 300000,  // 5 minutes
+            timeout_ms: 300000, // 5 minutes
             max_tokens: None,
             budget_limit: None,
             quality_level: QualityLevel::Standard,
@@ -174,18 +174,26 @@ pub enum TaskOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentStatus {
     Idle,
-    Busy { current_task: String, started_at: u64 },
-    Error { message: String, error_count: u32 },
+    Busy {
+        current_task: String,
+        started_at: u64,
+    },
+    Error {
+        message: String,
+        error_count: u32,
+    },
     Maintenance,
-    CircuitBreakerOpen { reason: String },
+    CircuitBreakerOpen {
+        reason: String,
+    },
 }
 
 /// Agent health metrics (EWMA)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthMetrics {
-    pub health_score: f32,           // EWMA 0-100
-    pub success_rate: f32,           // Last 100 success rate
-    pub avg_latency_ms: u64,         // Average response time
+    pub health_score: f32,   // EWMA 0-100
+    pub success_rate: f32,   // Last 100 success rate
+    pub avg_latency_ms: u64, // Average response time
     pub error_count: u32,
     pub last_success_at: Option<u64>,
     pub last_error_at: Option<u64>,
@@ -250,7 +258,9 @@ pub enum AgentError {
 impl std::fmt::Display for AgentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AgentError::ConfigurationError { message } => write!(f, "Configuration error: {}", message),
+            AgentError::ConfigurationError { message } => {
+                write!(f, "Configuration error: {}", message)
+            }
             AgentError::ExecutionError { message, .. } => write!(f, "Execution error: {}", message),
             AgentError::TimeoutError { timeout_ms } => write!(f, "Timeout after {}ms", timeout_ms),
             AgentError::CostLimitExceeded { limit, actual } => {
@@ -259,9 +269,13 @@ impl std::fmt::Display for AgentError {
             AgentError::RateLimitError { retry_after_ms } => {
                 write!(f, "Rate limit, retry after {}ms", retry_after_ms)
             }
-            AgentError::AuthenticationError { message } => write!(f, "Authentication error: {}", message),
+            AgentError::AuthenticationError { message } => {
+                write!(f, "Authentication error: {}", message)
+            }
             AgentError::NetworkError { message } => write!(f, "Network error: {}", message),
-            AgentError::CircuitBreakerOpen { reason } => write!(f, "Circuit breaker open: {}", reason),
+            AgentError::CircuitBreakerOpen { reason } => {
+                write!(f, "Circuit breaker open: {}", reason)
+            }
         }
     }
 }

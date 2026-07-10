@@ -2,8 +2,8 @@
 //! 验证 spawn_and_execute_agent WebSocket 命令
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use serde_json::json;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 #[tokio::main]
 async fn main() {
@@ -13,9 +13,7 @@ async fn main() {
     let ws_url = "ws://127.0.0.1:1421";
     println!("连接 WebSocket: {}", ws_url);
 
-    let (ws_stream, _) = connect_async(ws_url)
-        .await
-        .expect("无法连接 WebSocket");
+    let (ws_stream, _) = connect_async(ws_url).await.expect("无法连接 WebSocket");
 
     println!("✅ WebSocket 连接成功\n");
 
@@ -35,7 +33,8 @@ async fn main() {
         }
     });
 
-    write.send(Message::Text(spawn_cmd.to_string().into()))
+    write
+        .send(Message::Text(spawn_cmd.to_string().into()))
         .await
         .expect("发送失败");
 
@@ -45,9 +44,11 @@ async fn main() {
     let mut event_count = 0;
     loop {
         match tokio::time::timeout(
-            std::time::Duration::from_secs(120),  // 等待 120 秒
-            read.next()
-        ).await {
+            std::time::Duration::from_secs(120), // 等待 120 秒
+            read.next(),
+        )
+        .await
+        {
             Ok(Some(msg)) => {
                 match msg {
                     Ok(Message::Text(text)) => {
@@ -77,7 +78,8 @@ async fn main() {
                             }
 
                             // 显示原始数据（截取）
-                            let data_str = serde_json::to_string_pretty(&parsed).unwrap_or_default();
+                            let data_str =
+                                serde_json::to_string_pretty(&parsed).unwrap_or_default();
                             if data_str.len() > 500 {
                                 println!("数据: {}...(已截取)", &data_str[..500]);
                             } else {

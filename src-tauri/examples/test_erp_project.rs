@@ -3,11 +3,11 @@
 //! 2. 生成项目代码
 //! 3. 校验代码正确性
 
-use std::sync::Arc;
+use hermes_core::Message;
+use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
-use regex::Regex;
-use hermes_core::Message;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +22,8 @@ async fn main() {
     let model = "alibaba-coding-plan:qwen3.6-plus".to_string();
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
-    let agent_config = hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("erp-dev"));
+    let agent_config =
+        hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("erp-dev"));
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -66,15 +67,24 @@ async fn main() {
     println!("执行需求文档生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("需求文档生成完成 ({} 字符)\n", response.len());
 
     // 提取并写入需求文档
-    let pattern = Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]*```[\w]*\s*([\s\S]*?)```").unwrap();
+    let pattern =
+        Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]*```[\w]*\s*([\s\S]*?)```").unwrap();
     let mut docs_written = 0;
 
     for caps in pattern.captures_iter(&response) {
@@ -104,8 +114,12 @@ async fn main() {
     }
 
     // 显示需求文档预览
-    let req_content = fs::read_to_string(project_dir.join("docs/requirements.md")).unwrap_or_default();
-    println!("\n需求文档预览:\n{}\n", req_content.lines().take(30).collect::<Vec<_>>().join("\n"));
+    let req_content =
+        fs::read_to_string(project_dir.join("docs/requirements.md")).unwrap_or_default();
+    println!(
+        "\n需求文档预览:\n{}\n",
+        req_content.lines().take(30).collect::<Vec<_>>().join("\n")
+    );
 
     // ========== 第二步：生成项目代码结构 ==========
     println!("========== 第二步：生成项目代码结构 ==========\n");
@@ -153,9 +167,17 @@ async fn main() {
     println!("执行后端代码生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let backend_response = result.messages.iter()
+    let backend_response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("后端代码生成完成 ({} 字符)\n", backend_response.len());
@@ -219,9 +241,17 @@ API 请求封装
     println!("执行前端代码生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let frontend_response = result.messages.iter()
+    let frontend_response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("前端代码生成完成 ({} 字符)\n", frontend_response.len());
@@ -250,19 +280,30 @@ API 请求封装
     // 校验后端 C# 代码
     if let Ok(content) = fs::read_to_string(project_dir.join("backend/ErpSystem/Program.cs")) {
         let checks = [
-            ("包含 WebApplication.CreateBuilder", content.contains("WebApplication.CreateBuilder")),
-            ("包含 Swagger", content.contains("Swagger") || content.contains("AddSwaggerGen")),
+            (
+                "包含 WebApplication.CreateBuilder",
+                content.contains("WebApplication.CreateBuilder"),
+            ),
+            (
+                "包含 Swagger",
+                content.contains("Swagger") || content.contains("AddSwaggerGen"),
+            ),
             ("包含 Controller 映射", content.contains("MapControllers")),
             ("包含 Run", content.contains(".Run()")),
         ];
         println!("Program.cs 校验:");
         for (name, passed) in checks {
             println!("  {} {}", if passed { "✅" } else { "❌" }, name);
-            validation_results.push(format!("Program.cs - {}: {}", name, if passed { "通过" } else { "失败" }));
+            validation_results.push(format!(
+                "Program.cs - {}: {}",
+                name,
+                if passed { "通过" } else { "失败" }
+            ));
         }
     }
 
-    if let Ok(content) = fs::read_to_string(project_dir.join("backend/ErpSystem/Models/Product.cs")) {
+    if let Ok(content) = fs::read_to_string(project_dir.join("backend/ErpSystem/Models/Product.cs"))
+    {
         let checks = [
             ("包含 class 定义", content.contains("public class")),
             ("包含属性", content.contains("public")),
@@ -272,12 +313,17 @@ API 请求封装
         println!("Product.cs 校验:");
         for (name, passed) in checks {
             println!("  {} {}", if passed { "✅" } else { "❌" }, name);
-            validation_results.push(format!("Product.cs - {}: {}", name, if passed { "通过" } else { "失败" }));
+            validation_results.push(format!(
+                "Product.cs - {}: {}",
+                name,
+                if passed { "通过" } else { "失败" }
+            ));
         }
     }
 
     // 校验前端 Vue 代码
-    if let Ok(content) = fs::read_to_string(project_dir.join("frontend/erp-frontend/package.json")) {
+    if let Ok(content) = fs::read_to_string(project_dir.join("frontend/erp-frontend/package.json"))
+    {
         let checks = [
             ("包含 vue", content.contains("vue")),
             ("包含 vite", content.contains("vite")),
@@ -287,7 +333,11 @@ API 请求封装
         println!("package.json 校验:");
         for (name, passed) in checks {
             println!("  {} {}", if passed { "✅" } else { "❌" }, name);
-            validation_results.push(format!("package.json - {}: {}", name, if passed { "通过" } else { "失败" }));
+            validation_results.push(format!(
+                "package.json - {}: {}",
+                name,
+                if passed { "通过" } else { "失败" }
+            ));
         }
     }
 
@@ -300,7 +350,11 @@ API 请求封装
         println!("main.ts 校验:");
         for (name, passed) in checks {
             println!("  {} {}", if passed { "✅" } else { "❌" }, name);
-            validation_results.push(format!("main.ts - {}: {}", name, if passed { "通过" } else { "失败" }));
+            validation_results.push(format!(
+                "main.ts - {}: {}",
+                name,
+                if passed { "通过" } else { "失败" }
+            ));
         }
     }
 
@@ -311,7 +365,10 @@ API 请求封装
     println!("项目目录: {}", project_dir.display());
     println!("总文件数: {}", total_files);
     println!("校验项目数: {}", validation_results.len());
-    let passed = validation_results.iter().filter(|r| r.contains("通过")).count();
+    let passed = validation_results
+        .iter()
+        .filter(|r| r.contains("通过"))
+        .count();
     println!("通过项目: {}", passed);
 
     // 显示文件结构

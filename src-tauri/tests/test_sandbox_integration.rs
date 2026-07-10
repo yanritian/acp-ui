@@ -2,7 +2,7 @@
 //!
 //! Validates sandbox blocking sensitive files and dangerous commands
 
-use tool_sandbox::{SandboxConfig, DeniedPatterns, Severity};
+use tool_sandbox::{DeniedPatterns, SandboxConfig, Severity};
 
 #[test]
 fn test_strict_sandbox_blocks_env_files() {
@@ -29,7 +29,9 @@ fn test_strict_sandbox_blocks_secrets_directory() {
     // Any path with secrets/ should be blocked
     assert!(patterns.is_denied("config/secrets/api.key").is_some());
     assert!(patterns.is_denied("secrets/db_password.txt").is_some());
-    assert!(patterns.is_denied("deep/nested/secrets/file.json").is_some());
+    assert!(patterns
+        .is_denied("deep/nested/secrets/file.json")
+        .is_some());
 }
 
 #[test]

@@ -1068,4 +1068,88 @@ export type MessageSchema = {
     deny: string
     ask: string
   }
+  gameOperator: {
+    title: string
+    subtitle: string
+    projectPath: string
+    selectProject: string
+    taskGoal: string
+    goalPlaceholder: string
+    startTask: string
+    starting: string
+    noPendingApprovals: string
+    redirectGoal: string
+    redirect: string
+    redirecting: string
+    selectProjectTitle: string
+    notGodotProject: string
+    selectProjectAndGoal: string
+  }
+  operatorStatus: {
+    idle: string
+    planning: string
+    waitingApproval: string
+    running: string
+    paused: string
+    redirecting: string
+    cancelling: string
+    cancelled: string
+    failed: string
+    completed: string
+    unknown: string
+  }
+  approvalDecision: {
+    approve: string
+    reject: string
+    requestChanges: string
+  }
+  operatorEvent: {
+    taskCreated: string
+    taskStarted: string
+    projectAnalyzing: string
+    projectAnalyzed: string
+    projectAnalysisFailed: string
+    planGenerating: string
+    planReady: string
+    planFailed: string
+    approvalRequested: string
+    approvalGranted: string
+    approvalRejected: string
+    stepExecuting: string
+    stepCompleted: string
+    stepFailed: string
+    fileModified: string
+    taskCompleting: string
+    taskCompleted: string
+    taskFailed: string
+    taskCancelled: string
+    taskPaused: string
+    taskResumed: string
+    taskRedirected: string
+  }
+  operatorError: {
+    projectNotFound: string
+    taskNotFound: string
+    approvalNotFound: string
+    invalidState: string
+    operationFailed: string
+    networkError: string
+    timeout: string
+    permissionDenied: string
+  }
+  a11y: {
+    approvalButton: string
+    rejectButton: string
+    requestChangesButton: string
+    pauseButton: string
+    resumeButton: string
+    stopButton: string
+    diffPreview: string
+    approvalLevel: string
+    approvalAction: string
+    approvalTitle: string
+    approvalReason: string
+    approvalRisk: string
+    approvalFiles: string
+  }
 }

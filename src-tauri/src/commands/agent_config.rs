@@ -1,4 +1,4 @@
-use crate::agent_config_parser::{self, AgentConfigParser, AgentConfigParsed, ParseResult};
+use crate::agent_config_parser::{self, AgentConfigParsed, AgentConfigParser, ParseResult};
 use crate::AppState;
 use tauri::State;
 
@@ -11,9 +11,14 @@ pub fn parse_agent_config(yaml_content: String) -> ParseResult {
 }
 
 #[tauri::command]
-pub fn save_agent_config(config: AgentConfigParsed, state: State<AppState>) -> Result<String, String> {
+pub fn save_agent_config(
+    config: AgentConfigParsed,
+    state: State<AppState>,
+) -> Result<String, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
     let conn = db.conn.lock().unwrap();
 
     let parser = AgentConfigParser::new();
@@ -21,9 +26,14 @@ pub fn save_agent_config(config: AgentConfigParsed, state: State<AppState>) -> R
 }
 
 #[tauri::command]
-pub fn load_agent_config(name: String, state: State<AppState>) -> Result<Option<AgentConfigParsed>, String> {
+pub fn load_agent_config(
+    name: String,
+    state: State<AppState>,
+) -> Result<Option<AgentConfigParsed>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
     let conn = db.conn.lock().unwrap();
 
     let parser = AgentConfigParser::new();
@@ -33,7 +43,9 @@ pub fn load_agent_config(name: String, state: State<AppState>) -> Result<Option<
 #[tauri::command]
 pub fn list_agent_configs(state: State<AppState>) -> Result<Vec<(String, String)>, String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
     let conn = db.conn.lock().unwrap();
 
     let parser = AgentConfigParser::new();
@@ -43,7 +55,9 @@ pub fn list_agent_configs(state: State<AppState>) -> Result<Vec<(String, String)
 #[tauri::command]
 pub fn delete_agent_config(name: String, state: State<AppState>) -> Result<(), String> {
     let db = state.database.lock().unwrap();
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
     let conn = db.conn.lock().unwrap();
 
     let parser = AgentConfigParser::new();

@@ -2,7 +2,7 @@
 // Phase 2 Day 6: Complete export implementation
 
 use crate::game_detector::{GameDetector, GameEngine, GameInfo, GameSize};
-use crate::game_engine::{GameEngineManager, BuildResult, BuildError};
+use crate::game_engine::{BuildError, BuildResult, GameEngineManager};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -12,8 +12,8 @@ use std::path::PathBuf;
 #[serde(rename_all = "camelCase")]
 pub struct GameExportRequest {
     pub cwd: String,
-    pub target: String,      // Platform: "windows", "macos", "linux", "android", "ios", "web"
-    pub output: Option<String>,  // Output path (optional, auto-generated if not provided)
+    pub target: String, // Platform: "windows", "macos", "linux", "android", "ios", "web"
+    pub output: Option<String>, // Output path (optional, auto-generated if not provided)
     pub development: Option<bool>, // Development build (default: false)
 }
 
@@ -32,8 +32,8 @@ pub struct GameExportResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameExportProgress {
-    pub stage: String,       // "detecting", "preparing", "building", "finalizing", "complete"
-    pub progress: f32,       // 0.0 to 1.0
+    pub stage: String, // "detecting", "preparing", "building", "finalizing", "complete"
+    pub progress: f32, // 0.0 to 1.0
     pub message: String,
 }
 
@@ -45,7 +45,10 @@ pub async fn game_export(request: GameExportRequest) -> Result<GameExportRespons
     let cwd = PathBuf::from(&request.cwd);
     let mut logs = Vec::new();
 
-    logs.push(format!("[INFO] Starting export for project: {}", cwd.display()));
+    logs.push(format!(
+        "[INFO] Starting export for project: {}",
+        cwd.display()
+    ));
 
     // Step 1: Detect game engine
     logs.push("[INFO] Step 1: Detecting game engine...".to_string());
@@ -94,7 +97,10 @@ pub async fn game_export(request: GameExportRequest) -> Result<GameExportRespons
         cwd.join(format!("export/game.{}", extension))
     };
 
-    logs.push(format!("[INFO] Step 2: Output path: {}", output_path.display()));
+    logs.push(format!(
+        "[INFO] Step 2: Output path: {}",
+        output_path.display()
+    ));
 
     // Step 3: Create output directory
     if let Some(parent) = output_path.parent() {
@@ -174,8 +180,8 @@ pub async fn game_export(request: GameExportRequest) -> Result<GameExportRespons
 pub async fn game_get_export_targets(cwd: String) -> Result<Vec<String>, String> {
     let cwd_path = PathBuf::from(&cwd);
 
-    let info = GameDetector::detect(&cwd_path)
-        .map_err(|e| format!("Failed to detect game: {}", e))?;
+    let info =
+        GameDetector::detect(&cwd_path).map_err(|e| format!("Failed to detect game: {}", e))?;
 
     let targets = match info.engine {
         GameEngine::Godot => vec![
@@ -212,8 +218,7 @@ pub async fn game_validate_export(request: GameExportRequest) -> Result<Vec<Stri
     }
 
     // Detect game
-    let info = GameDetector::detect(&cwd)
-        .map_err(|e| format!("Failed to detect game: {}", e))?;
+    let info = GameDetector::detect(&cwd).map_err(|e| format!("Failed to detect game: {}", e))?;
 
     // Engine-specific checks
     match info.engine {
@@ -225,13 +230,16 @@ pub async fn game_validate_export(request: GameExportRequest) -> Result<Vec<Stri
                     .arg("--version")
                     .output();
                 if check.is_err() {
-                    warnings.push("Godot not found in PATH. Set GODOT_PATH environment variable.".to_string());
+                    warnings.push(
+                        "Godot not found in PATH. Set GODOT_PATH environment variable.".to_string(),
+                    );
                 }
             }
 
             // Check if export templates are installed
             // This is a simplified check
-            warnings.push("Make sure export templates are installed for target platform.".to_string());
+            warnings
+                .push("Make sure export templates are installed for target platform.".to_string());
         }
         GameEngine::Unity => {
             // Check if Unity is installed
@@ -260,7 +268,10 @@ pub async fn game_validate_export(request: GameExportRequest) -> Result<Vec<Stri
         let output_path = PathBuf::from(output);
         if let Some(parent) = output_path.parent() {
             if !parent.exists() {
-                warnings.push(format!("Output directory will be created: {}", parent.display()));
+                warnings.push(format!(
+                    "Output directory will be created: {}",
+                    parent.display()
+                ));
             }
         }
     }

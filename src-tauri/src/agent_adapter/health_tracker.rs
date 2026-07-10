@@ -17,11 +17,11 @@ pub struct HealthTracker {
 #[derive(Debug, Clone)]
 pub struct CircuitBreaker {
     pub state: CircuitBreakerState,
-    pub failure_threshold: u32,    // Failure count to trigger open
-    pub success_threshold: u32,    // Success count in half-open to close
-    pub timeout_ms: u64,           // Timeout before testing
-    pub failure_count: u32,        // Current failure count
-    pub success_count: u32,        // Current success count in half-open
+    pub failure_threshold: u32, // Failure count to trigger open
+    pub success_threshold: u32, // Success count in half-open to close
+    pub timeout_ms: u64,        // Timeout before testing
+    pub failure_count: u32,     // Current failure count
+    pub success_count: u32,     // Current success count in half-open
 }
 
 impl HealthTracker {
@@ -52,7 +52,10 @@ impl HealthTracker {
         self.update_ewma(true, latency_ms);
 
         // Update circuit breaker state
-        if matches!(self.circuit_breaker.state, CircuitBreakerState::HalfOpen { .. }) {
+        if matches!(
+            self.circuit_breaker.state,
+            CircuitBreakerState::HalfOpen { .. }
+        ) {
             self.circuit_breaker.success_count += 1;
             if self.circuit_breaker.success_count >= self.circuit_breaker.success_threshold {
                 self.circuit_breaker.state = CircuitBreakerState::Closed;
@@ -153,8 +156,16 @@ impl HealthTracker {
             success_rate,
             avg_latency_ms: avg_latency,
             error_count: self.error_count,
-            last_success_at: if self.success_count > 0 { Some(self.current_timestamp()) } else { None },
-            last_error_at: if self.error_count > 0 { Some(self.current_timestamp()) } else { None },
+            last_success_at: if self.success_count > 0 {
+                Some(self.current_timestamp())
+            } else {
+                None
+            },
+            last_error_at: if self.error_count > 0 {
+                Some(self.current_timestamp())
+            } else {
+                None
+            },
             circuit_breaker_state: self.circuit_breaker.state.clone(),
         }
     }
@@ -222,7 +233,10 @@ mod tests {
         }
 
         let metrics = tracker.get_metrics();
-        assert!(matches!(metrics.circuit_breaker_state, CircuitBreakerState::Open { .. }));
+        assert!(matches!(
+            metrics.circuit_breaker_state,
+            CircuitBreakerState::Open { .. }
+        ));
     }
 
     #[test]

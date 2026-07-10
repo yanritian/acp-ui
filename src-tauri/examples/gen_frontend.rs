@@ -1,10 +1,10 @@
 //! 单独生成前端代码
 
-use std::sync::Arc;
+use hermes_core::Message;
+use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
-use regex::Regex;
-use hermes_core::Message;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +17,11 @@ async fn main() {
     let model = "alibaba-coding-plan:qwen3.6-plus".to_string();
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
-    let agent_config = hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("erp-frontend"));
+    let agent_config = hermes_agent::agent_builder::build_agent_config(
+        &gateway_config,
+        &model,
+        Some("erp-frontend"),
+    );
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -85,15 +89,24 @@ import { createRouter } from 'vue-router'
     println!("执行前端代码生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("前端代码生成完成 ({} 字符)\n", response.len());
 
     // 使用更宽松的正则
-    let pattern = Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]+```[\w]*\s*([\s\S]*?)```").unwrap();
+    let pattern =
+        Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]+```[\w]*\s*([\s\S]*?)```").unwrap();
 
     let mut files_written = 0;
     for caps in pattern.captures_iter(&response) {
@@ -112,5 +125,8 @@ import { createRouter } from 'vue-router'
     println!("\n前端文件数: {}", files_written);
 
     // 显示部分响应内容
-    println!("\n响应预览:\n{}", response.lines().take(30).collect::<Vec<_>>().join("\n"));
+    println!(
+        "\n响应预览:\n{}",
+        response.lines().take(30).collect::<Vec<_>>().join("\n")
+    );
 }

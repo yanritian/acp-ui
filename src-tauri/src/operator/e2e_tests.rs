@@ -1,9 +1,6 @@
 // End-to-End Integration Tests for Hermes Game Operator
 
-use crate::operator::{
-    GodotTaskExecutor, TaskExecutionReport,
-    PathGuard, CommandGuard,
-};
+use crate::operator::{CommandGuard, GodotTaskExecutor, PathGuard, TaskExecutionReport};
 use std::path::PathBuf;
 
 /// Test complete task execution workflow
@@ -13,8 +10,14 @@ async fn test_complete_task_workflow() {
     let test_project_path = PathBuf::from("test-godot-project");
 
     // Verify test project exists
-    assert!(test_project_path.exists(), "Test project directory should exist");
-    assert!(test_project_path.join("project.godot").exists(), "project.godot should exist");
+    assert!(
+        test_project_path.exists(),
+        "Test project directory should exist"
+    );
+    assert!(
+        test_project_path.join("project.godot").exists(),
+        "project.godot should exist"
+    );
 
     // Execute task
     let mut executor = GodotTaskExecutor::new(
@@ -39,10 +42,18 @@ async fn test_complete_task_workflow() {
     // Verify events contain expected phases
     let event_types: Vec<_> = report.events.iter().map(|e| &e.event_type).collect();
 
-    assert!(event_types.iter().any(|t| matches!(t, crate::operator::OperatorEventType::TaskStarted)));
-    assert!(event_types.iter().any(|t| matches!(t, crate::operator::OperatorEventType::ProjectAnalyzed)));
-    assert!(event_types.iter().any(|t| matches!(t, crate::operator::OperatorEventType::PlanReady)));
-    assert!(event_types.iter().any(|t| matches!(t, crate::operator::OperatorEventType::TaskCompleted)));
+    assert!(event_types
+        .iter()
+        .any(|t| matches!(t, crate::operator::OperatorEventType::TaskStarted)));
+    assert!(event_types
+        .iter()
+        .any(|t| matches!(t, crate::operator::OperatorEventType::ProjectAnalyzed)));
+    assert!(event_types
+        .iter()
+        .any(|t| matches!(t, crate::operator::OperatorEventType::PlanReady)));
+    assert!(event_types
+        .iter()
+        .any(|t| matches!(t, crate::operator::OperatorEventType::TaskCompleted)));
 }
 
 /// Test project analysis
@@ -63,13 +74,19 @@ async fn test_project_analysis() {
     let result = analysis.unwrap();
 
     // Verify analysis results
-    assert!(!result.project_name.is_empty(), "Project name should not be empty");
+    assert!(
+        !result.project_name.is_empty(),
+        "Project name should not be empty"
+    );
     assert!(!result.scripts.is_empty(), "Should find scripts");
     assert!(!result.scenes.is_empty(), "Should find scenes");
 
     // Verify specific files (matching actual test project structure)
     let has_player = result.scripts.iter().any(|s| s.contains("Player.gd"));
-    let has_main = result.scenes.iter().any(|s| s.contains("Main.tscn") || s.contains("main.tscn"));
+    let has_main = result
+        .scenes
+        .iter()
+        .any(|s| s.contains("Main.tscn") || s.contains("main.tscn"));
 
     assert!(has_player, "Should find Player.gd");
     assert!(has_main, "Should find Main.tscn or main.tscn");
@@ -98,8 +115,14 @@ async fn test_plan_generation() {
     assert!(!result.steps.is_empty(), "Should have steps");
 
     // Verify steps contain analysis and implementation
-    let has_analysis = result.steps.iter().any(|s| s.description.contains("分析") || s.description.contains("Analyze"));
-    let has_implementation = result.steps.iter().any(|s| s.description.contains("实现") || s.description.contains("Implement"));
+    let has_analysis = result
+        .steps
+        .iter()
+        .any(|s| s.description.contains("分析") || s.description.contains("Analyze"));
+    let has_implementation = result
+        .steps
+        .iter()
+        .any(|s| s.description.contains("实现") || s.description.contains("Implement"));
 
     assert!(has_analysis, "Should have analysis step");
     assert!(has_implementation, "Should have implementation step");
@@ -113,11 +136,17 @@ fn test_path_guard() {
 
     // Test valid path
     let valid_path = PathBuf::from("test-godot-project/scripts/Player.gd");
-    assert!(guard.validate_file(&valid_path).is_ok(), "Valid path should pass");
+    assert!(
+        guard.validate_file(&valid_path).is_ok(),
+        "Valid path should pass"
+    );
 
     // Test invalid path
     let invalid_path = PathBuf::from("/etc/passwd");
-    assert!(guard.validate_file(&invalid_path).is_err(), "Invalid path should fail");
+    assert!(
+        guard.validate_file(&invalid_path).is_err(),
+        "Invalid path should fail"
+    );
 }
 
 /// Test command guard security

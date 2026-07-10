@@ -8,16 +8,12 @@ use tauri::{AppHandle, State};
 
 /// Initialize Executive Agent Manager with workspace path
 #[tauri::command]
-pub fn init_executive_agent(
-    workspace: String,
-    state: State<AppState>,
-) -> Result<(), String> {
+pub fn init_executive_agent(workspace: String, state: State<AppState>) -> Result<(), String> {
     let workspace_path = std::path::PathBuf::from(&workspace);
 
     // Create workspace directory if not exists
     if !workspace_path.exists() {
-        std::fs::create_dir_all(&workspace_path)
-            .map_err(|e| format!("创建工作目录失败: {}", e))?;
+        std::fs::create_dir_all(&workspace_path).map_err(|e| format!("创建工作目录失败: {}", e))?;
     }
 
     let manager = ExecutiveAgentManager::new(workspace_path);
@@ -37,9 +33,9 @@ pub async fn execute_development_task(
     // Get workspace path from manager (quick operation, no await)
     let workspace_path = {
         let manager_guard = state.executive_agent_manager.lock().unwrap();
-        let manager = manager_guard
-            .as_ref()
-            .ok_or_else(|| "Executive Agent Manager 未初始化，请先调用 init_executive_agent".to_string())?;
+        let manager = manager_guard.as_ref().ok_or_else(|| {
+            "Executive Agent Manager 未初始化，请先调用 init_executive_agent".to_string()
+        })?;
 
         // Clone workspace path only
         manager.workspace.clone()
@@ -51,7 +47,9 @@ pub async fn execute_development_task(
 
     // Execute workflow (async operation with no locks held)
     let result = if let Some(mode_str) = mode {
-        manager.execute_workflow_with_mode(request, mode_str, app_handle).await?
+        manager
+            .execute_workflow_with_mode(request, mode_str, app_handle)
+            .await?
     } else {
         manager.execute_workflow(request, app_handle).await?
     };
@@ -67,20 +65,27 @@ pub async fn execute_development_task(
 
 /// Get executive agent status
 #[tauri::command]
-pub fn get_executive_agent_status(state: State<AppState>) -> Result<HashMap<String, String>, String> {
+pub fn get_executive_agent_status(
+    state: State<AppState>,
+) -> Result<HashMap<String, String>, String> {
     let manager = state.executive_agent_manager.lock().unwrap();
-    let manager = manager.as_ref()
+    let manager = manager
+        .as_ref()
         .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
 
     let status = manager.get_agent_status();
-    Ok(status.into_iter().map(|(k, v)| (format!("{:?}", k), format!("{:?}", v))).collect())
+    Ok(status
+        .into_iter()
+        .map(|(k, v)| (format!("{:?}", k), format!("{:?}", v)))
+        .collect())
 }
 
 /// Get task result with generated files
 #[tauri::command]
 pub fn get_task_result(state: State<AppState>) -> Result<Vec<GeneratedFile>, String> {
     let manager = state.executive_agent_manager.lock().unwrap();
-    let manager = manager.as_ref()
+    let manager = manager
+        .as_ref()
         .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
 
     Ok(manager.get_generated_files())
@@ -90,7 +95,8 @@ pub fn get_task_result(state: State<AppState>) -> Result<Vec<GeneratedFile>, Str
 #[tauri::command]
 pub fn get_generated_files(state: State<AppState>) -> Result<Vec<GeneratedFile>, String> {
     let manager = state.executive_agent_manager.lock().unwrap();
-    let manager = manager.as_ref()
+    let manager = manager
+        .as_ref()
         .ok_or_else(|| "Executive Agent Manager 未初始化".to_string())?;
 
     Ok(manager.get_generated_files())
@@ -114,8 +120,13 @@ pub fn load_executive_sessions(
     limit: Option<u64>,
     state: State<AppState>,
 ) -> Result<Vec<database::ExecutiveSessionRecord>, String> {
-    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = state
+        .database
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     db.load_executive_sessions(limit)
 }
@@ -126,29 +137,43 @@ pub fn get_executive_session_by_id(
     id: String,
     state: State<AppState>,
 ) -> Result<Option<database::ExecutiveSessionRecord>, String> {
-    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = state
+        .database
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     db.get_executive_session(&id)
 }
 
 /// Delete executive session from database
 #[tauri::command]
-pub fn delete_executive_session_by_id(
-    id: String,
-    state: State<AppState>,
-) -> Result<(), String> {
-    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+pub fn delete_executive_session_by_id(id: String, state: State<AppState>) -> Result<(), String> {
+    let db = state
+        .database
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     db.delete_executive_session(&id)
 }
 
 /// Get executive session statistics
 #[tauri::command]
-pub fn get_executive_session_stats(state: State<AppState>) -> Result<database::ExecutiveSessionStats, String> {
-    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+pub fn get_executive_session_stats(
+    state: State<AppState>,
+) -> Result<database::ExecutiveSessionStats, String> {
+    let db = state
+        .database
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     db.get_executive_session_stats()
 }
@@ -159,8 +184,13 @@ pub fn save_executive_session_record(
     session: database::ExecutiveSessionRecord,
     state: State<AppState>,
 ) -> Result<(), String> {
-    let db = state.database.lock().map_err(|e| format!("Database lock error: {}", e))?;
-    let db = db.as_ref().ok_or_else(|| "Database not initialized".to_string())?;
+    let db = state
+        .database
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+    let db = db
+        .as_ref()
+        .ok_or_else(|| "Database not initialized".to_string())?;
 
     db.save_executive_session(&session)
 }

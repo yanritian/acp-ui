@@ -47,6 +47,11 @@ impl std::fmt::Display for BuildError {
 pub struct GameEngineManager;
 
 impl GameEngineManager {
+    /// Create a game engine manager.
+    pub fn new() -> Self {
+        Self
+    }
+
     /// Build game using appropriate engine
     pub async fn build_game(
         cwd: &PathBuf,
@@ -54,14 +59,16 @@ impl GameEngineManager {
         output: &PathBuf,
     ) -> Result<BuildResult, BuildError> {
         // Detect game engine
-        let info = GameDetector::detect(cwd)
-            .map_err(|e| BuildError::InvalidProject(e.to_string()))?;
+        let info =
+            GameDetector::detect(cwd).map_err(|e| BuildError::InvalidProject(e.to_string()))?;
 
         // Route to appropriate engine
         match info.engine {
             GameEngine::Godot => Self::build_godot(cwd, target, output).await,
             GameEngine::Unity => Self::build_unity(cwd, target, output).await,
-            GameEngine::Unknown => Err(BuildError::InvalidProject("Unknown game engine".to_string())),
+            GameEngine::Unknown => Err(BuildError::InvalidProject(
+                "Unknown game engine".to_string(),
+            )),
         }
     }
 
@@ -89,22 +96,18 @@ impl GameEngineManager {
         let start = std::time::Instant::now();
 
         match adapter.export(cwd, platform, false).await {
-            Ok(output_str) => {
-                Ok(BuildResult {
-                    success: true,
-                    output_path: PathBuf::from(output_str),
-                    build_time_ms: start.elapsed().as_millis() as u64,
-                    error: None,
-                })
-            }
-            Err(e) => {
-                Ok(BuildResult {
-                    success: false,
-                    output_path: output.clone(),
-                    build_time_ms: start.elapsed().as_millis() as u64,
-                    error: Some(e.to_string()),
-                })
-            }
+            Ok(output_str) => Ok(BuildResult {
+                success: true,
+                output_path: PathBuf::from(output_str),
+                build_time_ms: start.elapsed().as_millis() as u64,
+                error: None,
+            }),
+            Err(e) => Ok(BuildResult {
+                success: false,
+                output_path: output.clone(),
+                build_time_ms: start.elapsed().as_millis() as u64,
+                error: Some(e.to_string()),
+            }),
         }
     }
 
@@ -153,14 +156,12 @@ impl GameEngineManager {
                     })
                 }
             }
-            Err(e) => {
-                Ok(BuildResult {
-                    success: false,
-                    output_path: output.clone(),
-                    build_time_ms: build_time,
-                    error: Some(format!("Failed to run Unity: {}", e)),
-                })
-            }
+            Err(e) => Ok(BuildResult {
+                success: false,
+                output_path: output.clone(),
+                build_time_ms: build_time,
+                error: Some(format!("Failed to run Unity: {}", e)),
+            }),
         }
     }
 
@@ -195,8 +196,8 @@ impl GameEngineManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_build_result() {

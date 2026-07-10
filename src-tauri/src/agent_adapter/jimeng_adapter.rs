@@ -4,11 +4,13 @@
 // Supports image generation, style transfer
 
 use crate::agent_adapter::{
-    AgentAdapter,
-    types::{AdapterType, Capability, AgentConfig, AgentTask, AgentResult, AgentError,
-            TaskInput, TaskOutput, ResultStatus, ActualCost, TokenUsage, HealthMetrics,
-            CostEstimate, TokenEstimate},
     health_tracker::HealthTracker,
+    types::{
+        ActualCost, AdapterType, AgentConfig, AgentError, AgentResult, AgentTask, Capability,
+        CostEstimate, HealthMetrics, ResultStatus, TaskInput, TaskOutput, TokenEstimate,
+        TokenUsage,
+    },
+    AgentAdapter,
 };
 use async_trait::async_trait;
 use reqwest::Client;
@@ -192,7 +194,7 @@ impl JimengAdapter {
                 name: "image-gen".to_string(),
                 proficiency: 0.85,
                 cost_per_unit: 0.05, // $0.05 per image
-                latency_ms: 15000, // Image generation takes ~15 seconds
+                latency_ms: 15000,   // Image generation takes ~15 seconds
             },
             Capability {
                 name: "style-transfer".to_string(),
@@ -234,7 +236,8 @@ impl JimengAdapter {
         let url = format!("{}/generate", config.base_url);
         let start = Instant::now();
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .header("Content-Type", "application/json")
@@ -245,12 +248,15 @@ impl JimengAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                let jimeng_response: JimengResponse = resp.json().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse Jimeng response: {}", e),
-                    retryable: false,
-                })?;
+                let jimeng_response: JimengResponse =
+                    resp.json().await.map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse Jimeng response: {}", e),
+                        retryable: false,
+                    })?;
 
-                let urls = jimeng_response.images.iter()
+                let urls = jimeng_response
+                    .images
+                    .iter()
                     .map(|i| i.url.clone())
                     .collect();
 
@@ -279,7 +285,8 @@ impl JimengAdapter {
 
         let url = format!("{}/task/{}/status", config.base_url, task_id);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", config.api_key))
             .timeout(std::time::Duration::from_secs(30))
@@ -288,10 +295,12 @@ impl JimengAdapter {
 
         match response {
             Ok(resp) if resp.status().is_success() => {
-                resp.json::<JimengJobResult>().await.map_err(|e| AgentError::ExecutionError {
-                    message: format!("Failed to parse job status: {}", e),
-                    retryable: false,
-                })
+                resp.json::<JimengJobResult>()
+                    .await
+                    .map_err(|e| AgentError::ExecutionError {
+                        message: format!("Failed to parse job status: {}", e),
+                        retryable: false,
+                    })
             }
             Ok(resp) => Err(AgentError::ExecutionError {
                 message: format!("Jimeng API error: {}", resp.status()),
@@ -360,13 +369,19 @@ impl AgentAdapter for JimengAdapter {
         let jimeng_config = if let Some(api_key) = config.metadata.get("api_key") {
             JimengConfig {
                 api_key: api_key.clone(),
-                base_url: config.metadata.get("base_url")
+                base_url: config
+                    .metadata
+                    .get("base_url")
                     .cloned()
                     .unwrap_or_else(|| "https://api.volcengine.com/api/jimeng".to_string()),
-                default_style: config.metadata.get("style")
+                default_style: config
+                    .metadata
+                    .get("style")
                     .map(|s| JimengStyle::from_str(s))
                     .unwrap_or(JimengStyle::Realistic),
-                default_size: config.metadata.get("size")
+                default_size: config
+                    .metadata
+                    .get("size")
                     .and_then(|s| match s.as_str() {
                         "512" => Some(ImageSize::Square512),
                         "1024" => Some(ImageSize::Square1024),
@@ -420,7 +435,9 @@ impl AgentAdapter for JimengAdapter {
             config.default_style
         };
 
-        let (urls, cost) = self.generate_image(&prompt, None, effective_style, config.default_size).await?;
+        let (urls, cost) = self
+            .generate_image(&prompt, None, effective_style, config.default_size)
+            .await?;
         let duration_ms = start.elapsed().as_millis() as u64;
 
         // Output first image URL
@@ -474,9 +491,7 @@ impl AgentAdapter for JimengAdapter {
             min_cost: 0.03, // Variation
             max_cost: 0.10, // Style transfer
             currency: "USD".to_string(),
-            breakdown: HashMap::from([
-                ("base".to_string(), 0.05),
-            ]),
+            breakdown: HashMap::from([("base".to_string(), 0.05)]),
             token_estimate: TokenEstimate {
                 input_tokens: 0,
                 output_tokens: 0,
@@ -490,7 +505,12 @@ impl AgentAdapter for JimengAdapter {
     }
 
     fn token_usage_summary(&self, last_n: u32) -> Vec<TokenUsage> {
-        self.token_history.iter().rev().take(last_n as usize).cloned().collect()
+        self.token_history
+            .iter()
+            .rev()
+            .take(last_n as usize)
+            .cloned()
+            .collect()
     }
 
     async fn update_health(&mut self, result: &AgentResult) {
@@ -571,9 +591,21 @@ mod tests {
 
     #[test]
     fn test_parse_style_from_description() {
-        assert_eq!(JimengAdapter::parse_style_from_description("动漫风格"), JimengStyle::Anime);
-        assert_eq!(JimengAdapter::parse_style_from_description("oil painting"), JimengStyle::OilPainting);
-        assert_eq!(JimengAdapter::parse_style_from_description("cyberpunk theme"), JimengStyle::Cyberpunk);
-        assert_eq!(JimengAdapter::parse_style_from_description("normal image"), JimengStyle::Realistic);
+        assert_eq!(
+            JimengAdapter::parse_style_from_description("动漫风格"),
+            JimengStyle::Anime
+        );
+        assert_eq!(
+            JimengAdapter::parse_style_from_description("oil painting"),
+            JimengStyle::OilPainting
+        );
+        assert_eq!(
+            JimengAdapter::parse_style_from_description("cyberpunk theme"),
+            JimengStyle::Cyberpunk
+        );
+        assert_eq!(
+            JimengAdapter::parse_style_from_description("normal image"),
+            JimengStyle::Realistic
+        );
     }
 }

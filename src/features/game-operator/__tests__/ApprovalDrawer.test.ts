@@ -2,6 +2,7 @@
 // Tests for approval queue display and actions
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import approvalDrawerSource from '../components/ApprovalDrawer.vue?raw'
 
 describe('ApprovalDrawer', () => {
   const mockApprovals = [
@@ -122,6 +123,25 @@ describe('ApprovalDrawer', () => {
       expect(approval.preview?.diff_id).toBe('diff_001')
     })
 
+    it('should expose structured per-file diffs for review', () => {
+      const approval = {
+        ...mockApprovals[0],
+        preview: {
+          diff_id: 'patch_001',
+          diffs: [
+            {
+              path: 'scripts/Player.gd',
+              operation: 'replace',
+              diff: '--- a/scripts/Player.gd\n+++ b/scripts/Player.gd\n-var jumps = 1\n+var jumps = 2\n'
+            }
+          ]
+        }
+      }
+
+      expect(approval.preview.diffs[0].operation).toBe('replace')
+      expect(approval.preview.diffs[0].diff).toContain('+var jumps = 2')
+    })
+
     it('should show command preview', () => {
       const approval = {
         ...mockApprovals[0],
@@ -189,6 +209,15 @@ describe('ApprovalDrawer', () => {
   })
 
   describe('UI State', () => {
+    it('should let the operator surface own scrolling in a narrow layout', () => {
+      expect(approvalDrawerSource).toMatch(
+        /\.approval-drawer\s*\{[^}]*height:\s*auto;/s,
+      )
+      expect(approvalDrawerSource).toMatch(
+        /\.approval-list\s*\{[^}]*overflow-y:\s*visible;/s,
+      )
+    })
+
     it('should show pending count', () => {
       const pendingCount = mockApprovals.length
       expect(pendingCount).toBe(2)

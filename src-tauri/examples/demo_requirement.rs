@@ -3,12 +3,9 @@
 //! 需求: "创建 D:/tmp/README-test.md，内容包含 'Hello ACP'"
 //! 展示: 输入 → 执行 → 文件内容 → 验证结果
 
-use swarm_engine::{
-    Goal, GoalStatus, CompletionCondition,
-    ConditionEvaluator, EvaluationResult,
-};
 use std::fs;
 use std::path::Path;
+use swarm_engine::{CompletionCondition, ConditionEvaluator, EvaluationResult, Goal, GoalStatus};
 
 fn main() {
     println!("========================================");
@@ -63,7 +60,10 @@ fn main() {
     // === 验证文件存在 ===
     println!("【步骤 5】验证文件物理存在");
     let file_path = Path::new("D:/tmp/README-test.md");
-    println!("Path::new(\"D:/tmp/README-test.md\").exists() = {}", file_path.exists());
+    println!(
+        "Path::new(\"D:/tmp/README-test.md\").exists() = {}",
+        file_path.exists()
+    );
     assert!(file_path.exists(), "文件应该存在");
     println!("  ✓ 文件物理存在验证通过");
     println!("");
@@ -75,7 +75,10 @@ fn main() {
     println!("---");
     println!("{}", actual_content);
     println!("---");
-    println!("检查: 内容是否包含 'Hello ACP'? {}", actual_content.contains("Hello ACP"));
+    println!(
+        "检查: 内容是否包含 'Hello ACP'? {}",
+        actual_content.contains("Hello ACP")
+    );
     assert!(actual_content.contains("Hello ACP"), "内容应包含 Hello ACP");
     println!("  ✓ 内容验证通过");
     println!("");

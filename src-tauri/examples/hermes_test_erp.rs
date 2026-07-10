@@ -1,11 +1,11 @@
 //! 使用 Hermes Native Executive Agent 测试 ERP 项目
 //! Hermes AI 将分析代码、编写测试、验证项目
 
-use std::sync::Arc;
+use hermes_core::Message;
+use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
-use regex::Regex;
-use hermes_core::Message;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +18,11 @@ async fn main() {
     let model = "alibaba-coding-plan:qwen3.6-plus".to_string();
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
-    let agent_config = hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("erp-tester"));
+    let agent_config = hermes_agent::agent_builder::build_agent_config(
+        &gateway_config,
+        &model,
+        Some("erp-tester"),
+    );
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -30,10 +34,17 @@ async fn main() {
     println!("========== 任务1：Hermes 审查生成的代码 ==========\n");
 
     // 读取生成的代码文件
-    let backend_program = fs::read_to_string(project_dir.join("backend/ErpSystem/Program.cs")).unwrap_or_default();
-    let backend_product = fs::read_to_string(project_dir.join("backend/ErpSystem/Models/Product.cs")).unwrap_or_default();
-    let backend_controller = fs::read_to_string(project_dir.join("backend/ErpSystem/Controllers/ProductsController.cs")).unwrap_or_default();
-    let frontend_vue = fs::read_to_string(project_dir.join("frontend/src/views/ProductManagement.vue")).unwrap_or_default();
+    let backend_program =
+        fs::read_to_string(project_dir.join("backend/ErpSystem/Program.cs")).unwrap_or_default();
+    let backend_product =
+        fs::read_to_string(project_dir.join("backend/ErpSystem/Models/Product.cs"))
+            .unwrap_or_default();
+    let backend_controller =
+        fs::read_to_string(project_dir.join("backend/ErpSystem/Controllers/ProductsController.cs"))
+            .unwrap_or_default();
+    let frontend_vue =
+        fs::read_to_string(project_dir.join("frontend/src/views/ProductManagement.vue"))
+            .unwrap_or_default();
 
     let review_prompt = format!(
         r#"你是代码审查专家。请审查以下生成的 ERP 项目代码，指出潜在问题和改进建议。
@@ -88,9 +99,17 @@ async fn main() {
     println!("执行代码审查...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("代码审查结果:\n{}\n", response);
@@ -123,15 +142,24 @@ async fn main() {
     println!("执行测试代码生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let test_response = result.messages.iter()
+    let test_response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("测试代码生成完成 ({} 字符)\n", test_response.len());
 
     // 写入测试文件
-    let pattern = Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]+```[\w]*\s*([\s\S]*?)```").unwrap();
+    let pattern =
+        Regex::new(r"###\s*FILE:\s*[`]?([^`\n]+)[`]?[\s\n]+```[\w]*\s*([\s\S]*?)```").unwrap();
     let mut tests_written = 0;
 
     for caps in pattern.captures_iter(&test_response) {
@@ -153,8 +181,11 @@ async fn main() {
 
     // 收集所有文件列表
     let all_files = collect_all_files(&project_dir);
-    let file_list = all_files.iter()
-        .filter(|f| f.ends_with(".cs") || f.ends_with(".vue") || f.ends_with(".ts") || f.ends_with(".json"))
+    let file_list = all_files
+        .iter()
+        .filter(|f| {
+            f.ends_with(".cs") || f.ends_with(".vue") || f.ends_with(".ts") || f.ends_with(".json")
+        })
         .map(|f| f.replace("D:/smallProject/", ""))
         .collect::<Vec<_>>()
         .join("\n");
@@ -204,9 +235,17 @@ async fn main() {
     println!("执行项目完整性验证...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let verify_response = result.messages.iter()
+    let verify_response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("项目完整性验证结果:\n{}\n", verify_response);
@@ -257,16 +296,28 @@ async fn main() {
 - 是否可以交付
 "#,
         response.lines().take(20).collect::<Vec<_>>().join("\n"),
-        verify_response.lines().take(20).collect::<Vec<_>>().join("\n")
+        verify_response
+            .lines()
+            .take(20)
+            .collect::<Vec<_>>()
+            .join("\n")
     );
 
     let messages = vec![Message::user(&report_prompt)];
     println!("执行测试报告生成...\n");
 
     let result = agent_loop.run(messages, None).await.unwrap();
-    let report_response = result.messages.iter()
+    let report_response = result
+        .messages
+        .iter()
         .rev()
-        .find_map(|m| if m.role == hermes_core::MessageRole::Assistant { m.content.clone() } else { None })
+        .find_map(|m| {
+            if m.role == hermes_core::MessageRole::Assistant {
+                m.content.clone()
+            } else {
+                None
+            }
+        })
         .unwrap_or_default();
 
     println!("测试报告生成完成\n");

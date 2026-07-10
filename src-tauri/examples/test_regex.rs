@@ -1,8 +1,8 @@
 //! 简化测试 - 调试正则匹配问题
 
-use std::sync::Arc;
-use regex::Regex;
 use hermes_core::Message;
+use regex::Regex;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -30,11 +30,20 @@ fn main() {}
     // 测试多种正则表达式
     let patterns = vec![
         // 原始
-        (r"###\s*FILE:\s*([^\n]+)\s*```[\w]*\s*([\s\S]*?)```", "原始格式"),
+        (
+            r"###\s*FILE:\s*([^\n]+)\s*```[\w]*\s*([\s\S]*?)```",
+            "原始格式",
+        ),
         // 支持表情符号
-        (r"###\s*(?:📄)?\s*FILE:\s*[`]?([^`\n]+)[`]?\s*```[\w]*\s*([\s\S]*?)```", "带表情符号"),
+        (
+            r"###\s*(?:📄)?\s*FILE:\s*[`]?([^`\n]+)[`]?\s*```[\w]*\s*([\s\S]*?)```",
+            "带表情符号",
+        ),
         // 更宽松
-        (r"###.*?[`]?([^`\n]+\.rs)[`]?\s*```[\w]*\s*([\s\S]*?)```", "宽松匹配"),
+        (
+            r"###.*?[`]?([^`\n]+\.rs)[`]?\s*```[\w]*\s*([\s\S]*?)```",
+            "宽松匹配",
+        ),
     ];
 
     for (pattern_str, name) in patterns {
@@ -61,7 +70,8 @@ fn main() {}
     let model = "alibaba-coding-plan:qwen3.6-plus".to_string();
     let gateway_config = hermes_config::load_config(config_dir.as_deref()).unwrap();
 
-    let agent_config = hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
+    let agent_config =
+        hermes_agent::agent_builder::build_agent_config(&gateway_config, &model, Some("test"));
     let llm_provider = hermes_agent::agent_builder::build_provider(&gateway_config, &model);
     let tools = hermes_tools::ToolRegistry::new();
     let tool_registry = Arc::new(hermes_agent::agent_builder::bridge_tool_registry(&tools));
@@ -87,7 +97,9 @@ fn main() {}
     let messages = vec![Message::user(request)];
     let result = agent_loop.run(messages, None).await.unwrap();
 
-    let response = result.messages.iter()
+    let response = result
+        .messages
+        .iter()
         .rev()
         .find_map(|m| {
             if m.role == hermes_core::MessageRole::Assistant {
@@ -106,6 +118,9 @@ fn main() {}
     println!("提取文件:");
     for caps in pattern.captures_iter(&response) {
         println!("  文件: {}", caps[1].trim());
-        println!("  代码预览: {}...", caps[2].trim().lines().next().unwrap_or(""));
+        println!(
+            "  代码预览: {}...",
+            caps[2].trim().lines().next().unwrap_or("")
+        );
     }
 }

@@ -206,6 +206,24 @@ impl GodotTaskExecutor {
     }
 
     fn emit_event(&mut self, event_type: OperatorEventType, message: &str) {
+        // Map event type to i18n key
+        let title_key = match &event_type {
+            OperatorEventType::TaskStarted => Some("operatorEvent.taskStarted".to_string()),
+            OperatorEventType::ProjectAnalyzing => Some("operatorEvent.projectAnalyzing".to_string()),
+            OperatorEventType::ProjectAnalyzed => Some("operatorEvent.projectAnalyzed".to_string()),
+            OperatorEventType::PlanGenerating => Some("operatorEvent.planGenerating".to_string()),
+            OperatorEventType::PlanReady => Some("operatorEvent.planReady".to_string()),
+            OperatorEventType::ApprovalRequested => Some("operatorEvent.approvalRequested".to_string()),
+            OperatorEventType::ApprovalGranted => Some("operatorEvent.approvalGranted".to_string()),
+            OperatorEventType::StepExecuting => Some("operatorEvent.stepExecuting".to_string()),
+            OperatorEventType::StepCompleted => Some("operatorEvent.stepCompleted".to_string()),
+            OperatorEventType::StepFailed => Some("operatorEvent.stepFailed".to_string()),
+            OperatorEventType::FileModified => Some("operatorEvent.fileModified".to_string()),
+            OperatorEventType::TaskCompleted => Some("operatorEvent.taskCompleted".to_string()),
+            OperatorEventType::TaskFailed => Some("operatorEvent.taskFailed".to_string()),
+            _ => None,
+        };
+
         let event = OperatorEvent {
             event_id: format!("evt_{}_{}", self.task_id, self.events.len()),
             task_id: self.task_id.clone(),
@@ -216,7 +234,7 @@ impl GodotTaskExecutor {
             message: Some(message.to_string()),
             source: "godot_executor".to_string(),
             payload: None,
-            title_key: None,
+            title_key,
             message_key: None,
             title_args: None,
             message_args: None,

@@ -240,6 +240,21 @@ impl TaskStateMachine {
         message: &str,
     ) -> Result<(), StateError> {
         let event_type = self.status_to_event_type(&new_status);
+
+        // Map status to i18n key
+        let title_key = match &new_status {
+            OperatorTaskStatus::Idle => Some("operatorStatus.idle".to_string()),
+            OperatorTaskStatus::Planning => Some("operatorStatus.planning".to_string()),
+            OperatorTaskStatus::WaitingApproval => Some("operatorStatus.waitingApproval".to_string()),
+            OperatorTaskStatus::Running => Some("operatorStatus.running".to_string()),
+            OperatorTaskStatus::Paused => Some("operatorStatus.paused".to_string()),
+            OperatorTaskStatus::Redirecting => Some("operatorStatus.redirecting".to_string()),
+            OperatorTaskStatus::Cancelling => Some("operatorStatus.cancelling".to_string()),
+            OperatorTaskStatus::Cancelled => Some("operatorStatus.cancelled".to_string()),
+            OperatorTaskStatus::Failed => Some("operatorStatus.failed".to_string()),
+            OperatorTaskStatus::Completed => Some("operatorStatus.completed".to_string()),
+        };
+
         let event = OperatorEvent {
             event_id: format!("evt_{}_{}", self.task_id, self.event_counter),
             task_id: self.task_id.clone(),
@@ -250,7 +265,7 @@ impl TaskStateMachine {
             message: Some(message.to_string()),
             source: "state_machine".to_string(),
             payload: None,
-            title_key: None,
+            title_key,
             message_key: None,
             title_args: None,
             message_args: None,

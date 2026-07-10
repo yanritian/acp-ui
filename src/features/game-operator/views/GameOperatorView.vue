@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { OperatorApi, GodotOperatorApi } from '@/api/operatorApi'
 import { OperatorRemoteApi } from '@/api/operatorRemoteApi'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -14,6 +15,8 @@ import OperatorControlBar from '../components/OperatorControlBar.vue'
 import ProgressTimeline from '../components/ProgressTimeline.vue'
 import PlanPanel from '../components/PlanPanel.vue'
 import ApprovalDrawer from '../components/ApprovalDrawer.vue'
+
+const { t } = useI18n()
 
 const currentTask = ref<OperatorTask | null>(null)
 const events = ref<OperatorEvent[]>([])
@@ -281,8 +284,8 @@ onUnmounted(() => {
 <template>
   <div class="game-operator-view">
     <div class="operator-header">
-      <h1>Hermes Game Operator</h1>
-      <p class="subtitle">Godot MVP - Single Task Closed Loop</p>
+      <h1>{{ t('gameOperator.title') }}</h1>
+      <p class="subtitle">{{ t('gameOperator.subtitle') }}</p>
       <div class="remote-status-bar" :class="[`remote-${remoteStatus}`]">
         <div class="remote-main">
           <span class="remote-dot"></span>
@@ -299,25 +302,25 @@ onUnmounted(() => {
 
     <div v-if="!currentTask" class="project-selection">
       <div class="form-group">
-        <label>Godot Project Path</label>
+        <label>{{ t('gameOperator.projectPath') }}</label>
         <div class="path-input">
           <input
             v-model="selectedProjectPath"
             type="text"
-            placeholder="/path/to/your/godot/project"
+            :placeholder="t('gameOperator.goalPlaceholder')"
             class="path-field"
           />
           <button @click="handleSelectProject" class="btn-secondary">
-            Browse...
+            {{ t('gameOperator.selectProject') }}
           </button>
         </div>
       </div>
 
       <div class="form-group">
-        <label>Task Goal</label>
+        <label>{{ t('gameOperator.taskGoal') }}</label>
         <textarea
           v-model="taskGoal"
-          placeholder="e.g., Add double jump to the player character"
+          :placeholder="t('gameOperator.goalPlaceholder')"
           rows="3"
           class="goal-field"
         ></textarea>
@@ -328,7 +331,7 @@ onUnmounted(() => {
         :disabled="isLoading || !selectedProjectPath || !taskGoal"
         class="btn-primary"
       >
-        {{ isLoading ? 'Starting...' : 'Start Task' }}
+        {{ isLoading ? t('gameOperator.starting') : t('gameOperator.startTask') }}
       </button>
 
       <div v-if="error" class="error-message">
@@ -355,19 +358,19 @@ onUnmounted(() => {
 
         <div class="right-panel">
           <div v-if="!isTerminalTask" class="redirect-section">
-            <label>Redirect Goal</label>
+            <label>{{ t('gameOperator.redirectGoal') }}</label>
             <textarea
               v-model="redirectGoal"
               rows="3"
               class="redirect-field"
-              placeholder="Change the task direction while preserving useful work"
+              :placeholder="t('gameOperator.goalPlaceholder')"
             ></textarea>
             <button
               class="btn-secondary redirect-btn"
               :disabled="isRedirecting || !redirectGoal.trim()"
               @click="handleRedirect"
             >
-              {{ isRedirecting ? 'Redirecting...' : 'Redirect' }}
+              {{ isRedirecting ? t('gameOperator.redirecting') : t('gameOperator.redirect') }}
             </button>
           </div>
 

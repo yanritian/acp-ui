@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { OperatorEvent } from '@/types/operator'
+
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   events: OperatorEvent[]
@@ -14,15 +17,19 @@ const levelColors: Record<string, string> = {
 
 function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', { hour12: false })
+  return date.toLocaleTimeString(locale.value, { hour12: false })
+}
+
+function eventLabel(type: string): string {
+  return t(`operatorEvent.${type}`)
 }
 </script>
 
 <template>
   <div class="progress-timeline">
-    <h3>Progress Timeline</h3>
+    <h3>{{ t('gameOperator.title') }}</h3>
     <div v-if="events.length === 0" class="empty-state">
-      No events yet
+      {{ t('operatorEvent.taskCreated') }}
     </div>
     <div v-else class="event-list">
       <div
@@ -44,7 +51,7 @@ function formatTimestamp(timestamp: string): string {
             {{ event.message }}
           </div>
           <div class="event-meta">
-            <span class="event-type">{{ event.type }}</span>
+            <span class="event-type">{{ eventLabel(event.type) }}</span>
             <span class="event-source">{{ event.source }}</span>
           </div>
         </div>

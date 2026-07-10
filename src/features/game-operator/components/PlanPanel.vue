@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { OperatorTask, OperatorEvent } from '@/types/operator'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   task: OperatorTask
@@ -29,11 +32,11 @@ const steps = computed<PlanStepView[]>(() => {
   }
 
   const defaultSteps: PlanStepView[] = [
-    { id: 1, text: 'Analyze project structure', status: 'done' },
-    { id: 2, text: 'Find player controller', status: 'done' },
-    { id: 3, text: 'Generate implementation plan', status: 'running' },
-    { id: 4, text: 'Wait for user approval', status: 'pending' },
-    { id: 5, text: 'Apply changes', status: 'pending' },
+    { id: 1, text: t('operatorEvent.projectAnalyzing'), status: 'done' },
+    { id: 2, text: t('operatorEvent.projectAnalyzed'), status: 'done' },
+    { id: 3, text: t('operatorEvent.planGenerating'), status: 'running' },
+    { id: 4, text: t('operatorEvent.approvalRequested'), status: 'pending' },
+    { id: 5, text: t('operatorEvent.stepExecuting'), status: 'pending' },
   ]
 
   if (props.task.status === 'waiting_approval') {
@@ -85,9 +88,9 @@ function statusLabel(status: PlanStepView['status']): string {
 
 <template>
   <div class="plan-panel">
-    <h3>Execution Plan</h3>
+    <h3>{{ t('operatorEvent.planReady') }}</h3>
     <div class="plan-goal">
-      <strong>Goal:</strong> {{ task.goal }}
+      <strong>{{ t('gameOperator.taskGoal') }}:</strong> {{ task.goal }}
     </div>
     <div class="plan-steps">
       <div

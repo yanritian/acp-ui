@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { OperatorTask } from '@/types/operator'
+
+const { t } = useI18n()
 
 defineProps<{
   task: OperatorTask
@@ -25,12 +28,20 @@ const statusColors: Record<string, string> = {
 }
 
 const stoppableStatuses = ['planning', 'waiting_approval', 'running', 'paused', 'redirecting']
+
+function statusLabel(status: string): string {
+  return t(`operatorStatus.${status}`)
+}
 </script>
 
 <template>
   <div class="operator-control-bar">
     <div class="task-info">
-      <div class="task-status" :style="{ background: statusColors[task.status] }">
+      <div
+        class="task-status"
+        :style="{ background: statusColors[task.status] }"
+        :aria-label="`${t('a11y.approvalLevel')}: ${statusLabel(task.status)}`"
+      >
         {{ task.status.toUpperCase() }}
       </div>
       <div class="task-details">
@@ -47,22 +58,25 @@ const stoppableStatuses = ['planning', 'waiting_approval', 'running', 'paused', 
         v-if="task.status === 'running'"
         @click="emit('pause')"
         class="control-btn pause-btn"
+        :aria-label="t('a11y.pauseButton')"
       >
-        Pause
+        {{ t('operatorStatus.paused') }}
       </button>
       <button
         v-if="task.status === 'paused'"
         @click="emit('resume')"
         class="control-btn resume-btn"
+        :aria-label="t('a11y.resumeButton')"
       >
-        Resume
+        {{ t('operatorStatus.running') }}
       </button>
       <button
         v-if="stoppableStatuses.includes(task.status)"
         @click="emit('stop')"
         class="control-btn stop-btn"
+        :aria-label="t('a11y.stopButton')"
       >
-        Stop
+        {{ t('operatorStatus.cancelling') }}
       </button>
     </div>
   </div>

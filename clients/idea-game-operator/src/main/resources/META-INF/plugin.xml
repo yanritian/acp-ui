@@ -1,0 +1,71 @@
+<idea-plugin>
+    <id>com.github.yfanitian.gameoperator</id>
+    <name>Hermes Game Operator</name>
+    <vendor email="support@example.com" url="https://github.com/yfanitian">yan_fan_tian</vendor>
+
+    <description><![CDATA[
+    IDEA client for Hermes Game Operator - Control Godot game development tasks directly from your IDE.
+
+    <h2>Features</h2>
+    <ul>
+        <li>Task Management: Create, pause, resume, and stop tasks</li>
+        <li>Timeline View: Monitor task events in real-time</li>
+        <li>Approval Queue: Review and approve/reject file changes</li>
+        <li>Multi-Task Support: Manage multiple concurrent tasks</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Game Operator"
+                    anchor="right"
+                    factoryClass="com.github.yfanitian.gameoperator.GameOperatorToolWindowFactory"
+                    icon="/icons/gameoperator.svg"/>
+
+        <applicationConfigurable parentId="tools"
+                                 instance="com.github.yfanitian.gameoperator.settings.GameOperatorConfigurable"
+                                 id="com.github.yfanitian.gameoperator.settings.GameOperatorConfigurable"
+                                 displayName="Hermes Game Operator"/>
+
+        <applicationService serviceImplementation="com.github.yfanitian.gameoperator.settings.GameOperatorSettings"/>
+    </extensions>
+
+    <actions>
+        <group id="GameOperator.Actions" text="Game Operator" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+
+            <action id="GameOperator.Connect"
+                    class="com.github.yfanitian.gameoperator.actions.ConnectAction"
+                    text="Connect to Game Operator"
+                    description="Connect to Game Operator server"/>
+
+            <action id="GameOperator.Disconnect"
+                    class="com.github.yfanitian.gameoperator.actions.DisconnectAction"
+                    text="Disconnect"
+                    description="Disconnect from Game Operator server"/>
+
+            <separator/>
+
+            <action id="GameOperator.StartTask"
+                    class="com.github.yfanitian.gameoperator.actions.StartTaskAction"
+                    text="Start New Task"
+                    description="Start a new game development task"/>
+
+            <action id="GameOperator.PauseTask"
+                    class="com.github.yfanitian.gameoperator.actions.PauseTaskAction"
+                    text="Pause Task"
+                    description="Pause current task"/>
+
+            <action id="GameOperator.ResumeTask"
+                    class="com.github.yfanitian.gameoperator.actions.ResumeTaskAction"
+                    text="Resume Task"
+                    description="Resume paused task"/>
+
+            <action id="GameOperator.StopTask"
+                    class="com.github.yfanitian.gameoperator.actions.StopTaskAction"
+                    text="Stop Task"
+                    description="Stop current task"/>
+        </group>
+    </actions>
+</idea-plugin>

@@ -335,6 +335,18 @@ impl HermesEvent {
             }
         };
 
+        // Map event type to i18n key
+        let title_key = match &event_type {
+            OperatorEventType::TaskStarted => Some("operatorEvent.taskStarted".to_string()),
+            OperatorEventType::ProjectAnalyzing => Some("operatorEvent.projectAnalyzing".to_string()),
+            OperatorEventType::PlanGenerating => Some("operatorEvent.planGenerating".to_string()),
+            OperatorEventType::StepExecuting => Some("operatorEvent.stepExecuting".to_string()),
+            OperatorEventType::FileModified => Some("operatorEvent.fileModified".to_string()),
+            OperatorEventType::TaskCompleted => Some("operatorEvent.taskCompleted".to_string()),
+            OperatorEventType::TaskFailed => Some("operatorEvent.taskFailed".to_string()),
+            _ => None,
+        };
+
         OperatorEvent {
             event_id: format!("evt_{}_{}", task_id, chrono::Utc::now().timestamp_millis()),
             task_id: task_id.to_string(),
@@ -345,7 +357,7 @@ impl HermesEvent {
             message,
             source: "hermes_cli".to_string(),
             payload: Some(serde_json::to_value(self).unwrap_or(serde_json::Value::Null)),
-            title_key: None,
+            title_key,
             message_key: None,
             title_args: None,
             message_args: None,

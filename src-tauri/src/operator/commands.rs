@@ -2294,6 +2294,32 @@ fn push_operator_event(
         .get(task_id)
         .map(|events| events.len())
         .unwrap_or(0);
+
+    // Map event type to i18n key
+    let title_key = match &event_type {
+        OperatorEventType::TaskCreated => Some("operatorEvent.taskCreated".to_string()),
+        OperatorEventType::TaskStarted => Some("operatorEvent.taskStarted".to_string()),
+        OperatorEventType::ProjectAnalyzing => Some("operatorEvent.projectAnalyzing".to_string()),
+        OperatorEventType::ProjectAnalyzed => Some("operatorEvent.projectAnalyzed".to_string()),
+        OperatorEventType::PlanGenerating => Some("operatorEvent.planGenerating".to_string()),
+        OperatorEventType::PlanReady => Some("operatorEvent.planReady".to_string()),
+        OperatorEventType::ApprovalRequested => Some("operatorEvent.approvalRequested".to_string()),
+        OperatorEventType::ApprovalGranted => Some("operatorEvent.approvalGranted".to_string()),
+        OperatorEventType::ApprovalRejected => Some("operatorEvent.approvalRejected".to_string()),
+        OperatorEventType::StepExecuting => Some("operatorEvent.stepExecuting".to_string()),
+        OperatorEventType::StepCompleted => Some("operatorEvent.stepCompleted".to_string()),
+        OperatorEventType::StepFailed => Some("operatorEvent.stepFailed".to_string()),
+        OperatorEventType::FileModified => Some("operatorEvent.fileModified".to_string()),
+        OperatorEventType::TaskCompleting => Some("operatorEvent.taskCompleting".to_string()),
+        OperatorEventType::TaskCompleted => Some("operatorEvent.taskCompleted".to_string()),
+        OperatorEventType::TaskFailed => Some("operatorEvent.taskFailed".to_string()),
+        OperatorEventType::TaskCancelled => Some("operatorEvent.taskCancelled".to_string()),
+        OperatorEventType::TaskPaused => Some("operatorEvent.taskPaused".to_string()),
+        OperatorEventType::TaskResumed => Some("operatorEvent.taskResumed".to_string()),
+        OperatorEventType::TaskRedirected => Some("operatorEvent.taskRedirected".to_string()),
+        _ => None,
+    };
+
     let event = OperatorEvent {
         event_id: format!("evt_{}_{}", task_id, next_index),
         task_id: task_id.to_string(),
@@ -2304,7 +2330,7 @@ fn push_operator_event(
         message,
         source: source.to_string(),
         payload,
-        title_key: None,
+        title_key,
         message_key: None,
         title_args: None,
         message_args: None,

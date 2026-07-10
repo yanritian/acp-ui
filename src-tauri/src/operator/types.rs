@@ -126,6 +126,11 @@ pub struct OperatorEvent {
     pub message: Option<String>,
     pub source: String,
     pub payload: Option<serde_json::Value>,
+    // I18n fields for standardized localization
+    pub title_key: Option<String>,
+    pub message_key: Option<String>,
+    pub title_args: Option<serde_json::Value>,
+    pub message_args: Option<serde_json::Value>,
 }
 
 // ============================================================================

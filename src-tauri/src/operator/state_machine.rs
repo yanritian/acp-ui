@@ -250,6 +250,10 @@ impl TaskStateMachine {
             message: Some(message.to_string()),
             source: "state_machine".to_string(),
             payload: None,
+            title_key: None,
+            message_key: None,
+            title_args: None,
+            message_args: None,
         };
 
         {

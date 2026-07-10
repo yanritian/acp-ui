@@ -216,6 +216,10 @@ impl GodotTaskExecutor {
             message: Some(message.to_string()),
             source: "godot_executor".to_string(),
             payload: None,
+            title_key: None,
+            message_key: None,
+            title_args: None,
+            message_args: None,
         };
         self.events.push(event);
     }

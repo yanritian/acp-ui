@@ -2304,6 +2304,10 @@ fn push_operator_event(
         message,
         source: source.to_string(),
         payload,
+        title_key: None,
+        message_key: None,
+        title_args: None,
+        message_args: None,
     };
     state
         .events

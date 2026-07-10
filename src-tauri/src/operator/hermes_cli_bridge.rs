@@ -345,6 +345,10 @@ impl HermesEvent {
             message,
             source: "hermes_cli".to_string(),
             payload: Some(serde_json::to_value(self).unwrap_or(serde_json::Value::Null)),
+            title_key: None,
+            message_key: None,
+            title_args: None,
+            message_args: None,
         }
     }
 }

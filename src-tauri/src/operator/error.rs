@@ -74,6 +74,9 @@ pub struct OperatorError {
     pub timestamp: String,
     pub task_id: Option<String>,
     pub recoverable: bool,
+    // I18n fields for standardized localization
+    pub message_key: Option<String>,
+    pub message_args: Option<serde_json::Value>,
 }
 
 impl OperatorError {
@@ -93,7 +96,19 @@ impl OperatorError {
             timestamp: chrono::Utc::now().to_rfc3339(),
             task_id: None,
             recoverable: false,
+            message_key: None,
+            message_args: None,
         }
+    }
+
+    pub fn with_message_key(mut self, key: &str) -> Self {
+        self.message_key = Some(key.to_string());
+        self
+    }
+
+    pub fn with_message_args(mut self, args: serde_json::Value) -> Self {
+        self.message_args = Some(args);
+        self
     }
 
     pub fn with_details(mut self, details: &str) -> Self {

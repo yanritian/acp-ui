@@ -254,6 +254,10 @@ impl HermesAgentBridge {
             message: Some(title.to_string()),
             source: "hermes_agent".to_string(),
             payload: None,
+            title_key: None,
+            message_key: None,
+            title_args: None,
+            message_args: None,
         }
     }
 }

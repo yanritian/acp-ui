@@ -240,6 +240,19 @@ impl HermesAgentBridge {
     // ============================================================================
 
     fn create_event(&self, event_type: OperatorEventType, title: &str) -> OperatorEvent {
+        // Map event type to i18n key
+        let title_key = match &event_type {
+            OperatorEventType::TaskStarted => Some("operatorEvent.taskStarted".to_string()),
+            OperatorEventType::ProjectAnalyzing => Some("operatorEvent.projectAnalyzing".to_string()),
+            OperatorEventType::ProjectAnalyzed => Some("operatorEvent.projectAnalyzed".to_string()),
+            OperatorEventType::PlanGenerating => Some("operatorEvent.planGenerating".to_string()),
+            OperatorEventType::PlanReady => Some("operatorEvent.planReady".to_string()),
+            OperatorEventType::StepExecuting => Some("operatorEvent.stepExecuting".to_string()),
+            OperatorEventType::StepCompleted => Some("operatorEvent.stepCompleted".to_string()),
+            OperatorEventType::TaskCompleted => Some("operatorEvent.taskCompleted".to_string()),
+            _ => None,
+        };
+
         OperatorEvent {
             event_id: format!(
                 "evt_{}_{}",
@@ -254,7 +267,7 @@ impl HermesAgentBridge {
             message: Some(title.to_string()),
             source: "hermes_agent".to_string(),
             payload: None,
-            title_key: None,
+            title_key,
             message_key: None,
             title_args: None,
             message_args: None,

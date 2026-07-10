@@ -206,7 +206,101 @@ describe('GameOperatorView Logic', () => {
       const host = document.createElement('div')
       document.body.appendChild(host)
       const { default: GameOperatorView } = await import('../views/GameOperatorView.vue')
+      const { createI18n } = await import('vue-i18n')
+      const i18n = createI18n({
+        legacy: false,
+        locale: 'en-US',
+        messages: {
+          'en-US': {
+            gameOperator: {
+              title: 'Hermes Game Operator',
+              subtitle: 'Godot MVP - Single Task Closed Loop',
+              projectPath: 'Godot Project Path',
+              selectProject: 'Browse...',
+              taskGoal: 'Task Goal',
+              goalPlaceholder: 'e.g., Add double jump to the player character',
+              startTask: 'Start Task',
+              starting: 'Starting...',
+              noPendingApprovals: 'No pending approvals',
+              redirectGoal: 'Redirect Goal',
+              redirect: 'Redirect',
+              redirecting: 'Redirecting...',
+              selectProjectTitle: 'Select Godot Project Directory',
+              notGodotProject: 'Selected directory is not a Godot project',
+              selectProjectAndGoal: 'Please select a project and enter a goal',
+            },
+            operatorStatus: {
+              idle: 'Idle',
+              planning: 'Planning',
+              waitingApproval: 'Waiting Approval',
+              running: 'Running',
+              paused: 'Paused',
+              redirecting: 'Redirecting',
+              cancelling: 'Cancelling',
+              cancelled: 'Cancelled',
+              failed: 'Failed',
+              completed: 'Completed',
+              unknown: 'Unknown',
+            },
+            approvalDecision: {
+              approve: 'Approve',
+              reject: 'Reject',
+              requestChanges: 'Request changes',
+            },
+            operatorEvent: {
+              taskCreated: 'Task created',
+              taskStarted: 'Task started',
+              projectAnalyzing: 'Analyzing project',
+              projectAnalyzed: 'Project analyzed',
+              projectAnalysisFailed: 'Project analysis failed',
+              planGenerating: 'Generating plan',
+              planReady: 'Plan ready',
+              planFailed: 'Plan generation failed',
+              approvalRequested: 'Approval requested',
+              approvalGranted: 'Approval granted',
+              approvalRejected: 'Approval rejected',
+              stepExecuting: 'Step executing',
+              stepCompleted: 'Step completed',
+              stepFailed: 'Step failed',
+              fileModified: 'File modified',
+              taskCompleting: 'Task completing',
+              taskCompleted: 'Task completed',
+              taskFailed: 'Task failed',
+              taskCancelled: 'Task cancelled',
+              taskPaused: 'Task paused',
+              taskResumed: 'Task resumed',
+              taskRedirected: 'Task redirected',
+            },
+            operatorError: {
+              projectNotFound: 'Project not found',
+              taskNotFound: 'Task not found',
+              approvalNotFound: 'Approval not found',
+              invalidState: 'Invalid state',
+              operationFailed: 'Operation failed',
+              networkError: 'Network error',
+              timeout: 'Timeout',
+              permissionDenied: 'Permission denied',
+            },
+            a11y: {
+              approvalButton: 'Approve button',
+              rejectButton: 'Reject button',
+              requestChangesButton: 'Request changes button',
+              pauseButton: 'Pause button',
+              resumeButton: 'Resume button',
+              stopButton: 'Stop button',
+              diffPreview: 'Diff preview',
+              approvalLevel: 'Approval level',
+              approvalAction: 'Approval action',
+              approvalTitle: 'Approval title',
+              approvalReason: 'Approval reason',
+              approvalRisk: 'Approval risk',
+              approvalFiles: 'Approval files',
+            },
+          },
+        },
+      })
       const app = createApp(GameOperatorView)
+      app.use(i18n)
       app.mount(host)
       await Promise.resolve()
       await nextTick()

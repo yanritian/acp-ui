@@ -1,512 +1,399 @@
-# Release Process Guide
+# 发布流程文档
 
-## Release Overview
-
-This guide outlines the complete release process for Hermes Game Operator, from planning to deployment.
-
----
-
-## Release Planning
-
-### Release Types
-
-| Type | Frequency | Changes | Example |
-|------|-----------|---------|---------|
-| **Major** (X.0.0) | 3-6 months | Breaking changes, major features | v2.0.0 |
-| **Minor** (0.X.0) | 1-2 months | New features, enhancements | v1.1.0 |
-| **Patch** (0.0.X) | As needed | Bug fixes, security patches | v1.0.1 |
-
-### Release Planning Steps
-
-1. **Define Scope**
-   - List features/fixes to include
-   - Prioritize by importance
-   - Estimate effort
-
-2. **Set Timeline**
-   - Code freeze date
-   - Testing period
-   - Release date
-
-3. **Assign Resources**
-   - Development team
-   - QA team
-   - Documentation team
-   - Release manager
-
-4. **Communicate Plan**
-   - Internal announcement
-   - Update roadmap
-   - Notify stakeholders
+> 版本: v0.1.0-alpha
+> 更新日期: 2026-07-12
 
 ---
 
-## Release Preparation
+## 📋 目录
 
-### Code Freeze
+1. [发布类型](#发布类型)
+2. [发布前准备](#发布前准备)
+3. [发布流程](#发布流程)
+4. [发布后检查](#发布后检查)
+5. [紧急修复](#紧急修复)
+6. [自动化发布](#自动化发布)
 
-**Timeline**: 1 week before release
+---
 
-**Actions**:
-- [ ] Announce code freeze
-- [ ] Merge approved PRs
-- [ ] Reject non-critical PRs
-- [ ] Update branch protection
-- [ ] Create release branch
+## 发布类型
 
-**Command**:
-```bash
-git checkout -b release/v1.0.0
+### 语义化版本
+
+```
+主版本.次版本.修订号-预发布标识
+MAJOR.MINOR.PATCH-prerelease
+
+示例:
+- 0.1.0-alpha     (预发布)
+- 0.1.0           (正式发布)
+- 0.1.1           (修订版本)
+- 0.2.0           (功能版本)
+- 1.0.0           (主版本)
 ```
 
-### Version Bump
+### 版本号规则
 
-**Actions**:
-- [ ] Update package.json
-  ```json
-  {
-    "version": "1.0.0"
-  }
-  ```
-- [ ] Update Cargo.toml
-  ```toml
-  [package]
-  version = "1.0.0"
-  ```
-- [ ] Update CHANGELOG.md
-- [ ] Update documentation
-
-**Command**:
-```bash
-npm version 1.0.0
-```
-
-### Changelog Update
-
-**Format**:
-```markdown
-# Changelog
-
-## [1.0.0] - 2026-07-08
-
-### Added
-- New feature description
-
-### Changed
-- Change description
-
-### Fixed
-- Bug fix description
-
-### Removed
-- Removed feature description
-```
-
-**Actions**:
-- [ ] Review all commits since last release
-- [ ] Categorize changes
-- [ ] Write descriptions
-- [ ] Get review
+- **MAJOR**: 不兼容的 API 变更
+- **MINOR**: 向下兼容的功能新增
+- **PATCH**: 向下兼容的问题修正
+- **prerelease**: alpha, beta, rc 等
 
 ---
 
-## Testing Phase
+## 发布前准备
 
-### Quality Assurance
+### 1. 代码冻结
 
-**Timeline**: 3-5 days
-
-**Test Types**:
-1. **Unit Tests**
-   ```bash
-   npm run test
-   cargo test
-   ```
-
-2. **Integration Tests**
-   ```bash
-   npm run test:integration
-   ```
-
-3. **E2E Tests**
-   ```bash
-   npm run test:e2e
-   ```
-
-4. **Performance Tests**
-   ```bash
-   npm run test:performance
-   ```
-
-5. **Security Tests**
-   ```bash
-   npm run test:security
-   ```
-
-6. **Manual Testing**
-   - Feature verification
-   - Regression testing
-   - Edge case testing
-
-### Bug Triage
-
-**Process**:
-1. **Identify** bugs
-2. **Categorize** by severity
-3. **Prioritize** critical bugs
-4. **Fix** or defer
-5. **Verify** fixes
-
-**Severity Levels**:
-- **Critical**: Must fix before release
-- **High**: Should fix before release
-- **Medium**: Can fix in next release
-- **Low**: Can defer
-
-### Sign-Off
-
-**Requirements**:
-- [ ] All critical bugs fixed
-- [ ] All tests passing
-- [ ] Performance targets met
-- [ ] Security audit complete
-- [ ] Documentation reviewed
-
-**Sign-Off Meeting**:
-- Review test results
-- Review bug status
-- Review documentation
-- Final approval
-
----
-
-## Build Phase
-
-### Build Artifacts
-
-**Frontend**:
 ```bash
+# 创建发布分支
+git checkout -b release/v0.1.1
+
+# 只允许修复 bug，不添加新功能
+```
+
+### 2. 运行完整测试
+
+```bash
+# 单元测试
+npm test
+
+# E2E 测试
+npm run test:e2e
+
+# 类型检查
+npm run typecheck
+
+# 构建检查
 npm run build
-# Output: dist/
 ```
 
-**Backend**:
+### 3. 更新文档
+
+- [ ] CHANGELOG.md
+- [ ] README.md (如需要)
+- [ ] API 文档
+- [ ] 迁移指南 (如需要)
+
+### 4. 更新版本号
+
 ```bash
-cd src-tauri
-cargo build --release
-# Output: target/release/
+# 使用 npm 自动更新
+npm version patch  # 0.1.0 -> 0.1.1
+npm version minor  # 0.1.1 -> 0.2.0
+npm version major  # 0.2.0 -> 1.0.0
+
+# 或手动更新
+# 修改 package.json 中的 version
+# 修改 src-tauri/Cargo.toml 中的 version
 ```
 
-**Desktop Application**:
+### 5. 生成 CHANGELOG
+
 ```bash
-npm run tauri build
-# Output:
-# - Windows: src-tauri/target/release/bundle/msi/*.msi
-# - macOS: src-tauri/target/release/bundle/dmg/*.dmg
-# - Linux: src-tauri/target/release/bundle/deb/*.deb
-```
+# 使用 conventional-changelog
+npx conventional-changelog -p angular -i CHANGELOG.md -s
 
-**Web Application**:
-```bash
-npm run build:web
-# Output: dist-web/
-```
-
-### Verification
-
-**Actions**:
-- [ ] Verify all artifacts created
-- [ ] Check file sizes
-- [ ] Generate checksums
-- [ ] Test installation
-- [ ] Test functionality
-
-**Commands**:
-```bash
-# Generate checksums
-sha256sum *.msi *.dmg *.deb > SHA256SUMS.txt
-
-# Verify checksums
-sha256sum -c SHA256SUMS.txt
+# 或手动编辑 CHANGELOG.md
 ```
 
 ---
 
-## Release Phase
+## 发布流程
 
-### GitHub Release
+### 1. 提交更改
 
-**Actions**:
-1. **Create Release**
-   ```bash
-   gh release create v1.0.0 \
-     --title "v1.0.0 - Release Name" \
-     --notes "Release notes" \
-     --target main
-   ```
-
-2. **Upload Artifacts**
-   ```bash
-   gh release upload v1.0.0 *.msi *.dmg *.deb
-   ```
-
-3. **Publish Release**
-   - Set as latest release
-   - Add release notes
-   - Add screenshots
-
-### Web Deployment
-
-**Actions**:
-1. **Deploy to GitHub Pages**
-   ```bash
-   npm run deploy:web
-   ```
-
-2. **Verify Deployment**
-   - Check website loads
-   - Test functionality
-   - Verify performance
-
-### NPM Publication (if applicable)
-
-**Actions**:
 ```bash
-npm publish
+git add .
+git commit -m "chore: release v0.1.1"
 ```
 
-### Cargo Publication (if applicable)
+### 2. 创建标签
 
-**Actions**:
 ```bash
-cargo publish
+# 创建带注释的标签
+git tag -a v0.1.1 -m "Release v0.1.1
+
+## Changes
+- Fix approval button accessibility
+- Add pt-BR locale support
+- Update documentation
+
+## Known Issues
+- None
+
+## Breaking Changes
+- None
+"
 ```
 
----
+### 3. 推送代码和标签
 
-## Announcement Phase
-
-### Internal Announcement
-
-**Channels**:
-- Email to team
-- Slack message
-- Team meeting
-
-**Template**:
-```
-Subject: Hermes Game Operator v1.0.0 Released
-
-Team,
-
-We're excited to announce the release of Hermes Game Operator v1.0.0!
-
-Key features:
-- Feature 1
-- Feature 2
-- Feature 3
-
-Download: https://github.com/yourusername/acp-ui/releases/tag/v1.0.0
-Documentation: https://docs.example.com
-
-Thank you to everyone who contributed!
-
-Best regards,
-Release Team
+```bash
+git push origin release/v0.1.1
+git push origin v0.1.1
 ```
 
-### External Announcement
+### 4. 创建 Pull Request
 
-**Channels**:
-- Blog post
-- Social media
-- Newsletter
-- Press release
+```bash
+# 使用 GitHub CLI
+gh pr create \
+  --base main \
+  --head release/v0.1.1 \
+  --title "Release v0.1.1" \
+  --body "## Changes
+- Fix approval button accessibility
+- Add pt-BR locale support
+- Update documentation
 
-**Blog Post Template**:
-```markdown
-# Hermes Game Operator v1.0.0 Released
-
-We're excited to announce the release of Hermes Game Operator v1.0.0!
-
-## What's New
-
-### Feature 1
-Description...
-
-### Feature 2
-Description...
-
-### Feature 3
-Description...
-
-## Getting Started
-
-Installation instructions...
-
-## Resources
-
-- [Documentation](https://docs.example.com)
-- [GitHub Repository](https://github.com/yourusername/acp-ui)
-- [Discord Community](https://discord.gg/example)
-
-## Thank You
-
-Thank you to all contributors...
+## Checklist
+- [x] All tests passing
+- [x] Documentation updated
+- [x] CHANGELOG updated
+- [x] Version bumped
+"
 ```
 
-**Social Media Post**:
-```
-🎉 Hermes Game Operator v1.0.0 is here!
+### 5. 合并到主分支
 
-New features:
-✅ Feature 1
-✅ Feature 2
-✅ Feature 3
-
-Download now: https://github.com/yourusername/acp-ui/releases/tag/v1.0.0
-
-#GameDev #AI #Godot #IndieDev
+```bash
+# 等待审查和检查通过
+# 合并 PR (使用 Squash 合并)
+gh pr merge --squash --delete-branch
 ```
 
----
+### 6. 创建 GitHub Release
 
-## Post-Release Phase
-
-### Monitoring
-
-**First 24 Hours**:
-- [ ] Monitor error rates
-- [ ] Monitor performance
-- [ ] Monitor user feedback
-- [ ] Check support tickets
-- [ ] Verify deployment
-
-**First Week**:
-- [ ] Daily monitoring
-- [ ] User feedback review
-- [ ] Bug triage
-- [ ] Documentation updates
+```bash
+gh release create v0.1.1 \
+  --title "v0.1.1" \
+  --notes "## What's Changed
 
 ### Bug Fixes
+- Fix approval button accessibility at 1024x720
+- Fix memory leak in event stream
 
-**Process**:
-1. **Collect** bug reports
-2. **Triage** by severity
-3. **Fix** critical bugs immediately
-4. **Plan** fixes for next release
-5. **Communicate** status
+### Features
+- Add pt-BR (Portuguese - Brazil) locale support
 
-**Hotfix Process**:
-```bash
-# Create hotfix branch
-git checkout -b hotfix/v1.0.1
+### Documentation
+- Update API documentation
+- Add maintenance guide
 
-# Fix bug
-# ...
-
-# Test
-npm run test
-
-# Merge
-git checkout main
-git merge hotfix/v1.0.1
-
-# Tag
-git tag v1.0.1
-
-# Release
-gh release create v1.0.1
+**Full Changelog**: https://github.com/yanritian/acp-ui/compare/v0.1.0...v0.1.1"
 ```
 
-### User Feedback
+### 7. 构建发布产物
 
-**Collection**:
-- GitHub Issues
-- Discord
-- Email
-- Social media
+```bash
+# 桌面应用
+cd src-tauri
+cargo tauri build
 
-**Analysis**:
-- Categorize feedback
-- Identify trends
-- Prioritize improvements
-- Plan next release
+# Web 应用
+cd ..
+npm run build:web
 
----
+# 移动应用
+cd acp_ui_flutter
+flutter build apk
+flutter build ios
+```
 
-## Release Metrics
+### 8. 上传产物到 Release
 
-### Success Metrics
-
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Download count | 1000 | TBD | ⏳ |
-| Active users | 500 | TBD | ⏳ |
-| Bug reports | < 10 | TBD | ⏳ |
-| User satisfaction | 4.5/5 | TBD | ⏳ |
-| Documentation views | 5000 | TBD | ⏳ |
-
-### Process Metrics
-
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Release time | < 4 weeks | TBD | ⏳ |
-| Test coverage | > 80% | 85% | ✅ |
-| Bug fix time | < 1 week | TBD | ⏳ |
-| Documentation | 100% | 100% | ✅ |
+```bash
+# 使用 GitHub CLI
+gh release upload v0.1.1 \
+  src-tauri/target/release/bundle/msi/*.msi \
+  src-tauri/target/release/bundle/nsis/*.exe \
+  src-tauri/target/release/bundle/dmg/*.dmg \
+  src-tauri/target/release/bundle/deb/*.deb \
+  src-tauri/target/release/bundle/appimage/*.AppImage \
+  dist/*.tar.gz
+```
 
 ---
 
-## Release Checklist Summary
+## 发布后检查
 
-### Pre-Release
-- [ ] Release plan approved
-- [ ] Code freeze announced
-- [ ] Version bumped
-- [ ] Changelog updated
+### 1. 验证 Release
 
-### Testing
-- [ ] All tests passing
-- [ ] Performance targets met
-- [ ] Security audit complete
-- [ ] Manual testing complete
+- [ ] GitHub Release 创建成功
+- [ ] 所有产物上传成功
+- [ ] Release notes 正确显示
+- [ ] 下载链接有效
 
-### Build
-- [ ] All artifacts built
-- [ ] Checksums generated
-- [ ] Artifacts verified
-- [ ] Installation tested
+### 2. 测试安装
 
-### Release
-- [ ] GitHub release created
-- [ ] Artifacts uploaded
-- [ ] Web version deployed
-- [ ] NPM/Cargo published (if applicable)
+```bash
+# Windows
+下载 .msi → 安装 → 启动 → 检查功能
 
-### Announcement
-- [ ] Internal announcement sent
-- [ ] Blog post published
-- [ ] Social media posted
-- [ ] Newsletter sent
+# macOS
+下载 .dmg → 安装 → 启动 → 检查功能
 
-### Post-Release
-- [ ] Monitoring active
-- [ ] Bug triage ready
-- [ ] Feedback collection active
-- [ ] Next release planned
+# Linux
+下载 .deb → 安装 → 启动 → 检查功能
 
----
+# Web
+访问 https://acp-ui.github.io/ → 检查功能
+```
 
-## Resources
+### 3. 通知用户
 
-- [Semantic Versioning](https://semver.org/)
-- [Keep a Changelog](https://keepachangelog.com/)
-- [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
-- [npm Version](https://docs.npmjs.com/cli/v8/commands/npm-version)
+- [ ] 更新网站
+- [ ] 发送邮件通知
+- [ ] 发布社交媒体
+- [ ] 更新文档站点
+
+### 4. 监控
+
+```bash
+# 监控错误率
+# 检查是否有新的错误报告
+
+# 监控性能
+# 检查是否有性能下降
+
+# 监控用户反馈
+# 检查是否有用户报告问题
+```
 
 ---
 
-**Guide Version**: 1.0.0  
-**Last Updated**: 2026-07-08  
-**Status**: Ready to use
+## 紧急修复
+
+### Hotfix 流程
+
+```bash
+# 1. 从主版本标签创建分支
+git checkout -b hotfix/v0.1.2 v0.1.1
+
+# 2. 修复问题
+# ... 修复代码 ...
+
+# 3. 测试
+npm test
+npm run build
+
+# 4. 提交
+git add .
+git commit -m "fix: critical bug in approval system"
+
+# 5. 更新版本号
+npm version patch
+
+# 6. 创建标签
+git tag -a v0.1.2 -m "Hotfix v0.1.2"
+
+# 7. 推送
+git push origin hotfix/v0.1.2
+git push origin v0.1.2
+
+# 8. 创建 PR 到 main
+gh pr create --base main --head hotfix/v0.1.2
+
+# 9. 创建 Release
+gh release create v0.1.2 --title "Hotfix v0.1.2" --notes "..."
+```
+
+---
+
+## 自动化发布
+
+### GitHub Actions 工作流
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### 自动化工具
+
+- **semantic-release**: 自动化版本管理
+- **release-it**: 自动化发布流程
+- **standard-version**: 标准化版本管理
+
+---
+
+## 发布检查清单
+
+### 发布前
+
+- [ ] 所有测试通过
+- [ ] 类型检查通过
+- [ ] 构建成功
+- [ ] 文档更新
+- [ ] CHANGELOG 更新
+- [ ] 版本号更新
+- [ ] 代码审查完成
+- [ ] 安全审计通过
+
+### 发布中
+
+- [ ] 创建发布分支
+- [ ] 提交更改
+- [ ] 创建标签
+- [ ] 推送代码
+- [ ] 创建 PR
+- [ ] 合并 PR
+- [ ] 创建 Release
+- [ ] 上传产物
+
+### 发布后
+
+- [ ] 验证 Release
+- [ ] 测试安装
+- [ ] 通知用户
+- [ ] 监控错误
+- [ ] 监控性能
+- [ ] 收集反馈
+
+---
+
+## 更多信息
+
+- [维护指南](MAINTENANCE-GUIDE.md)
+- [最佳实践](BEST-PRACTICES.md)
+- [贡献指南](../CONTRIBUTING.md)
+- [GitHub 仓库](https://github.com/yanritian/acp-ui)
+
+---
+
+<div align="center">
+
+**规范化发布流程，保证质量！**
+
+[查看维护指南 →](MAINTENANCE-GUIDE.md)
+
+</div>

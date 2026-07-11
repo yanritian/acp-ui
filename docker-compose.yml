@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - hermes-network
+
+  backend:
+    build:
+      context: ./src-tauri
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgres://hermes:hermes@db:5432/hermes
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - hermes-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=hermes
+      - POSTGRES_PASSWORD=hermes
+      - POSTGRES_DB=hermes
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - hermes-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - hermes-network
+
+networks:
+  hermes-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,543 +1,399 @@
-# Migration Guide
+# 迁移指南
 
-This guide helps you migrate from previous versions of Hermes Game Operator or other tools.
-
-## From v0.x to v1.0.0
-
-### Breaking Changes
-
-#### 1. Operator Protocol
-
-**Old (v0.x)**:
-```typescript
-const task = await OperatorApi.startTask({
-  domain: 'godot',
-  goal: 'Add feature'
-})
-```
-
-**New (v1.0.0)**:
-```typescript
-const task = await OperatorApi.startTask({
-  domain: 'game.godot',  // Changed format
-  project_path: '/path/to/project',  // New required field
-  goal: 'Add feature',
-  mode: 'propose_then_apply',  // New required field
-  approval_policy: 'safe_default'  // New required field
-})
-```
-
-**Migration Steps**:
-1. Update domain format: `godot` → `game.godot`
-2. Add `project_path` parameter
-3. Add `mode` parameter
-4. Add `approval_policy` parameter
+> 版本: v0.1.0-alpha
+> 更新日期: 2026-07-12
 
 ---
 
-#### 2. Event Stream Format
+## 📋 目录
 
-**Old (v0.x)**:
-```json
-{
-  "type": "file_changed",
-  "data": {
-    "path": "scripts/Player.gd",
-    "changes": 5
-  }
-}
-```
-
-**New (v1.0.0)**:
-```json
-{
-  "type": "file_modified",
-  "level": "info",
-  "title": "File modified",
-  "payload": {
-    "path": "scripts/Player.gd",
-    "lines_changed": 5
-  }
-}
-```
-
-**Migration Steps**:
-1. Update event type names
-2. Move event data to `payload` field
-3. Add `level` and `title` fields
+1. [从 v0.0.x 迁移到 v0.1.0](#从-v00x-迁移到-v010)
+2. [API 变更](#api-变更)
+3. [配置变更](#配置变更)
+4. [数据结构变更](#数据结构变更)
+5. [废弃功能](#废弃功能)
+6. [迁移工具](#迁移工具)
 
 ---
 
-#### 3. Approval System
+## 从 v0.0.x 迁移到 v0.1.0
 
-**Old (v0.x)**:
-```typescript
-await OperatorApi.approve({
-  task_id: "task_123",
-  approval_id: "appr_001",
-  approved: true
-})
-```
+### 概述
 
-**New (v1.0.0)**:
-```typescript
-await OperatorApi.approve({
-  task_id: "task_123",
-  approval_id: "appr_001",
-  decision: "approve",  // Changed from boolean
-  comment: "Looks good"  // New optional field
-})
-```
+v0.1.0 引入了多项重大改进：
+- 完整的国际化支持（13种语言）
+- 改进的审批系统（4级审批）
+- 新增文件工具
+- 增强的安全守卫
+- 多客户端支持
 
-**Migration Steps**:
-1. Change `approved: boolean` to `decision: string`
-2. Use `"approve"`, `"reject"`, or `"request_changes"`
-3. Optionally add `comment` field
+### 迁移步骤
 
----
-
-#### 4. Configuration
-
-**Old (v0.x)**:
-```json
-{
-  "version": "0.9.0",
-  "api_key": "key123",
-  "timeout": 30
-}
-```
-
-**New (v1.0.0)**:
-```json
-{
-  "version": "1.0.0",
-  "api": {
-    "key": "key123",
-    "endpoint": "https://api.anthropic.com",
-    "timeout": 30
-  },
-  "operator": {
-    "mode": "propose_then_apply",
-    "approval_policy": "safe_default"
-  }
-}
-```
-
-**Migration Steps**:
-1. Restructure API configuration under `api` object
-2. Add operator configuration
-3. Update version number
-
----
-
-### Automatic Migration
-
-The application includes an automatic migration tool:
+#### 1. 备份数据
 
 ```bash
-# Run migration
-npm run migrate
+# 备份数据库
+pg_dump acp_ui > backup_before_migration.sql
 
-# Or use the CLI
-npx hermes-migrate --from 0.9.0 --to 1.0.0
+# 备份配置文件
+cp -r config/ config_backup/
+
+# 备份用户数据
+tar -czf user_data_backup.tar.gz ~/.config/acp-ui/
 ```
 
-**What it migrates**:
-- ✅ Configuration files
-- ✅ Task history
-- ✅ Event logs
-- ✅ User preferences
-- ✅ Agent configurations
-
-**What it doesn't migrate**:
-- ❌ Custom skills (manual update needed)
-- ❌ API keys (re-enter recommended)
-- ❌ Custom scripts (manual update needed)
-
----
-
-## From Other Tools
-
-### From Claude Code
-
-If you're currently using Claude Code for game development:
-
-#### Migration Steps
-
-1. **Export Your Work**
-   ```bash
-   # Save your current work
-   git add .
-   git commit -m "Backup before migration"
-   ```
-
-2. **Install Hermes Game Operator**
-   ```bash
-   # Download and install
-   # https://github.com/yourusername/acp-ui/releases
-   ```
-
-3. **Configure API Key**
-   ```bash
-   # Set your API key
-   export ANTHROPIC_API_KEY="your-key-here"
-   ```
-
-4. **Import Projects**
-   - Open Hermes Game Operator
-   - Select your Godot project
-   - Start using the operator
-
-#### Feature Comparison
-
-| Feature | Claude Code | Hermes Game Operator |
-|---------|-------------|----------------------|
-| Game-specific | ❌ | ✅ |
-| Visual UI | ❌ | ✅ |
-| Approval system | Manual | ✅ |
-| Event tracking | Basic | ✅ |
-| Memory management | Basic | ✅ |
-| Multi-task | ❌ | ✅ |
-
----
-
-### From GitHub Copilot
-
-If you're currently using GitHub Copilot:
-
-#### Migration Steps
-
-1. **Continue Using Copilot**
-   - Hermes Game Operator doesn't replace Copilot
-   - Use both together for best results
-
-2. **Complementary Features**
-   - Copilot: Inline code suggestions
-   - Hermes: Task-level automation
-
-3. **Workflow**
-   - Use Hermes for planning and large changes
-   - Use Copilot for inline editing
-
-#### Integration
-
-```typescript
-// Use both tools together
-// Hermes for task planning
-const plan = await OperatorApi.generatePlan(task)
-
-// Copilot for code completion
-// (In your editor)
-```
-
----
-
-### From Cursor
-
-If you're currently using Cursor:
-
-#### Migration Steps
-
-1. **Export Settings**
-   - Save your Cursor settings
-   - Note your preferences
-
-2. **Configure Hermes**
-   - Set similar preferences in Hermes
-   - Customize to your workflow
-
-3. **Gradual Migration**
-   - Start with small tasks
-   - Build confidence
-   - Migrate larger tasks
-
-#### Feature Comparison
-
-| Feature | Cursor | Hermes Game Operator |
-|---------|--------|----------------------|
-| AI-powered | ✅ | ✅ |
-| Game-specific | ❌ | ✅ |
-| Task management | Basic | ✅ |
-| Approval system | Manual | ✅ |
-| Event tracking | Basic | ✅ |
-| Desktop app | ✅ | ✅ |
-
----
-
-### From Manual Development
-
-If you're currently developing manually:
-
-#### Benefits of Migration
-
-1. **Faster Development**
-   - Automated code generation
-   - Intelligent suggestions
-   - Task automation
-
-2. **Better Quality**
-   - Consistent code style
-   - Best practices enforced
-   - Error prevention
-
-3. **Safer Operations**
-   - Approval system
-   - Automatic backups
-   - Audit trail
-
-#### Migration Steps
-
-1. **Start Small**
-   - Begin with simple tasks
-   - Test in non-critical projects
-   - Build confidence
-
-2. **Learn the Workflow**
-   - Understand the operator
-   - Practice with test projects
-   - Review documentation
-
-3. **Gradual Adoption**
-   - Use for new features
-   - Use for bug fixes
-   - Use for refactoring
-
----
-
-## Data Migration
-
-### Export from Old Version
+#### 2. 更新依赖
 
 ```bash
-# Export configuration
-hermes export --config > config.json
+# 更新 Node.js 依赖
+npm install
 
-# Export task history
-hermes export --tasks > tasks.json
-
-# Export events
-hermes export --events > events.json
+# 更新 Rust 依赖
+cd src-tauri
+cargo update
 ```
 
-### Import to New Version
-
-```bash
-# Import configuration
-hermes import --config config.json
-
-# Import task history
-hermes import --tasks tasks.json
-
-# Import events
-hermes import --events events.json
-```
-
----
-
-## API Migration
-
-### Old API (v0.x)
+#### 3. 更新配置
 
 ```typescript
-// Start task
-const task = await api.startTask({
-  domain: 'godot',
-  goal: 'Add feature'
-})
-
-// Get task
-const task = await api.getTask(taskId)
-
-// Approve
-await api.approve({
-  task_id: taskId,
-  approval_id: approvalId,
-  approved: true
-})
-```
-
-### New API (v1.0.0)
-
-```typescript
-// Start task
-const task = await OperatorApi.startTask({
-  domain: 'game.godot',
-  project_path: '/path/to/project',
-  goal: 'Add feature',
-  mode: 'propose_then_apply',
-  approval_policy: 'safe_default'
-})
-
-// Get task
-const task = await OperatorApi.getTask(taskId)
-
-// Approve
-await OperatorApi.approve({
-  task_id: taskId,
-  approval_id: approvalId,
-  decision: 'approve',
-  comment: 'Looks good'
-})
-```
-
----
-
-## Configuration Migration
-
-### Old Configuration
-
-```json
+// 旧配置 (v0.0.x)
 {
-  "version": "0.9.0",
-  "api_key": "sk-ant-...",
-  "timeout": 30,
-  "model": "claude-3-5-sonnet-20241022"
+  "locale": "zh",
+  "theme": "dark"
 }
-```
 
-### New Configuration
-
-```json
+// 新配置 (v0.1.0)
 {
-  "version": "1.0.0",
-  "api": {
-    "key": "sk-ant-...",
-    "endpoint": "https://api.anthropic.com",
-    "timeout": 30,
-    "model": "claude-3-5-sonnet-20241022"
-  },
-  "operator": {
-    "mode": "propose_then_apply",
-    "approval_policy": "safe_default",
-    "max_concurrent_tasks": 3
+  "locale": "zh-CN",
+  "theme": "dark",
+  "approval": {
+    "defaultLevel": "approve",
+    "autoApproveSafe": true
   },
   "security": {
-    "path_guard_enabled": true,
-    "command_guard_enabled": true,
-    "allowed_roots": []
+    "pathGuard": {
+      "enabled": true,
+      "allowedPaths": ["/projects"]
+    },
+    "commandGuard": {
+      "enabled": true,
+      "allowedCommands": ["cargo build", "npm test"]
+    }
+  }
+}
+```
+
+#### 4. 更新 API 调用
+
+```typescript
+// 旧 API (v0.0.x)
+const result = await invoke('create_operator', {
+  path: '/path/to/project'
+});
+
+// 新 API (v0.1.0)
+const result = await invoke('game_operator_create', {
+  project_path: '/path/to/project',
+  agent_config: {
+    model: 'gpt-4',
+    temperature: 0.7
+  }
+});
+```
+
+---
+
+## API 变更
+
+### 命令名称变更
+
+| 旧名称 (v0.0.x) | 新名称 (v0.1.0) | 说明 |
+|----------------|----------------|------|
+| `create_operator` | `game_operator_create` | 更清晰的命名 |
+| `start_operator` | `game_operator_start` | 更清晰的命名 |
+| `stop_operator` | `game_operator_stop` | 更清晰的命名 |
+| `get_status` | `game_operator_status` | 更清晰的命名 |
+
+### 参数变更
+
+#### game_operator_create
+
+```typescript
+// 旧参数
+{
+  path: string;
+}
+
+// 新参数
+{
+  project_path: string;
+  agent_config?: {
+    model: string;
+    temperature?: number;
+    max_tokens?: number;
+  };
+}
+```
+
+#### approval_resolve
+
+```typescript
+// 旧参数
+{
+  id: string;
+  approve: boolean;
+}
+
+// 新参数
+{
+  approval_id: string;
+  decision: 'approve' | 'reject';
+  reason?: string;
+  resolved_by: string;
+}
+```
+
+### 返回值变更
+
+```typescript
+// 旧返回值
+{
+  success: boolean;
+  data: any;
+}
+
+// 新返回值
+{
+  operator_id: string;
+  status: OperatorStatus;
+  created_at: string;
+  // 更多详细信息
+}
+```
+
+---
+
+## 配置变更
+
+### 国际化配置
+
+```typescript
+// 旧配置
+{
+  "language": "zh"
+}
+
+// 新配置
+{
+  "locale": "zh-CN"  // 使用完整的语言代码
+}
+```
+
+支持的语言代码：
+- `zh-CN` (简体中文)
+- `zh-TW` (繁体中文)
+- `en-US` (英语)
+- `pt-BR` (葡萄牙语-巴西)
+- `de-DE` (德语)
+- `es-ES` (西班牙语)
+- `ru-RU` (俄语)
+- `ja-JP` (日语)
+- `ko-KR` (韩语)
+- `vi-VN` (越南语)
+- `th-TH` (泰语)
+- `ms-MY` (马来语)
+- `fr-FR` (法语)
+
+### 审批配置
+
+```typescript
+// 新增配置
+{
+  "approval": {
+    "defaultLevel": "approve",  // silent | notify | approve | forbidden
+    "autoApproveSafe": true,     // 自动批准安全操作
+    "requireReason": false,      // 拒绝时是否需要原因
+    "batchOperations": true      // 启用批量操作
+  }
+}
+```
+
+### 安全配置
+
+```typescript
+// 新增配置
+{
+  "security": {
+    "pathGuard": {
+      "enabled": true,
+      "allowedPaths": ["/projects", "/workspace"],
+      "blockedPaths": ["/etc", "/usr"],
+      "allowRelativePaths": false
+    },
+    "commandGuard": {
+      "enabled": true,
+      "allowedCommands": ["cargo build", "npm test", "git status"],
+      "blockedCommands": ["rm -rf", "format"],
+      "requireApproval": ["sudo", "apt-get"]
+    }
   }
 }
 ```
 
 ---
 
-## Troubleshooting
+## 数据结构变更
 
-### Migration Fails
+### Task 结构
 
-**Problem**: Migration tool fails
+```typescript
+// 旧结构
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+}
 
-**Solution**:
-```bash
-# Manual migration
-1. Backup old configuration
-2. Install new version
-3. Manually update configuration
-4. Test with sample project
+// 新结构
+interface Task {
+  task_id: string;
+  operator_id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: 'low' | 'medium' | 'high';
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+}
 ```
 
-### API Key Issues
+### Approval 结构
 
-**Problem**: API key not working after migration
+```typescript
+// 旧结构
+interface Approval {
+  id: string;
+  task_id: string;
+  approved: boolean;
+}
 
-**Solution**:
-```bash
-# Re-enter API key
-Settings → API Keys → Add New
-
-# Or via environment variable
-export ANTHROPIC_API_KEY="your-key-here"
-```
-
-### Task History Lost
-
-**Problem**: Task history not migrated
-
-**Solution**:
-```bash
-# Export from old version
-hermes export --tasks > tasks.json
-
-# Import to new version
-hermes import --tasks tasks.json
+// 新结构
+interface Approval {
+  approval_id: string;
+  task_id: string;
+  level: ApprovalLevel;
+  action: string;
+  title: string;
+  reason?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  resolved_at?: string;
+  resolved_by?: string;
+  decision?: 'approve' | 'reject';
+}
 ```
 
 ---
 
-## Rollback Procedure
+## 废弃功能
 
-If migration causes issues:
+### 已废弃
 
-### Desktop Application
+| 功能 | 替代方案 | 移除版本 |
+|------|---------|---------|
+| `create_operator` | `game_operator_create` | v0.2.0 |
+| 单语言支持 | 13种语言支持 | v0.2.0 |
+| 简单审批 | 4级审批系统 | v0.2.0 |
+| 无安全守卫 | PathGuard + CommandGuard | v0.2.0 |
 
-1. **Uninstall new version**
-   ```bash
-   # Windows
-   Control Panel → Programs → Uninstall
-   
-   # macOS
-   Drag to Trash
-   
-   # Linux
-   sudo apt remove hermes-operator
-   ```
+### 迁移建议
 
-2. **Restore from backup**
-   ```bash
-   # Restore configuration
-   cp ~/.config/hermes-operator.backup/* ~/.config/hermes-operator/
-   ```
+```typescript
+// ❌ 废弃
+invoke('create_operator', { path: '/project' })
 
-3. **Install old version**
-   - Download previous version
-   - Install normally
-
-### Web Application
-
-Web version automatically rolls back when you access the previous deployment.
-
----
-
-## Best Practices
-
-### 1. Backup Before Migration
-
-```bash
-# Backup everything
-cp -r ~/.config/hermes-operator ~/.config/hermes-operator.backup
-git add .
-git commit -m "Backup before migration"
+// ✅ 推荐
+invoke('game_operator_create', {
+  project_path: '/project',
+  agent_config: { model: 'gpt-4' }
+})
 ```
 
-### 2. Test in Staging
+---
 
-- Use a test project
-- Verify all features work
-- Check performance
+## 迁移工具
 
-### 3. Migrate Gradually
+### 自动迁移脚本
 
-- Start with small projects
-- Build confidence
-- Migrate larger projects
+```bash
+# 运行迁移工具
+npm run migrate
 
-### 4. Document Changes
+# 或手动运行
+node scripts/migrate.js --from 0.0.x --to 0.1.0
+```
 
-- Keep a migration log
-- Note any issues
-- Track resolution
+### 迁移检查清单
+
+- [ ] 备份所有数据
+- [ ] 更新依赖
+- [ ] 更新配置文件
+- [ ] 更新 API 调用
+- [ ] 运行测试
+- [ ] 验证功能
+- [ ] 检查日志
+- [ ] 验证性能
+
+### 回滚方案
+
+```bash
+# 如果迁移失败，回滚到旧版本
+git checkout v0.0.x
+
+# 恢复备份
+pg_restore -d acp_ui backup_before_migration.sql
+cp -r config_backup/ config/
+
+# 重新启动应用
+npm run dev
+```
 
 ---
 
-## Resources
+## 常见问题
 
-- [Upgrade Guide](UPGRADE.md)
-- [User Manual](USER-MANUAL.md)
-- [API Reference](api.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
-- [Support](mailto:support@example.com)
+### Q: 迁移会丢失数据吗？
+
+**A**: 不会。迁移工具会保留所有数据，只是更新数据结构。
+
+### Q: 迁移需要多长时间？
+
+**A**: 通常需要 5-10 分钟，取决于数据量。
+
+### Q: 可以跳过多个版本迁移吗？
+
+**A**: 可以，但建议逐版本迁移以确保稳定性。
+
+### Q: 迁移失败怎么办？
+
+**A**: 使用回滚方案恢复到旧版本，然后联系支持。
 
 ---
 
-**Migration Guide Version**: 1.0.0  
-**Last Updated**: 2026-07-08
+## 更多信息
+
+- [API 文档](API-DOCUMENTATION.md)
+- [部署指南](DEPLOYMENT-GUIDE.md)
+- [维护指南](MAINTENANCE-GUIDE.md)
+- [GitHub 仓库](https://github.com/yanritian/acp-ui)
+
+---
+
+<div align="center">
+
+**平滑迁移，无缝升级！**
+
+[查看 API 文档 →](API-DOCUMENTATION.md)
+
+</div>

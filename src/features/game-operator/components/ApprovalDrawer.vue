@@ -141,10 +141,11 @@ function approvalOptions(approval: ApprovalRequest): ApprovalDecision[] {
 .approval-list {
   flex: 1;
   min-width: 0;
-  overflow-y: visible;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: calc(100vh - 200px);
 }
 
 .approval-card {
@@ -278,10 +279,12 @@ function approvalOptions(approval: ApprovalRequest): ApprovalDecision[] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .approval-btn {
-  flex: 1 1 120px;
+  flex: 1 1 auto;
+  min-width: 100px;
   min-height: 36px;
   padding: 0.5rem;
   border: none;
@@ -307,6 +310,29 @@ function approvalOptions(approval: ApprovalRequest): ApprovalDecision[] {
 
 .approval-btn:hover {
   opacity: 0.9;
+}
+
+.approval-btn:focus {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .approval-drawer h3 {
+    font-size: 1rem;
+  }
+
+  .approval-card {
+    padding: 0.75rem;
+  }
+
+  .approval-actions {
+    flex-direction: column;
+  }
+
+  .approval-btn {
+    width: 100%;
+  }
 }
 
 </style>

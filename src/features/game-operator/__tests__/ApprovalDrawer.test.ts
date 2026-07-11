@@ -214,7 +214,7 @@ describe('ApprovalDrawer', () => {
         /\.approval-drawer\s*\{[^}]*height:\s*auto;/s,
       )
       expect(approvalDrawerSource).toMatch(
-        /\.approval-list\s*\{[^}]*overflow-y:\s*visible;/s,
+        /\.approval-list\s*\{[^}]*overflow-y:\s*auto;/s,
       )
     })
 

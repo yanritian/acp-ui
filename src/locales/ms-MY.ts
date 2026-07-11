@@ -1070,8 +1070,8 @@ agentConfig: {
     ruleCreated: 'Peraturan created',
   },
   gameOperator: {
-    title: 'Hermes Game Operator',
-    subtitle: 'Godot MVP - Single Task Closed Loop',
+    title: 'Hermes Pengendali Permainan',
+    subtitle: 'Godot MVP - Gelung Tertutup Tugas Tunggal',
     projectPath: 'Godot Project Path',
     selectProject: 'Browse...',
     taskGoal: 'Task Goal',

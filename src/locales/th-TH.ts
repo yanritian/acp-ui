@@ -1070,8 +1070,8 @@ agentConfig: {
     ruleCreated: 'กฎถูก created',
   },
   gameOperator: {
-    title: 'Hermes Game Operator',
-    subtitle: 'Godot MVP - Single Task Closed Loop',
+    title: 'Hermes ผู้ปฏิบัติการเกม',
+    subtitle: 'Godot MVP - วงป้อนงานเดี่ยวแบบปิด',
     projectPath: 'Godot Project Path',
     selectProject: 'Browse...',
     taskGoal: 'Task Goal',

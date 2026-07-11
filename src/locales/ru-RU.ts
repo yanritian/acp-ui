@@ -1070,8 +1070,8 @@ agentConfig: {
     ruleCreated: 'Правило создано',
   },
   gameOperator: {
-    title: 'Hermes Game Operator',
-    subtitle: 'Godot MVP - Single Task Closed Loop',
+    title: 'Hermes Оператор Игры',
+    subtitle: 'Godot MVP - Замкнутый Цикл Одиночной Задачи',
     projectPath: 'Godot Project Path',
     selectProject: 'Browse...',
     taskGoal: 'Task Goal',

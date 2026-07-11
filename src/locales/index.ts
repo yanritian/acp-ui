@@ -1,11 +1,13 @@
 import { createI18n } from 'vue-i18n'
 import type { MessageSchema } from './types'
 import { zhCN } from './zh-CN'
+import { zhTW } from './zh-TW'
 import { enUS } from './en-US'
 
 // 语言配置
 export const SUPPORTED_LANGS = [
   { code: 'zh-CN', name: '中文', flag: '🇨🇳' },
+  { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
   { code: 'en-US', name: 'English', flag: '🇺🇸' },
   { code: 'de-DE', name: 'Deutsch', flag: '🇩🇪' },
   { code: 'es-ES', name: 'Español', flag: '🇪🇸' },
@@ -22,6 +24,7 @@ export type SupportedLang = (typeof SUPPORTED_LANGS)[number]['code']
 
 // 按需加载其他语言（code splitting）
 const messageLoaders: Record<string, () => Promise<MessageSchema>> = {
+  'zh-TW': () => import('./zh-TW').then(m => m.zhTW),
   'de-DE': () => import('./de-DE').then(m => m.deDE),
   'es-ES': () => import('./es-ES').then(m => m.esES),
   'ru-RU': () => import('./ru-RU').then(m => m.ruRU),

@@ -170,7 +170,7 @@ describe('Game Operator API Integration', () => {
 
     it('should handle missing token', async () => {
       const headers = {}
-      expect(headers.Authorization).toBeUndefined()
+      expect((headers as any).Authorization).toBeUndefined()
     })
   })
 })

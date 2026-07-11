@@ -1154,13 +1154,3 @@ agentConfig: {
     approvalFiles: '승인 파일',
   },
 }
-    starting: 'Starting...',
-    noPendingApprovals: 'No pending approvals',
-    redirectGoal: 'Redirect Goal',
-    redirect: 'Redirect',
-    redirecting: 'Redirecting...',
-    selectProjectTitle: 'Select Godot Project Directory',
-    notGodotProject: 'Selected directory is not a Godot project',
-    selectProjectAndGoal: 'Please select a project and enter a goal',
-  },
-}

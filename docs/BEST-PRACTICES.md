@@ -1,443 +1,526 @@
-# Best Practices Guide
+# 最佳实践指南
 
-This guide provides best practices for using Hermes Game Operator effectively and safely.
-
-## Task Design
-
-### Write Clear Goals
-
-**Good**:
-```
-Add double jump ability to the player character, allowing up to 2 jumps in the air.
-```
-
-**Bad**:
-```
-Make jumping better.
-```
-
-**Why**: Clear, specific goals help the operator generate accurate plans.
-
-### Break Down Complex Tasks
-
-**Good**:
-1. "Analyze current player movement system"
-2. "Add double jump logic to Player.gd"
-3. "Test jump mechanics in main scene"
-
-**Bad**:
-```
-Completely rewrite the player controller with new movement, jumping, and combat systems.
-```
-
-**Why**: Smaller tasks are easier to review, approve, and debug.
-
-### Provide Context
-
-**Good**:
-```
-Add sprint ability to player. Current speed is 300, sprint should be 500. 
-Keep the existing jump mechanics unchanged.
-```
-
-**Bad**:
-```
-Add sprint.
-```
-
-**Why**: Context helps the operator understand constraints and requirements.
-
-### Use Standard Naming
-
-**Good**:
-- `Player.gd` - Player controller
-- `Enemy.gd` - Enemy behavior
-- `Main.tscn` - Main scene
-
-**Bad**:
-- `CharacterController2D_v2_final.gd`
-- `EnemyBehaviorScript.gd`
-- `Scene1.tscn`
-
-**Why**: Standard naming helps the operator identify relevant files.
-
-## Project Structure
-
-### Follow Godot Conventions
-
-```
-project/
-├── project.godot
-├── scenes/
-│   ├── Main.tscn
-│   └── Menu.tscn
-├── scripts/
-│   ├── Player.gd
-│   └── Enemy.gd
-└── assets/
-    ├── sprites/
-    └── audio/
-```
-
-### Use .godotignore
-
-```
-# Build outputs
-build/
-export/
-
-# Temporary files
-*.tmp
-*.bak
-
-# IDE files
-.vscode/
-.idea/
-
-# OS files
-.DS_Store
-Thumbs.db
-```
-
-### Keep Projects Organized
-
-- Group related files in directories
-- Use consistent naming conventions
-- Document complex systems
-- Keep scenes modular
-
-## Safety Practices
-
-### Always Review Plans
-
-Before approving:
-1. ✅ Read all steps carefully
-2. ✅ Check which files will be modified
-3. ✅ Verify the approach makes sense
-4. ✅ Consider edge cases
-
-### Use Version Control
-
-```bash
-# Before starting task
-git status
-git add .
-git commit -m "Backup before operator task"
-
-# After task completion
-git diff
-git add .
-git commit -m "Add feature X via operator"
-```
-
-### Test Incrementally
-
-1. Complete small task
-2. Test in Godot editor
-3. Verify functionality
-4. Commit changes
-5. Continue to next task
-
-### Keep Backups
-
-The operator creates `.bak` files automatically, but also:
-- Use Git for version history
-- Create manual backups for critical files
-- Export project regularly
-
-## Approval Best Practices
-
-### Review Diffs Carefully
-
-```gdscript
-# Before
-const SPEED = 300.0
-
-# After
-const SPEED = 400.0  # Increased for better gameplay feel
-```
-
-Check:
-- ✅ Are changes correct?
-- ✅ Are comments helpful?
-- ✅ Is code style consistent?
-- ✅ Are there any unintended changes?
-
-### Understand Approval Levels
-
-**Level 0 (Silent)**: Safe read operations
-- No approval needed
-- Safe to auto-approve
-
-**Level 1 (Notify)**: Can execute, show in progress
-- Review in event stream
-- Generally safe
-
-**Level 2 (Approve)**: Must get user approval
-- Review carefully
-- Check diffs
-- Consider impact
-
-**Level 3 (Forbidden)**: Always blocked
-- Dangerous operations
-- Requires policy change
-- Use with extreme caution
-
-### Respond Promptly
-
-Approval requests can timeout:
-- Monitor approval drawer
-- Respond within timeout period
-- Ask for more time if needed
-
-## Monitoring Best Practices
-
-### Watch Event Stream
-
-Key events to monitor:
-- `task_started` - Task beginning
-- `project_analyzed` - Analysis complete
-- `plan_ready` - Plan generated
-- `approval_requested` - Needs approval
-- `file_modified` - File changed
-- `task_completed` - Task finished
-
-### Check Progress Regularly
-
-For long tasks:
-1. Monitor event stream
-2. Check step progress
-3. Verify file modifications
-4. Approve pending requests
-
-### Review Summaries
-
-After completion:
-- Read task summary
-- Check modified files list
-- Verify expected changes
-- Note any warnings
-
-## Code Quality
-
-### Maintain Style Consistency
-
-Follow project's existing style:
-- Indentation (tabs vs spaces)
-- Naming conventions
-- Comment style
-- Code organization
-
-### Add Meaningful Comments
-
-```gdscript
-# Good: Explains why
-var jump_count = 0  # Tracks number of jumps for double jump mechanic
-
-# Bad: States obvious
-var jump_count = 0  # Jump count variable
-```
-
-### Test Generated Code
-
-Before approving:
-1. ✅ Syntax is correct
-2. ✅ Logic makes sense
-3. ✅ No obvious bugs
-4. ✅ Follows best practices
-
-### Document Changes
-
-After task completion:
-- Update relevant documentation
-- Add comments for complex logic
-- Note any manual adjustments needed
-
-## Performance Optimization
-
-### Optimize Project Analysis
-
-- Use `.godotignore` for large assets
-- Exclude build directories
-- Keep project structure clean
-- Split large projects into modules
-
-### Manage Memory
-
-- Close unnecessary applications
-- Limit concurrent tasks
-- Clear cache periodically
-- Restart if memory issues
-
-### Network Efficiency
-
-- Use stable internet connection
-- Enable response caching
-- Batch similar operations
-- Minimize API calls
-
-## Security Best Practices
-
-### Validate Paths
-
-- Always use project-relative paths
-- Never use absolute system paths
-- Check for path traversal attempts
-- Validate all file operations
-
-### Control Commands
-
-- Use whitelist for allowed commands
-- Review command details before approval
-- Never execute unknown commands
-- Log all command executions
-
-### Protect Secrets
-
-- Never commit API keys
-- Use environment variables
-- Rotate keys regularly
-- Use secure storage
-
-### Monitor Access
-
-- Review event stream regularly
-- Check for unauthorized operations
-- Audit file modifications
-- Report suspicious activity
-
-## Workflow Best Practices
-
-### Plan Before Executing
-
-1. Define clear goal
-2. Break into smaller tasks
-3. Identify dependencies
-4. Estimate complexity
-5. Prepare backups
-
-### Iterate Incrementally
-
-```
-Task 1: Analyze current system
-Task 2: Implement core feature
-Task 3: Add edge cases
-Task 4: Optimize performance
-Task 5: Add documentation
-```
-
-### Review and Refine
-
-After each task:
-1. Test functionality
-2. Review code quality
-3. Check for issues
-4. Refactor if needed
-5. Document changes
-
-### Document Everything
-
-- Task goals and outcomes
-- Design decisions
-- Code changes
-- Testing results
-- Known issues
-
-## Common Patterns
-
-### Adding New Features
-
-1. Analyze existing system
-2. Design feature architecture
-3. Implement core logic
-4. Add UI integration
-5. Test thoroughly
-6. Document feature
-
-### Fixing Bugs
-
-1. Reproduce bug
-2. Identify root cause
-3. Implement fix
-4. Test fix
-5. Add regression test
-6. Document fix
-
-### Refactoring Code
-
-1. Identify code smells
-2. Design refactoring plan
-3. Refactor incrementally
-4. Test after each change
-5. Verify no regressions
-6. Update documentation
-
-### Creating New Scenes
-
-1. Design scene structure
-2. Create scene file
-3. Add nodes and scripts
-4. Connect signals
-5. Test scene
-6. Integrate with main game
-
-## Advanced Techniques
-
-### Custom Skills
-
-Create custom skills for common tasks:
-
-```
-skills/
-└── godot/
-    └── custom-feature/
-        └── SKILL.md
-```
-
-### Batch Operations
-
-Execute multiple related tasks:
-1. Create batch plan
-2. Execute tasks sequentially
-3. Review each result
-4. Commit after each task
-
-### Integration Testing
-
-Test operator with real projects:
-1. Use test project
-2. Run common tasks
-3. Verify results
-4. Report issues
-
-## Anti-Patterns
-
-### Avoid These Mistakes
-
-❌ **Vague Goals**: "Make it better"
-✅ **Specific Goals**: "Increase player speed by 20%"
-
-❌ **Large Tasks**: "Rewrite entire game"
-✅ **Small Tasks**: "Add double jump"
-
-❌ **No Testing**: Approve without testing
-✅ **Test First**: Verify in editor
-
-❌ **Ignoring Warnings**: Skip review
-✅ **Review Always**: Check all changes
-
-❌ **No Backups**: Work without version control
-✅ **Use Git**: Track all changes
-
-## Resources
-
-- [User Manual](USER-MANUAL.md)
-- [API Reference](api.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
-- [Security Guide](SECURITY.md)
-- [FAQ](FAQ.md)
+> 版本: v0.1.0-alpha
+> 更新日期: 2026-07-12
 
 ---
 
-**Last Updated**: 2026-07-08  
-**Version**: 1.0.0
+## 📋 目录
+
+1. [代码规范](#代码规范)
+2. [测试实践](#测试实践)
+3. [安全实践](#安全实践)
+4. [性能优化](#性能优化)
+5. [文档规范](#文档规范)
+6. [Git 工作流](#git-工作流)
+
+---
+
+## 代码规范
+
+### TypeScript/Vue
+
+#### ✅ 推荐
+
+```typescript
+// 使用 Composition API
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const count = ref(0)
+const doubled = computed(() => count.value * 2)
+
+function increment() {
+  count.value++
+}
+</script>
+
+// 使用 TypeScript 类型
+interface User {
+  id: string
+  name: string
+  email: string
+}
+
+const user: User = {
+  id: '1',
+  name: 'John',
+  email: 'john@example.com'
+}
+
+// 使用不可变数据
+const newUser = { ...user, name: 'Jane' }
+```
+
+#### ❌ 避免
+
+```typescript
+// 不要使用 Options API (除非必要)
+export default {
+  data() {
+    return { count: 0 }
+  }
+}
+
+// 不要使用 any
+const user: any = getUser()
+
+// 不要直接修改 props
+props.count++ // ❌
+```
+
+### Rust
+
+#### ✅ 推荐
+
+```rust
+// 使用 Result 处理错误
+fn read_file(path: &Path) -> Result<String, std::io::Error> {
+    std::fs::read_to_string(path)
+}
+
+// 使用枚举表示状态
+enum State {
+    Idle,
+    Running { progress: f32 },
+    Completed,
+}
+
+// 使用不可变绑定
+let config = Config::load()?;
+let new_config = Config { ...config, debug: true };
+```
+
+#### ❌ 避免
+
+```rust
+// 不要使用 unwrap()
+let value = map.get("key").unwrap(); // ❌
+
+// 不要使用 panic!
+panic!("Something went wrong"); // ❌
+
+// 不要使用可变全局状态
+static mut COUNTER: i32 = 0; // ❌
+```
+
+---
+
+## 测试实践
+
+### 单元测试
+
+#### ✅ 推荐
+
+```typescript
+describe('GameOperator', () => {
+  it('should create operator with valid config', () => {
+    const config = { projectPath: '/path/to/project' }
+    const operator = createOperator(config)
+    expect(operator).toBeDefined()
+    expect(operator.status).toBe('idle')
+  })
+
+  it('should throw error for invalid path', () => {
+    expect(() => createOperator({ projectPath: '' }))
+      .toThrow('Invalid project path')
+  })
+})
+```
+
+#### 测试覆盖率目标
+
+- 语句覆盖率: >= 80%
+- 分支覆盖率: >= 75%
+- 函数覆盖率: >= 85%
+- 行覆盖率: >= 80%
+
+### 集成测试
+
+```typescript
+describe('Approval System', () => {
+  it('should handle approval workflow', async () => {
+    // 创建操作员
+    const operator = await createOperator(config)
+    
+    // 启动操作员
+    await startOperator(operator.id)
+    
+    // 等待审批请求
+    const approval = await waitForApproval(operator.id)
+    
+    // 批准请求
+    await resolveApproval(approval.id, 'approve')
+    
+    // 验证结果
+    const status = await getOperatorStatus(operator.id)
+    expect(status.state).toBe('running')
+  })
+})
+```
+
+### E2E 测试
+
+```typescript
+test('complete user journey', async ({ page }) => {
+  // 打开应用
+  await page.goto('/')
+  
+  // 创建操作员
+  await page.click('[data-testid="new-operator"]')
+  await page.fill('[data-testid="project-path"]', '/path/to/project')
+  await page.click('[data-testid="create-button"]')
+  
+  // 启动操作员
+  await page.click('[data-testid="start-button"]')
+  
+  // 处理审批
+  await page.click('[data-testid="approval-queue"]')
+  await page.click('[data-testid="approve-button"]')
+  
+  // 验证结果
+  await expect(page.locator('[data-testid="status"]'))
+    .toHaveText('Running')
+})
+```
+
+---
+
+## 安全实践
+
+### 输入验证
+
+#### ✅ 推荐
+
+```typescript
+import { z } from 'zod'
+
+const configSchema = z.object({
+  projectPath: z.string().min(1).max(500),
+  agentConfig: z.object({
+    model: z.string(),
+    temperature: z.number().min(0).max(2),
+  }).optional(),
+})
+
+function createOperator(input: unknown) {
+  const config = configSchema.parse(input)
+  // 使用验证后的配置
+}
+```
+
+#### ❌ 避免
+
+```typescript
+// 不要信任用户输入
+function createOperator(config: any) {
+  const path = config.projectPath // ❌ 未验证
+  // 直接使用...
+}
+```
+
+### 路径安全
+
+```rust
+// 使用 PathGuard
+let guard = PathGuard::new()
+    .allow_path("/projects")
+    .block_path("/etc");
+
+// 验证路径
+if let Err(e) = guard.validate(&user_path) {
+    return Err(Error::PathViolation(e));
+}
+```
+
+### 命令安全
+
+```rust
+// 使用 CommandGuard
+let guard = CommandGuard::new()
+    .allow_command("cargo build")
+    .allow_command("npm test")
+    .block_command("rm -rf");
+
+// 验证命令
+if let Err(e) = guard.validate(&command) {
+    return Err(Error::CommandBlocked(e));
+}
+```
+
+---
+
+## 性能优化
+
+### 前端优化
+
+#### ✅ 推荐
+
+```vue
+<!-- 使用虚拟滚动 -->
+<template>
+  <VirtualList :items="largeList" :item-height="50">
+    <template #item="{ item }">
+      <div>{{ item.name }}</div>
+    </template>
+  </VirtualList>
+</template>
+
+<!-- 使用计算属性缓存 -->
+<script setup>
+const filteredItems = computed(() => {
+  return items.value.filter(item => item.active)
+})
+</script>
+
+<!-- 使用防抖 -->
+<script setup>
+import { useDebounce } from '@vueuse/core'
+
+const searchQuery = ref('')
+const debouncedQuery = useDebounce(searchQuery, 300)
+
+watch(debouncedQuery, (query) => {
+  // 执行搜索
+})
+</script>
+```
+
+### 后端优化
+
+```rust
+// 使用异步
+async fn process_tasks(tasks: Vec<Task>) -> Vec<Result> {
+    let futures = tasks.into_iter().map(|task| {
+        tokio::spawn(async move {
+            process_task(task).await
+        })
+    });
+    
+    join_all(futures).await
+}
+
+// 使用连接池
+let pool = PgPoolOptions::new()
+    .max_connections(10)
+    .connect(&database_url)
+    .await?;
+```
+
+---
+
+## 文档规范
+
+### 代码注释
+
+#### ✅ 推荐
+
+```typescript
+/**
+ * 创建新的游戏操作员实例
+ * 
+ * @param config - 操作员配置
+ * @returns 操作员实例
+ * @throws 如果配置无效则抛出错误
+ * 
+ * @example
+ * ```typescript
+ * const operator = createOperator({
+ *   projectPath: '/path/to/project'
+ * })
+ * ```
+ */
+function createOperator(config: OperatorConfig): Operator {
+  // 实现...
+}
+```
+
+#### ❌ 避免
+
+```typescript
+// 不要写无意义的注释
+const count = 0 // 设置 count 为 0 ❌
+
+// 不要注释掉代码
+// const oldLogic = calculate() // ❌
+```
+
+### 文档结构
+
+```markdown
+# 文档标题
+
+> 简短描述
+
+---
+
+## 目录
+
+1. [章节1](#章节1)
+2. [章节2](#章节2)
+
+---
+
+## 章节1
+
+内容...
+
+## 章节2
+
+内容...
+
+---
+
+## 相关链接
+
+- [链接1](url)
+- [链接2](url)
+```
+
+---
+
+## Git 工作流
+
+### 提交消息
+
+#### ✅ 推荐
+
+```bash
+feat: add approval queue system
+
+Implement 4-level approval system:
+- Silent: auto-approve
+- Notify: notify without blocking
+- Approve: require manual approval
+- Forbidden: block action
+
+Includes:
+- Approval queue component
+- Backend approval service
+- Integration tests
+- Documentation
+
+Closes #123
+```
+
+#### ❌ 避免
+
+```bash
+# 不要使用模糊的消息
+fix: fix bug ❌
+update: update code ❌
+wip ❌
+```
+
+### 分支命名
+
+```bash
+# 功能分支
+feature/approval-system
+feature/user-authentication
+
+# 修复分支
+fix/approval-button-alignment
+fix/memory-leak
+
+# 文档分支
+docs/api-documentation
+docs/quick-start-guide
+
+# 重构分支
+refactor/state-machine
+refactor/approval-system
+```
+
+### PR 流程
+
+1. **创建分支**
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+2. **开发并提交**
+   ```bash
+   git add .
+   git commit -m "feat: add my feature"
+   git push origin feature/my-feature
+   ```
+
+3. **创建 PR**
+   - 标题清晰
+   - 描述详细
+   - 关联 Issue
+   - 添加审查者
+
+4. **代码审查**
+   - 至少 1 个审查者批准
+   - 所有检查通过
+   - 解决所有评论
+
+5. **合并**
+   - 使用 Squash 合并
+   - 删除分支
+
+---
+
+## 审查清单
+
+### 代码审查
+
+- [ ] 代码符合规范
+- [ ] 有适当的注释
+- [ ] 有完整的测试
+- [ ] 没有安全隐患
+- [ ] 性能可接受
+- [ ] 文档已更新
+
+### PR 审查
+
+- [ ] 标题清晰描述变更
+- [ ] 描述详细说明变更
+- [ ] 关联了相关 Issue
+- [ ] 所有检查通过
+- [ ] 至少 1 个审查者批准
+- [ ] 没有未解决的评论
+
+---
+
+## 工具推荐
+
+### 开发工具
+
+- **IDE**: VSCode, IntelliJ IDEA
+- **版本控制**: Git, GitHub Desktop
+- **API 测试**: Postman, Insomnia
+- **性能分析**: Chrome DevTools, Rust Profiler
+
+### 代码质量
+
+- **Linting**: ESLint, Clippy
+- **格式化**: Prettier, rustfmt
+- **类型检查**: TypeScript, rust-analyzer
+- **测试**: Vitest, cargo test
+
+### 文档工具
+
+- **文档生成**: TypeDoc, rustdoc
+- **图表**: Mermaid, Draw.io
+- **截图**: CleanShot, Snagit
+
+---
+
+## 更多信息
+
+- [贡献指南](../CONTRIBUTING.md)
+- [代码规范](../CONTRIBUTING.md#code-style)
+- [GitHub 仓库](https://github.com/yanritian/acp-ui)
+
+---
+
+<div align="center">
+
+**遵循最佳实践，写出更好的代码！**
+
+[开始贡献 →](../CONTRIBUTING.md)
+
+</div>

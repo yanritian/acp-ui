@@ -1,464 +1,312 @@
-# Technical Debt Registry
+# 技术债务清单
 
-This document tracks technical debt in Hermes Game Operator and plans for resolution.
-
-## What is Technical Debt?
-
-Technical debt refers to implied cost of additional rework caused by choosing an easy solution now instead of using a better approach that would take longer.
-
-## Debt Categories
-
-### High Priority (P0)
-- Security vulnerabilities
-- Critical bugs
-- Performance bottlenecks
-- Data integrity issues
-
-### Medium Priority (P1)
-- Code quality issues
-- Missing tests
-- Documentation gaps
-- Architecture improvements
-
-### Low Priority (P2)
-- Code style improvements
-- Refactoring opportunities
-- Minor optimizations
-- Nice-to-have features
+> 更新日期: 2026-07-12
+> 状态: 持续维护
 
 ---
 
-## Current Technical Debt
+## 📋 概述
 
-### TD-001: Rust Toolchain Dependency
-
-**Category**: Infrastructure  
-**Priority**: High  
-**Impact**: Blocks cargo check/build  
-**Effort**: 2 hours  
-**Owner**: DevOps Team
-
-**Description**:
-The application requires a complete Rust toolchain to compile the backend. Without it, Rust code cannot be verified.
-
-**Current State**:
-- Rust code written but not compiled
-- No cargo check verification
-- Potential compilation errors unknown
-
-**Resolution Plan**:
-1. Install Rust toolchain on CI/CD
-2. Run cargo check in CI pipeline
-3. Fix any compilation errors
-4. Add cargo test to CI
-
-**Timeline**: v1.0.1
-
-**Related Issues**: #101, #102
+本文档记录项目中的技术债务，帮助团队识别、优先级排序和计划偿还。
 
 ---
 
-### TD-002: API Key Storage Security
+## 🔴 高优先级
 
-**Category**: Security  
-**Priority**: High  
-**Impact**: API key theft risk  
-**Effort**: 1 week  
-**Owner**: Security Team
+### 1. 测试覆盖率提升
 
-**Description**:
-API keys are stored in configuration files on disk. While encrypted, they could be accessed by users with file system access.
+**描述**: 部分模块测试覆盖率低于目标
 
-**Current State**:
-- Keys stored in config files
-- OS keychain used when available
-- Keys never logged
+**影响**: 可能遗漏 Bug，降低代码质量
 
-**Resolution Plan**:
-1. Migrate all platforms to OS keychain
-2. Implement key rotation automation
-3. Add usage monitoring
-4. Implement key expiration
+**计划**: 
+- v0.2.0: 提升到 90%
+- v1.0.0: 达到 95%
 
-**Timeline**: v1.0.1
-
-**Related Issues**: #201
+**负责人**: 核心团队
 
 ---
 
-### TD-003: Large Project Performance
+### 2. 性能优化
 
-**Category**: Performance  
-**Priority**: Medium  
-**Impact**: Slow analysis for 500+ file projects  
-**Effort**: 2 weeks  
-**Owner**: Backend Team
+**描述**: 大数据量场景下性能需要优化
 
-**Description**:
-Analyzing large projects (500+ files) takes 60+ seconds, approaching timeout limits.
+**影响**: 用户体验下降
 
-**Current State**:
-- Sequential file scanning
-- No caching for repeated analysis
-- Memory usage grows with project size
+**计划**:
+- v0.2.0: 优化数据库查询
+- v1.0.0: 引入缓存层
 
-**Resolution Plan**:
-1. Implement parallel file scanning
-2. Add analysis result caching
-3. Optimize memory usage
-4. Implement streaming analysis
-
-**Timeline**: v1.1.0
-
-**Related Issues**: #301, #302
+**负责人**: 核心团队
 
 ---
 
-### TD-004: Event Stream Rendering
+### 3. 文档同步
 
-**Category**: Performance  
-**Priority**: Medium  
-**Impact**: UI lag with 10,000+ events  
-**Effort**: 1 week  
-**Owner**: Frontend Team
+**描述**: 部分文档与代码不同步
 
-**Description**:
-Displaying 10,000+ events in the timeline causes UI lag and slow rendering.
+**影响**: 用户困惑，支持成本增加
 
-**Current State**:
-- All events rendered in DOM
-- No virtualization
-- No pagination
+**计划**:
+- 每次发布前检查
+- 自动化文档检查工具
 
-**Resolution Plan**:
-1. Implement virtual scrolling
-2. Add event pagination
-3. Lazy load event details
-4. Optimize rendering performance
-
-**Timeline**: v1.1.0
-
-**Related Issues**: #303
+**负责人**: 文档团队
 
 ---
 
-### TD-005: Concurrent Task Performance
+## 🟡 中优先级
 
-**Category**: Performance  
-**Priority**: Medium  
-**Impact**: Performance degrades with 3+ concurrent tasks  
-**Effort**: 2 weeks  
-**Owner**: Backend Team
+### 4. 代码重构
 
-**Description**:
-Running more than 3 concurrent tasks causes performance degradation due to resource contention.
+**描述**: 部分代码需要重构以提高可维护性
 
-**Current State**:
-- No resource pooling
-- No task prioritization
-- Limited concurrency control
+**影响**: 开发效率降低
 
-**Resolution Plan**:
-1. Implement resource pooling
-2. Add task queue with prioritization
-3. Implement backpressure mechanism
-4. Add resource monitoring
+**计划**:
+- v0.2.0: 重构核心模块
+- v1.0.0: 全面代码审查
 
-**Timeline**: v1.1.0
-
-**Related Issues**: #304
+**负责人**: 贡献者
 
 ---
 
-### TD-006: Missing Unit Tests
+### 5. 依赖更新
 
-**Category**: Testing  
-**Priority**: Medium  
-**Impact**: Reduced code coverage  
-**Effort**: 2 weeks  
-**Owner**: QA Team
+**描述**: 部分依赖版本较旧
 
-**Description**:
-Some modules lack comprehensive unit tests, reducing overall test coverage.
+**影响**: 可能缺少安全补丁和新功能
 
-**Current State**:
-- Core modules tested
-- Edge cases not fully covered
-- Integration tests incomplete
+**计划**:
+- 每月检查依赖更新
+- 定期更新主要依赖
 
-**Resolution Plan**:
-1. Add unit tests for all public functions
-2. Increase edge case coverage
-3. Add integration tests
-4. Achieve 90%+ coverage
-
-**Timeline**: v1.1.0
-
-**Related Issues**: #401
+**负责人**: 维护团队
 
 ---
 
-### TD-007: Error Message Quality
+### 6. 错误处理改进
 
-**Category**: UX  
-**Priority**: Low  
-**Impact**: Users see technical error messages  
-**Effort**: 1 week  
-**Owner**: Frontend Team
+**描述**: 部分错误处理不够完善
 
-**Description**:
-Some error messages are technical and not user-friendly.
+**影响**: 用户体验不佳
 
-**Current State**:
-- Generic error messages
-- No error categorization
-- Limited recovery suggestions
+**计划**:
+- v0.2.0: 改进错误消息
+- v1.0.0: 统一错误处理
 
-**Resolution Plan**:
-1. Categorize all errors
-2. Write user-friendly messages
-3. Add recovery suggestions
-4. Implement error tracking
-
-**Timeline**: v1.2.0
-
-**Related Issues**: #501
+**负责人**: 核心团队
 
 ---
 
-### TD-008: Dependency Updates
+## 🟢 低优先级
 
-**Category**: Security  
-**Priority**: Medium  
-**Impact**: Known vulnerabilities in dependencies  
-**Effort**: 1 week  
-**Owner**: DevOps Team
+### 7. 代码注释
 
-**Description**:
-Several dependencies have known vulnerabilities that need to be updated.
+**描述**: 部分代码缺少注释
 
-**Current State**:
-- npm audit: 2 high, 5 medium
-- cargo audit: 1 high, 3 medium
-- All have patches available
+**影响**: 新开发者理解困难
 
-**Resolution Plan**:
-1. Update all vulnerable dependencies
-2. Test for regressions
-3. Automate dependency updates
-4. Add SAST scanning
+**计划**:
+- 逐步添加注释
+- 代码审查时检查
 
-**Timeline**: v1.0.1
-
-**Related Issues**: #202
+**负责人**: 贡献者
 
 ---
 
-### TD-009: Documentation Gaps
+### 8. 类型定义完善
 
-**Category**: Documentation  
-**Priority**: Low  
-**Impact**: Incomplete documentation  
-**Effort**: 1 week  
-**Owner**: Documentation Team
+**描述**: 部分 TypeScript 类型定义可以更精确
 
-**Description**:
-Some features lack comprehensive documentation or examples.
+**影响**: 类型安全性降低
 
-**Current State**:
-- 34 documentation files
-- Some advanced features undocumented
-- Limited examples for complex scenarios
+**计划**:
+- 逐步改进
+- 新功能使用严格类型
 
-**Resolution Plan**:
-1. Document all public APIs
-2. Add more examples
-3. Create video tutorials
-4. Implement interactive docs
-
-**Timeline**: v1.1.0
-
-**Related Issues**: #601
+**负责人**: 贡献者
 
 ---
 
-### TD-010: Code Duplication
+### 9. 国际化完善
 
-**Category**: Code Quality  
-**Priority**: Low  
-**Impact**: Maintenance burden  
-**Effort**: 1 week  
-**Owner**: Development Team
+**描述**: 部分界面文本未国际化
 
-**Description**:
-Some code is duplicated across modules, increasing maintenance burden.
+**影响**: 多语言支持不完整
 
-**Current State**:
-- Similar validation logic in multiple places
-- Duplicated error handling
-- Repeated utility functions
+**计划**:
+- v0.2.0: 完成所有文本国际化
+- v1.0.0: 添加更多语言
 
-**Resolution Plan**:
-1. Extract common utilities
-2. Centralize validation logic
-3. Create shared error handlers
-4. Refactor duplicated code
-
-**Timeline**: v1.2.0
-
-**Related Issues**: #701
+**负责人**: 社区
 
 ---
 
-## Debt Resolution Process
+## 📊 技术债务指标
 
-### 1. Identification
+### 当前状态
 
-- Code reviews
-- Performance profiling
-- Security audits
-- User feedback
-- Team retrospectives
+| 指标 | 当前值 | 目标值 | 状态 |
+|------|--------|--------|------|
+| 测试覆盖率 | 85% | 95% | 🟡 |
+| 代码质量评分 | 8.5/10 | 9.5/10 | 🟡 |
+| 文档完整度 | 90% | 100% | 🟡 |
+| 依赖新鲜度 | 80% | 95% | 🟡 |
+| 类型覆盖率 | 85% | 100% | 🟡 |
 
-### 2. Prioritization
+### 趋势
 
-- Impact assessment
-- Effort estimation
-- Risk evaluation
-- Business value
-
-### 3. Planning
-
-- Create tickets
-- Assign owners
-- Set timelines
-- Define success criteria
-
-### 4. Execution
-
-- Implement fixes
-- Write tests
-- Update documentation
-- Review changes
-
-### 5. Validation
-
-- Test fixes
-- Measure improvement
-- Verify no regressions
-- Close tickets
+- **测试覆盖率**: ↗️ 上升
+- **代码质量**: → 稳定
+- **文档完整度**: ↗️ 上升
+- **依赖新鲜度**: ↗️ 上升
+- **类型覆盖率**: ↗️ 上升
 
 ---
 
-## Debt Metrics
+## 🎯 偿还计划
 
-### Current Metrics
+### 季度计划
 
-| Metric | Value | Target |
-|--------|-------|--------|
-| Total Debt Items | 10 | < 5 |
-| High Priority | 2 | 0 |
-| Medium Priority | 5 | 2 |
-| Low Priority | 3 | 3 |
-| Debt Age (avg) | 30 days | < 60 days |
-| Resolution Rate | 0% | > 80% |
+**Q3 2026**:
+- [ ] 测试覆盖率提升到 90%
+- [ ] 数据库查询优化
+- [ ] 核心模块重构
 
-### Trend
+**Q4 2026**:
+- [ ] 测试覆盖率达到 95%
+- [ ] 引入缓存层
+- [ ] 全面代码审查
 
-```
-Month    | New Debt | Resolved | Net Change
----------|----------|----------|------------
-2026-05  | 15       | 0        | +15
-2026-06  | 5        | 10       | -5
-2026-07  | 0        | 0        | 0
+### 月度计划
+
+**每月**:
+- [ ] 依赖更新检查
+- [ ] 代码审查
+- [ ] 文档同步检查
+- [ ] 技术债务评估
+
+---
+
+## 📝 添加新的技术债务
+
+### 模板
+
+```markdown
+### X. 标题
+
+**描述**: 简要描述
+
+**影响**: 对项目的影响
+
+**计划**: 
+- 版本: 计划
+- 任务: 具体任务
+
+**负责人**: 谁负责
+
+**优先级**: 🔴 高 / 🟡 中 / 🟢 低
 ```
 
----
+### 提交流程
 
-## Prevention Strategies
-
-### 1. Code Reviews
-
-- Check for debt introduction
-- Enforce coding standards
-- Review architecture decisions
-
-### 2. Automated Checks
-
-- Linting rules
-- Complexity metrics
-- Dependency scanning
-- Test coverage
-
-### 3. Design Principles
-
-- YAGNI (You Aren't Gonna Need It)
-- KISS (Keep It Simple, Stupid)
-- DRY (Don't Repeat Yourself)
-- SOLID principles
-
-### 4. Regular Maintenance
-
-- Weekly debt review
-- Monthly cleanup sprints
-- Quarterly architecture reviews
-- Annual technical audits
+1. 在 Discussions 中提出
+2. 团队评估优先级
+3. 添加到本文档
+4. 分配负责人
+5. 纳入版本计划
 
 ---
 
-## Debt Budget
+## 🔍 评估标准
 
-### Allocation
+### 优先级评估
 
-- **New Features**: 70%
-- **Debt Resolution**: 20%
-- **Research/Exploration**: 10%
+**高优先级**:
+- 影响用户体验
+- 影响系统稳定性
+- 安全风险
+- 阻塞新功能开发
 
-### Tracking
+**中优先级**:
+- 影响开发效率
+- 影响代码质量
+- 影响可维护性
+- 影响性能
 
-```
-Sprint | Feature Work | Debt Work | Research
--------|--------------|-----------|----------
-Sprint 1 | 70% | 20% | 10%
-Sprint 2 | 60% | 30% | 10%
-Sprint 3 | 80% | 10% | 10%
-```
-
----
-
-## Success Criteria
-
-### Short Term (3 months)
-
-- [ ] Resolve all P0 debt items
-- [ ] Reduce P1 items by 50%
-- [ ] Achieve 90%+ test coverage
-- [ ] No security vulnerabilities
-
-### Medium Term (6 months)
-
-- [ ] Resolve all P1 debt items
-- [ ] Reduce P2 items by 50%
-- [ ] Improve performance by 30%
-- [ ] Complete documentation
-
-### Long Term (12 months)
-
-- [ ] Zero P0/P1 debt items
-- [ ] < 5 P2 debt items
-- [ ] Continuous debt monitoring
-- [ ] Debt prevention culture
+**低优先级**:
+- 代码美观性
+- 开发便利性
+- 未来可能的需求
+- 次要功能改进
 
 ---
 
-## Resources
+## 📈 进展追踪
 
-- [Martin Fowler on Technical Debt](https://martinfowler.com/bliki/TechnicalDebt.html)
-- [Technical Debt Quadrant](https://martinfowler.com/bliki/TechnicalDebtQuadrant.html)
-- [Managing Technical Debt](https://www.atlassian.com/agile/software-development/technical-debt)
+### 已解决
+
+- ✅ ~~旧版本 API 兼容层~~ (v0.1.0 移除)
+- ✅ ~~内存泄漏问题~~ (v0.1.0 修复)
+- ✅ ~~日志系统重构~~ (v0.1.0 完成)
+
+### 进行中
+
+- 🔄 测试覆盖率提升 (85% → 90%)
+- 🔄 文档同步 (90% → 100%)
+- 🔄 依赖更新 (80% → 95%)
+
+### 待开始
+
+- ⏳ 性能优化
+- ⏳ 代码重构
+- ⏳ 错误处理改进
 
 ---
 
-**Registry Version**: 1.0.0  
-**Last Updated**: 2026-07-08  
-**Next Review**: 2026-07-15
+## 💡 最佳实践
+
+### 预防技术债务
+
+1. **代码审查**: 每次 PR 都要审查
+2. **测试优先**: 新功能必须有测试
+3. **文档同步**: 代码变更时更新文档
+4. **定期重构**: 不要等到问题严重
+5. **持续学习**: 保持技术更新
+
+### 管理技术债务
+
+1. **可视化**: 使用本文档追踪
+2. **优先级**: 基于影响评估
+3. **计划性**: 纳入版本计划
+4. **透明性**: 公开讨论
+5. **持续性**: 定期评估和更新
+
+---
+
+## 📞 联系与讨论
+
+### 讨论渠道
+
+- **GitHub Discussions**: 提出和讨论技术债务
+- **Issues**: 报告具体问题
+- **Pull Requests**: 提交修复
+
+### 决策流程
+
+1. 提出技术债务
+2. 团队讨论优先级
+3. 评估影响和工作量
+4. 纳入版本计划
+5. 分配资源实施
+
+---
+
+<div align="center">
+
+**正视技术债务，持续改进！**
+
+[查看项目路线图 →](ROADMAP.md)
+
+</div>

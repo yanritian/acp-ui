@@ -1,552 +1,325 @@
-# Roadmap
+# 项目路线图
 
-This document outlines the future development plans for Hermes Game Operator.
-
-## Current Status (v1.0.0)
-
-**Released**: 2026-07-08
-
-**Features**:
-- ✅ Complete Godot Domain Pack
-- ✅ 10-state task lifecycle
-- ✅ 17 Tauri commands
-- ✅ Approval queue system
-- ✅ Unified error handling
-- ✅ Hermes Agent integration
-- ✅ E2E test suite
-- ✅ 21 documentation files
-
-## Phase 2: Multi-Engine Support (Q3 2026)
-
-### Goals
-
-Expand Hermes Game Operator to support multiple game engines.
-
-### Features
-
-#### Unity Domain Pack
-- Unity project analysis
-- C# code generation
-- Unity-specific tools
-- Scene and prefab parsing
-- Asset management
-- Build automation
-
-**Priority**: P0  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Domain Pack abstraction
-
-#### Ren'Py Domain Pack
-- Ren'Py project analysis
-- Python code generation
-- Visual novel tools
-- Script parsing
-- Character management
-- Scene flow
-
-**Priority**: P1  
-**Estimated Effort**: 4 weeks  
-**Dependencies**: Domain Pack abstraction
-
-#### Unreal Engine Domain Pack
-- Unreal project analysis
-- C++ code generation
-- Blueprint integration
-- Asset pipeline
-- Build automation
-
-**Priority**: P2  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Domain Pack abstraction
-
-### Technical Requirements
-
-1. **Domain Pack Abstraction**
-   - Generic project analyzer interface
-   - Engine-specific parsers
-   - Pluggable tool system
-   - Unified command API
-
-2. **Engine Detection**
-   - Automatic engine detection
-   - Version compatibility checking
-   - Project structure validation
-
-3. **Code Generation**
-   - Language-specific generators
-   - Engine API knowledge
-   - Best practices enforcement
-
-### Success Criteria
-
-- [ ] Unity projects can be analyzed
-- [ ] Unity C# code can be generated
-- [ ] Ren'Py projects can be analyzed
-- [ ] Ren'Py Python code can be generated
-- [ ] 3+ engines supported
-- [ ] Domain Pack API stable
-
-## Phase 3: IDE Integration (Q4 2026)
-
-### Goals
-
-Integrate Hermes Game Operator into popular IDEs.
-
-### Features
-
-#### VSCode Extension
-- Operator sidebar
-- Task management
-- Progress tracking
-- Approval workflow
-- File diff viewing
-- Command palette integration
-
-**Priority**: P0  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Operator Core API
-
-#### IDEA Plugin
-- Operator tool window
-- Task management
-- Progress tracking
-- Approval workflow
-- File diff viewing
-- Action integration
-
-**Priority**: P1  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Operator Core API
-
-#### Visual Studio Extension
-- Operator tool window
-- Task management
-- Progress tracking
-- Approval workflow
-- File diff viewing
-
-**Priority**: P2  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Operator Core API
-
-### Technical Requirements
-
-1. **Operator Core API**
-   - WebSocket/HTTP API
-   - Authentication
-   - Event streaming
-   - Command execution
-
-2. **IDE Integration**
-   - Native UI components
-   - File system integration
-   - Editor integration
-   - Debugging integration
-
-3. **Cross-IDE Protocol**
-   - Unified API
-   - IDE-agnostic events
-   - Common data formats
-
-### Success Criteria
-
-- [ ] VSCode extension published
-- [ ] IDEA plugin published
-- [ ] Visual Studio extension published
-- [ ] 3+ IDEs supported
-- [ ] Seamless workflow
-- [ ] User adoption > 1000
-
-## Phase 4: Collaboration (Q1 2027)
-
-### Goals
-
-Add team collaboration features.
-
-### Features
-
-#### Team Management
-- User authentication
-- Role-based access control
-- Team workspaces
-- Member management
-- Permission system
-
-**Priority**: P0  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Cloud infrastructure
-
-#### Shared Tasks
-- Task sharing
-- Task assignment
-- Task history
-- Collaboration workflow
-- Conflict resolution
-
-**Priority**: P1  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Team management
-
-#### Code Review
-- Review requests
-- Review comments
-- Approval workflow
-- Review history
-- Integration with Git
-
-**Priority**: P1  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Shared tasks
-
-#### Chat Integration
-- Team chat
-- Task discussions
-- Notifications
-- Message history
-- @mentions
-
-**Priority**: P2  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Team management
-
-### Technical Requirements
-
-1. **Cloud Infrastructure**
-   - Backend services
-   - Database
-   - Authentication
-   - File storage
-
-2. **Real-time Collaboration**
-   - WebSocket connections
-   - Conflict resolution
-   - Presence awareness
-   - Sync mechanism
-
-3. **Security**
-   - Data encryption
-   - Access control
-   - Audit logging
-   - Compliance
-
-### Success Criteria
-
-- [ ] Team management working
-- [ ] Shared tasks functional
-- [ ] Code review integrated
-- [ ] Chat system operational
-- [ ] 10+ teams using
-- [ ] Positive feedback
-
-## Phase 5: Advanced Features (Q2 2027)
-
-### Goals
-
-Add advanced AI and automation features.
-
-### Features
-
-#### Multi-Agent Collaboration
-- Agent teams
-- Task distribution
-- Agent specialization
-- Coordination protocol
-- Conflict resolution
-
-**Priority**: P0  
-**Estimated Effort**: 10 weeks  
-**Dependencies**: Operator Core stable
-
-#### Advanced Analytics
-- Usage analytics
-- Performance metrics
-- Quality metrics
-- Cost tracking
-- ROI calculation
-
-**Priority**: P1  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Data collection
-
-#### Automated Testing
-- Test generation
-- Test execution
-- Test coverage
-- Regression testing
-- Performance testing
-
-**Priority**: P1  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Code generation
-
-#### Custom Skills
-- Skill marketplace
-- Custom skill creation
-- Skill sharing
-- Skill versioning
-- Skill analytics
-
-**Priority**: P2  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Plugin system
-
-### Technical Requirements
-
-1. **Multi-Agent System**
-   - Agent communication
-   - Task coordination
-   - Resource management
-   - Conflict resolution
-
-2. **Analytics Platform**
-   - Data collection
-   - Data processing
-   - Visualization
-   - Reporting
-
-3. **Testing Framework**
-   - Test generation
-   - Test execution
-   - Result analysis
-   - Coverage tracking
-
-### Success Criteria
-
-- [ ] Multi-agent collaboration working
-- [ ] Analytics dashboard available
-- [ ] Automated testing functional
-- [ ] Custom skills available
-- [ ] Advanced features adopted
-
-## Phase 6: Enterprise (Q3 2027)
-
-### Goals
-
-Add enterprise-grade features.
-
-### Features
-
-#### Enterprise Security
-- SSO integration
-- Advanced encryption
-- Audit logging
-- Compliance reporting
-- Data residency
-
-**Priority**: P0  
-**Estimated Effort**: 10 weeks  
-**Dependencies**: Cloud infrastructure
-
-#### On-Premise Deployment
-- Self-hosted option
-- Air-gapped support
-- Custom certificates
-- LDAP integration
-- Backup/restore
-
-**Priority**: P1  
-**Estimated Effort**: 8 weeks  
-**Dependencies**: Enterprise security
-
-#### Advanced Administration
-- User management
-- Resource management
-- Cost management
-- Policy management
-- Reporting
-
-**Priority**: P1  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Enterprise security
-
-#### API Management
-- API versioning
-- Rate limiting
-- API keys
-- Webhooks
-- API analytics
-
-**Priority**: P2  
-**Estimated Effort**: 6 weeks  
-**Dependencies**: Cloud infrastructure
-
-### Technical Requirements
-
-1. **Enterprise Security**
-   - SSO protocols
-   - Encryption standards
-   - Audit systems
-   - Compliance frameworks
-
-2. **Deployment Options**
-   - Cloud deployment
-   - On-premise deployment
-   - Hybrid deployment
-   - Disaster recovery
-
-3. **Administration**
-   - Admin dashboard
-   - Configuration management
-   - Monitoring
-   - Alerting
-
-### Success Criteria
-
-- [ ] Enterprise security features complete
-- [ ] On-premise deployment available
-- [ ] Administration tools functional
-- [ ] API management operational
-- [ ] 5+ enterprise customers
-
-## Long-Term Vision (2028+)
-
-### Multi-Domain Expansion
-
-Expand beyond game development:
-
-- **Video Production**
-  - Video editing automation
-  - Effect generation
-  - Rendering optimization
-
-- **Music Production**
-  - Music composition
-  - Sound design
-  - Audio processing
-
-- **3D Modeling**
-  - Model generation
-  - Texture creation
-  - Animation
-
-- **Web Development**
-  - Frontend generation
-  - Backend generation
-  - Full-stack development
-
-### AI Advancement
-
-- **Advanced Models**
-  - Larger context windows
-  - Better reasoning
-  - Multi-modal understanding
-
-- **Custom Models**
-  - Domain-specific models
-  - Fine-tuning
-  - Model optimization
-
-- **AI Safety**
-  - Alignment
-  - Interpretability
-  - Robustness
-
-### Platform Evolution
-
-- **Mobile-First**
-  - Native mobile apps
-  - Mobile collaboration
-  - Remote control
-
-- **Cloud-Native**
-  - Serverless architecture
-  - Auto-scaling
-  - Global distribution
-
-- **Open Source**
-  - Community contributions
-  - Plugin ecosystem
-  - Extension marketplace
-
-## Success Metrics
-
-### Adoption Metrics
-
-- Active users: 10,000+
-- Teams using: 1,000+
-- Enterprises: 100+
-- Community contributors: 500+
-
-### Quality Metrics
-
-- User satisfaction: 4.5/5
-- Bug rate: < 1%
-- Uptime: 99.9%
-- Response time: < 2s
-
-### Business Metrics
-
-- Revenue: $1M+ ARR
-- Growth: 20% MoM
-- Retention: 90%+
-- NPS: 70+
-
-## Resource Requirements
-
-### Team
-
-- Backend engineers: 5
-- Frontend engineers: 3
-- Mobile engineers: 2
-- DevOps engineers: 2
-- QA engineers: 2
-- Product managers: 2
-- Designers: 1
-
-### Infrastructure
-
-- Cloud servers
-- Database
-- CDN
-- Monitoring
-- CI/CD
-
-### Budget
-
-- Development: $500K/year
-- Infrastructure: $100K/year
-- Marketing: $200K/year
-- Support: $100K/year
-
-## Risk Mitigation
-
-### Technical Risks
-
-- **AI Model Limitations**
-  - Mitigation: Multi-model support
-  - Fallback: Rule-based systems
-
-- **Performance Issues**
-  - Mitigation: Profiling and optimization
-  - Fallback: Caching and CDN
-
-- **Security Vulnerabilities**
-  - Mitigation: Security audits
-  - Fallback: Incident response plan
-
-### Business Risks
-
-- **Low Adoption**
-  - Mitigation: User research
-  - Fallback: Pivot strategy
-
-- **Competition**
-  - Mitigation: Unique features
-  - Fallback: Niche focus
-
-- **Funding**
-  - Mitigation: Revenue generation
-  - Fallback: Cost reduction
-
-## Conclusion
-
-Hermes Game Operator has a clear roadmap for growth and evolution. Each phase builds on the previous one, adding value for users while maintaining quality and security.
-
-The vision is to become the leading AI-powered game development platform, supporting multiple engines, IDEs, and teams.
-
-**Next Phase**: Phase 2 - Multi-Engine Support (Q3 2026)
+> 版本: v0.1.0-alpha
+> 更新日期: 2026-07-12
 
 ---
 
-**Last Updated**: 2026-07-08  
-**Version**: 1.0.0
+## 📋 目录
+
+1. [已完成](#已完成)
+2. [v0.2.0 (短期)](#v020-短期)
+3. [v1.0.0 (中期)](#v100-中期)
+4. [v2.0.0 (长期)](#v200-长期)
+5. [未来愿景](#未来愿景)
+
+---
+
+## 已完成
+
+### v0.1.0-alpha (2026-07-12) ✅
+
+#### 核心功能
+- [x] Hermes Game Operator
+- [x] 状态机管理
+- [x] 任务生命周期管理
+- [x] 事件流系统
+- [x] 审批队列（4级审批）
+
+#### 国际化
+- [x] 13种语言支持
+- [x] 动态语言加载
+- [x] 浏览器语言检测
+
+#### 多平台支持
+- [x] Desktop (Tauri)
+- [x] VSCode Extension
+- [x] IntelliJ IDEA Plugin
+- [x] Web (Vue 3)
+- [x] Mobile (Flutter)
+
+#### 安全
+- [x] PathGuard
+- [x] CommandGuard
+- [x] 输入验证
+- [x] 错误处理
+
+#### 文档
+- [x] 19个主要文档
+- [x] API 文档
+- [x] 部署指南
+- [x] 迁移指南
+- [x] 最佳实践
+
+#### 测试
+- [x] 1,278个测试
+- [x] 100%通过率
+- [x] 85%+覆盖率
+
+---
+
+## v0.2.0 (短期)
+
+**目标**: 性能优化和用户体验改进
+**预计完成**: 2026-Q3
+
+### 计划功能
+
+#### 性能优化
+- [ ] 代码分割优化
+- [ ] 懒加载改进
+- [ ] 缓存策略优化
+- [ ] 数据库查询优化
+- [ ] 内存使用优化
+
+#### 用户体验
+- [ ] 主题定制系统
+- [ ] 键盘快捷键改进
+- [ ] 拖放支持
+- [ ] 上下文菜单
+- [ ] 通知系统改进
+
+#### 新功能
+- [ ] 插件系统
+- [ ] 更多语言支持（20+种）
+- [ ] 离线模式
+- [ ] 数据导出/导入
+- [ ] 批量操作增强
+
+#### 文档
+- [ ] 视频教程
+- [ ] 交互式教程
+- [ ] API 示例库
+- [ ] 故障排除指南
+
+---
+
+## v1.0.0 (中期)
+
+**目标**: 稳定版本发布
+**预计完成**: 2026-Q4
+
+### 计划功能
+
+#### 稳定性
+- [ ] 完整的错误恢复
+- [ ] 自动重试机制
+- [ ] 数据一致性保证
+- [ ] 性能基准测试
+- [ ] 压力测试
+
+#### 协作功能
+- [ ] 多用户支持
+- [ ] 实时协作
+- [ ] 权限管理
+- [ ] 审计日志
+- [ ] 团队工作区
+
+#### 集成
+- [ ] GitHub 集成
+- [ ] GitLab 集成
+- [ ] Jira 集成
+- [ ] Slack 集成
+- [ ] Discord 集成
+
+#### 高级功能
+- [ ] 自定义工作流
+- [ ] 高级报表
+- [ ] 数据分析
+- [ ] 机器学习辅助
+- [ ] 自动化规则
+
+#### 文档
+- [ ] 完整用户手册
+- [ ] 管理员指南
+- [ ] 开发者指南
+- [ ] 培训材料
+
+---
+
+## v2.0.0 (长期)
+
+**目标**: 生态系统建设
+**预计完成**: 2027-Q2
+
+### 计划功能
+
+#### AI 辅助
+- [ ] AI 代码审查
+- [ ] 智能建议
+- [ ] 自动修复
+- [ ] 自然语言交互
+- [ ] 上下文感知
+
+#### 云集成
+- [ ] 云端同步
+- [ ] 云存储
+- [ ] 云端协作
+- [ ] 云端备份
+- [ ] 多设备同步
+
+#### 生态系统
+- [ ] 插件市场
+- [ ] 主题市场
+- [ ] 模板库
+- [ ] 示例库
+- [ ] 社区贡献
+
+#### 企业功能
+- [ ] SSO 集成
+- [ ] LDAP 支持
+- [ ] 自定义角色
+- [ ] 合规性报告
+- [ ] 数据加密
+
+#### 扩展性
+- [ ] 微服务架构
+- [ ] 水平扩展
+- [ ] 负载均衡
+- [ ] 高可用性
+- [ ] 灾备恢复
+
+---
+
+## 未来愿景
+
+### 2027+ 愿景
+
+#### 智能开发平台
+- 完全自主的 AI 代理
+- 自然语言编程
+- 可视化工作流
+- 智能代码生成
+- 自动化测试
+
+#### 协作生态
+- 全球开发者社区
+- 实时协作编辑
+- 知识共享平台
+- 技能匹配系统
+- 项目市场
+
+#### 企业解决方案
+- 完整的企业级功能
+- 私有化部署
+- 定制化服务
+- 专业支持
+- 培训计划
+
+#### 技术领先
+- 采用最新技术
+- 性能最优
+- 安全可靠
+- 易于扩展
+- 用户友好
+
+---
+
+## 技术路线图
+
+### 前端技术
+
+| 时间 | 技术 | 状态 |
+|------|------|------|
+| v0.1.0 | Vue 3 + TypeScript | ✅ 完成 |
+| v0.2.0 | Vue 3.5 + Vite 6 | 🔄 计划中 |
+| v1.0.0 | Vue 4 (如果发布) | 📋 评估中 |
+| v2.0.0 | Web Components | 📋 评估中 |
+
+### 后端技术
+
+| 时间 | 技术 | 状态 |
+|------|------|------|
+| v0.1.0 | Tauri + Rust | ✅ 完成 |
+| v0.2.0 | Rust 优化 | 🔄 计划中 |
+| v1.0.0 | 微服务架构 | 📋 计划中 |
+| v2.0.0 | 云原生架构 | 📋 评估中 |
+
+### 移动技术
+
+| 时间 | 技术 | 状态 |
+|------|------|------|
+| v0.1.0 | Flutter | ✅ 完成 |
+| v0.2.0 | Flutter 优化 | 🔄 计划中 |
+| v1.0.0 | 原生优化 | 📋 评估中 |
+| v2.0.0 | 跨平台统一 | 📋 评估中 |
+
+---
+
+## 社区路线图
+
+### 社区建设
+
+- [ ] 建立开发者社区
+- [ ] 定期举办线上会议
+- [ ] 创建贡献者计划
+- [ ] 建立导师制度
+- [ ] 组织黑客松活动
+
+### 文档改进
+
+- [ ] 多语言文档
+- [ ] 视频教程系列
+- [ ] 交互式学习
+- [ ] 社区Wiki
+- [ ] 最佳实践库
+
+### 反馈机制
+
+- [ ] 用户反馈系统
+- [ ] 功能投票
+- [ ] Bug 追踪
+- [ ] 建议收集
+- [ ] 满意度调查
+
+---
+
+## 如何参与
+
+### 贡献代码
+
+1. Fork 仓库
+2. 创建功能分支
+3. 提交更改
+4. 创建 Pull Request
+
+详见 [CONTRIBUTING.md](../CONTRIBUTING.md)
+
+### 报告问题
+
+1. 检查现有 Issue
+2. 创建新 Issue
+3. 提供详细信息
+4. 跟进进展
+
+### 改进文档
+
+1. 发现文档问题
+2. 提交修复 PR
+3. 或创建 Issue
+
+### 传播项目
+
+1. 分享给朋友
+2. 写博客文章
+3. 做演讲
+4. 创建教程
+
+---
+
+## 更多信息
+
+- [GitHub 仓库](https://github.com/yanritian/acp-ui)
+- [贡献指南](../CONTRIBUTING.md)
+- [最佳实践](BEST-PRACTICES.md)
+- [维护指南](MAINTENANCE-GUIDE.md)
+
+---
+
+<div align="center">
+
+**一起构建更好的未来！**
+
+[参与贡献 →](../CONTRIBUTING.md)
+
+</div>

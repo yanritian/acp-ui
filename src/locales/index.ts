@@ -9,6 +9,7 @@ export const SUPPORTED_LANGS = [
   { code: 'zh-CN', name: '中文', flag: '🇨🇳' },
   { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
   { code: 'en-US', name: 'English', flag: '🇺🇸' },
+  { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
   { code: 'de-DE', name: 'Deutsch', flag: '🇩🇪' },
   { code: 'es-ES', name: 'Español', flag: '🇪🇸' },
   { code: 'ru-RU', name: 'Русский', flag: '🇷🇺' },
@@ -25,6 +26,7 @@ export type SupportedLang = (typeof SUPPORTED_LANGS)[number]['code']
 // 按需加载其他语言（code splitting）
 const messageLoaders: Record<string, () => Promise<MessageSchema>> = {
   'zh-TW': () => import('./zh-TW').then(m => m.zhTW),
+  'pt-BR': () => import('./pt-BR').then(m => m.ptBR),
   'de-DE': () => import('./de-DE').then(m => m.deDE),
   'es-ES': () => import('./es-ES').then(m => m.esES),
   'ru-RU': () => import('./ru-RU').then(m => m.ruRU),

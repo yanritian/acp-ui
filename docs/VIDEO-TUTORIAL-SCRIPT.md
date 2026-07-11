@@ -1,379 +1,362 @@
-# Video Tutorial Script
+# 视频教程脚本
 
-This document provides a script for creating video tutorials about Hermes Game Operator.
-
-## Tutorial 1: Getting Started (5 minutes)
-
-### Scene 1: Introduction (0:00 - 0:30)
-
-**Visual**: Title screen with Hermes Game Operator logo
-
-**Narration**:
-"Welcome to Hermes Game Operator, the AI-powered assistant for Godot game development. In this tutorial, you'll learn how to use the operator to automate common game development tasks and boost your productivity."
-
-**Visual**: Transition to desktop showing ACP UI application
+> 视频标题: ACP-UI 快速入门教程
+> 时长: 10-15分钟
+> 目标受众: 新用户
 
 ---
 
-### Scene 2: Installation (0:30 - 1:30)
+## 🎬 视频结构
 
-**Visual**: Download page on GitHub Releases
+### 开场 (1分钟)
 
-**Narration**:
-"First, download Hermes Game Operator from the GitHub Releases page. Choose the installer for your operating system - Windows, macOS, or Linux."
+**画面**: 项目Logo + 标题
 
-**Visual**: Downloading and running installer
+**旁白**:
+"大家好！欢迎观看 ACP-UI 快速入门教程。
+ACP-UI 是一个多平台 Agent 系统，专注于游戏开发。
+在这个视频中，我将带你快速了解如何使用 ACP-UI。
+让我们开始吧！"
 
-**Narration**:
-"Run the installer and follow the setup wizard. Once installed, launch the application."
-
-**Visual**: Application launches, showing Game Operator interface
-
----
-
-### Scene 3: Interface Overview (1:30 - 2:30)
-
-**Visual**: Game Operator interface with annotations
-
-**Narration**:
-"Let's take a quick tour of the interface. Here's the project selector where you choose your Godot project. This is the goal input where you describe what you want to achieve. The control bar lets you pause, resume, or stop tasks. The progress timeline shows real-time events, and the plan panel displays the execution plan."
-
-**Visual**: Highlight each component as mentioned
+**字幕**: ACP-UI - 多平台 Agent 系统
 
 ---
 
-### Scene 4: First Task (2:30 - 4:00)
+### 第一部分: 安装与设置 (2分钟)
 
-**Visual**: Selecting a Godot project
+**画面**: 屏幕录制 - 安装过程
 
-**Narration**:
-"Now let's create our first task. Click 'Browse' and select your Godot project directory."
+**旁白**:
+"首先，让我们安装 ACP-UI。
+访问 GitHub Releases 页面，下载适合你操作系统的版本。
+Windows 用户下载 MSI 安装包，macOS 用户下载 DMG 文件。
+双击安装程序，按照提示完成安装。
+安装完成后，启动应用。"
 
-**Visual**: Project selected, verification message appears
+**操作**:
+1. 访问 https://github.com/yanritian/acp-ui/releases
+2. 下载对应平台的安装包
+3. 运行安装程序
+4. 启动应用
 
-**Narration**:
-"The operator verifies it's a valid Godot project. Now enter your goal in the text area."
-
-**Visual**: Typing goal: "Add double jump to player"
-
-**Narration**:
-"Type your goal - let's add a double jump ability to the player. Click 'Start Task'."
-
-**Visual**: Task starts, progress timeline shows events
-
-**Narration**:
-"Watch as the operator analyzes your project and generates an execution plan. Review the plan and click 'Approve' to proceed."
-
-**Visual**: Plan approval, file modifications
-
-**Narration**:
-"The operator makes the necessary changes. Approve the file modifications when prompted."
+**字幕**: 
+- 访问 GitHub Releases
+- 下载安装包
+- 运行安装程序
+- 启动应用
 
 ---
 
-### Scene 5: Results (4:00 - 4:45)
+### 第二部分: 界面介绍 (2分钟)
 
-**Visual**: Task completion summary
+**画面**: 应用主界面
 
-**Narration**:
-"The task is complete! Let's review the results. The operator modified Player.gd and added double jump logic."
+**旁白**:
+"现在我们看到了 ACP-UI 的主界面。
+左侧是导航栏，包含操作员列表、设置等。
+中间是主工作区，显示当前操作员的状态。
+右侧是审批队列和事件流。
+顶部是工具栏，包含常用操作按钮。
+让我们逐一了解这些部分。"
 
-**Visual**: Opening Player.gd, showing changes
+**操作**:
+1. 指向导航栏
+2. 指向主工作区
+3. 指向审批队列
+4. 指向工具栏
 
-**Narration**:
-"Here's the generated code. Notice how it includes jump count tracking and reset logic."
-
-**Visual**: Testing in Godot editor
-
-**Narration**:
-"Test it in Godot - the player can now jump twice in the air. That's it! You've successfully used Hermes Game Operator."
-
----
-
-### Scene 6: Conclusion (4:45 - 5:00)
-
-**Visual**: Summary screen with key points
-
-**Narration**:
-"You've learned how to install Hermes Game Operator, navigate the interface, and complete your first task. Check out the documentation for more advanced features. Happy game development!"
-
-**Visual**: End screen with links to resources
+**字幕**: 
+- 导航栏
+- 主工作区
+- 审批队列
+- 工具栏
 
 ---
 
-## Tutorial 2: Advanced Features (10 minutes)
+### 第三部分: 创建操作员 (3分钟)
 
-### Scene 1: Introduction (0:00 - 0:45)
+**画面**: 创建操作员流程
 
-**Visual**: Title screen
+**旁白**:
+"现在让我们创建第一个操作员。
+点击'新建操作员'按钮。
+在弹出的对话框中，选择你的 Godot 项目路径。
+你可以配置 Agent 参数，比如模型和温度。
+点击'创建'按钮。
+现在你看到新创建的操作员了。"
 
-**Narration**:
-"Welcome back! In this advanced tutorial, we'll explore powerful features of Hermes Game Operator including task control, approval workflows, and complex task execution."
+**操作**:
+1. 点击"新建操作员"
+2. 选择项目路径
+3. 配置参数
+4. 点击"创建"
+5. 查看创建结果
 
----
-
-### Scene 2: Task Control (0:45 - 3:00)
-
-**Visual**: Starting a complex task
-
-**Narration**:
-"Let's start a more complex task - adding a complete player controller with movement, jumping, and sprinting. Start the task as before."
-
-**Visual**: Task starts, plan generated
-
-**Narration**:
-"The operator generates a comprehensive plan with multiple steps. Watch the progress timeline as it executes."
-
-**Visual**: Pausing the task
-
-**Narration**:
-"Need to pause? Click the pause button. The operator stops gracefully. You can resume anytime."
-
-**Visual**: Resuming the task
-
-**Narration**:
-"Click resume to continue. The operator picks up where it left off."
-
-**Visual**: Stopping the task
-
-**Narration**:
-"To cancel, click stop. The operator cleans up and marks the task as cancelled."
+**字幕**: 
+- 点击"新建操作员"
+- 选择项目路径
+- 配置 Agent 参数
+- 点击"创建"
 
 ---
 
-### Scene 3: Approval Workflow (3:00 - 5:30)
+### 第四部分: 启动任务 (3分钟)
 
-**Visual**: Starting a task that requires approval
+**画面**: 启动任务流程
 
-**Narration**:
-"Some operations require approval for safety. Let's start a task that modifies multiple files."
+**旁白**:
+"操作员创建完成后，我们可以启动任务。
+选中刚创建的操作员。
+点击'启动'按钮，或者使用快捷键 Ctrl+Enter。
+你会看到状态变为'运行中'。
+进度条显示当前进度。
+事件流显示实时事件。
+让我们等待任务完成。"
 
-**Visual**: Approval request appears
+**操作**:
+1. 选中操作员
+2. 点击"启动"
+3. 观察状态变化
+4. 查看进度条
+5. 查看事件流
 
-**Narration**:
-"An approval request appears. Review the diff carefully - see exactly what will change."
-
-**Visual**: Reviewing diff in detail
-
-**Narration**:
-"Check each file modification. The operator shows you the exact changes before applying them."
-
-**Visual**: Approving the change
-
-**Narration**:
-"Satisfied? Click approve to proceed. Or reject to cancel this specific change."
-
-**Visual**: Task continues after approval
-
-**Narration**:
-"The task continues with your approval. This ensures you maintain control over all modifications."
-
----
-
-### Scene 4: Complex Tasks (5:30 - 8:00)
-
-**Visual**: Starting a multi-file task
-
-**Narration**:
-"Let's tackle a complex task - creating a complete inventory system. This will create multiple files and modify existing ones."
-
-**Visual**: Plan with many steps
-
-**Narration**:
-"The plan includes creating new scenes, scripts, and modifying existing code. The operator handles the complexity for you."
-
-**Visual**: Execution with multiple approvals
-
-**Narration**:
-"Watch as the operator executes each step, requesting approvals when needed. You stay in control throughout."
-
-**Visual**: Task completion
-
-**Narration**:
-"The task completes successfully. Multiple files created, existing files modified, all with your approval."
+**字幕**: 
+- 选中操作员
+- 点击"启动"
+- 观察状态
+- 查看进度
+- 查看事件
 
 ---
 
-### Scene 5: Event Stream (8:00 - 9:15)
+### 第五部分: 处理审批 (3分钟)
 
-**Visual**: Event stream with many events
+**画面**: 审批流程
 
-**Narration**:
-"The event stream provides a complete audit trail. Every action is logged with timestamps."
+**旁白**:
+"在任务执行过程中，可能会遇到需要审批的操作。
+右侧的审批队列会显示待审批项。
+点击审批项查看详情。
+你可以看到操作类型、文件路径、修改内容。
+如果同意，点击'批准'按钮。
+如果不同意，点击'拒绝'按钮。
+让我们批准这个请求。"
 
-**Visual**: Filtering events
+**操作**:
+1. 查看审批队列
+2. 点击审批项
+3. 查看详情
+4. 点击"批准"
+5. 查看结果
 
-**Narration**:
-"Filter events by type to focus on what matters. Search for specific events or time periods."
-
-**Visual**: Exporting events
-
-**Narration**:
-"Export the event log for debugging or documentation. Complete transparency into every operation."
-
----
-
-### Scene 6: Conclusion (9:15 - 10:00)
-
-**Visual**: Summary screen
-
-**Narration**:
-"You've learned task control, approval workflows, and complex task execution. These features give you power and control over AI-assisted development. Check the documentation for more features. Happy game development!"
-
-**Visual**: End screen
+**字幕**: 
+- 查看审批队列
+- 点击审批项
+- 查看详情
+- 批准或拒绝
 
 ---
 
-## Tutorial 3: Best Practices (8 minutes)
+### 第六部分: 查看结果 (2分钟)
 
-### Scene 1: Introduction (0:00 - 0:45)
+**画面**: 查看任务结果
 
-**Visual**: Title screen
+**旁白**:
+"任务完成后，我们可以查看结果。
+在主工作区查看任务摘要。
+点击'查看事件'查看完整事件流。
+你可以看到所有的操作记录。
+还可以导出结果用于进一步分析。
+这就是 ACP-UI 的基本使用流程。"
 
-**Narration**:
-"Welcome to best practices for Hermes Game Operator. Learn how to get the most out of the operator with these proven techniques."
+**操作**:
+1. 查看任务摘要
+2. 点击"查看事件"
+3. 浏览事件流
+4. 导出结果
 
----
-
-### Scene 2: Writing Good Goals (0:45 - 2:30)
-
-**Visual**: Examples of good vs bad goals
-
-**Narration**:
-"Clear goals produce better results. Instead of 'make it better', say 'increase player speed by 20%'. Be specific and measurable."
-
-**Visual**: More examples
-
-**Narration**:
-"Instead of 'add features', say 'add double jump, sprint ability, and wall sliding'. List specific features you want."
-
-**Visual**: Context-rich goals
-
-**Narration**:
-"Provide context: 'Fix the bug where player falls through floor in level 3'. This helps the operator understand the problem."
+**字幕**: 
+- 查看任务摘要
+- 查看事件流
+- 导出结果
 
 ---
 
-### Scene 3: Breaking Down Tasks (2:30 - 4:00)
+### 第七部分: 高级功能 (1分钟)
 
-**Visual**: Large task broken into smaller tasks
+**画面**: 高级功能展示
 
-**Narration**:
-"Break large tasks into smaller ones. Instead of 'rewrite entire game', use multiple focused tasks."
+**旁白**:
+"除了基本功能，ACP-UI 还有很多高级特性。
+比如多语言支持，你可以切换13种语言。
+比如主题定制，你可以根据喜好调整界面。
+比如快捷键，提高操作效率。
+更多功能请查看官方文档。"
 
-**Visual**: Task sequence
+**操作**:
+1. 切换语言
+2. 调整主题
+3. 展示快捷键
 
-**Narration**:
-"Complete each task before starting the next. This allows you to test and verify along the way."
-
-**Visual**: Testing between tasks
-
-**Narration**:
-"Test in Godot after each task. Catch issues early before they compound."
-
----
-
-### Scene 4: Reviewing Changes (4:00 - 5:30)
-
-**Visual**: Reviewing diff carefully
-
-**Narration**:
-"Always review diffs before approving. Check that changes match your expectations."
-
-**Visual**: Checking code quality
-
-**Narration**:
-"Review code quality. Ensure it follows your project's style and conventions."
-
-**Visual**: Testing changes
-
-**Narration**:
-"Test changes immediately. Verify functionality in Godot before continuing."
+**字幕**: 
+- 多语言支持
+- 主题定制
+- 快捷键
 
 ---
 
-### Scene 5: Using Version Control (5:30 - 6:45)
+### 结尾 (1分钟)
 
-**Visual**: Git workflow with operator
+**画面**: 项目Logo + 联系方式
 
-**Narration**:
-"Use version control with the operator. Commit before starting a task."
+**旁白**:
+"恭喜你完成了 ACP-UI 快速入门教程！
+现在你已经掌握了基本使用方法。
+如果你想了解更多，请访问我们的 GitHub 仓库。
+那里有完整的文档和示例。
+如果遇到问题，可以在 Issues 中提问。
+感谢观看，再见！"
 
-**Visual**: Commit after task
-
-**Narration**:
-"Commit after each successful task. This gives you rollback points."
-
-**Visual**: Branching for experiments
-
-**Narration**:
-"Use branches for experimental tasks. Merge when you're satisfied with the results."
-
----
-
-### Scene 6: Common Pitfalls (6:45 - 7:30)
-
-**Visual**: Warning signs
-
-**Narration**:
-"Avoid these common pitfalls: Don't skip reviews, don't ignore warnings, and don't attempt too-large tasks at once."
-
-**Visual**: Solutions
-
-**Narration**:
-"Instead, review carefully, address warnings, and break tasks into manageable pieces."
+**字幕**: 
+- GitHub: https://github.com/yanritian/acp-ui
+- 文档: https://github.com/yanritian/acp-ui/wiki
+- Issues: https://github.com/yanritian/acp-ui/issues
 
 ---
 
-### Scene 7: Conclusion (7:30 - 8:00)
+## 🎨 视觉设计
 
-**Visual**: Summary screen
+### 画面风格
 
-**Narration**:
-"Follow these best practices for successful AI-assisted development. Clear goals, small tasks, careful reviews, and version control. Happy game development!"
+- **简洁**: 干净的界面
+- **专业**: 统一的配色
+- **清晰**: 大字体、高对比度
+- **现代**: 扁平化设计
 
-**Visual**: End screen
+### 配色方案
 
----
+```css
+/* 主色 */
+--primary: #3B82F6;
+--primary-dark: #2563EB;
 
-## Production Notes
+/* 辅助色 */
+--success: #10B981;
+--warning: #F59E0B;
+--error: #EF4444;
 
-### Equipment
+/* 中性色 */
+--text: #111827;
+--bg: #FFFFFF;
+```
 
-- Screen recording software (OBS Studio recommended)
-- Microphone for narration
-- Video editing software
-- Godot projects for demos
+### 字幕样式
 
-### Preparation
-
-- Prepare all demo projects in advance
-- Test all demos to ensure they work
-- Write narration script
-- Prepare backup demos
-
-### Recording Tips
-
-- Speak clearly and at moderate pace
-- Use consistent volume
-- Minimize background noise
-- Take breaks between scenes
-
-### Post-Production
-
-- Add captions/subtitles
-- Include timestamps in description
-- Add intro/outro music
-- Optimize for target platform
-
-### Distribution
-
-- YouTube (primary)
-- Vimeo (backup)
-- Project website
-- Social media promotion
+- **字体**: Inter Bold
+- **大小**: 24px
+- **颜色**: 白色 + 黑色描边
+- **位置**: 底部居中
 
 ---
 
-**Script Version**: 1.0.0  
-**Last Updated**: 2026-07-08
+## 🎵 音频设计
+
+### 背景音乐
+
+- **风格**: 轻快、现代
+- **音量**: 低（不干扰旁白）
+- **循环**: 无缝循环
+
+### 音效
+
+- **按钮点击**: 清脆的点击声
+- **状态变化**: 柔和的提示音
+- **成功操作**: 积极的音效
+- **错误提示**: 警告音效
+
+---
+
+## 📝 制作清单
+
+### 录制前准备
+
+- [ ] 准备演示环境
+- [ ] 准备演示项目
+- [ ] 测试所有功能
+- [ ] 准备备用方案
+
+### 录制中注意
+
+- [ ] 语速适中
+- [ ] 操作清晰
+- [ ] 画面稳定
+- [ ] 音频清晰
+
+### 录制后检查
+
+- [ ] 视频质量
+- [ ] 音频质量
+- [ ] 字幕准确性
+- [ ] 整体流畅度
+
+---
+
+## 📊 发布计划
+
+### 发布平台
+
+1. **YouTube**: 主要平台
+2. **Bilibili**: 中文平台
+3. **GitHub**: 项目仓库
+4. **官网**: 项目网站
+
+### 发布内容
+
+- **视频**: MP4 格式，1080p
+- **字幕**: SRT 格式，多语言
+- **文档**: 配套文字教程
+- **代码**: 演示项目代码
+
+### 推广渠道
+
+- **社交媒体**: Twitter, LinkedIn
+- **技术社区**: Reddit, Hacker News
+- **邮件列表**: 项目订阅者
+- **合作伙伴**: 相关项目
+
+---
+
+## 📞 联系信息
+
+### 反馈渠道
+
+- **GitHub Issues**: https://github.com/yanritian/acp-ui/issues
+- **Email**: 通过 GitHub Profile 联系
+- **Discussions**: https://github.com/yanritian/acp-ui/discussions
+
+### 相关资源
+
+- **项目仓库**: https://github.com/yanritian/acp-ui
+- **完整文档**: https://github.com/yanritian/acp-ui/wiki
+- **快速开始**: docs/QUICK-START.md
+
+---
+
+<div align="center">
+
+# 🎬 视频教程脚本完成！
+
+**准备好录制教程视频！**
+
+**视频时长: 10-15分钟**
+**目标受众: 新用户**
+
+[查看快速开始](QUICK-START.md) | 
+[查看完整文档](..) | 
+[GitHub 仓库](https://github.com/yanritian/acp-ui)
+
+**视频状态: 📝 脚本完成，待录制**
+
+Made with ❤️ by ACP-UI Team
+
+</div>

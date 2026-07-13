@@ -354,10 +354,16 @@ pub(crate) fn start_task_in_state(
         .get(&task_id)
         .map(|task| task.status.clone())
         .unwrap_or(OperatorTaskStatus::Failed);
+    let revision = state
+        .tasks
+        .get(&task_id)
+        .map(|task| task.revision)
+        .unwrap_or(0);
     let event_stream = format!("operator://tasks/{}/events", task_id);
 
     let response = StartTaskResponse {
         task_id,
+        revision,
         status,
         event_stream,
     };

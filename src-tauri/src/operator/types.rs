@@ -323,6 +323,7 @@ pub struct StartTaskRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartTaskResponse {
     pub task_id: String,
+    pub revision: u64,
     pub status: OperatorTaskStatus,
     pub event_stream: String,
 }

@@ -62,6 +62,7 @@ data class ApprovalListResponse(
 
 data class StartTaskResponse(
     val task_id: String,
+    val revision: Long,
     val status: String,
     val event_stream: String
 )

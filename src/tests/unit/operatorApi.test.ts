@@ -33,6 +33,7 @@ describe('OperatorApi', () => {
     it('should start task with valid request', async () => {
       const mockResponse: StartTaskResponse = {
         task_id: 'task_123',
+        revision: 1,
         status: 'planning',
         event_stream: 'operator://tasks/task_123/events'
       }
@@ -56,6 +57,7 @@ describe('OperatorApi', () => {
     it('should get task by id', async () => {
       const mockTask: OperatorTask = {
         task_id: 'task_123',
+        revision: 1,
         domain: 'game.godot',
         project_path: 'D:/tmp/test-godot-project',
         goal: 'Add double jump',
@@ -78,6 +80,7 @@ describe('OperatorApi', () => {
       const mockTasks: OperatorTask[] = [
         {
           task_id: 'task_1',
+          revision: 4,
           domain: 'game.godot',
           project_path: '/path/a',
           goal: 'Goal A',
@@ -89,6 +92,7 @@ describe('OperatorApi', () => {
         },
         {
           task_id: 'task_2',
+          revision: 5,
           domain: 'game.godot',
           project_path: '/path/b',
           goal: 'Goal B',

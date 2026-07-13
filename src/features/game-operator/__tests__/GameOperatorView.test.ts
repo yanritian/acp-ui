@@ -62,6 +62,7 @@ describe('GameOperatorView Logic', () => {
 
   afterEach(() => {
     vi.clearAllTimers()
+    vi.useRealTimers()
   })
 
   describe('Initial State', () => {

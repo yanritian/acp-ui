@@ -234,6 +234,7 @@ export interface StartTaskRequest {
 
 export interface StartTaskResponse {
   task_id: string
+  revision: number
   status: OperatorTaskStatus
   event_stream: string  // e.g., 'operator://tasks/task_123/events'
 }

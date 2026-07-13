@@ -91,6 +91,7 @@ async function handleStartTask() {
 
     currentTask.value = {
       task_id: response.task_id,
+      revision: response.revision,
       domain: 'game.godot',
       project_path: selectedProjectPath.value,
       goal: taskGoal.value,

@@ -4851,6 +4851,10 @@ exit 1
             message: None,
             source: "test".to_string(),
             payload: None,
+            title_key: None,
+            message_key: None,
+            title_args: None,
+            message_args: None,
         };
 
         let json = serde_json::to_value(event).expect("serializes");

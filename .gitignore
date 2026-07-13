@@ -139,3 +139,11 @@ memory/
 # Temp docs directories
 docs/glm52/
 docs/qwen/
+
+# Desktop acceptance artifacts (drivers, cache, webview2, etc.)
+.artifacts/
+
+# Client build artifacts
+clients/*/out/
+clients/*/build/
+clients/*/.gradle/

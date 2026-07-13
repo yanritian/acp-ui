@@ -239,6 +239,8 @@ export interface ApproveRequest {
   decision: ApprovalDecision
   comment?: string
   reason?: string
+  /** Expected task revision for optimistic concurrency control */
+  expected_revision?: number
 }
 
 export interface RedirectRequest {

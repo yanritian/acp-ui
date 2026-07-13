@@ -194,6 +194,7 @@ describe('OperatorApi', () => {
         {
           approval_id: 'approval_1',
           task_id: 'task_123',
+          task_revision: 1,
           level: 'approve',
           action: 'file.patch',
           title: 'Modify Player.gd',
@@ -218,6 +219,8 @@ describe('OperatorApi', () => {
         {
           event_id: 'evt_1',
           task_id: 'task_123',
+          sequence: 0,
+          task_revision: 1,
           timestamp: '2026-07-08T10:00:00Z',
           type: 'task_started',
           level: 'info',
@@ -227,6 +230,8 @@ describe('OperatorApi', () => {
         {
           event_id: 'evt_2',
           task_id: 'task_123',
+          sequence: 1,
+          task_revision: 2,
           timestamp: '2026-07-08T10:05:00Z',
           type: 'plan_ready',
           level: 'info',

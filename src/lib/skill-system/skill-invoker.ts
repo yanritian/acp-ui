@@ -8,7 +8,7 @@
  * - Managing skill lifecycle
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { invokeOrProxy } from '@/lib/host';
 import type {
   Skill,
   SkillInvocation,
@@ -34,7 +34,7 @@ export class SkillInvoker {
    */
   async invokeSkill(invocation: SkillInvocation): Promise<SkillExecutionResult> {
     try {
-      const result = await invoke<string>('invoke_skill', {
+      return await invokeOrProxy<SkillExecutionResult>('invoke_skill', {
         invocation: {
           skill_name: invocation.skillName,
           parameters: invocation.parameters,
@@ -42,7 +42,6 @@ export class SkillInvoker {
         },
       });
 
-      return JSON.parse(result) as SkillExecutionResult;
     } catch (error) {
       return {
         success: false,
@@ -62,13 +61,12 @@ export class SkillInvoker {
    */
   async createSkill(request: CreateSkillRequest): Promise<CreateSkillResult> {
     try {
-      const result = await invoke<string>('create_skill', {
+      return await invokeOrProxy<CreateSkillResult>('create_skill', {
         name: request.name,
         description: request.description,
         natural_spec: request.naturalSpec,
       });
 
-      return JSON.parse(result) as CreateSkillResult;
     } catch (error) {
       return {
         created: false,
@@ -83,8 +81,7 @@ export class SkillInvoker {
    */
   async listSkills(): Promise<SkillMeta[]> {
     try {
-      const result = await invoke<string>('skills_list');
-      return JSON.parse(result) as SkillMeta[];
+      return await invokeOrProxy<SkillMeta[]>('skills_list');
     } catch (error) {
       console.error('Failed to list skills:', error);
       return [];
@@ -96,7 +93,7 @@ export class SkillInvoker {
    */
   async viewSkill(name: string): Promise<string | null> {
     try {
-      return await invoke<string>('skill_view', { name });
+      return await invokeOrProxy<string>('skill_view', { name });
     } catch (error) {
       console.error(`Failed to view skill ${name}:`, error);
       return null;
@@ -108,7 +105,8 @@ export class SkillInvoker {
    */
   async manageSkill(action: string, params: Record<string, unknown>): Promise<string> {
     try {
-      return await invoke<string>('skill_manage', { action, ...params });
+      const result = await invokeOrProxy<unknown>('skill_manage', { action, ...params });
+      return typeof result === 'string' ? result : JSON.stringify(result);
     } catch (error) {
       return `Error: ${error}`;
     }

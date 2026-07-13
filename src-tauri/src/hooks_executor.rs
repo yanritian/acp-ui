@@ -12,7 +12,11 @@ use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use tauri::State;
 
+use crate::operator::{is_d_drive_path, workspace_root};
 use crate::AppState;
+
+const MAX_HOOK_TIMEOUT_MS: u64 = 120_000;
+const MAX_HOOK_OUTPUT_BYTES: usize = 64 * 1024;
 
 /// Hook execution result (Claw Code inspired)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,7 +327,20 @@ impl HooksExecutor {
         tool_args: Option<&str>,
         tool_result: Option<&str>,
     ) -> HookResult {
-        let script_path = PathBuf::from(&hook_config.script_path);
+        let script_path = match validate_hook_script_path(&hook_config.script_path) {
+            Ok(path) => path,
+            Err(error) => {
+                return HookResult {
+                    success: false,
+                    output: None,
+                    error: Some(error),
+                    should_block: hook_config.block_on_failure.unwrap_or(false),
+                    message: None,
+                    updated_input: None,
+                    abort_signal: None,
+                }
+            }
+        };
 
         // Check if script exists
         if !script_path.exists() {
@@ -342,7 +359,7 @@ impl HooksExecutor {
         }
 
         // Build command
-        let mut cmd = Command::new(&hook_config.script_path);
+        let mut cmd = Command::new(&script_path);
 
         // Pass environment variables
         cmd.env("AGENT_ID", agent_id);
@@ -365,7 +382,10 @@ impl HooksExecutor {
         );
 
         // Execute with timeout (actually enforced)
-        let timeout_ms = hook_config.timeout_ms.unwrap_or(30000);
+        let timeout_ms = hook_config
+            .timeout_ms
+            .unwrap_or(30000)
+            .clamp(1, MAX_HOOK_TIMEOUT_MS);
 
         #[cfg(desktop)]
         let output_result: Result<Output, std::io::Error> = {
@@ -438,8 +458,8 @@ impl HooksExecutor {
 
         match output_result {
             Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                let stdout = truncate_output(&String::from_utf8_lossy(&output.stdout));
+                let stderr = truncate_output(&String::from_utf8_lossy(&output.stderr));
 
                 // Parse output for block/deny signals using structured protocol
                 // Require dedicated signal prefix to avoid false positives from normal output
@@ -526,7 +546,20 @@ impl HooksExecutor {
         tool_args: Option<&str>,
         tool_error: Option<&str>,
     ) -> HookResult {
-        let script_path = PathBuf::from(&hook_config.script_path);
+        let script_path = match validate_hook_script_path(&hook_config.script_path) {
+            Ok(path) => path,
+            Err(error) => {
+                return HookResult {
+                    success: false,
+                    output: None,
+                    error: Some(error),
+                    should_block: hook_config.block_on_failure.unwrap_or(false),
+                    message: None,
+                    updated_input: None,
+                    abort_signal: None,
+                }
+            }
+        };
 
         // Check if script exists
         if !script_path.exists() {
@@ -545,7 +578,7 @@ impl HooksExecutor {
         }
 
         // Build command
-        let mut cmd = Command::new(&hook_config.script_path);
+        let mut cmd = Command::new(&script_path);
 
         // Pass environment variables
         cmd.env("AGENT_ID", agent_id);
@@ -562,8 +595,8 @@ impl HooksExecutor {
         // Execute command
         match cmd.output() {
             Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                let stdout = truncate_output(&String::from_utf8_lossy(&output.stdout));
+                let stderr = truncate_output(&String::from_utf8_lossy(&output.stderr));
 
                 // Parse for abort signal
                 let abort_signal = if stdout.contains("ABORT:") {
@@ -625,6 +658,48 @@ impl HooksExecutor {
     }
 }
 
+fn validate_hook_script_path(raw: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(raw);
+    if !path.is_absolute() || !is_d_drive_path(&path) {
+        return Err(format!(
+            "Hook script must be an absolute D: path, got '{}'",
+            raw
+        ));
+    }
+    let metadata = std::fs::symlink_metadata(&path)
+        .map_err(|error| format!("Cannot inspect hook script '{}': {}", raw, error))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(format!(
+            "Hook script is not a regular file: {}",
+            path.display()
+        ));
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("Cannot canonicalize hook script '{}': {}", raw, error))?;
+    let canonical_workspace = workspace_root()
+        .canonicalize()
+        .unwrap_or_else(|_| workspace_root());
+    if !canonical.starts_with(&canonical_workspace) {
+        return Err(format!(
+            "Hook script must stay inside the D: workspace: {}",
+            canonical.display()
+        ));
+    }
+    Ok(canonical)
+}
+
+fn truncate_output(value: &str) -> String {
+    if value.len() <= MAX_HOOK_OUTPUT_BYTES {
+        return value.to_string();
+    }
+    let mut end = MAX_HOOK_OUTPUT_BYTES;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}\n[hook output truncated]", &value[..end])
+}
+
 impl Default for HooksExecutor {
     fn default() -> Self {
         Self::new()
@@ -636,21 +711,30 @@ pub fn get_example_hooks() -> Vec<HookConfig> {
     vec![
         HookConfig {
             name: "pre-commit-check".to_string(),
-            script_path: "./hooks/pre-commit.sh".to_string(),
+            script_path: workspace_root()
+                .join("hooks/pre-tool-use.cmd")
+                .to_string_lossy()
+                .to_string(),
             hook_type: HookType::PreToolUse,
             timeout_ms: Some(5000),
             block_on_failure: Some(true),
         },
         HookConfig {
             name: "post-format".to_string(),
-            script_path: "./hooks/post-format.sh".to_string(),
+            script_path: workspace_root()
+                .join("hooks/post-tool-use.cmd")
+                .to_string_lossy()
+                .to_string(),
             hook_type: HookType::PostToolUse,
             timeout_ms: Some(10000),
             block_on_failure: Some(false),
         },
         HookConfig {
             name: "failure-handler".to_string(),
-            script_path: "./hooks/failure-handler.sh".to_string(),
+            script_path: workspace_root()
+                .join("hooks/post-tool-use-failure.cmd")
+                .to_string_lossy()
+                .to_string(),
             hook_type: HookType::PostToolUseFailure,
             timeout_ms: Some(30000),
             block_on_failure: Some(false),
@@ -672,6 +756,7 @@ pub fn hook_register(
     timeout_ms: Option<u64>,
     block_on_failure: Option<bool>,
 ) -> Result<String, String> {
+    validate_hook_script_path(&script_path)?;
     let config = HookConfig {
         name: name.clone(),
         script_path,
@@ -777,4 +862,31 @@ pub fn hook_get_agent_hooks(
         .into_iter()
         .cloned()
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn workspace_hook_fixture_executes_without_blocking() {
+        let mut executor = HooksExecutor::new();
+        for hook in get_example_hooks() {
+            executor.register_hook(hook);
+        }
+        executor.register_agent_hooks("fixture-agent", &["pre-commit-check".to_string()]);
+        let result = executor.execute_pre_tool_use(
+            "fixture-agent",
+            "godot.analyze",
+            "{\"project_path\":\"D:/dingsun/acp-ui/test-godot-project\"}",
+        );
+        assert!(result.success, "hook failed: {:?}", result.error);
+        assert!(!result.should_block);
+    }
+
+    #[test]
+    fn hook_registry_rejects_non_d_drive_scripts() {
+        let result = validate_hook_script_path("C:/not-allowed.cmd");
+        assert!(result.is_err());
+    }
 }

@@ -350,6 +350,8 @@ impl HermesEvent {
         OperatorEvent {
             event_id: format!("evt_{}_{}", task_id, chrono::Utc::now().timestamp_millis()),
             task_id: task_id.to_string(),
+            sequence: 0,
+            task_revision: 0,
             timestamp: chrono::Utc::now().to_rfc3339(),
             event_type,
             level: EventLevel::Info,

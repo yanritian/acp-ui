@@ -258,6 +258,8 @@ impl TaskStateMachine {
         let event = OperatorEvent {
             event_id: format!("evt_{}_{}", self.task_id, self.event_counter),
             task_id: self.task_id.clone(),
+            sequence: self.event_counter,
+            task_revision: self.event_counter,
             timestamp: Utc::now().to_rfc3339(),
             event_type,
             level: EventLevel::Info,

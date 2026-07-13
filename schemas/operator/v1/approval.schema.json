@@ -10,8 +10,8 @@
     "task_revision",
     "level",
     "action",
-    "title_key",
-    "reason_key",
+    "title",
+    "reason",
     "options",
     "created_at"
   ],
@@ -38,13 +38,13 @@
       "type": "string",
       "description": "动作类型（如 file.patch, shell.command）"
     },
-    "title_key": {
+    "title": {
       "type": "string",
-      "description": "i18n 标题键"
+      "description": "审批标题，客户端可以通过附带的 i18n key 覆盖显示"
     },
-    "reason_key": {
+    "reason": {
       "type": "string",
-      "description": "i18n 原因键"
+      "description": "审批原因"
     },
     "risk": {
       "type": "string",

@@ -399,48 +399,20 @@ impl PluginRegistry {
     pub fn seed_defaults(&mut self) {
         let now = chrono::Utc::now().to_rfc3339();
 
-        // ---- Seed 16 CORE_SKILLS as Skill plugins ----
+        // Seed only skills with concrete backend handlers. Other capabilities
+        // are registered when their real adapter, MCP server, or hook is
+        // configured; they must not appear as healthy placeholders.
         let core_skills: Vec<(&str, &str, &str)> = vec![
             (
-                "web-research",
-                "Core",
-                "Web search and information extraction",
-            ),
-            ("code-execution", "Core", "Execute and debug code"),
-            (
-                "file-operations",
-                "Core",
-                "Read, write, search, patch files",
+                "godot-analyze",
+                "Game",
+                "Analyze a Godot project, scenes, scripts, and metadata",
             ),
             (
-                "browser-automation",
-                "Core",
-                "Browser control and automation",
+                "godot-codegen",
+                "Game",
+                "Generate a proposal-only Godot code change through Hermes Game",
             ),
-            (
-                "vision-analysis",
-                "Core",
-                "Image understanding and analysis",
-            ),
-            ("media-generation", "Core", "Generate images, video, audio"),
-            (
-                "skill-management",
-                "Management",
-                "CRUD and version management",
-            ),
-            ("memory-ops", "Management", "Memory store and retrieve"),
-            ("task-management", "Management", "Todo and task planning"),
-            ("communication", "Management", "Messages and clarification"),
-            ("delegation", "Management", "Delegate to sub-agents"),
-            ("security-audit", "Management", "Security scanning"),
-            (
-                "code-review",
-                "Development",
-                "Code review and quality check",
-            ),
-            ("testing", "Development", "Test generation and execution"),
-            ("planning", "Development", "Project planning and breakdown"),
-            ("documentation", "Development", "Documentation generation"),
         ];
 
         for (name, category, description) in core_skills {
@@ -486,55 +458,8 @@ impl PluginRegistry {
             self.plugins.insert(plugin_id, meta);
         }
 
-        // ---- Seed MCP plugins (filesystem, git) ----
-        let mcp_plugins: Vec<(&str, &str, &str, Vec<&str>)> = vec![
-            (
-                "mcp:filesystem",
-                "filesystem",
-                "File system access via MCP",
-                vec!["-y", "@modelcontextprotocol/server-filesystem", "."],
-            ),
-            (
-                "mcp:git",
-                "git",
-                "Git version control via MCP",
-                vec!["-y", "@modelcontextprotocol/server-git"],
-            ),
-        ];
-
-        for (plugin_id, name, description, args) in mcp_plugins {
-            if self.plugins.contains_key(plugin_id) {
-                continue;
-            }
-            let meta = PluginMeta {
-                id: plugin_id.to_string(),
-                kind: PluginKind::Mcp,
-                name: name.to_string(),
-                version: "1.0.0".to_string(),
-                description: description.to_string(),
-                author: Some("modelcontextprotocol".to_string()),
-                capabilities: vec![Capability {
-                    name: format!("mcp_{}", name),
-                    description: description.to_string(),
-                    input_schema: serde_json::json!({ "type": "object" }),
-                    output_schema: serde_json::json!({ "type": "object" }),
-                    requires_permission: true,
-                }],
-                enabled: true,
-                registered_at: now.clone(),
-                last_health_check: None,
-                health_status: HealthStatus::Unknown,
-                config: serde_json::json!({
-                    "command": "npx",
-                    "args": args,
-                    "transport": "stdio"
-                }),
-            };
-            self.plugins.insert(plugin_id.to_string(), meta);
-        }
-
         println!(
-            "[PluginRegistry] Seeded defaults: 16 skills + 2 MCP plugins (total: {})",
+            "[PluginRegistry] Seeded executable defaults: 2 Godot skills; configured MCP servers are registered separately (total: {})",
             self.plugins.len()
         );
     }

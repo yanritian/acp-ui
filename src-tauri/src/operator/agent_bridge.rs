@@ -260,6 +260,8 @@ impl HermesAgentBridge {
                 chrono::Utc::now().timestamp_millis()
             ),
             task_id: self.task_id.clone(),
+            sequence: 0,
+            task_revision: 0,
             timestamp: chrono::Utc::now().to_rfc3339(),
             event_type,
             level: EventLevel::Info,

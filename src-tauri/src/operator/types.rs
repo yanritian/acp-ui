@@ -39,6 +39,10 @@ pub struct OperatorTask {
     pub updated_at: String,
     pub started_at: Option<String>,
     pub completed_at: Option<String>,
+    #[serde(default)]
+    pub checkpoint_id: Option<String>,
+    #[serde(default)]
+    pub memory_snapshot_id: Option<String>,
     pub summary: Option<String>,
     pub error: Option<String>,
 }
@@ -121,6 +125,12 @@ pub enum EventLevel {
 pub struct OperatorEvent {
     pub event_id: String,
     pub task_id: String,
+    /// Monotonic event cursor scoped to a task.
+    #[serde(default)]
+    pub sequence: u64,
+    /// Task revision observed when this event was appended.
+    #[serde(default)]
+    pub task_revision: u64,
     pub timestamp: String,
     #[serde(rename = "type")]
     pub event_type: OperatorEventType,
@@ -161,6 +171,9 @@ pub enum ApprovalDecision {
 pub struct ApprovalRequest {
     pub approval_id: String,
     pub task_id: String,
+    /// Task revision at which this approval was created.
+    #[serde(default)]
+    pub task_revision: u64,
     pub level: ApprovalLevel,
     pub action: String,
     pub title: String,
@@ -320,6 +333,9 @@ pub struct ApproveRequest {
     pub approval_id: String,
     pub decision: ApprovalDecision,
     pub comment: Option<String>,
+    /// Reject stale approvals instead of silently overwriting a newer task.
+    #[serde(default)]
+    pub expected_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -327,6 +343,9 @@ pub struct RedirectRequest {
     pub task_id: String,
     pub new_goal: String,
     pub preserve_completed_work: bool,
+    /// Optional for local IPC compatibility; required by remote clients.
+    #[serde(default)]
+    pub expected_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

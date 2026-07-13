@@ -243,6 +243,26 @@ impl OperatorState {
 
 const PATCH_APPLY_ACTION: &str = "operator.patch.apply";
 
+pub(crate) fn check_expected_revision(
+    state: &OperatorState,
+    task_id: &str,
+    expected_revision: Option<u64>,
+) -> Result<u64, String> {
+    let task = state
+        .tasks
+        .get(task_id)
+        .ok_or_else(|| format!("Task not found: {}", task_id))?;
+    if let Some(expected) = expected_revision {
+        if expected != task.revision {
+            return Err(format!(
+                "REVISION_CONFLICT: task '{}' is at revision {}, expected {}",
+                task_id, task.revision, expected
+            ));
+        }
+    }
+    Ok(task.revision)
+}
+
 pub(crate) fn start_task_in_state(
     state: &mut OperatorState,
     request: StartTaskRequest,
@@ -286,6 +306,8 @@ pub(crate) fn start_task_in_state(
         updated_at: now.clone(),
         started_at: Some(now),
         completed_at: None,
+        checkpoint_id: None,
+        memory_snapshot_id: None,
         summary: None,
         error: None,
     };
@@ -365,6 +387,7 @@ pub(crate) fn approve_task_in_state_with_cli_path(
     request: ApproveRequest,
     hermes_cli_path: Option<PathBuf>,
 ) -> Result<(), String> {
+    check_expected_revision(state, &request.task_id, request.expected_revision)?;
     let approval = resolve_approval_record(state, &request)?;
 
     if approval.action == PATCH_APPLY_ACTION {
@@ -938,6 +961,7 @@ fn advance_godot_task_to_plan(state: &mut OperatorState, task_id: &str) -> Resul
     let approval = ApprovalRequest {
         approval_id: approval_id.clone(),
         task_id: task_id.to_string(),
+        task_revision: state.tasks.get(task_id).map(|task| task.revision).unwrap_or(0),
         level: ApprovalLevel::Approve,
         action: "operator.plan.generate_patch".to_string(),
         title: "Review generated Godot plan".to_string(),
@@ -1414,16 +1438,42 @@ fn finish_godot_validation_in_state(
                 machine.complete().map_err(|error| error.to_string())?;
             }
             state.pending_validations.remove(task_id);
+            let checkpoint_id = format!(
+                "checkpoint_{}_{}",
+                sanitize_operator_identifier(task_id),
+                uuid::Uuid::new_v4().simple()
+            );
+            let memory_snapshot_id = format!(
+                "memory_{}_{}",
+                sanitize_operator_identifier(task_id),
+                uuid::Uuid::new_v4().simple()
+            );
             if let Some(task) = state.tasks.get_mut(task_id) {
                 task.status = OperatorTaskStatus::Completed;
                 task.updated_at = chrono::Utc::now().to_rfc3339();
                 task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                task.checkpoint_id = Some(checkpoint_id.clone());
+                task.memory_snapshot_id = Some(memory_snapshot_id.clone());
                 task.error = None;
                 task.summary = Some(format!(
                     "Applied {} approved Hermes Game file change(s). Godot validation: {:?}. Backup: {}.",
                     pending.files_applied, result.status, pending.backup_root
                 ));
             }
+            push_operator_event(
+                state,
+                task_id,
+                OperatorEventType::MemoryWritten,
+                EventLevel::Info,
+                "Task memory snapshot written",
+                Some("Recorded validated project facts, applied patch and final validation result.".to_string()),
+                "operator_memory",
+                Some(json!({
+                    "checkpoint_id": checkpoint_id,
+                    "memory_snapshot_id": memory_snapshot_id,
+                    "source": "validated_task_completion"
+                })),
+            );
             push_operator_event(
                 state,
                 task_id,
@@ -1862,6 +1912,7 @@ fn queue_hermes_game_patch_approval(
         .push(ApprovalRequest {
             approval_id: approval_id.clone(),
             task_id: task_id.to_string(),
+            task_revision: state.tasks.get(task_id).map(|task| task.revision).unwrap_or(0),
             level: ApprovalLevel::Approve,
             action: PATCH_APPLY_ACTION.to_string(),
             title: format!("Review {} proposed file change(s)", files.len()),
@@ -2295,6 +2346,14 @@ fn push_operator_event(
         .get(task_id)
         .map(|events| events.len())
         .unwrap_or(0);
+    let task_revision = state
+        .tasks
+        .get_mut(task_id)
+        .map(|task| {
+            task.revision = task.revision.saturating_add(1);
+            task.revision
+        })
+        .unwrap_or(0);
 
     // Map event type to i18n key
     let title_key = match &event_type {
@@ -2324,6 +2383,8 @@ fn push_operator_event(
     let event = OperatorEvent {
         event_id: format!("evt_{}_{}", task_id, next_index),
         task_id: task_id.to_string(),
+        sequence: next_index as u64,
+        task_revision,
         timestamp: chrono::Utc::now().to_rfc3339(),
         event_type,
         level,
@@ -2353,8 +2414,15 @@ fn push_existing_operator_event(
         .get(task_id)
         .map(|events| events.len())
         .unwrap_or(0);
+    let task_revision = state
+        .tasks
+        .get(task_id)
+        .map(|task| task.revision)
+        .unwrap_or(event.task_revision);
     event.event_id = format!("evt_{}_{}", task_id, next_index);
     event.task_id = task_id.to_string();
+    event.sequence = next_index as u64;
+    event.task_revision = task_revision;
     state
         .events
         .entry(task_id.to_string())
@@ -2464,7 +2532,12 @@ pub async fn operator_list_tasks(
     Ok(state.tasks.values().cloned().collect())
 }
 
-pub(crate) fn pause_task_in_state(state: &mut OperatorState, task_id: &str) -> Result<(), String> {
+pub(crate) fn pause_task_in_state_with_revision(
+    state: &mut OperatorState,
+    task_id: &str,
+    expected_revision: Option<u64>,
+) -> Result<(), String> {
+    check_expected_revision(state, task_id, expected_revision)?;
     let is_validation = state.pending_validations.contains_key(task_id);
     let machine = state
         .state_machines
@@ -2498,11 +2571,20 @@ pub(crate) fn pause_task_in_state(state: &mut OperatorState, task_id: &str) -> R
     state.persist()
 }
 
+pub(crate) fn pause_task_in_state(
+    state: &mut OperatorState,
+    task_id: &str,
+) -> Result<(), String> {
+    pause_task_in_state_with_revision(state, task_id, None)
+}
+
 fn resume_task_in_state_for_background(
     state: &mut OperatorState,
     task_id: &str,
     hermes_cli_path: Option<PathBuf>,
+    expected_revision: Option<u64>,
 ) -> Result<ApprovedTaskRun, String> {
+    check_expected_revision(state, task_id, expected_revision)?;
     let validate_godot = state.pending_validations.contains_key(task_id);
     let godot_executable = if validate_godot {
         configured_godot_executable(state)
@@ -2624,6 +2706,7 @@ pub(crate) fn redirect_task_in_state(
     state: &mut OperatorState,
     request: RedirectRequest,
 ) -> Result<(), String> {
+    check_expected_revision(state, &request.task_id, request.expected_revision)?;
     let (old_goal, domain) = {
         let task = state
             .tasks
@@ -2697,6 +2780,14 @@ pub(crate) fn resume_task_in_shared_state_for_background(
     shared_state: Arc<Mutex<OperatorState>>,
     task_id: String,
 ) -> Result<(), String> {
+    resume_task_in_shared_state_for_background_with_revision(shared_state, task_id, None)
+}
+
+pub(crate) fn resume_task_in_shared_state_for_background_with_revision(
+    shared_state: Arc<Mutex<OperatorState>>,
+    task_id: String,
+    expected_revision: Option<u64>,
+) -> Result<(), String> {
     let run = {
         let mut state = shared_state.lock().map_err(|e| e.to_string())?;
         match resume_interrupted_planning_in_state(&mut state, &task_id) {
@@ -2716,8 +2807,12 @@ pub(crate) fn resume_task_in_shared_state_for_background(
                 });
             }
         }
-        let run =
-            resume_task_in_state_for_background(&mut state, &task_id, discover_hermes_cli_path())?;
+        let run = resume_task_in_state_for_background(
+            &mut state,
+            &task_id,
+            discover_hermes_cli_path(),
+            expected_revision,
+        )?;
         state.persist()?;
         run
     };
@@ -2758,10 +2853,19 @@ pub(crate) fn approve_task_in_shared_state_for_background(
     Ok(())
 }
 
-pub(crate) fn stop_task_in_state(state: &mut OperatorState, task_id: &str) -> Result<(), String> {
+pub(crate) fn stop_task_in_state_with_revision(
+    state: &mut OperatorState,
+    task_id: &str,
+    expected_revision: Option<u64>,
+) -> Result<(), String> {
+    check_expected_revision(state, task_id, expected_revision)?;
     cancel_task_in_state(state, task_id)?;
     state.recovery_origins.remove(task_id);
     state.persist()
+}
+
+pub(crate) fn stop_task_in_state(state: &mut OperatorState, task_id: &str) -> Result<(), String> {
+    stop_task_in_state_with_revision(state, task_id, None)
 }
 
 #[tauri::command]
@@ -3231,6 +3335,55 @@ mod tests {
     }
 
     #[test]
+    fn operator_events_have_cursors_and_stale_writes_are_rejected() {
+        let temp_dir = TestDir::new("operator_revision_conflict");
+        let project = create_godot_test_project(temp_dir.path());
+        let mut state = OperatorState::new();
+        let response = start_task_in_state(
+            &mut state,
+            godot_request_for_project(TaskMode::ProposeThenApply, &project),
+        )
+        .expect("start task");
+        let initial_revision = state.tasks[&response.task_id].revision;
+        let original_approval = state.approvals[&response.task_id][0].approval_id.clone();
+
+        redirect_task_in_state(
+            &mut state,
+            RedirectRequest {
+                task_id: response.task_id.clone(),
+                new_goal: "Add a wall jump instead".to_string(),
+                preserve_completed_work: true,
+                expected_revision: Some(initial_revision),
+            },
+        )
+        .expect("redirect with current revision");
+
+        let stale_error = approve_task_in_state_with_cli_path(
+            &mut state,
+            ApproveRequest {
+                task_id: response.task_id.clone(),
+                approval_id: original_approval,
+                decision: ApprovalDecision::Approve,
+                comment: None,
+                expected_revision: Some(initial_revision),
+            },
+            None,
+        )
+        .expect_err("stale approval must be rejected");
+        assert!(stale_error.contains("REVISION_CONFLICT"));
+
+        let events = &state.events[&response.task_id];
+        for (index, event) in events.iter().enumerate() {
+            assert_eq!(event.sequence, index as u64);
+            assert!(event.task_revision > 0);
+        }
+        assert_eq!(
+            events.last().map(|event| event.task_revision),
+            Some(state.tasks[&response.task_id].revision)
+        );
+    }
+
+    #[test]
     fn running_task_recovers_paused_and_keeps_origin_across_restarts() {
         let temp_dir = TestDir::new("persistent_running_recovery");
         let project = create_godot_test_project(temp_dir.path());
@@ -3431,6 +3584,7 @@ mod tests {
                     approval_id: plan_approval_id,
                     decision: ApprovalDecision::Approve,
                     comment: Some("generate persistent proposal".to_string()),
+                    expected_revision: None,
                 },
                 Some(fake_cli),
             )
@@ -3475,6 +3629,7 @@ mod tests {
                 approval_id: patch_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: Some("apply recovered patch".to_string()),
+                expected_revision: None,
             },
         )
         .expect("approve recovered patch");
@@ -3560,6 +3715,7 @@ mod tests {
                 .push(ApprovalRequest {
                     approval_id: approval_id.clone(),
                     task_id: task_id.clone(),
+                    task_revision: state.tasks.get(&task_id).map(|task| task.revision).unwrap_or(0),
                     level: ApprovalLevel::Approve,
                     action: PATCH_APPLY_ACTION.to_string(),
                     title: "Review stale patch".to_string(),
@@ -3627,6 +3783,74 @@ mod tests {
         request
     }
 
+    #[test]
+    #[ignore = "requires the real D: Hermes Game CLI and Godot executable"]
+    fn real_hermes_godot_closed_loop_applies_and_validates_a_patch() {
+        let cli = std::env::var_os("ACP_REAL_HERMES_GAME_CLI")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| workspace_root().join("bin").join("hermes-game.exe"));
+        let godot = std::env::var_os("ACP_REAL_GODOT_BIN")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("D:/dev-tools/godot/4.7-stable/Godot_v4.7-stable_win64_console.exe"));
+        assert!(cli.is_file(), "real Hermes Game CLI missing: {}", cli.display());
+        assert!(godot.is_file(), "real Godot executable missing: {}", godot.display());
+
+        let temp_dir = TestDir::new("real_hermes_godot_closed_loop");
+        let project = create_godot_test_project(temp_dir.path());
+        let original = std::fs::read_to_string(project.join("scripts/player.gd"))
+            .expect("read original player");
+        let mut state = OperatorState::new();
+        state.godot_validation_discovery = GodotValidationDiscovery::Auto;
+        std::env::set_var("GODOT_BIN", &godot);
+
+        let response = start_task_in_state(
+            &mut state,
+            godot_request_for_project(TaskMode::ProposeThenApply, &project),
+        )
+        .expect("start real task");
+        let plan_approval = state.approvals[&response.task_id][0].approval_id.clone();
+        approve_task_in_state_with_cli_path(
+            &mut state,
+            ApproveRequest {
+                task_id: response.task_id.clone(),
+                approval_id: plan_approval,
+                decision: ApprovalDecision::Approve,
+                comment: Some("real Hermes proposal approval".to_string()),
+                expected_revision: None,
+            },
+            Some(cli),
+        )
+        .expect("real Hermes proposal");
+
+        let patch_approval = state.approvals[&response.task_id]
+            .iter()
+            .find(|approval| approval.action == PATCH_APPLY_ACTION && approval.decision.is_none())
+            .map(|approval| approval.approval_id.clone())
+            .expect("real patch approval");
+        approve_task_in_state_with_cli_path(
+            &mut state,
+            ApproveRequest {
+                task_id: response.task_id.clone(),
+                approval_id: patch_approval,
+                decision: ApprovalDecision::Approve,
+                comment: Some("real patch approval".to_string()),
+                expected_revision: None,
+            },
+            None,
+        )
+        .expect("real patch apply and Godot validation");
+
+        assert_eq!(state.tasks[&response.task_id].status, OperatorTaskStatus::Completed);
+        assert_ne!(
+            std::fs::read_to_string(project.join("scripts/player.gd")).expect("read changed player"),
+            original
+        );
+        assert!(state.events[&response.task_id]
+            .iter()
+            .any(|event| matches!(event.event_type, OperatorEventType::ValidationPassed)));
+        cleanup_task_artifacts(&response.task_id);
+    }
+
     fn create_godot_test_project(dir: &Path) -> PathBuf {
         let project = dir.join("godot-project");
         std::fs::create_dir_all(project.join("scripts")).expect("create Godot scripts");
@@ -3684,6 +3908,7 @@ mod tests {
                 approval_id: plan_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -3703,6 +3928,7 @@ mod tests {
             approval_id: patch_approval_id,
             decision: ApprovalDecision::Approve,
             comment: Some("apply before synthetic validation".to_string()),
+            expected_revision: None,
         };
         let approval =
             resolve_approval_record(&mut state, &request).expect("resolve patch approval");
@@ -4009,6 +4235,7 @@ exit 1
                 approval_id: first_approval_id.clone(),
                 decision: ApprovalDecision::RequestChanges,
                 comment: Some("revise the implementation plan".to_string()),
+                expected_revision: None,
             },
             None,
         )
@@ -4049,6 +4276,7 @@ exit 1
                 approval_id: revised_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             None,
         )
@@ -4079,6 +4307,7 @@ exit 1
                 approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: Some("go".to_string()),
+                expected_revision: None,
             },
             None,
         )
@@ -4124,6 +4353,7 @@ exit 1
                 approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: Some("run hermes".to_string()),
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -4183,6 +4413,7 @@ exit 1
                 approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: Some("run hermes-game".to_string()),
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -4229,6 +4460,7 @@ exit 1
                 approval_id: patch_approval.approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: Some("apply reviewed patch".to_string()),
+                expected_revision: None,
             },
             None,
         )
@@ -4381,6 +4613,7 @@ exit 1
                 approval_id: plan_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -4406,6 +4639,7 @@ exit 1
                 approval_id: patch_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             None,
         )
@@ -4447,6 +4681,7 @@ exit 1
                 approval_id: plan_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -4476,6 +4711,7 @@ exit 1
                 approval_id: patch_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             None,
         )
@@ -4512,6 +4748,7 @@ exit 1
                 approval_id: plan_approval_id,
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             Some(fake_cli),
         )
@@ -4535,6 +4772,7 @@ exit 1
                 approval_id: patch_approval_id.clone(),
                 decision: ApprovalDecision::Approve,
                 comment: None,
+                expected_revision: None,
             },
             None,
         )
@@ -4598,6 +4836,7 @@ exit 1
                     approval_id,
                     decision: ApprovalDecision::Approve,
                     comment: Some("run slow hermes-game".to_string()),
+                    expected_revision: None,
                 },
                 Some(fake_cli),
             )
@@ -4665,6 +4904,7 @@ exit 1
                     approval_id,
                     decision: ApprovalDecision::Approve,
                     comment: Some("run slow hermes-game".to_string()),
+                    expected_revision: None,
                 },
                 Some(fake_cli),
             )
@@ -4683,6 +4923,7 @@ exit 1
                     task_id: response.task_id.clone(),
                     new_goal: "Add wall jump to Player".to_string(),
                     preserve_completed_work: true,
+                    expected_revision: None,
                 },
             )
             .expect("task should redirect");
@@ -4749,6 +4990,7 @@ exit 1
                     approval_id,
                     decision: ApprovalDecision::Approve,
                     comment: Some("run slow hermes-game".to_string()),
+                    expected_revision: None,
                 },
                 Some(slow_cli),
             )
@@ -4774,7 +5016,12 @@ exit 1
 
         let resumed_run = {
             let mut state = state.lock().expect("state lock");
-            resume_task_in_state_for_background(&mut state, &response.task_id, Some(fast_cli))
+            resume_task_in_state_for_background(
+                &mut state,
+                &response.task_id,
+                Some(fast_cli),
+                None,
+            )
                 .expect("task should resume")
         };
         let resumed_handle = spawn_approved_task_runner(state.clone(), resumed_run);
@@ -4803,6 +5050,7 @@ exit 1
                     approval_id: patch_approval_id,
                     decision: ApprovalDecision::Approve,
                     comment: Some("apply resumed proposal".to_string()),
+                    expected_revision: None,
                 },
                 None,
             )
@@ -4845,6 +5093,8 @@ exit 1
         let event = OperatorEvent {
             event_id: "evt_1".to_string(),
             task_id: "task_1".to_string(),
+            sequence: 0,
+            task_revision: 0,
             timestamp: "2026-07-09T00:00:00Z".to_string(),
             event_type: OperatorEventType::PlanReady,
             level: EventLevel::Info,

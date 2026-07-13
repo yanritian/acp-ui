@@ -349,13 +349,22 @@ impl OperatorStateStore {
                         task_id, expected_sequence, sequence, event_id
                     ));
                 }
-                let event: OperatorEvent = deserialize_payload("event", &payload)?;
+                let mut event: OperatorEvent = deserialize_payload("event", &payload)?;
                 if event.event_id != event_id
                     || event.task_id != task_id
                     || event.timestamp != created_at
                 {
                     return Err(format!("Operator event key mismatch for '{}'", event_id));
                 }
+                // Backfill sequence for databases created before the v1 event
+                // cursor was serialized into the payload.
+                if event.sequence != 0 && event.sequence != expected_sequence as u64 {
+                    return Err(format!(
+                        "Operator event '{}' payload sequence {} does not match row {}",
+                        event_id, event.sequence, expected_sequence
+                    ));
+                }
+                event.sequence = expected_sequence as u64;
                 events.entry(task_id).or_default().push(event);
             }
         }

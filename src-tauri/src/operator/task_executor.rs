@@ -227,6 +227,8 @@ impl GodotTaskExecutor {
         let event = OperatorEvent {
             event_id: format!("evt_{}_{}", self.task_id, self.events.len()),
             task_id: self.task_id.clone(),
+            sequence: self.events.len() as u64,
+            task_revision: self.events.len() as u64,
             timestamp: chrono::Utc::now().to_rfc3339(),
             event_type,
             level: EventLevel::Info,

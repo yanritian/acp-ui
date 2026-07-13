@@ -2,7 +2,7 @@
  * Skill System Types - OpenClacky-inspired Skill Meta-Tool Architecture
  *
  * Core concepts:
- * - 12-16 immutable core tools
+ * - A small set of immutable skills with concrete backend handlers
  * - invoke_skill meta-tool for capability delegation
  * - Self-evolving skills based on execution feedback
  */
@@ -106,29 +106,12 @@ export interface EvolutionSuggestion {
 }
 
 // ---------------------------------------------------------------------------
-// Core Skills Registry (12-16 immutable skills)
+// Core Skills Registry (only skills with a concrete backend handler)
 // ---------------------------------------------------------------------------
 
 export const CORE_SKILLS: readonly string[] = [
-  // Core operational skills
-  'web-research',        // Web search and extraction
-  'code-execution',      // Execute and debug code
-  'file-operations',     // Read, write, search, patch files
-  'browser-automation',  // Browser control
-  'vision-analysis',     // Image understanding
-  'media-generation',    // Generate images/video/audio
-  // Management skills
-  'skill-management',    // CRUD and version management
-  'memory-ops',          // Memory store and retrieve
-  'task-management',     // Todo and planning
-  'communication',       // Messages and clarification
-  'delegation',          // Delegate to sub-agents
-  'security-audit',      // Security scanning
-  // Development skills
-  'code-review',         // Review and quality check
-  'testing',             // Test generation and execution
-  'planning',            // Project planning and breakdown
-  'documentation',       // Doc generation
+  'godot-analyze',
+  'godot-codegen',
 ];
 
 // ---------------------------------------------------------------------------

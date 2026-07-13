@@ -32,13 +32,13 @@ export interface OperatorRemoteApiClient {
   startTask(request: StartTaskRequest): Promise<StartTaskResponse>
   listTasks(): Promise<OperatorTask[]>
   getTask(taskId: string): Promise<OperatorTask>
-  pauseTask(taskId: string): Promise<RemoteCommandResponse>
-  resumeTask(taskId: string): Promise<RemoteCommandResponse>
-  stopTask(taskId: string): Promise<RemoteCommandResponse>
+  pauseTask(taskId: string, expectedRevision?: number): Promise<RemoteCommandResponse>
+  resumeTask(taskId: string, expectedRevision?: number): Promise<RemoteCommandResponse>
+  stopTask(taskId: string, expectedRevision?: number): Promise<RemoteCommandResponse>
   redirectTask(taskId: string, request: RemoteRedirectRequest): Promise<RemoteCommandResponse>
   approve(request: ApproveRequest): Promise<RemoteCommandResponse>
   getPendingApprovals(taskId: string): Promise<ApprovalRequest[]>
-  listEvents(taskId: string, limit?: number): Promise<OperatorEvent[]>
+  listEvents(taskId: string, limit?: number, afterSequence?: number): Promise<OperatorEvent[]>
   getTaskSummary(taskId: string): Promise<TaskSummary>
   getAudit(limit?: number): Promise<RemoteAuditRecord[]>
 }
@@ -128,16 +128,25 @@ export function createOperatorRemoteApi(
       return request<OperatorTask>(`/api/operator/tasks/${encodePath(taskId)}`)
     },
 
-    pauseTask(taskId) {
-      return postJson<RemoteCommandResponse>(`/api/operator/tasks/${encodePath(taskId)}/pause`)
+    pauseTask(taskId, expectedRevision) {
+      return postJson<RemoteCommandResponse>(
+        `/api/operator/tasks/${encodePath(taskId)}/pause`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision }
+      )
     },
 
-    resumeTask(taskId) {
-      return postJson<RemoteCommandResponse>(`/api/operator/tasks/${encodePath(taskId)}/resume`)
+    resumeTask(taskId, expectedRevision) {
+      return postJson<RemoteCommandResponse>(
+        `/api/operator/tasks/${encodePath(taskId)}/resume`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision }
+      )
     },
 
-    stopTask(taskId) {
-      return postJson<RemoteCommandResponse>(`/api/operator/tasks/${encodePath(taskId)}/stop`)
+    stopTask(taskId, expectedRevision) {
+      return postJson<RemoteCommandResponse>(
+        `/api/operator/tasks/${encodePath(taskId)}/stop`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision }
+      )
     },
 
     redirectTask(taskId, redirectRequest) {
@@ -155,8 +164,11 @@ export function createOperatorRemoteApi(
       return request<ApprovalRequest[]>(`/api/operator/tasks/${encodePath(taskId)}/approvals`)
     },
 
-    listEvents(taskId, limit) {
-      const query = limit === undefined ? '' : `?limit=${encodeURIComponent(String(limit))}`
+    listEvents(taskId, limit, afterSequence) {
+      const params = new URLSearchParams()
+      if (limit !== undefined) params.set('limit', String(limit))
+      if (afterSequence !== undefined) params.set('after_sequence', String(afterSequence))
+      const query = params.toString() ? `?${params.toString()}` : ''
       return request<OperatorEvent[]>(`/api/operator/tasks/${encodePath(taskId)}/events${query}`)
     },
 

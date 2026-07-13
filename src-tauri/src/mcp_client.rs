@@ -11,9 +11,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc::RecvTimeoutError;
+use std::time::Duration;
 use tauri::State;
 
+use crate::operator::is_d_drive_path;
 use crate::AppState;
+
+const MAX_MCP_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+const MCP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
 
 // ---------------------------------------------------------------------------
 // JSON-RPC 2.0 Protocol Types
@@ -474,19 +480,47 @@ impl McpClient {
             .flush()
             .map_err(|e| format!("Failed to flush MCP stdin: {}", e))?;
 
-        // Read JSON line from stdout
-        let stdout = conn
+        // Read JSON line from stdout with a deadline. A broken MCP process must
+        // never block the operator thread forever on a pipe read.
+        let mut stdout = conn
             .stdout
-            .as_mut()
+            .take()
             .ok_or_else(|| "No stdout available".to_string())?;
+        let (response_tx, response_rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let mut response_line = String::new();
+            let read_result = stdout.read_line(&mut response_line);
+            let _ = response_tx.send((stdout, read_result, response_line));
+        });
 
-        let mut response_line = String::new();
-        stdout
-            .read_line(&mut response_line)
-            .map_err(|e| format!("Failed to read from MCP stdout: {}", e))?;
+        let (stdout, read_result, response_line) =
+            match response_rx.recv_timeout(MCP_RESPONSE_TIMEOUT) {
+                Ok(response) => response,
+                Err(RecvTimeoutError::Timeout) => {
+                    if let Some(process) = conn.process.as_mut() {
+                        let _ = process.kill();
+                        let _ = process.wait();
+                    }
+                    return Err(format!(
+                        "MCP response timed out after {} seconds",
+                        MCP_RESPONSE_TIMEOUT.as_secs()
+                    ));
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err("MCP stdout reader terminated unexpectedly".to_string());
+                }
+            };
+        conn.stdout = Some(stdout);
+        read_result.map_err(|e| format!("Failed to read from MCP stdout: {}", e))?;
 
         if response_line.trim().is_empty() {
             return Err("Empty response from MCP server".to_string());
+        }
+        if response_line.len() > MAX_MCP_RESPONSE_BYTES {
+            return Err(format!(
+                "MCP response exceeds {} bytes",
+                MAX_MCP_RESPONSE_BYTES
+            ));
         }
 
         // Parse response
@@ -629,6 +663,19 @@ pub fn mcp_connect(
     args: Option<Vec<String>>,
     env_vars: Option<HashMap<String, String>>,
 ) -> Result<Vec<McpTool>, String> {
+    let command_path = std::path::PathBuf::from(&command);
+    if !command_path.is_absolute() || !is_d_drive_path(&command_path) {
+        return Err(format!(
+            "MCP command must be an absolute executable on D:, got '{}'",
+            command
+        ));
+    }
+    if !command_path.is_file() {
+        return Err(format!(
+            "MCP command does not exist: {}",
+            command_path.display()
+        ));
+    }
     // Spawn the MCP server process with stdin/stdout piped for JSON-RPC communication
     #[cfg(desktop)]
     {
@@ -700,4 +747,58 @@ pub fn mcp_list_server_tools(
 pub fn mcp_is_connected(state: State<'_, AppState>, server_name: String) -> Result<bool, String> {
     let client = state.mcp_client.lock().map_err(|e| e.to_string())?;
     Ok(client.is_connected(&server_name))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    #[ignore = "requires D: Python for the MCP fixture"]
+    fn real_stdio_fixture_roundtrip_discovers_and_calls_a_tool() {
+        let python = std::env::var_os("ACP_REAL_PYTHON_BIN")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::path::PathBuf::from("D:/Python313/python.exe"));
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("workspace root")
+            .join("mcp")
+            .join("fixtures")
+            .join("echo_server.py");
+        assert!(
+            python.is_file(),
+            "Python fixture runtime missing: {}",
+            python.display()
+        );
+        assert!(
+            fixture.is_file(),
+            "MCP fixture missing: {}",
+            fixture.display()
+        );
+
+        let child = Command::new(&python)
+            .arg(&fixture)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("spawn MCP fixture");
+        let mut client = McpClient::new();
+        let tools = client
+            .connect("echo", child)
+            .expect("MCP initialize and list tools");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "echo");
+
+        let result = client
+            .call_tool("echo", serde_json::json!({"text": "closed loop"}))
+            .expect("call echo tool");
+        assert!(result.success);
+        assert!(matches!(
+            result.content.first(),
+            Some(McpContent::Text { text }) if text == "closed loop"
+        ));
+        client.disconnect("echo").expect("disconnect MCP fixture");
+    }
 }

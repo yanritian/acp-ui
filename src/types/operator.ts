@@ -31,6 +31,8 @@ export interface OperatorTask {
   updated_at: string
   started_at?: string
   completed_at?: string
+  checkpoint_id?: string
+  memory_snapshot_id?: string
   summary?: string
   error?: string
 }
@@ -87,6 +89,8 @@ export type EventLevel = 'info' | 'warning' | 'error' | 'debug'
 export interface OperatorEvent {
   event_id: string
   task_id: string
+  sequence: number
+  task_revision: number
   timestamp: string
   type: OperatorEventType
   level: EventLevel
@@ -113,6 +117,7 @@ export interface FileDiffPreview {
 export interface ApprovalRequest {
   approval_id: string
   task_id: string
+  task_revision: number
   level: ApprovalLevel
   action: string  // e.g., 'file.patch', 'shell.command'
   title: string
@@ -252,6 +257,7 @@ export interface RedirectRequest {
 export interface RemoteRedirectRequest {
   new_goal: string
   preserve_completed_work?: boolean
+  expected_revision?: number
 }
 
 export interface RemoteCommandResponse {

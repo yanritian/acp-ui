@@ -86,6 +86,8 @@ describe('Game Operator Integration', () => {
         {
           event_id: 'evt_1',
           task_id: 'task_1',
+          sequence: 0,
+          task_revision: 1,
           timestamp: '2026-07-08T10:00:00Z',
           type: 'task_started',
           level: 'info',
@@ -95,6 +97,8 @@ describe('Game Operator Integration', () => {
         {
           event_id: 'evt_2',
           task_id: 'task_1',
+          sequence: 1,
+          task_revision: 2,
           timestamp: '2026-07-08T10:00:05Z',
           type: 'plan_ready',
           level: 'info',
@@ -121,6 +125,8 @@ describe('Game Operator Integration', () => {
       const event: OperatorEvent = {
         event_id: 'evt_test',
         task_id: 'task_test',
+        sequence: 0,
+        task_revision: 1,
         timestamp: new Date().toISOString(),
         type: 'task_started',
         level: 'info',

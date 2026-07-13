@@ -15,11 +15,15 @@ export interface OperatorTask {
   approval_policy: string
   created_at: string
   updated_at: string
+  checkpoint_id?: string
+  memory_snapshot_id?: string
 }
 
 export interface OperatorEvent {
   event_id: string
   task_id: string
+  sequence: number
+  task_revision: number
   timestamp: string
   type: string
   level: string
@@ -31,6 +35,7 @@ export interface OperatorEvent {
 export interface ApprovalRequest {
   approval_id: string
   task_id: string
+  task_revision: number
   level: string
   action: string
   title: string
@@ -118,10 +123,11 @@ export class GameOperatorClient {
     }
   }
 
-  async pauseTask(taskId: string): Promise<void> {
+  async pauseTask(taskId: string, expectedRevision?: number): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/pause`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/pause`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision })
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -133,10 +139,11 @@ export class GameOperatorClient {
     }
   }
 
-  async resumeTask(taskId: string): Promise<void> {
+  async resumeTask(taskId: string, expectedRevision?: number): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/resume`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/resume`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision })
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -148,10 +155,11 @@ export class GameOperatorClient {
     }
   }
 
-  async stopTask(taskId: string): Promise<void> {
+  async stopTask(taskId: string, expectedRevision?: number): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/stop`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/stop`,
+        expectedRevision === undefined ? undefined : { expected_revision: expectedRevision })
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -163,10 +171,11 @@ export class GameOperatorClient {
     }
   }
 
-  async listEvents(taskId: string): Promise<OperatorEvent[]> {
+  async listEvents(taskId: string, afterSequence?: number): Promise<OperatorEvent[]> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const response = await this.client.get(`/api/operator/tasks/${encodeURIComponent(taskId)}/events`)
+      const query = afterSequence === undefined ? '' : `?after_sequence=${encodeURIComponent(String(afterSequence))}`
+      const response = await this.client.get(`/api/operator/tasks/${encodeURIComponent(taskId)}/events${query}`)
       return response.data.events || response.data || []
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -203,7 +212,8 @@ export class GameOperatorClient {
   async approve(
     taskId: string,
     approvalId: string,
-    decision: 'approve' | 'reject' | 'request_changes'
+    decision: 'approve' | 'reject' | 'request_changes',
+    expectedRevision?: number
   ): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
@@ -211,6 +221,7 @@ export class GameOperatorClient {
         task_id: taskId,
         approval_id: approvalId,
         decision,
+        ...(expectedRevision === undefined ? {} : { expected_revision: expectedRevision }),
       })
     } catch (error: any) {
       if (error.response?.status === 404) {

@@ -364,7 +364,8 @@ pub fn run() {
             // Auto-start WebSocket server on port 1421 for remote control testing
             let app_handle_for_ws = app.handle().clone();
 
-            // Seed default plugins (16 core skills + 2 MCP servers)
+            // Seed only executable built-ins; MCP servers are registered after
+            // a real D: executable is configured and connected.
             {
                 let mut registry = state.plugin_registry.lock().unwrap();
                 registry.seed_defaults();

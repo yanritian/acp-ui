@@ -203,7 +203,11 @@ pub fn prepare_structured_patch(
                 }
                 let original = read_bounded_text_file(&target_path, &change.path)?;
                 let digest = sha256_hex(original.as_bytes());
-                if let Some(expected) = change.expected_sha256.as_deref() {
+                if let Some(expected) = change
+                    .expected_sha256
+                    .as_deref()
+                    .filter(|expected| !expected.trim().is_empty())
+                {
                     validate_sha256(expected, &change.path)?;
                     if !digest.eq_ignore_ascii_case(expected) {
                         return Err(StructuredPatchError::StaleTarget {
@@ -882,6 +886,24 @@ mod tests {
             "extends Node\nvar jumps = 1\n"
         );
         assert!(!new_file.exists());
+    }
+
+    #[test]
+    fn treats_empty_expected_sha256_as_an_omitted_guard() {
+        let project = TestProject::new("empty-expected-sha");
+        let player = project.root().join("scripts/player.gd");
+        fs::write(&player, "extends Node\nvar jumps = 1\n").expect("write original");
+        let artifact = artifact(json!([{
+            "path": "scripts/player.gd",
+            "operation": "replace",
+            "content": "extends Node\nvar jumps = 2\n",
+            "expected_sha256": ""
+        }]));
+
+        let prepared = prepare_structured_patch(&artifact, project.root())
+            .expect("empty optional hash should be accepted");
+        assert_eq!(prepared.changes.len(), 1);
+        assert!(prepared.changes[0].original_sha256.is_some());
     }
 
     #[test]

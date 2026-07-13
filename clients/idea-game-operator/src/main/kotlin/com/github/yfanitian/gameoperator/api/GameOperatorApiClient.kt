@@ -19,12 +19,16 @@ data class OperatorTask(
     val mode: String,
     val approval_policy: String,
     val created_at: String,
-    val updated_at: String
+    val updated_at: String,
+    val checkpoint_id: String?,
+    val memory_snapshot_id: String?
 )
 
 data class OperatorEvent(
     val event_id: String,
     val task_id: String,
+    val sequence: Long,
+    val task_revision: Long,
     val timestamp: String,
     val type: String,
     val level: String,
@@ -36,6 +40,7 @@ data class OperatorEvent(
 data class ApprovalRequest(
     val approval_id: String,
     val task_id: String,
+    val task_revision: Long,
     val level: String,
     val action: String,
     val title: String,
@@ -169,10 +174,10 @@ class GameOperatorApiClient(
     }
 
     @Throws(IOException::class)
-    fun pauseTask(taskId: String) {
+    fun pauseTask(taskId: String, expectedRevision: Long? = null) {
         val request = Request.Builder()
             .url("$baseUrl/api/operator/tasks/$taskId/pause")
-            .post("".toRequestBody(JSON))
+            .post(gson.toJson(expectedRevision?.let { mapOf("expected_revision" to it) } ?: emptyMap<String, Any>()).toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
             }
@@ -186,10 +191,10 @@ class GameOperatorApiClient(
     }
 
     @Throws(IOException::class)
-    fun resumeTask(taskId: String) {
+    fun resumeTask(taskId: String, expectedRevision: Long? = null) {
         val request = Request.Builder()
             .url("$baseUrl/api/operator/tasks/$taskId/resume")
-            .post("".toRequestBody(JSON))
+            .post(gson.toJson(expectedRevision?.let { mapOf("expected_revision" to it) } ?: emptyMap<String, Any>()).toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
             }
@@ -203,10 +208,10 @@ class GameOperatorApiClient(
     }
 
     @Throws(IOException::class)
-    fun stopTask(taskId: String) {
+    fun stopTask(taskId: String, expectedRevision: Long? = null) {
         val request = Request.Builder()
             .url("$baseUrl/api/operator/tasks/$taskId/stop")
-            .post("".toRequestBody(JSON))
+            .post(gson.toJson(expectedRevision?.let { mapOf("expected_revision" to it) } ?: emptyMap<String, Any>()).toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
             }
@@ -278,12 +283,13 @@ class GameOperatorApiClient(
     }
 
     @Throws(IOException::class)
-    fun approve(taskId: String, approvalId: String, decision: String) {
+    fun approve(taskId: String, approvalId: String, decision: String, expectedRevision: Long? = null) {
         val json = gson.toJson(
             mapOf(
                 "task_id" to taskId,
                 "approval_id" to approvalId,
-                "decision" to decision
+                "decision" to decision,
+                "expected_revision" to expectedRevision
             )
         )
 

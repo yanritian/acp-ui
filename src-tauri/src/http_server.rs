@@ -5,8 +5,8 @@
 
 use crate::operator::security::{RemoteAccessDenied, RemoteAccessPolicy, RemoteAccessPolicyConfig};
 use crate::operator::{
-    self, ApprovalRequest, ApproveRequest, OperatorEvent, OperatorState, OperatorTask,
-    RedirectRequest, StartTaskRequest, StartTaskResponse, TaskSummary,
+    self, ApprovalRequest, ApproveRequest, EventLevel, OperatorEvent, OperatorEventType,
+    OperatorState, OperatorTask, RedirectRequest, StartTaskRequest, StartTaskResponse, TaskSummary,
 };
 use axum::body::Body;
 use axum::extract::ws::Message;
@@ -155,12 +155,19 @@ pub struct RemotePlatformCapability {
 #[derive(Debug, Deserialize)]
 struct EventQuery {
     limit: Option<usize>,
+    after_sequence: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct RemoteRedirectRequest {
     new_goal: String,
     preserve_completed_work: Option<bool>,
+    expected_revision: Option<u64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RemoteControlRequest {
+    expected_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,6 +359,27 @@ fn create_cors_layer(policy: &RemoteAccessPolicy) -> CorsLayer {
             CONTENT_TYPE,
             HeaderName::from_static(OPERATOR_CLIENT_HEADER),
         ])
+}
+
+fn event_page_bounds(
+    events: &[OperatorEvent],
+    limit: usize,
+    after_sequence: Option<u64>,
+) -> (usize, usize) {
+    let limit = limit.min(1000);
+    match after_sequence {
+        Some(sequence) => {
+            let start = events
+                .iter()
+                .position(|event| event.sequence > sequence)
+                .unwrap_or(events.len());
+            (start, start.saturating_add(limit).min(events.len()))
+        }
+        None => {
+            let start = events.len().saturating_sub(limit);
+            (start, events.len())
+        }
+    }
 }
 
 async fn enforce_remote_access(
@@ -886,19 +914,26 @@ async fn operator_get_task(
 async fn operator_pause_task(
     State(state): State<Arc<HttpServerState>>,
     AxumPath(task_id): AxumPath<String>,
+    body: Option<Json<RemoteControlRequest>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let mut operator_state = state
         .operator_state
         .lock()
         .map_err(|error| api_error(500, format!("Operator state lock failed: {}", error)))?;
     authorized_task(&state.access_policy, &operator_state, &task_id)?;
-    operator::pause_task_in_state(&mut operator_state, &task_id).map_err(operator_error)?;
+    operator::pause_task_in_state_with_revision(
+        &mut operator_state,
+        &task_id,
+        body.and_then(|body| body.0.expected_revision),
+    )
+    .map_err(operator_error)?;
     Ok(Json(serde_json::json!({ "ok": true, "task_id": task_id })))
 }
 
 async fn operator_resume_task(
     State(state): State<Arc<HttpServerState>>,
     AxumPath(task_id): AxumPath<String>,
+    body: Option<Json<RemoteControlRequest>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     {
         let operator_state = state
@@ -907,9 +942,10 @@ async fn operator_resume_task(
             .map_err(|error| api_error(500, format!("Operator state lock failed: {}", error)))?;
         authorized_task(&state.access_policy, &operator_state, &task_id)?;
     }
-    operator::resume_task_in_shared_state_for_background(
+    operator::resume_task_in_shared_state_for_background_with_revision(
         state.operator_state.clone(),
         task_id.clone(),
+        body.and_then(|body| body.0.expected_revision),
     )
     .map_err(operator_error)?;
     Ok(Json(serde_json::json!({ "ok": true, "task_id": task_id })))
@@ -918,13 +954,19 @@ async fn operator_resume_task(
 async fn operator_stop_task(
     State(state): State<Arc<HttpServerState>>,
     AxumPath(task_id): AxumPath<String>,
+    body: Option<Json<RemoteControlRequest>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let mut operator_state = state
         .operator_state
         .lock()
         .map_err(|error| api_error(500, format!("Operator state lock failed: {}", error)))?;
     authorized_task(&state.access_policy, &operator_state, &task_id)?;
-    operator::stop_task_in_state(&mut operator_state, &task_id).map_err(operator_error)?;
+    operator::stop_task_in_state_with_revision(
+        &mut operator_state,
+        &task_id,
+        body.and_then(|body| body.0.expected_revision),
+    )
+    .map_err(operator_error)?;
     Ok(Json(serde_json::json!({ "ok": true, "task_id": task_id })))
 }
 
@@ -942,6 +984,7 @@ async fn operator_redirect_task(
         task_id: task_id.clone(),
         new_goal: request.new_goal,
         preserve_completed_work: request.preserve_completed_work.unwrap_or(true),
+        expected_revision: request.expected_revision,
     };
     operator::redirect_task_in_state(&mut operator_state, redirect).map_err(operator_error)?;
     Ok(Json(serde_json::json!({ "ok": true, "task_id": task_id })))
@@ -1000,9 +1043,8 @@ async fn operator_list_events(
         .events
         .get(&task_id)
         .ok_or_else(|| api_error(404, format!("Task not found: {}", task_id)))?;
-    let limit = query.limit.unwrap_or(100).min(1000);
-    let start = events.len().saturating_sub(limit);
-    Ok(Json(events[start..].to_vec()))
+    let (start, end) = event_page_bounds(events, query.limit.unwrap_or(100), query.after_sequence);
+    Ok(Json(events[start..end].to_vec()))
 }
 
 async fn operator_get_task_summary(
@@ -1532,6 +1574,49 @@ mod tests {
     }
 
     #[test]
+    fn event_cursor_pagination_returns_only_the_next_page() {
+        let events = (0..6)
+            .map(|sequence| OperatorEvent {
+                event_id: format!("event_{}", sequence),
+                task_id: "task_cursor".to_string(),
+                sequence,
+                task_revision: sequence,
+                timestamp: "2026-01-01T00:00:00Z".to_string(),
+                event_type: OperatorEventType::TaskStarted,
+                level: EventLevel::Info,
+                title: format!("Event {}", sequence),
+                message: None,
+                source: "test".to_string(),
+                payload: None,
+                title_key: None,
+                message_key: None,
+                title_args: None,
+                message_args: None,
+            })
+            .collect::<Vec<_>>();
+
+        let first_page = event_page_bounds(&events, 2, None);
+        assert_eq!(
+            events[first_page.0..first_page.1]
+                .iter()
+                .map(|event| event.sequence)
+                .collect::<Vec<_>>(),
+            vec![4, 5]
+        );
+
+        let next_page = event_page_bounds(&events, 2, Some(1));
+        assert_eq!(
+            events[next_page.0..next_page.1]
+                .iter()
+                .map(|event| event.sequence)
+                .collect::<Vec<_>>(),
+            vec![2, 3]
+        );
+        assert_eq!(event_page_bounds(&events, 2, Some(99)), (6, 6));
+        assert_eq!(event_page_bounds(&events, 0, Some(1)), (2, 2));
+    }
+
+    #[test]
     fn test_detect_role_developer() {
         let role = detect_role("帮我写一个 Rust 函数");
         assert_eq!(role, "developer");
@@ -1812,6 +1897,11 @@ mod tests {
         let patch_approval_id = format!("approval_{}_http_patch", started.task_id);
         {
             let mut state = operator_state.lock().expect("operator state");
+            let task_revision = state
+                .tasks
+                .get(&started.task_id)
+                .map(|task| task.revision)
+                .unwrap_or(0);
             if let Some(approvals) = state.approvals.get_mut(&started.task_id) {
                 for approval in approvals.iter_mut() {
                     approval.decision = Some(crate::operator::ApprovalDecision::RequestChanges);
@@ -1821,6 +1911,7 @@ mod tests {
                 approvals.push(ApprovalRequest {
                     approval_id: patch_approval_id.clone(),
                     task_id: started.task_id.clone(),
+                    task_revision,
                     level: crate::operator::ApprovalLevel::Approve,
                     action: "operator.patch.apply".to_string(),
                     title: "Review remote patch".to_string(),
@@ -1895,6 +1986,7 @@ mod tests {
                 approval_id: patch_approval_id,
                 decision: crate::operator::ApprovalDecision::Approve,
                 comment: Some("remote review complete".to_string()),
+                expected_revision: None,
             })
             .send()
             .await

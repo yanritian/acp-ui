@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-ui.example.com/schemas/operator/v1/event.schema.json",
+  "title": "OperatorEvent",
+  "description": "任务事件，不可变审计记录",
+  "type": "object",
+  "required": [
+    "event_id",
+    "task_id",
+    "sequence",
+    "task_revision",
+    "type",
+    "level",
+    "title_key",
+    "source",
+    "created_at"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^evt_[a-zA-Z0-9_-]+$",
+      "description": "事件唯一标识符"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^task_[a-zA-Z0-9_-]+$",
+      "description": "关联任务 ID"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "事件序号（按任务递增）"
+    },
+    "task_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "事件产生时的任务版本"
+    },
+    "type": {
+      "$ref": "#/definitions/EventType"
+    },
+    "level": {
+      "$ref": "#/definitions/EventLevel"
+    },
+    "title_key": {
+      "type": "string",
+      "description": "i18n 标题键（如 operatorEvents.taskStarted）"
+    },
+    "title_args": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "标题插值参数"
+    },
+    "message_key": {
+      "type": "string",
+      "description": "i18n 消息键"
+    },
+    "message_args": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "消息插值参数"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "operator-runtime",
+        "agent-runtime",
+        "tool-runner",
+        "hook-pipeline",
+        "godot-validator",
+        "hermes-cli"
+      ],
+      "description": "事件来源"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "事件负载数据"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "事件创建时间"
+    }
+  },
+  "definitions": {
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "task_created",
+        "task_started",
+        "project_analyzing",
+        "project_analyzed",
+        "project_analysis_failed",
+        "plan_started",
+        "plan_generating",
+        "plan_ready",
+        "plan_failed",
+        "approval_requested",
+        "approval_granted",
+        "approval_rejected",
+        "tool_call_started",
+        "tool_call_succeeded",
+        "tool_call_failed",
+        "step_started",
+        "step_executing",
+        "step_completed",
+        "step_failed",
+        "file_read",
+        "file_modified",
+        "file_patch_proposed",
+        "file_patch_applied",
+        "validation_started",
+        "validation_passed",
+        "validation_failed",
+        "validation_skipped",
+        "memory_read",
+        "memory_written",
+        "hook_started",
+        "hook_succeeded",
+        "hook_failed",
+        "task_paused",
+        "task_resumed",
+        "task_redirected",
+        "task_cancelling",
+        "task_completing",
+        "task_cancelled",
+        "task_failed",
+        "task_completed",
+        "summary_ready"
+      ]
+    },
+    "EventLevel": {
+      "type": "string",
+      "enum": ["info", "warning", "error", "debug"]
+    }
+  }
+}

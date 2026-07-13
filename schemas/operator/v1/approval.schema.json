@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-ui.example.com/schemas/operator/v1/approval.schema.json",
+  "title": "ApprovalRequest",
+  "description": "审批请求，高风险动作的前置审批",
+  "type": "object",
+  "required": [
+    "approval_id",
+    "task_id",
+    "task_revision",
+    "level",
+    "action",
+    "title_key",
+    "reason_key",
+    "options",
+    "created_at"
+  ],
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "pattern": "^appr_[a-zA-Z0-9_-]+$",
+      "description": "审批唯一标识符"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^task_[a-zA-Z0-9_-]+$",
+      "description": "关联任务 ID"
+    },
+    "task_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "审批请求时的任务版本"
+    },
+    "level": {
+      "$ref": "#/definitions/ApprovalLevel"
+    },
+    "action": {
+      "type": "string",
+      "description": "动作类型（如 file.patch, shell.command）"
+    },
+    "title_key": {
+      "type": "string",
+      "description": "i18n 标题键"
+    },
+    "reason_key": {
+      "type": "string",
+      "description": "i18n 原因键"
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "风险等级"
+    },
+    "preview": {
+      "$ref": "#/definitions/ApprovalPreview"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ApprovalDecision"
+      },
+      "minItems": 1,
+      "description": "可选决策"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "审批过期时间"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision": {
+      "$ref": "#/definitions/ApprovalDecision"
+    },
+    "resolved_by": {
+      "type": "string",
+      "description": "审批人标识"
+    }
+  },
+  "definitions": {
+    "ApprovalLevel": {
+      "type": "string",
+      "enum": ["silent", "notify", "approve", "forbidden"],
+      "description": "审批级别"
+    },
+    "ApprovalDecision": {
+      "type": "string",
+      "enum": ["approve", "reject", "request_changes"]
+    },
+    "ApprovalPreview": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "diff_id": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "diffs": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/FileDiffPreview"}
+        }
+      }
+    },
+    "FileDiffPreview": {
+      "type": "object",
+      "required": ["path", "operation", "diff"],
+      "properties": {
+        "path": {"type": "string"},
+        "operation": {"type": "string", "enum": ["create", "replace", "delete"]},
+        "diff": {"type": "string"}
+      }
+    }
+  }
+}

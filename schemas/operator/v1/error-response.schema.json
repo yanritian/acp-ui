@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-ui.example.com/schemas/operator/v1/error-response.schema.json",
+  "title": "ErrorResponse",
+  "description": "统一错误响应格式",
+  "type": "object",
+  "required": ["code", "category", "severity", "message_key", "timestamp"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "错误码（见 ErrorCodes 枚举）"
+    },
+    "category": {
+      "$ref": "#/definitions/ErrorCategory"
+    },
+    "severity": {
+      "$ref": "#/definitions/ErrorSeverity"
+    },
+    "message_key": {
+      "type": "string",
+      "description": "i18n 消息键"
+    },
+    "message_args": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "details": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "recoverable": {
+      "type": "boolean",
+      "default": false
+    },
+    "request_id": {
+      "type": "string",
+      "description": "请求追踪 ID"
+    }
+  },
+  "definitions": {
+    "ErrorCategory": {
+      "type": "string",
+      "enum": ["Validation", "Security", "Network", "FileSystem", "Agent", "State", "Approval", "Config", "Unknown"]
+    },
+    "ErrorSeverity": {
+      "type": "string",
+      "enum": ["Info", "Warning", "Error", "Critical"]
+    }
+  }
+}

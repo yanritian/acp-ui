@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-ui.example.com/schemas/operator/v1/task.schema.json",
+  "title": "OperatorTask",
+  "description": "游戏开发任务聚合根，唯一任务事实来源",
+  "type": "object",
+  "required": [
+    "task_id",
+    "revision",
+    "domain",
+    "project_path",
+    "goal",
+    "status",
+    "mode",
+    "approval_policy",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^task_[a-zA-Z0-9_-]+$",
+      "description": "任务唯一标识符"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "乐观并发控制版本号，每次状态变更递增"
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["game.godot", "game.unity", "game.unreal", "game.renpy"],
+      "description": "游戏领域标识"
+    },
+    "project_path": {
+      "type": "string",
+      "description": "项目绝对路径（D盘）"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "任务目标描述"
+    },
+    "status": {
+      "$ref": "#/definitions/TaskStatus"
+    },
+    "mode": {
+      "$ref": "#/definitions/TaskMode"
+    },
+    "approval_policy": {
+      "$ref": "#/definitions/ApprovalPolicy"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "创建时间（ISO 8601）"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "最后更新时间（ISO 8601）"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "执行开始时间"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "完成时间"
+    },
+    "current_step_id": {
+      "type": "integer",
+      "description": "当前执行步骤 ID"
+    },
+    "active_plan_revision": {
+      "type": "integer",
+      "description": "活动计划版本号"
+    },
+    "memory_snapshot_id": {
+      "type": "string",
+      "description": "记忆快照 ID"
+    },
+    "checkpoint_id": {
+      "type": "string",
+      "description": "检查点 ID"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "创建者标识"
+    },
+    "summary": {
+      "type": "string",
+      "description": "任务摘要"
+    },
+    "error": {
+      "type": "string",
+      "description": "错误信息"
+    }
+  },
+  "definitions": {
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "planning",
+        "waiting_approval",
+        "running",
+        "paused",
+        "redirecting",
+        "cancelling",
+        "cancelled",
+        "failed",
+        "completed"
+      ]
+    },
+    "TaskMode": {
+      "type": "string",
+      "enum": ["propose_then_apply", "apply_directly"],
+      "description": "执行模式：先提议再应用或直接应用"
+    },
+    "ApprovalPolicy": {
+      "type": "string",
+      "enum": ["safe_default", "permissive", "strict"],
+      "description": "审批策略"
+    }
+  }
+}

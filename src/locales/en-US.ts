@@ -1085,6 +1085,10 @@ export const enUS: MessageSchema = {
     selectProjectTitle: 'Select Godot Project Directory',
     notGodotProject: 'Selected directory is not a Godot project',
     selectProjectAndGoal: 'Please select a project and enter a goal',
+    projectPathPlaceholder: 'e.g., D:/projects/godot-game',
+    approvalQueue: 'Approval Queue',
+    executionPlan: 'Execution Plan',
+    progressTimeline: 'Progress Timeline',
   },
   operatorStatus: {
     idle: 'Idle',

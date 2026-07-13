@@ -27,7 +27,7 @@ IntelliJ IDEA client for Hermes Game Operator - Control Godot game development t
 ## Configuration
 
 1. Go to Settings → Tools → Hermes Game Operator
-2. Enter your Game Operator server URL (e.g., `http://localhost:8080`)
+2. Enter your Game Operator server URL (e.g., `http://127.0.0.1:1422`)
 3. Enter your authentication token (if required)
 
 ## Usage

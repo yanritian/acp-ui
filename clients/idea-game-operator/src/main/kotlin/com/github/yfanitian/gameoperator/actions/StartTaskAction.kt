@@ -2,14 +2,11 @@ package com.github.yfanitian.gameoperator.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.ui.Messages
+import com.github.yfanitian.gameoperator.ui.GameOperatorPanelRegistry
 
 class StartTaskAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
-        val goal = Messages.showInputDialog(e.project, "Enter task goal:", "Start Task", null)
-        if (goal != null) {
-            // TODO: Implement actual task creation
-        }
+        e.project?.let { GameOperatorPanelRegistry.get(it)?.startTask() }
     }
 
     override fun update(e: AnActionEvent) {

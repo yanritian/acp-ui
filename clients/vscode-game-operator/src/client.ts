@@ -48,7 +48,7 @@ export class GameOperatorClient {
 
     // Test connection
     try {
-      await this.client.get('/health')
+      await this.client.get('/api/health')
       this.connected = true
     } catch (error: any) {
       this.connected = false
@@ -68,7 +68,7 @@ export class GameOperatorClient {
   async listTasks(): Promise<OperatorTask[]> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const response = await this.client.get('/api/tasks')
+      const response = await this.client.get('/api/operator/tasks')
       return response.data.tasks || response.data || []
     } catch (error: any) {
       if (error.response?.status === 401) {
@@ -84,7 +84,7 @@ export class GameOperatorClient {
   async getTask(taskId: string): Promise<OperatorTask> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const response = await this.client.get(`/api/tasks/${taskId}`)
+      const response = await this.client.get(`/api/operator/tasks/${encodeURIComponent(taskId)}`)
       return response.data
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -97,14 +97,14 @@ export class GameOperatorClient {
   async startTask(goal: string, projectPath?: string): Promise<OperatorTask> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const response = await this.client.post('/api/tasks', {
+      const response = await this.client.post('/api/operator/tasks', {
         domain: 'game.godot',
         project_path: projectPath || '',
         goal,
         mode: 'propose_then_apply',
         approval_policy: 'safe_default'
       })
-      return response.data
+      return await this.getTask(response.data.task_id)
     } catch (error: any) {
       if (error.response?.status === 400) {
         throw new Error(`Invalid task request: ${error.response.data.message || 'Bad request'}`)
@@ -119,7 +119,7 @@ export class GameOperatorClient {
   async pauseTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/tasks/${taskId}/pause`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/pause`)
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -134,7 +134,7 @@ export class GameOperatorClient {
   async resumeTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/tasks/${taskId}/resume`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/resume`)
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -149,7 +149,7 @@ export class GameOperatorClient {
   async stopTask(taskId: string): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/tasks/${taskId}/stop`)
+      await this.client.post(`/api/operator/tasks/${encodeURIComponent(taskId)}/stop`)
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Task not found: ${taskId}`)
@@ -164,7 +164,7 @@ export class GameOperatorClient {
   async listEvents(taskId: string): Promise<OperatorEvent[]> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const response = await this.client.get(`/api/tasks/${taskId}/events`)
+      const response = await this.client.get(`/api/operator/tasks/${encodeURIComponent(taskId)}/events`)
       return response.data.events || response.data || []
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -177,9 +177,19 @@ export class GameOperatorClient {
   async getPendingApprovals(taskId?: string): Promise<ApprovalRequest[]> {
     if (!this.client) throw new Error('Not connected')
     try {
-      const url = taskId ? `/api/tasks/${taskId}/approvals` : '/api/approvals'
-      const response = await this.client.get(url)
-      return response.data.approvals || response.data || []
+      if (taskId) {
+        const response = await this.client.get(`/api/operator/tasks/${encodeURIComponent(taskId)}/approvals`)
+        return response.data.approvals || response.data || []
+      }
+
+      const tasks = await this.listTasks()
+      const approvals = await Promise.all(
+        tasks.map(async task => {
+          const response = await this.client!.get(`/api/operator/tasks/${encodeURIComponent(task.task_id)}/approvals`)
+          return response.data.approvals || response.data || []
+        })
+      )
+      return approvals.flat()
     } catch (error: any) {
       if (error.response?.status === 404) {
         return []
@@ -188,10 +198,18 @@ export class GameOperatorClient {
     }
   }
 
-  async approve(approvalId: string, decision: 'approve' | 'reject' | 'request_changes'): Promise<void> {
+  async approve(
+    taskId: string,
+    approvalId: string,
+    decision: 'approve' | 'reject' | 'request_changes'
+  ): Promise<void> {
     if (!this.client) throw new Error('Not connected')
     try {
-      await this.client.post(`/api/approvals/${approvalId}`, { decision })
+      await this.client.post('/api/operator/approvals/decision', {
+        task_id: taskId,
+        approval_id: approvalId,
+        decision,
+      })
     } catch (error: any) {
       if (error.response?.status === 404) {
         throw new Error(`Approval not found: ${approvalId}`)

@@ -36,7 +36,7 @@ function approvalOptions(approval: ApprovalRequest): ApprovalDecision[] {
 
 <template>
   <div class="approval-drawer">
-    <h3>{{ t('gameOperator.title') }}</h3>
+    <h3>{{ t('gameOperator.approvalQueue') }}</h3>
     <div v-if="approvals.length === 0" class="empty-state">
       {{ t('gameOperator.noPendingApprovals') }}
     </div>

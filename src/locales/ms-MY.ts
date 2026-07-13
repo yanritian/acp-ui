@@ -1085,6 +1085,10 @@ agentConfig: {
     selectProjectTitle: 'Pilih Direktori Projek Godot',
     notGodotProject: 'Direktori yang dipilih bukan projek Godot',
     selectProjectAndGoal: 'Sila pilih projek dan masukkan matlamat',
+    projectPathPlaceholder: 'contoh: D:/projects/godot-game',
+    approvalQueue: 'Barisan kelulusan',
+    executionPlan: 'Pelan pelaksanaan',
+    progressTimeline: 'Garis masa kemajuan',
   },
   operatorStatus: {
     idle: 'Tidak Aktif',

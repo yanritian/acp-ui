@@ -79,16 +79,16 @@ function getStepStatus(stepId: number): PlanStepView['status'] {
 }
 
 function statusLabel(status: PlanStepView['status']): string {
-  if (status === 'done') return 'Done'
-  if (status === 'running') return 'Now'
-  if (status === 'failed') return 'Failed'
-  return 'Next'
+  if (status === 'done') return t('common.completed')
+  if (status === 'running') return t('common.running')
+  if (status === 'failed') return t('common.failed')
+  return t('common.pending')
 }
 </script>
 
 <template>
   <div class="plan-panel">
-    <h3>{{ t('operatorEvent.planReady') }}</h3>
+    <h3>{{ t('gameOperator.executionPlan') }}</h3>
     <div class="plan-goal">
       <strong>{{ t('gameOperator.taskGoal') }}:</strong> {{ task.goal }}
     </div>

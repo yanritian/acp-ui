@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('gameOperator.connect', async () => {
       const config = vscode.workspace.getConfiguration('gameOperator')
-      const serverUrl = config.get<string>('serverUrl')
+      const serverUrl = config.get<string>('serverUrl', 'http://127.0.0.1:1422')
       const authToken = config.get<string>('authToken')
 
       if (!serverUrl) {
@@ -59,8 +59,14 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (!goal) return
 
+      const projectPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+      if (!projectPath) {
+        vscode.window.showErrorMessage('Open a Godot project folder before starting a task')
+        return
+      }
+
       try {
-        const task = await client?.startTask(goal)
+        const task = await client?.startTask(goal, projectPath)
         vscode.window.showInformationMessage(`Task started: ${task?.task_id}`)
         taskTreeProvider.refresh()
       } catch (error: any) {
@@ -108,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('gameOperator.approve', async (approval) => {
       try {
-        await client?.approve(approval.approval_id, 'approve')
+        await client?.approve(approval.task_id, approval.approval_id, 'approve')
         vscode.window.showInformationMessage('Approved')
         approvalsViewProvider.refresh()
       } catch (error: any) {
@@ -118,11 +124,32 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('gameOperator.reject', async (approval) => {
       try {
-        await client?.approve(approval.approval_id, 'reject')
+        await client?.approve(approval.task_id, approval.approval_id, 'reject')
         vscode.window.showInformationMessage('Rejected')
         approvalsViewProvider.refresh()
       } catch (error: any) {
         vscode.window.showErrorMessage(`Failed to reject: ${error.message}`)
+      }
+    }),
+
+    vscode.commands.registerCommand('gameOperator.showApproval', async (approval) => {
+      const decision = await vscode.window.showInformationMessage(
+        `${approval.title}\n${approval.reason}`,
+        'Approve',
+        'Reject'
+      )
+      if (!decision) return
+
+      try {
+        await client?.approve(
+          approval.task_id,
+          approval.approval_id,
+          decision === 'Approve' ? 'approve' : 'reject'
+        )
+        vscode.window.showInformationMessage(decision === 'Approve' ? 'Approved' : 'Rejected')
+        approvalsViewProvider.refresh()
+      } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to resolve approval: ${error.message}`)
       }
     })
   )

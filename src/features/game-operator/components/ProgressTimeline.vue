@@ -27,7 +27,7 @@ function eventLabel(type: string): string {
 
 <template>
   <div class="progress-timeline">
-    <h3>{{ t('gameOperator.title') }}</h3>
+    <h3>{{ t('gameOperator.progressTimeline') }}</h3>
     <div v-if="events.length === 0" class="empty-state">
       {{ t('operatorEvent.taskCreated') }}
     </div>

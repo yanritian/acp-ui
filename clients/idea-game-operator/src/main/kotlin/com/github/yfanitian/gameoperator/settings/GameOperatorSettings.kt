@@ -11,7 +11,7 @@ import com.intellij.util.xmlb.XmlSerializerUtil
     storages = [Storage("GameOperatorSettings.xml")]
 )
 class GameOperatorSettings : PersistentStateComponent<GameOperatorSettings> {
-    var serverUrl: String = "http://localhost:8080"
+    var serverUrl: String = "http://127.0.0.1:1422"
     var authToken: String = ""
 
     override fun getState(): GameOperatorSettings = this

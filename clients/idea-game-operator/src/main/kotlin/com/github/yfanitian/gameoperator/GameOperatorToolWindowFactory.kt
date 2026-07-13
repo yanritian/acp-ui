@@ -11,6 +11,7 @@ class GameOperatorToolWindowFactory : ToolWindowFactory {
         val gameOperatorPanel = GameOperatorPanel(project)
         val contentFactory = ContentFactory.getInstance()
         val content = contentFactory.createContent(gameOperatorPanel.getContent(), "", false)
+        content.setDisposer(gameOperatorPanel)
         toolWindow.contentManager.addContent(content)
     }
 

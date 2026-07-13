@@ -1084,6 +1084,10 @@ export type MessageSchema = {
     selectProjectTitle: string
     notGodotProject: string
     selectProjectAndGoal: string
+    projectPathPlaceholder: string
+    approvalQueue: string
+    executionPlan: string
+    progressTimeline: string
   }
   operatorStatus: {
     idle: string

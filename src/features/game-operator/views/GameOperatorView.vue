@@ -307,7 +307,7 @@ onUnmounted(() => {
           <input
             v-model="selectedProjectPath"
             type="text"
-            :placeholder="t('gameOperator.goalPlaceholder')"
+            :placeholder="t('gameOperator.projectPathPlaceholder')"
             class="path-field"
           />
           <button @click="handleSelectProject" class="btn-secondary">

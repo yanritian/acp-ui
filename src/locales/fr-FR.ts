@@ -1085,6 +1085,10 @@ agentConfig: {
     selectProjectTitle: 'Sélectionner le Répertoire du Projet Godot',
     notGodotProject: "Le répertoire sélectionné n'est pas un projet Godot",
     selectProjectAndGoal: 'Veuillez sélectionner un projet et entrer un objectif',
+    projectPathPlaceholder: 'ex. : D:/projects/godot-game',
+    approvalQueue: "File d'approbation",
+    executionPlan: "Plan d'exécution",
+    progressTimeline: 'Chronologie de progression',
   },
   operatorStatus: {
     idle: 'Inactif',

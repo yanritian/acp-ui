@@ -2,7 +2,7 @@
 // Displays tasks in the VSCode tree view
 
 import * as vscode from 'vscode'
-import { GameOperatorClient, OperatorTask } from '../client'
+import { GameOperatorClient } from '../client'
 
 export class TaskTreeProvider implements vscode.TreeDataProvider<TaskItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<TaskItem | undefined | void> = new vscode.EventEmitter<TaskItem | undefined | void>()

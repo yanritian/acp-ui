@@ -22,7 +22,7 @@ Add to your VSCode settings:
 
 ```json
 {
-  "gameOperator.serverUrl": "http://localhost:8080",
+  "gameOperator.serverUrl": "http://127.0.0.1:1422",
   "gameOperator.authToken": "your-token-here"
 }
 ```

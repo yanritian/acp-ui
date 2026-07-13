@@ -34,13 +34,13 @@ class GameOperatorConfigurable : Configurable {
     override fun isModified(): Boolean {
         val settings = GameOperatorSettings.getInstance()
         return serverUrlField?.text != settings.serverUrl ||
-               String(authTokenField?.password ?: charArrayOf(0)) != settings.authToken
+               String(authTokenField?.password ?: charArrayOf()) != settings.authToken
     }
 
     override fun apply() {
         val settings = GameOperatorSettings.getInstance()
         settings.serverUrl = serverUrlField?.text ?: ""
-        settings.authToken = String(authTokenField?.password ?: charArrayOf(0))
+        settings.authToken = String(authTokenField?.password ?: charArrayOf())
     }
 
     override fun reset() {

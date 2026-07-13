@@ -18,7 +18,7 @@ export class TimelineViewProvider implements vscode.TreeDataProvider<EventItem> 
     return element
   }
 
-  async getChildren(element?: EventItem): Promise<EventItem[]> {
+  async getChildren(_element?: EventItem): Promise<EventItem[]> {
     if (!this.client.isConnected()) {
       return []
     }

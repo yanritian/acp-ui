@@ -39,20 +39,22 @@ const messageLoaders: Record<string, () => Promise<MessageSchema>> = {
 }
 
 // 从 localStorage 或浏览器语言偏好获取初始语言
-function getInitialLocale(): string {
+function getInitialLocale(): SupportedLang {
   const stored = localStorage.getItem('acp-ui:locale')
   if (stored && SUPPORTED_LANGS.some(l => l.code === stored)) {
-    return stored
+    return stored as SupportedLang
   }
   // 回退到浏览器语言
   const browserLang = navigator.language
   const match = SUPPORTED_LANGS.find(l => browserLang.startsWith(l.code.split('-')[0]))
-  return match?.code ?? 'en-US'
+  return (match?.code ?? 'en-US') as SupportedLang
 }
 
 export const i18n = createI18n<[MessageSchema], string>({
   legacy: false, // Composition API 模式
-  locale: getInitialLocale(),
+  // Lazy locales are loaded before mount by loadInitialLocale(). Starting
+  // from an eagerly available locale prevents a first-render fallback flash.
+  locale: 'en-US',
   fallbackLocale: 'en-US',
   messages: {
     'zh-CN': zhCN,
@@ -64,10 +66,15 @@ export const i18n = createI18n<[MessageSchema], string>({
 export async function loadLanguageAsync(locale: SupportedLang): Promise<void> {
   const currentLocale = i18n.global.locale as any
   const currentLocaleValue = currentLocale.value ?? currentLocale
-  if (currentLocaleValue === locale) return
 
   // 如果还没有加载过该语言，动态导入
   const availableLocales = i18n.global.availableLocales
+  if (currentLocaleValue === locale && availableLocales.includes(locale)) {
+    localStorage.setItem('acp-ui:locale', locale)
+    document.documentElement.lang = locale
+    return
+  }
+
   if (!availableLocales.includes(locale) && messageLoaders[locale]) {
     const messages = await messageLoaders[locale]()
     i18n.global.setLocaleMessage(locale, messages)
@@ -82,6 +89,11 @@ export async function loadLanguageAsync(locale: SupportedLang): Promise<void> {
 
   localStorage.setItem('acp-ui:locale', locale)
   document.documentElement.lang = locale
+}
+
+/** Loads the stored/browser locale before the application mounts. */
+export async function loadInitialLocale(): Promise<void> {
+  await loadLanguageAsync(getInitialLocale())
 }
 
 // 导出 useI18n 的便捷封装

@@ -1085,6 +1085,10 @@ export const zhCN: MessageSchema = {
     selectProjectTitle: '选择 Godot 项目目录',
     notGodotProject: '所选目录不是 Godot 项目',
     selectProjectAndGoal: '请选择项目并输入目标',
+    projectPathPlaceholder: '例如：D:/projects/godot-game',
+    approvalQueue: '审批队列',
+    executionPlan: '执行计划',
+    progressTimeline: '进度时间线',
   },
   operatorStatus: {
     idle: '空闲',

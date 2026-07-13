@@ -53,6 +53,12 @@ data class ApprovalListResponse(
     val approvals: List<ApprovalRequest>
 )
 
+data class StartTaskResponse(
+    val task_id: String,
+    val status: String,
+    val event_stream: String
+)
+
 class GameOperatorApiClient(
     private val baseUrl: String,
     private val authToken: String? = null
@@ -69,7 +75,7 @@ class GameOperatorApiClient(
     fun isConnected(): Boolean {
         return try {
             val request = Request.Builder()
-                .url("$baseUrl/health")
+                .url("$baseUrl/api/health")
                 .get()
                 .apply {
                     authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -87,7 +93,7 @@ class GameOperatorApiClient(
     @Throws(IOException::class)
     fun listTasks(): List<OperatorTask> {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks")
+            .url("$baseUrl/api/operator/tasks")
             .get()
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -114,7 +120,7 @@ class GameOperatorApiClient(
     @Throws(IOException::class)
     fun getTask(taskId: String): OperatorTask {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks/$taskId")
+            .url("$baseUrl/api/operator/tasks/$taskId")
             .get()
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -142,7 +148,7 @@ class GameOperatorApiClient(
         ))
 
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks")
+            .url("$baseUrl/api/operator/tasks")
             .post(json.toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -155,14 +161,15 @@ class GameOperatorApiClient(
             }
 
             val body = response.body?.string() ?: throw IOException("Empty response")
-            return gson.fromJson(body, OperatorTask::class.java)
+            val startResponse = gson.fromJson(body, StartTaskResponse::class.java)
+            return getTask(startResponse.task_id)
         }
     }
 
     @Throws(IOException::class)
     fun pauseTask(taskId: String) {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks/$taskId/pause")
+            .url("$baseUrl/api/operator/tasks/$taskId/pause")
             .post("".toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -179,7 +186,7 @@ class GameOperatorApiClient(
     @Throws(IOException::class)
     fun resumeTask(taskId: String) {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks/$taskId/resume")
+            .url("$baseUrl/api/operator/tasks/$taskId/resume")
             .post("".toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -196,7 +203,7 @@ class GameOperatorApiClient(
     @Throws(IOException::class)
     fun stopTask(taskId: String) {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks/$taskId/stop")
+            .url("$baseUrl/api/operator/tasks/$taskId/stop")
             .post("".toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -213,7 +220,7 @@ class GameOperatorApiClient(
     @Throws(IOException::class)
     fun listEvents(taskId: String): List<OperatorEvent> {
         val request = Request.Builder()
-            .url("$baseUrl/api/tasks/$taskId/events")
+            .url("$baseUrl/api/operator/tasks/$taskId/events")
             .get()
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }
@@ -238,11 +245,11 @@ class GameOperatorApiClient(
 
     @Throws(IOException::class)
     fun getPendingApprovals(taskId: String? = null): List<ApprovalRequest> {
-        val url = if (taskId != null) {
-            "$baseUrl/api/tasks/$taskId/approvals"
-        } else {
-            "$baseUrl/api/approvals"
+        if (taskId == null) {
+            return listTasks().flatMap { task -> getPendingApprovals(task.task_id) }
         }
+
+        val url = "$baseUrl/api/operator/tasks/$taskId/approvals"
 
         val request = Request.Builder()
             .url(url)
@@ -269,11 +276,17 @@ class GameOperatorApiClient(
     }
 
     @Throws(IOException::class)
-    fun approve(approvalId: String, decision: String) {
-        val json = gson.toJson(mapOf("decision" to decision))
+    fun approve(taskId: String, approvalId: String, decision: String) {
+        val json = gson.toJson(
+            mapOf(
+                "task_id" to taskId,
+                "approval_id" to approvalId,
+                "decision" to decision
+            )
+        )
 
         val request = Request.Builder()
-            .url("$baseUrl/api/approvals/$approvalId")
+            .url("$baseUrl/api/operator/approvals/decision")
             .post(json.toRequestBody(JSON))
             .apply {
                 authToken?.let { addHeader("Authorization", "Bearer $it") }

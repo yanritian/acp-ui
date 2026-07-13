@@ -53,7 +53,7 @@ describe('ApprovalDrawer Accessibility', () => {
 
   describe('Internationalization', () => {
     it('should use i18n for titles', () => {
-      expect(approvalDrawerSource).toMatch(/t\('gameOperator\.title'\)/)
+      expect(approvalDrawerSource).toMatch(/t\('gameOperator\.approvalQueue'\)/)
     })
 
     it('should use i18n for decision labels', () => {

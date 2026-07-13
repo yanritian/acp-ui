@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { OperatorTask } from '@/types/operator'
+import { operatorStatusKey } from '../operatorStatus'
 
 const { t } = useI18n()
 
@@ -30,7 +31,7 @@ const statusColors: Record<string, string> = {
 const stoppableStatuses = ['planning', 'waiting_approval', 'running', 'paused', 'redirecting']
 
 function statusLabel(status: string): string {
-  return t(`operatorStatus.${status}`)
+  return t(`operatorStatus.${operatorStatusKey(status)}`)
 }
 </script>
 
@@ -42,13 +43,13 @@ function statusLabel(status: string): string {
         :style="{ background: statusColors[task.status] }"
         :aria-label="`${t('a11y.approvalLevel')}: ${statusLabel(task.status)}`"
       >
-        {{ task.status.toUpperCase() }}
+        {{ statusLabel(task.status) }}
       </div>
       <div class="task-details">
         <div class="task-goal">{{ task.goal }}</div>
         <div class="task-meta">
-          <span>Task: {{ task.task_id }}</span>
-          <span>Domain: {{ task.domain }}</span>
+          <span>{{ t('history.taskId') }}: {{ task.task_id }}</span>
+          <span>{{ t('evolution.domain') }}: {{ task.domain }}</span>
         </div>
       </div>
     </div>
@@ -60,7 +61,7 @@ function statusLabel(status: string): string {
         class="control-btn pause-btn"
         :aria-label="t('a11y.pauseButton')"
       >
-        {{ t('operatorStatus.paused') }}
+        {{ t('logStream.pause') }}
       </button>
       <button
         v-if="task.status === 'paused'"
@@ -68,7 +69,7 @@ function statusLabel(status: string): string {
         class="control-btn resume-btn"
         :aria-label="t('a11y.resumeButton')"
       >
-        {{ t('operatorStatus.running') }}
+        {{ t('logStream.resume') }}
       </button>
       <button
         v-if="stoppableStatuses.includes(task.status)"
@@ -76,7 +77,7 @@ function statusLabel(status: string): string {
         class="control-btn stop-btn"
         :aria-label="t('a11y.stopButton')"
       >
-        {{ t('operatorStatus.cancelling') }}
+        {{ t('agentConfig.stop') }}
       </button>
     </div>
   </div>

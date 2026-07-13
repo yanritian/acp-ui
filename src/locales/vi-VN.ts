@@ -1085,6 +1085,10 @@ agentConfig: {
     selectProjectTitle: 'Chọn Thư Mục Dự Án Godot',
     notGodotProject: 'Thư mục đã chọn không phải là dự án Godot',
     selectProjectAndGoal: 'Vui lòng chọn một dự án và nhập mục tiêu',
+    projectPathPlaceholder: 'ví dụ: D:/projects/godot-game',
+    approvalQueue: 'Hàng đợi phê duyệt',
+    executionPlan: 'Kế hoạch thực thi',
+    progressTimeline: 'Dòng thời gian tiến độ',
   },
   operatorStatus: {
     idle: 'Nhàn rỗi',

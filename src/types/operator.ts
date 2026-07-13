@@ -19,6 +19,8 @@ export type OperatorTaskStatus =
 
 export interface OperatorTask {
   task_id: string
+  /** Optimistic concurrency control revision, incremented on every state change */
+  revision: number
   domain: string  // e.g., 'game.godot'
   project_path: string
   goal: string

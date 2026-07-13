@@ -26,6 +26,9 @@ pub enum OperatorTaskStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatorTask {
     pub task_id: String,
+    /// Optimistic concurrency control revision, incremented on every state change
+    #[serde(default)]
+    pub revision: u64,
     pub domain: String,
     pub project_path: String,
     pub goal: String,

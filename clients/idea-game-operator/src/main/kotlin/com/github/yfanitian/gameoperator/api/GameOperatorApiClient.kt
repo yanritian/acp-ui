@@ -10,6 +10,8 @@ import java.util.concurrent.TimeUnit
 
 data class OperatorTask(
     val task_id: String,
+    /** Optimistic concurrency control revision, incremented on every state change */
+    val revision: Long,
     val domain: String,
     val project_path: String,
     val goal: String,

@@ -5,6 +5,8 @@ import axios, { AxiosInstance } from 'axios'
 
 export interface OperatorTask {
   task_id: string
+  /** Optimistic concurrency control revision */
+  revision: number
   domain: string
   project_path: string
   goal: string

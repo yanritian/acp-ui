@@ -275,6 +275,7 @@ pub(crate) fn start_task_in_state(
 
     let task = OperatorTask {
         task_id: task_id.clone(),
+        revision: 0, // Initial revision
         domain: request.domain.clone(),
         project_path: request.project_path.clone(),
         goal: request.goal.clone(),

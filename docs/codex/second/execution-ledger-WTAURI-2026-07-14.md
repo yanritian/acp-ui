@@ -116,7 +116,7 @@ GLM5 复核结论: Windows 系统级权限问题，非代码问题
 
 | ID | 状态 | 证据 |
 |---|------|------|
-| WTAURI-01 | BLOCKED | OS error 5，debug exe 存在 |
+| WTAURI-01 | WORKAROUND | lib test 通过，release build 成功（bin test OS error 5） |
 | WTAURI-02 | PASS | Release exe 29MB, cargo build --release 成功 |
 | WTAURI-03 | PASS | revision 字段、REVISION_CONFLICT 测试 |
 | WTAURI-04 | PASS | pause/resume/stop expected_revision |

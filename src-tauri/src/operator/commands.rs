@@ -2071,6 +2071,10 @@ fn run_local_approved_task_in_state(
     state: &mut OperatorState,
     task_id: &str,
 ) -> Result<(), String> {
+    // When Hermes Game CLI is unavailable, the task must NOT complete successfully.
+    // Per audit requirement P0: "Hermes Game 不可用 -> blocked 或 failed"
+    // This prevents fake success when no execution backend is available.
+
     let plan_steps = state
         .events
         .get(task_id)
@@ -2086,77 +2090,54 @@ fn run_local_approved_task_in_state(
         .cloned()
         .unwrap_or_default();
 
-    for step in &plan_steps {
-        let step_id = step.get("id").and_then(|value| value.as_u64()).unwrap_or(0);
-        let description = step
-            .get("description")
-            .and_then(|value| value.as_str())
-            .unwrap_or("Execute plan step");
-
-        push_operator_event(
-            state,
-            task_id,
-            OperatorEventType::StepStarted,
-            EventLevel::Info,
-            &format!("Step {} started", step_id),
-            Some(description.to_string()),
-            "operator_local_runner",
-            Some(json!({ "step_id": step_id })),
-        );
-        push_operator_event(
-            state,
-            task_id,
-            OperatorEventType::StepCompleted,
-            EventLevel::Info,
-            &format!("Step {} completed", step_id),
-            Some(description.to_string()),
-            "operator_local_runner",
-            Some(json!({ "step_id": step_id })),
-        );
-    }
-
+    // Emit EXECUTOR_UNAVAILABLE error event
     push_operator_event(
         state,
         task_id,
-        OperatorEventType::TaskCompleting,
-        EventLevel::Info,
-        "Task completing",
-        Some("Finalizing operator control loop.".to_string()),
-        "operator",
-        None,
+        OperatorEventType::HookFailed,
+        EventLevel::Error,
+        "EXECUTOR_UNAVAILABLE: No Hermes execution backend available",
+        Some(
+            "Controlled game tasks require Hermes Game structured proposals. \
+             No files were modified. Configure ACP_HERMES_GAME_CLI_PATH or place hermes-game.exe in bin/."
+                .to_string(),
+        ),
+        "operator_patch_engine",
+        Some(json!({
+            "error_code": "EXECUTOR_UNAVAILABLE",
+            "plan_steps_count": plan_steps.len()
+        })),
     );
 
-    {
-        let machine = state
-            .state_machines
-            .get_mut(task_id)
-            .ok_or_else(|| format!("Task not found: {}", task_id))?;
-        machine.complete().map_err(|e| e.to_string())?;
-    }
-
+    // Mark task as Failed instead of Completed
     if let Some(task) = state.tasks.get_mut(task_id) {
-        task.status = OperatorTaskStatus::Completed;
+        task.status = OperatorTaskStatus::Failed;
         task.updated_at = chrono::Utc::now().to_rfc3339();
         task.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        task.error = Some("EXECUTOR_UNAVAILABLE: Hermes Game CLI not available".to_string());
         task.summary = Some(format!(
-            "Operator control loop completed for '{}'. Local runner recorded {} plan steps; no files were modified without a Hermes execution backend.",
-            task.goal,
+            "Task blocked: Hermes execution backend unavailable. {} plan steps were recorded but not executed.",
             plan_steps.len()
         ));
     }
 
+    // Emit TaskFailed event, NOT TaskCompleted
     push_operator_event(
         state,
         task_id,
-        OperatorEventType::TaskCompleted,
-        EventLevel::Info,
-        "Task completed",
-        Some("Operator control loop completed.".to_string()),
+        OperatorEventType::TaskFailed,
+        EventLevel::Error,
+        "Task failed: executor unavailable",
+        Some("Hermes Game CLI is required for controlled game tasks.".to_string()),
         "operator",
-        Some(json!({ "steps_completed": plan_steps.len() })),
+        Some(json!({
+            "error_code": "EXECUTOR_UNAVAILABLE",
+            "steps_recorded": plan_steps.len()
+        })),
     );
 
-    Ok(())
+    // Persist the failure state
+    state.persist()
 }
 
 fn record_file_change(state: &mut OperatorState, task_id: &str, path: &str, change_type: &str) {
@@ -2878,26 +2859,29 @@ pub(crate) fn stop_task_in_state(state: &mut OperatorState, task_id: &str) -> Re
 pub async fn operator_pause_task(
     state: State<'_, Arc<Mutex<OperatorState>>>,
     task_id: String,
+    expected_revision: Option<u64>,
 ) -> Result<(), String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    pause_task_in_state(&mut state, &task_id)
+    pause_task_in_state_with_revision(&mut state, &task_id, expected_revision)
 }
 
 #[tauri::command]
 pub async fn operator_resume_task(
     state: State<'_, Arc<Mutex<OperatorState>>>,
     task_id: String,
+    expected_revision: Option<u64>,
 ) -> Result<(), String> {
-    resume_task_in_shared_state_for_background(state.inner().clone(), task_id)
+    resume_task_in_shared_state_for_background_with_revision(state.inner().clone(), task_id, expected_revision)
 }
 
 #[tauri::command]
 pub async fn operator_stop_task(
     state: State<'_, Arc<Mutex<OperatorState>>>,
     task_id: String,
+    expected_revision: Option<u64>,
 ) -> Result<(), String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    stop_task_in_state(&mut state, &task_id)
+    stop_task_in_state_with_revision(&mut state, &task_id, expected_revision)
 }
 
 #[tauri::command]
@@ -4317,22 +4301,25 @@ exit 1
             },
             None,
         )
-        .expect("approval should complete task");
+        .expect("approval should fail task");
 
+        // Without Hermes CLI, task should be Failed (not Completed)
         let task = state.tasks.get(&response.task_id).expect("task stored");
-        assert_eq!(task.status, OperatorTaskStatus::Completed);
+        assert_eq!(task.status, OperatorTaskStatus::Failed);
         assert!(task.completed_at.is_some());
-        assert!(task
-            .summary
-            .as_deref()
-            .unwrap_or_default()
-            .contains("completed"));
+        assert!(task.error.as_ref().unwrap().contains("EXECUTOR_UNAVAILABLE"));
 
         let events = state.events.get(&response.task_id).expect("events stored");
+        // Should have EXECUTOR_UNAVAILABLE error event
+        assert!(events.iter().any(|e| {
+            e.event_type == OperatorEventType::HookFailed
+                && e.message.as_ref().map(|m| m.contains("EXECUTOR_UNAVAILABLE")).unwrap_or(false)
+        }));
+        // Should have TaskFailed, NOT TaskCompleted
         assert!(events
             .iter()
-            .any(|e| matches!(e.event_type, OperatorEventType::StepCompleted)));
-        assert!(events
+            .any(|e| matches!(e.event_type, OperatorEventType::TaskFailed)));
+        assert!(!events
             .iter()
             .any(|e| matches!(e.event_type, OperatorEventType::TaskCompleted)));
     }
@@ -4363,15 +4350,12 @@ exit 1
             },
             Some(fake_cli),
         )
-        .expect("approval should use no-write fallback");
+        .expect("approval should fail with executor unavailable");
 
+        // Task should be Failed (not Completed) when Hermes is unavailable
         let task = state.tasks.get(&response.task_id).expect("task stored");
-        assert_eq!(task.status, OperatorTaskStatus::Completed);
-        assert!(task
-            .summary
-            .as_deref()
-            .unwrap_or_default()
-            .contains("no files were modified"));
+        assert_eq!(task.status, OperatorTaskStatus::Failed);
+        assert!(task.error.as_ref().unwrap().contains("EXECUTOR_UNAVAILABLE"));
 
         let events = state.events.get(&response.task_id).expect("events stored");
         assert!(events.iter().any(|event| {
@@ -4381,7 +4365,11 @@ exit 1
         assert!(!events
             .iter()
             .any(|event| matches!(event.event_type, OperatorEventType::FileModified)));
+        // Should have TaskFailed, NOT TaskCompleted
         assert!(events
+            .iter()
+            .any(|event| matches!(event.event_type, OperatorEventType::TaskFailed)));
+        assert!(!events
             .iter()
             .any(|event| matches!(event.event_type, OperatorEventType::TaskCompleted)));
 

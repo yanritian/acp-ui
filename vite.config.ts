@@ -39,6 +39,8 @@ export default defineConfig(async ({ mode }) => {
         '**/dist/**',
         // Integration tests requiring Tauri runtime - run separately
         'src/api/__tests__/**',
+        // WDIO E2E tests for Tauri native - run via npm run test:tauri
+        'test/**/*.test.js',
       ],
     },
 

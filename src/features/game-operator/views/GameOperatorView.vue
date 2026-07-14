@@ -114,7 +114,7 @@ async function handleStartTask() {
 async function handlePause() {
   if (!currentTask.value) return
   try {
-    await OperatorApi.pauseTask(currentTask.value.task_id)
+    await OperatorApi.pauseTask(currentTask.value.task_id, currentTask.value.revision)
     await refreshSnapshot()
   } catch (e: any) {
     error.value = e.message
@@ -124,7 +124,7 @@ async function handlePause() {
 async function handleResume() {
   if (!currentTask.value) return
   try {
-    await OperatorApi.resumeTask(currentTask.value.task_id)
+    await OperatorApi.resumeTask(currentTask.value.task_id, currentTask.value.revision)
     await refreshSnapshot()
     startEventPolling()
   } catch (e: any) {
@@ -135,7 +135,7 @@ async function handleResume() {
 async function handleStop() {
   if (!currentTask.value) return
   try {
-    await OperatorApi.stopTask(currentTask.value.task_id)
+    await OperatorApi.stopTask(currentTask.value.task_id, currentTask.value.revision)
     await refreshSnapshot()
     startEventPolling()
   } catch (e: any) {

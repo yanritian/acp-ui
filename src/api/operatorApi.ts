@@ -58,18 +58,18 @@ export const OperatorApi = {
   },
 
   // Pause a running task
-  async pauseTask(taskId: string): Promise<void> {
-    return invoke<void>('operator_pause_task', { taskId })
+  async pauseTask(taskId: string, expectedRevision?: number): Promise<void> {
+    return invoke<void>('operator_pause_task', { taskId, expectedRevision })
   },
 
   // Resume a paused task
-  async resumeTask(taskId: string): Promise<void> {
-    return invoke<void>('operator_resume_task', { taskId })
+  async resumeTask(taskId: string, expectedRevision?: number): Promise<void> {
+    return invoke<void>('operator_resume_task', { taskId, expectedRevision })
   },
 
   // Stop a running task
-  async stopTask(taskId: string): Promise<void> {
-    return invoke<void>('operator_stop_task', { taskId })
+  async stopTask(taskId: string, expectedRevision?: number): Promise<void> {
+    return invoke<void>('operator_stop_task', { taskId, expectedRevision })
   },
 
   // Redirect task to new goal

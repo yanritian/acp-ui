@@ -79,12 +79,12 @@ GLM5 复核结论: Hermes CLI 不可用，EXECUTOR_UNAVAILABLE 路径已验证
 | WTAURI-04 | PASS | pause/resume/stop expected_revision |
 | WTAURI-05 | BLOCKED | Hermes CLI 不存在 |
 | WTAURI-06 | PASS | 事件正序、after_sequence |
-| WTAURI-07 | TODO | native E2E |
+| WTAURI-07 | BLOCKED | wdio tauri-service 依赖版本不兼容 |
 | WTAURI-08 | TODO | Godot validation |
 | WTAURI-09 | TODO | Skill/MCP/Hook |
-| WTAURI-10 | VERIFIED | RemoteAccessPolicy 实现 |
-| WTAURI-11 | TODO | CI 脚本 |
-| WTAURI-12 | TODO | 多语言检查 |
+| WTAURI-10 | PASS | RemoteAccessPolicy 实现 |
+| WTAURI-11 | PASS | CI 无 continue-on-error |
+| WTAURI-12 | PASS | 多语言 i18n gameOperator keys |
 
 ## 续跑提示词
 

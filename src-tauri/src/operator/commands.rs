@@ -2925,6 +2925,7 @@ pub async fn operator_list_events(
     state: State<'_, Arc<Mutex<OperatorState>>>,
     task_id: String,
     limit: Option<usize>,
+    after_sequence: Option<u64>,
 ) -> Result<Vec<OperatorEvent>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
 
@@ -2933,8 +2934,14 @@ pub async fn operator_list_events(
         .get(&task_id)
         .ok_or_else(|| format!("Task not found: {}", task_id))?;
 
+    // Return events in sequence ascending order (consistent with HTTP endpoint)
+    let filtered: Vec<OperatorEvent> = match after_sequence {
+        Some(seq) => events.iter().filter(|e| e.sequence > seq).cloned().collect(),
+        None => events.clone(),
+    };
+
     let limit = limit.unwrap_or(100);
-    Ok(events.iter().rev().take(limit).cloned().collect())
+    Ok(filtered.into_iter().take(limit).collect())
 }
 
 #[tauri::command]

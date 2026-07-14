@@ -95,9 +95,9 @@ export const OperatorApi = {
   // Events
   // ============================================================================
 
-  // List events for a task
-  async listEvents(taskId: string, limit?: number): Promise<OperatorEvent[]> {
-    return invoke<OperatorEvent[]>('operator_list_events', { taskId, limit })
+  // List events for a task (sequence ascending, supports pagination)
+  async listEvents(taskId: string, limit?: number, afterSequence?: number): Promise<OperatorEvent[]> {
+    return invoke<OperatorEvent[]>('operator_list_events', { taskId, limit, afterSequence })
   },
 
   // ============================================================================

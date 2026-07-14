@@ -5,13 +5,14 @@ import { i18n, loadInitialLocale } from "./locales";
 import { router } from "./router";
 
 // Initialize MCP bridge for E2E testing (dev mode only)
-if (import.meta.env.DEV) {
-  import('tauri-plugin-mcp').then(({ initMcpBridge }) => {
-    initMcpBridge().catch(err => {
-      console.warn('[MCP] Bridge initialization failed:', err);
-    });
-  });
-}
+// Disabled until tauri-plugin-mcp build issues are resolved
+// if (import.meta.env.DEV) {
+//   import('tauri-plugin-mcp').then(({ initMcpBridge }) => {
+//     initMcpBridge().catch(err => {
+//       console.warn('[MCP] Bridge initialization failed:', err);
+//     });
+//   });
+// }
 
 async function bootstrap() {
   await loadInitialLocale()

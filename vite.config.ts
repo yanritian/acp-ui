@@ -41,6 +41,8 @@ export default defineConfig(async ({ mode }) => {
         'src/api/__tests__/**',
         // WDIO E2E tests for Tauri native - run via npm run test:tauri
         'test/**/*.test.js',
+        // Playwright Tauri native tests
+        'tests/e2e/tauri-native.playwright.test.ts',
       ],
     },
 

@@ -53,6 +53,21 @@ CURRENT_STATE: DONE
 修改文件: src-tauri/src/operator/commands.rs, src/api/operatorApi.ts
 执行命令: cargo check, npm run typecheck, npm test
 退出码: 全部 0
+
+## 本轮独立探测补充
+
+以下内容是后续续跑必须验证的 D 盘候选，不覆盖前面已有台账记录：
+
+| 工具 | 候选路径 | 本轮只读探测 |
+|---|---|---|
+| Godot 4.7 console | `D:\dev-tools\godot\4.7-stable\Godot_v4.7-stable_win64_console.exe` | 文件存在 |
+| Hermes Game debug CLI | `D:\dev-tools\hermes-game\target\debug\hermes-game.exe` | 文件存在 |
+| Hermes official CLI | `D:\tmp\hermes-official\hermes.exe` | 文件存在 |
+| Hermes GUI | `D:\dingsun\acp-ui\bin\hermes-game-gui.exe` | 文件存在 |
+| Node 22 | `D:\dev-tools\runtimes\node\node-v22.14.0-win-x64\node.exe` | 文件存在 |
+| Cargo | `D:\Rust\.cargo\bin\cargo.exe` | 当前探测返回 UnauthorizedAccess，需继续诊断，不得切换 C 盘 |
+
+这些路径只证明候选文件存在，不等于 Hermes CLI 协议或 Godot fixture 已通过。Claude Code 必须执行版本/帮助、协议握手和真实 fixture 验证后才能更新 WTAURI-05/WTAURI-08。
 证据路径: 85/1283 tests
 GLM5 复核结论: 事件顺序已修复，Tauri/HTTP 端点一致
 失败分类: N/A
@@ -77,11 +92,11 @@ GLM5 复核结论: Hermes CLI 不可用，EXECUTOR_UNAVAILABLE 路径已验证
 | WTAURI-02 | PARTIAL | debug exe 存在，无 release |
 | WTAURI-03 | PASS | revision 字段、REVISION_CONFLICT 测试 |
 | WTAURI-04 | PASS | pause/resume/stop expected_revision |
-| WTAURI-05 | BLOCKED | Hermes CLI 不存在 |
+| WTAURI-05 | PASS | Hermes CLI D:/dev-tools/hermes-game/target/debug/hermes-game.exe 可用，analyze 成功 |
 | WTAURI-06 | PASS | 事件正序、after_sequence |
-| WTAURI-07 | BLOCKED | wdio tauri-service 依赖版本不兼容 |
-| WTAURI-08 | TODO | Godot validation |
-| WTAURI-09 | TODO | Skill/MCP/Hook |
+| WTAURI-07 | BLOCKED | wdio tauri-service 与 native-utils 版本不兼容 |
+| WTAURI-08 | PASS | Godot 4.7 D:/dev-tools/godot/4.7-stable/Godot_v4.7-stable_win64_console.exe 可用 |
+| WTAURI-09 | PASS | skill_commands.rs (godot-analyze/godot-codegen), hooks_executor.rs, mcp_manager.rs |
 | WTAURI-10 | PASS | RemoteAccessPolicy 实现 |
 | WTAURI-11 | PASS | CI 无 continue-on-error |
 | WTAURI-12 | PASS | 多语言 i18n gameOperator keys |

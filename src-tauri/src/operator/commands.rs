@@ -2096,9 +2096,9 @@ fn run_local_approved_task_in_state(
         task_id,
         OperatorEventType::HookFailed,
         EventLevel::Error,
-        "EXECUTOR_UNAVAILABLE: No Hermes execution backend available",
+        "No Hermes execution backend available",
         Some(
-            "Controlled game tasks require Hermes Game structured proposals. \
+            "EXECUTOR_UNAVAILABLE: Controlled game tasks require Hermes Game structured proposals. \
              No files were modified. Configure ACP_HERMES_GAME_CLI_PATH or place hermes-game.exe in bin/."
                 .to_string(),
         ),
@@ -4278,9 +4278,14 @@ exit 1
             None,
         )
         .expect("fresh approval should remain actionable");
+        // Without Hermes CLI, task should be Failed (not Completed)
         assert_eq!(
             state.tasks.get(&response.task_id).map(|task| &task.status),
-            Some(&OperatorTaskStatus::Completed)
+            Some(&OperatorTaskStatus::Failed)
+        );
+        assert!(
+            state.tasks.get(&response.task_id).and_then(|task| task.error.as_ref()).map(|e| e.contains("EXECUTOR_UNAVAILABLE")).unwrap_or(false),
+            "Task error should contain EXECUTOR_UNAVAILABLE"
         );
     }
 

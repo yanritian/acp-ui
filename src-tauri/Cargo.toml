@@ -63,6 +63,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-wdio-webdriver = "1.2"
 # tauri-plugin-mcp = { git = "https://github.com/DaveDev42/tauri-plugin-mcp" }
 # Disabled: has compilation errors with Tauri 2.x devtools API
 serde = { version = "1", features = ["derive"] }

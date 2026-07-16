@@ -10,6 +10,31 @@
 - 如果操作需要临时文件，使用 `D:\tmp` 或项目内的 `tmp/` 目录
 - 如果工具默认行为会写入 C 盘（如缓存、配置），必须重定向到 D 盘
 
+### C 盘缓存重定向配置
+
+**必须配置以下环境变量，确保工具使用 D 盘缓存：**
+
+```powershell
+# 在 PowerShell 中执行（一次性配置）
+[Environment]::SetEnvironmentVariable('npm_config_cache', 'D:\dingsun\acp-ui\.npm-cache', 'User')
+[Environment]::SetEnvironmentVariable('TEMP', 'D:\dingsun\acp-ui\.tmp\temp', 'User')
+[Environment]::SetEnvironmentVariable('TMP', 'D:\dingsun\acp-ui\.tmp\tmp', 'User')
+[Environment]::SetEnvironmentVariable('CARGO_HOME', 'D:\Rust\.cargo', 'User')
+[Environment]::SetEnvironmentVariable('RUSTUP_HOME', 'D:\Rust\.rustup', 'User')
+[Environment]::SetEnvironmentVariable('CARGO_TARGET_DIR', 'D:\dingsun\acp-ui\src-tauri\target', 'User')
+```
+
+**在 Bash/PowerShell 会话中临时设置：**
+
+```bash
+export npm_config_cache="D:/dingsun/acp-ui/.npm-cache"
+export TEMP="D:/dingsun/acp-ui/.tmp/temp"
+export TMP="D:/dingsun/acp-ui/.tmp/tmp"
+export CARGO_HOME="D:/Rust/.cargo"
+export RUSTUP_HOME="D:/Rust/.rustup"
+export CARGO_TARGET_DIR="D:/dingsun/acp-ui/src-tauri/target"
+```
+
 **违反此规则 = 立即停止并回退。**
 
 ## 开发工作区路径
